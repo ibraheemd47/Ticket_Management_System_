@@ -5,6 +5,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
@@ -79,8 +81,26 @@ public class UserService {
     }
 
     // ===================================================================================================================================
-    // _________________________________________HELPER METHODS_________________________________________
+    //                                             HELPER METHODS
     // ===================================================================================================================================
+        private Member getMemberById(String targetMemberId) {
+        return userRepository.findById(targetMemberId)
+                .orElseThrow(() -> new RuntimeException("Member not found"));
+    }
+    private void validateCompanyRoleRequest(CompanyRoleAssignment assignment) {
+        if (assignment.getCompanyId() == null || assignment.getCompanyId().isBlank()) {
+            throw new RuntimeException("Company id cannot be empty");
+        }
+
+        if (assignment.getRoleType() == null) {
+            throw new RuntimeException("Role type is required");
+        }
+
+        if (assignment.getRoleType() == CompanyRoleType.OWNER ||
+                assignment.getRoleType() == CompanyRoleType.MANAGER) {
+            throw new RuntimeException("Appointed by member id is required");
+        }
+    }
 
     public Member getMemberByToken(String tokenValue) {
         if (tokenValue == null || tokenValue.isBlank()) {
