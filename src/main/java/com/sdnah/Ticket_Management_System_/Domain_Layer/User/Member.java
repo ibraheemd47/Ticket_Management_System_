@@ -13,7 +13,6 @@ public class Member {
     private boolean active;
     private boolean loggedin;
 
-    
     public Member(String memberId, String username, String passwordHash) {
         this.memberId = memberId;
         this.username = username;
