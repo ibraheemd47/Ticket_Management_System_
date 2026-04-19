@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.User;
 
+import org.apache.catalina.User;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
@@ -12,6 +14,7 @@ public class Member {
     private String passwordHash;
     private boolean active;
     private boolean loggedin;
+    protected UserRole role;
 
     public Member(String memberId, String username, String passwordHash) {
         this.memberId = memberId;
@@ -19,7 +22,10 @@ public class Member {
         this.passwordHash = passwordHash;
         active = true ;
         loggedin= true ; 
+
+        this.role = UserRole.MEMBER;
     }
+
     public String getMemberId() {
         return memberId;
     }
@@ -41,5 +47,9 @@ public class Member {
         loggedin = false;
     }
 
+    public UserRole getRole() {
+        return role;
+     }
+     
 
 }

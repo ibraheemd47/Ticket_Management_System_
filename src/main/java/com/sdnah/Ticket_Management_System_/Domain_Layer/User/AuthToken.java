@@ -3,9 +3,14 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.User;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "auth_tokens")
 public class AuthToken {
 
-        private final String tokenValue;
+    private final String tokenValue;
     private final String memberId;
     private final LocalDateTime expiresAt;
 
@@ -14,7 +19,6 @@ public class AuthToken {
         this.memberId = Objects.requireNonNull(memberId);
         this.expiresAt = Objects.requireNonNull(expiresAt);
     }
-
 
     public String getTokenValue() {
         return tokenValue;
