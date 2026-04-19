@@ -23,6 +23,7 @@ public class MemoryCompanyRepository implements ICompanyRepository {
         }
         // Atomic put operation
         companies.put(company.getCompanyId(), company);
+        
     }
 
     @Override
