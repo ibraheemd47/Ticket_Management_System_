@@ -10,10 +10,10 @@ public class Company {
     private boolean isOpen;
     private final int companyFounderId; // מזהה נומרי למייסד
 
-    // פוליסות (Interfaces בתוך ה-Domain) [cite: 526, 678]
-    private PurchasePolicy purchasePolicy;
-    private DiscountPolicy discountPolicy;
-    private SellingPolicy sellingPolicy;
+    // POLICY
+    // private PurchasePolicy purchasePolicy;
+    // private DiscountPolicy discountPolicy;
+    // private SellingPolicy sellingPolicy;
 
     // ניהול מזהים בלבד לשמירה על הפרדת שכבות 
     private final List<Integer> associatedEventIds; // II.2.1 
@@ -21,11 +21,7 @@ public class Company {
     private final List<Integer> orderHistoryIds;// Use Case: II.4.5 - View company order history
     private final List<Integer> authorizedManagerIds;// Use Case: II.4.7 - Appoint Company Manager
 
-    public Company(int companyId, String companyName,
-                             int companyFounderId,
-                             PurchasePolicy purchasePolicy,
-                             DiscountPolicy discountPolicy,
-                             SellingPolicy sellingPolicy) {
+    public Company(int companyId, String companyName, int companyFounderId ) {
         // אילוצי נכונות (Validation) - גרסה 1 דורשת אכיפה במבנה הפעולות [cite: 1098]
         if (companyId <= 0) {
             throw new IllegalArgumentException("company id must be positive");
@@ -36,19 +32,18 @@ public class Company {
         if (companyFounderId <= 0) {
             throw new IllegalArgumentException("founder ID must be positive");
         }
-        if (purchasePolicy == null || discountPolicy == null || sellingPolicy == null) {
-            throw new IllegalArgumentException("policies cannot be null");
-        }
+        // if (purchasePolicy == null || discountPolicy == null || sellingPolicy == null) {
+        //     throw new IllegalArgumentException("policies cannot be null");
+        // }
 
         this.companyId = companyId;
         this.companyName = companyName;
-        this.isOpen = true; // חברה נפתחת כפעילה (Use Case II.1.1) [cite: 1183, 1232]
+        this.isOpen = true; // (Use Case II.1.1) 
         this.companyFounderId = companyFounderId;
-        this.purchasePolicy = purchasePolicy;
-        this.discountPolicy = discountPolicy;
-        this.sellingPolicy = sellingPolicy;
+        // this.purchasePolicy = purchasePolicy;
+        // this.discountPolicy = discountPolicy;
+        // this.sellingPolicy = sellingPolicy;
 
-        // אתחול רשימות בטוחות לעבודה מקבילית [cite: 732]
         this.associatedEventIds = new CopyOnWriteArrayList<>();
         this.purchaseHistoryIds = new CopyOnWriteArrayList<>();
         this.orderHistoryIds = new CopyOnWriteArrayList<>();
@@ -56,10 +51,7 @@ public class Company {
     }
 
     // --- Use Case: II.2.1 & II.4.1 - View Company Events ---
-    /**
-     * מחזיר רשימת מזהי אירועים. 
-     * ה-Service ישתמש במזהים אלו כדי למשוך את אובייקטי ה-Event מה-Repository.
-     */
+
     public List<Integer> getAssociatedEventIds() {
         return Collections.unmodifiableList(associatedEventIds);
     }
@@ -81,7 +73,6 @@ public class Company {
         if (!associatedEventIds.contains(eventId)) {
             throw new IllegalArgumentException("event does not exist in company catalog");
         }
-        // הסרה לפי אובייקט Integer כדי למנוע בלבול עם אינדקס
         associatedEventIds.remove(Integer.valueOf(eventId));
     }
 
@@ -118,7 +109,7 @@ public class Company {
         if (managerId <= 0) {
             throw new IllegalArgumentException("manager ID must be positive");
         }
-        // אילוץ נכונות: מייסד/בעלים לא יכול להיות ממונה למנהל (לפי הלוגיקה שהגדרנו)
+// Integrity Constraint: The founder/owner cannot be appointed as a manager (based on defined business logic).
         if (managerId == this.companyFounderId) {
             throw new IllegalArgumentException("Founder is already an owner and cannot be appointed as manager");
         }
@@ -128,21 +119,6 @@ public class Company {
         authorizedManagerIds.add(managerId);
     }
 
-
-
-   
-
-    // // --- II.4.7: מינוי מנהל (מזהה נומרי) ---
-    // public void appointManager(int managerId) {
-    //     if (managerId <= 0) {
-    //         throw new IllegalArgumentException("manager ID must be positive");
-    //     }
-    //     if (authorizedManagerIds.contains(managerId)) {
-    //         throw new IllegalArgumentException("manager already exists");
-    //     }
-    //     authorizedManagerIds.add(managerId);
-    // }
-
     
 
     // Getters
@@ -150,6 +126,17 @@ public class Company {
     public String getCompanyName() { return companyName; }
     public boolean isOpen() { return isOpen; }
     public int getCompanyFounderId() { return companyFounderId; }
+
+    public List<Integer> getManagers() {
+        // TODO Auto-generated method stub
+        //throw new UnsupportedOperationException("Unimplemented method 'getManagers'");
+        return Collections.unmodifiableList(authorizedManagerIds);
+    }
+
+    public void setOpen(boolean isOpen2) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setOpen'");
+    }
 
     
 }
