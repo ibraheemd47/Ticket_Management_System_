@@ -12,63 +12,27 @@ public class Notification {
     private final NotificationType type;
     private final LocalDateTime createdAt;
 
-    private NotificationStatus status;
-    private boolean active;
-
     public Notification(String recipientUsername, String message, NotificationType type) {
-        this(UUID.randomUUID().toString(), recipientUsername, message, type,
-                LocalDateTime.now(), NotificationStatus.PENDING, true);
+        this(UUID.randomUUID().toString(), recipientUsername, message, type, LocalDateTime.now());
     }
 
-    public Notification(String id,
-                        String recipientUsername,
-                        String message,
-                        NotificationType type,
-                        LocalDateTime createdAt,
-                        NotificationStatus status,
-                        boolean active) {
-
+    public Notification(String id, String recipientUsername, String message, NotificationType type, LocalDateTime createdAt) {
         validateId(id);
         validateRecipientUsername(recipientUsername);
         validateMessage(message);
         validateType(type);
         validateCreatedAt(createdAt);
-        validateStatus(status);
-
         this.id = id;
         this.recipientUsername = recipientUsername.trim();
         this.message = message.trim();
         this.type = type;
         this.createdAt = createdAt;
-        this.status = status;
-        this.active = active;
     }
 
-    public void markAsDelivered() {
-        if (!active) {
-            throw new IllegalStateException("Cannot deliver an inactive notification.");
-        }
-        if (status == NotificationStatus.READ) {
-            return;
-        }
-        status = NotificationStatus.DELIVERED;
-    }
-
-    public void markAsRead() {
-        if (!active) {
-            throw new IllegalStateException("Cannot read an inactive notification.");
-        }
-        status = NotificationStatus.READ;
-    }
-
-    public void deactivate() {
-        this.active = false;
-    }
-
-    public boolean isUnread() {
-        return status != NotificationStatus.READ;
-    }
-
+    /*
+     * Helper used by the repository/service layer to retrieve notifications
+     * for a specific member.
+     */
     public boolean belongsTo(String username) {
         return recipientUsername.equals(username);
     }
@@ -79,12 +43,20 @@ public class Notification {
         }
     }
 
+    /*
+     * Supports notification ownership by a specific recipient.
+     * This matches the use-case idea that notifications are associated with a member.
+     */
     private void validateRecipientUsername(String recipientUsername) {
         if (recipientUsername == null || recipientUsername.isBlank()) {
             throw new IllegalArgumentException("Recipient username cannot be null or blank.");
         }
     }
 
+    /*
+     * Supports negative test scenarios:
+     * invalid/incomplete notification data must be rejected.
+     */
     private void validateMessage(String message) {
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("Notification message cannot be null or blank.");
@@ -100,12 +72,6 @@ public class Notification {
     private void validateCreatedAt(LocalDateTime createdAt) {
         if (createdAt == null) {
             throw new IllegalArgumentException("Creation time cannot be null.");
-        }
-    }
-
-    private void validateStatus(NotificationStatus status) {
-        if (status == null) {
-            throw new IllegalArgumentException("Notification status cannot be null.");
         }
     }
 
@@ -129,14 +95,9 @@ public class Notification {
         return createdAt;
     }
 
-    public NotificationStatus getStatus() {
-        return status;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
+    /*
+     * Entity identity is based on notification id.
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -145,7 +106,7 @@ public class Notification {
     }
 
     @Override
-    public int hashCode() {
+    public int hashCode() { 
         return Objects.hash(id);
     }
 }
