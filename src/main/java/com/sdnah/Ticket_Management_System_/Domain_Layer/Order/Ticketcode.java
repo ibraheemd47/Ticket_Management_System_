@@ -22,5 +22,5 @@ public class Ticketcode {
     public String getQrData() {
         return qrData;
     }
-    
+
 }

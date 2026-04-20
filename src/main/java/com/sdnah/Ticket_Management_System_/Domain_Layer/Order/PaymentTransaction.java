@@ -9,7 +9,10 @@ public class PaymentTransaction {
     private final BigDecimal amount;
     private Status status;
     private final LocalDateTime timestamp;
-    public enum Status { PENDING, SUCCESS, FAILED, REFUNDED }
+
+    public enum Status {
+        PENDING, SUCCESS, FAILED, REFUNDED
+    }
 
     public PaymentTransaction(String transactionId, int orderId, BigDecimal amount, Status status) {
         if (transactionId == null || transactionId.isBlank())
@@ -30,26 +33,32 @@ public class PaymentTransaction {
     public boolean isSuccessful() {
         return status == Status.SUCCESS;
     }
-    public boolean isRefunded(){
+
+    public boolean isRefunded() {
         return status == Status.REFUNDED;
     }
-    public void markRefunded(){
+
+    public void markRefunded() {
         this.status = Status.REFUNDED;
     }
 
-    public String getTransactionId() { 
-        return transactionId; 
+    public String getTransactionId() {
+        return transactionId;
     }
-    public int getOrderId(){ 
-        return orderId; 
+
+    public int getOrderId() {
+        return orderId;
     }
-    public BigDecimal getAmount(){ 
-        return amount; 
+
+    public BigDecimal getAmount() {
+        return amount;
     }
-    public Status getStatus(){ 
-        return status; 
+
+    public Status getStatus() {
+        return status;
     }
-    public LocalDateTime getTimestamp(){ 
-        return timestamp; 
-    }   
+
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
 }

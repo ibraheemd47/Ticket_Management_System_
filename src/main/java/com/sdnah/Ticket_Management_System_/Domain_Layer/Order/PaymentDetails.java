@@ -10,15 +10,16 @@ public class PaymentDetails {
             throw new IllegalArgumentException("cardToken must not be empty");
         if (billingName == null || billingName.isBlank())
             throw new IllegalArgumentException("billingName must not be empty");
-        this.cardToken   = cardToken;
+        this.cardToken = cardToken;
         this.billingName = billingName;
     }
- 
-    public String getCardToken(){
-        return cardToken; 
+
+    public String getCardToken() {
+        return cardToken;
     }
-    public String getBillingName() { 
-        return billingName; 
+
+    public String getBillingName() {
+        return billingName;
     }
-    
+
 }
