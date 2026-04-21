@@ -19,61 +19,57 @@ public class OrderRepositoryImpl implements IOrderRepository {
 
     @Override
     public void save(ActiveOrder order) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public Optional<ActiveOrder> findById(UUID orderId) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public Optional<ActiveOrder> findActiveOrder(String buyerId, UUID eventId) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public void delete(UUID orderId) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public void savePurchase(Purchase purchase) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public List<Purchase> findPurchasesByBuyer(String buyerId) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public void saveTransaction(PaymentTransaction tx) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public boolean acquireLock(Lock lock) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public void releaseLock(String resourceId) {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public List<Lock> findExpiredLocks() {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     @Override
     public List<ActiveOrder> findExpiredOrders() {
-        throw new UnsupportedOperationException("Not implemented yet");   
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
-
-
-
-    
 }
