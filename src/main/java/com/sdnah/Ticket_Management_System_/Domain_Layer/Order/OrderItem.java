@@ -5,13 +5,13 @@ import java.util.UUID;
 
 public class OrderItem {
     private final UUID itemId;
-    private final int ticketId; // pre-existing ticket from EVENT aggregate
+    private final String ticketId; // pre-existing ticket from EVENT aggregate
     private final Integer seatId; // null if standing area — display only
     private final int areaId;
     private final BigDecimal price;
     private Lock lock; // null after checkout or expiry
 
-    public OrderItem(int ticketId, Integer seatId, int areaId, BigDecimal price) {
+    public OrderItem(String ticketId, Integer seatId, int areaId, BigDecimal price) {
         if (price == null || price.compareTo(BigDecimal.ZERO) < 0)
             throw new IllegalArgumentException("price must be non-negative");
         this.itemId = UUID.randomUUID();
@@ -22,7 +22,7 @@ public class OrderItem {
         this.lock = null;
     }
 
-    public int getLockResourceId() {
+    public String getLockResourceId() {
         return ticketId;
     }
 
@@ -42,7 +42,7 @@ public class OrderItem {
         return itemId;
     }
 
-    public int getTicketId() {
+    public String getTicketId() {
         return ticketId;
     }
 

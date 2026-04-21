@@ -2,10 +2,11 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Order;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public class PaymentTransaction {
     private final String transactionId;
-    private final int orderId;
+    private final UUID orderId;
     private final BigDecimal amount;
     private Status status;
     private final LocalDateTime timestamp;
@@ -14,10 +15,10 @@ public class PaymentTransaction {
         PENDING, SUCCESS, FAILED, REFUNDED
     }
 
-    public PaymentTransaction(String transactionId, int orderId, BigDecimal amount, Status status) {
+    public PaymentTransaction(String transactionId, UUID orderId, BigDecimal amount, Status status) {
         if (transactionId == null || transactionId.isBlank())
             throw new IllegalArgumentException("transactionId required");
-        if (orderId <= 0)
+        if (orderId == null)
             throw new IllegalArgumentException("orderId required");
         if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0)
             throw new IllegalArgumentException("amount must be non-negative");
@@ -26,7 +27,7 @@ public class PaymentTransaction {
         this.transactionId = transactionId;
         this.orderId = orderId;
         this.amount = amount;
-        this.status = status;
+        this.status = Status.PENDING;
         this.timestamp = LocalDateTime.now();
     }
 
@@ -46,7 +47,7 @@ public class PaymentTransaction {
         return transactionId;
     }
 
-    public int getOrderId() {
+    public UUID getOrderId() {
         return orderId;
     }
 

@@ -3,13 +3,13 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Order;
 import java.time.LocalDateTime;
 
 public class Lock {
-    private final int resourceId; // ticketId
+    private final String resourceId; // ticketId
     private final String buyerId;
     private final LocalDateTime expiresAt;
 
-    public Lock(int resourceId, String ownerId, LocalDateTime expiresAt) {
-        if (resourceId <= 0)
-            throw new IllegalArgumentException("resourceId must be positive");
+    public Lock(String resourceId, String ownerId, LocalDateTime expiresAt) {
+        if (resourceId == null || ownerId.isBlank() )
+            throw new IllegalArgumentException("resourceId required");
         if (ownerId == null || ownerId.isBlank())
             throw new IllegalArgumentException("ownerId required");
         if (expiresAt == null)
@@ -27,7 +27,7 @@ public class Lock {
         return this.buyerId.equals(buyerId);
     }
 
-    public int getResourceId() {
+    public String getResourceId() {
         return resourceId;
     }
 

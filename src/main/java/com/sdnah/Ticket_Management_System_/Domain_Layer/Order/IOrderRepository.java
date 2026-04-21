@@ -21,7 +21,7 @@ public interface IOrderRepository {
 
     boolean acquireLock(Lock lock);
 
-    void releaseLock(UUID resourceId);
+    void releaseLock(String resourceId);
 
     // Returns locks that expired AND have no matching active order
     // Used by ExpiredOrderService to clean up orphaned locks 
