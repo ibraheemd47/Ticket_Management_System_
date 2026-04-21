@@ -9,7 +9,7 @@ public interface IOrderRepository {
 
     Optional<ActiveOrder> findById(UUID orderId);
 
-    Optional<ActiveOrder> findActiveOrder(String buyerId, UUID eventId);
+    Optional<ActiveOrder> findActiveOrder(String buyerId, int eventId);
 
     void delete(UUID orderId);
 

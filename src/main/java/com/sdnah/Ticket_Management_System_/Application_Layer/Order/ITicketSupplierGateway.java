@@ -9,6 +9,4 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
 public interface ITicketSupplierGateway {
     List<Ticketcode> issueTickets(UUID purchaseId, List<OrderItem> items);
 
-    void cancelTickets(UUID purchaseId);
-
 }
