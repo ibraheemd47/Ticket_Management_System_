@@ -12,24 +12,53 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class SellingPolicyTest {
 
-    /**
-     * Scenario: Regular tickets are accessible to all guests and members[cite: 9].
-     */
+ 
+
     @Test
-    void GivenRegularSelling_WhenCheckingPermission_ThenAllowAll() 
-    {
-        SellingPolicy regular = new SellingPolicy(3, "Regular Sale", SellingPolicy.SellingType.REGULAR);
-        assertTrue(regular.isSelectionAllowed(false), "Guest should be allowed"); 
-        assertTrue(regular.isSelectionAllowed(true), "Member should be allowed"); 
+    void givenRegularSellingPolicy_whenIsSelectionAllowed_thenReturnTrue() {
+        SellingPolicy policy =
+                new SellingPolicy(1, "selling policy", SellingPolicy.SellingType.REGULAR);
+
+        boolean result = policy.isSelectionAllowed(false);
+
+        assertTrue(result);
     }
 
-    /**
-     * Scenario: Lottery tickets restrict Guest access (Use Case II.2.5 alternative flow).
-     */
     @Test
-    void GivenLotterySelling_WhenGuestRequests_ThenDenySelection() {
-        SellingPolicy lottery = new SellingPolicy(4, "Lottery Sale", SellingPolicy.SellingType.LOTTERY);
-        assertFalse(lottery.isSelectionAllowed(false), "Guests cannot directly select lottery tickets"); 
-        assertTrue(lottery.isSelectionAllowed(true), "Members are eligible for lottery selection"); 
+    void givenLotterySellingPolicyAndMember_whenIsSelectionAllowed_thenReturnTrue() {
+        SellingPolicy policy =
+                new SellingPolicy(1, "selling policy", SellingPolicy.SellingType.LOTTERY);
+
+        boolean result = policy.isSelectionAllowed(true);
+
+        assertTrue(result);
+    }
+
+    @Test
+    void givenLotterySellingPolicyAndNonMember_whenIsSelectionAllowed_thenReturnFalse() {
+        SellingPolicy policy =
+                new SellingPolicy(1, "selling policy", SellingPolicy.SellingType.LOTTERY);
+
+        boolean result = policy.isSelectionAllowed(false);
+
+        assertFalse(result);
+    }
+
+    @Test
+    void givenSellingPolicy_whenIsValidCalled_thenReturnTrueAsImplemented() {
+        SellingPolicy policy =
+                new SellingPolicy(1, "selling policy", SellingPolicy.SellingType.REGULAR);
+
+        assertTrue(policy.isValid());
+    }
+
+    @Test
+    void givenLotterySellingPolicy_whenCreated_thenObjectExists() {
+        SellingPolicy policy =
+                new SellingPolicy(7, "lottery", SellingPolicy.SellingType.LOTTERY);
+
+        assertNotNull(policy);
+        assertEquals(7, policy.getPolicyId());
+        assertEquals("lottery", policy.getDescription());
     }
 }

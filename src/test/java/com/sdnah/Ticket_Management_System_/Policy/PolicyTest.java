@@ -7,6 +7,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Policy;
 import static org.junit.jupiter.api.Assertions.*;
 
 
+
 class PolicyTest {
 
     private static class TestPolicy extends Policy {
@@ -25,14 +26,14 @@ class PolicyTest {
 
     @Test
     void givenPolicy_whenGettersCalled_thenReturnCorrectValues() {
-        TestPolicy policy = new TestPolicy(7, "test policy", true);
+        TestPolicy policy = new TestPolicy(10, "test policy", true);
 
-        assertEquals(7, policy.getPolicyId());
+        assertEquals(10, policy.getPolicyId());
         assertEquals("test policy", policy.getDescription());
     }
 
     @Test
-    void givenConcretePolicy_whenIsValidCalled_thenReturnStubbedValue() {
+    void givenConcreteSubclass_whenIsValidCalled_thenReturnProvidedValue() {
         TestPolicy validPolicy = new TestPolicy(1, "valid", true);
         TestPolicy invalidPolicy = new TestPolicy(2, "invalid", false);
 
