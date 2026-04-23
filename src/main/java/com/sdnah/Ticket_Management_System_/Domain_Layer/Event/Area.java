@@ -14,4 +14,15 @@ public abstract class Area {
     
     public Area() {}
    // TODO: Implementation of AREA class and its subclasses (Seated_area and Standing_area) with necessary fields and methods.
+   public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 }
