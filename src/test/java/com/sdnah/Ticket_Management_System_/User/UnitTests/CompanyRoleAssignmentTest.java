@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.User;
+package com.sdnah.Ticket_Management_System_.User.UnitTests;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -69,4 +69,5 @@ class CompanyRoleAssignmentTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> assignment.getPermissions().add(ManagerPermission.ADD_POLICY));
     }
+
 }

@@ -53,6 +53,19 @@ public class Member {
     }
 
     public Member(String memberId, String username, String passwordHash) {
+<<<<<<< HEAD
+=======
+        if (memberId == null || memberId.isEmpty()) {
+            throw new NullPointerException("memberId cannot be null or empty");
+        }
+        if (username == null || username.isEmpty()) {
+            throw new NullPointerException("username cannot be null or empty");
+        }
+        if (passwordHash == null || passwordHash.isEmpty()) {
+            throw new NullPointerException("passwordHash cannot be null or empty");
+        }
+        this.companyRoles = new java.util.HashSet<>();
+>>>>>>> 074f7fadf68db07ad0141ad2d8d8f227d1701848
         this.memberId = memberId;
         this.username = username;
         this.passwordHash = passwordHash;
