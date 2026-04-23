@@ -1,25 +1,20 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
-
 import jakarta.persistence.*;
 import java.util.List;
 
 @Entity
-public class show {
-
+public class Block {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Links back to the parent Event
-    @ManyToOne
-    @JoinColumn(name = "event_id")
-    private Event event;
+    private String blockIdentifier; // e.g., "Section A"
 
-    // A show has 1 to many Areas
+    // Composition: A Block contains 1 to many Rows
     @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn(name = "show_id") 
-    private List<Area> areas;
+    @JoinColumn(name = "block_id")
+    private List<Row> rows;
 
-    public show() {}
+    public Block() {}
     // TODO: Add Getters and Setters
 }
