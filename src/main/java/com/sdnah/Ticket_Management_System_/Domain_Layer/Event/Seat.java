@@ -10,6 +10,20 @@ public class Seat {
 
     private String seatNumber;
 
-    public Seat() {}
-    // TODO: Add Getters and Setters
+    public Seat(long id, String seatNumber) {
+        this.id = id;
+        this.seatNumber = seatNumber;
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
+    public Long getId() {
+        return id;
+    }
+    public String getSeatNumber() {
+        return seatNumber;
+    }
+    public void setSeatNumber(String seatNumber) {
+        this.seatNumber = seatNumber;
+    }
 }

@@ -15,6 +15,29 @@ public class Block {
     @JoinColumn(name = "block_id")
     private List<Row> rows;
 
-    public Block() {}
-    // TODO: Add Getters and Setters
+    public Block(long id, String blockIdentifier, List<Row> rows) {
+        this.id = id;
+        this.blockIdentifier = blockIdentifier;
+        this.rows = rows;
+    
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
+    public Long getId() {
+        return id;
+    }
+    public String getBlockIdentifier() {
+        return blockIdentifier;
+    }
+    public void setBlockIdentifier(String blockIdentifier) {
+        this.blockIdentifier = blockIdentifier;
+    }
+    public List<Row> getRows() {
+        return rows;
+    }
+    public void setRows(List<Row> rows) {
+        this.rows = rows;
+    }
+
 }

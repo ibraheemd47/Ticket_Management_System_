@@ -19,6 +19,27 @@ public class Row {
     @JoinColumn(name = "row_id")
     private List<Seat> seats;
 
-    public Row() {}
-    // TODO: Implementation of seat class
+    public Row(long id, String rowNumber, List<Seat> seats) {
+        this.id = id;
+        this.rowNumber = rowNumber;
+        this.seats = seats;
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
+    public Long getId() {
+        return id;
+    }
+    public String getRowNumber() {
+        return rowNumber;
+    }
+    public void setRowNumber(String rowNumber) {
+        this.rowNumber = rowNumber;
+    }
+    public List<Seat> getSeats() {
+        return seats;
+    }
+    public void setSeats(List<Seat> seats) {
+        this.seats = seats;
+    }
 }
