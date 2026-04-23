@@ -4,16 +4,19 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.VerificationEmail;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 @Service
 public class UserService {
 
+    VerificationEmail verificationService;//TODO: need to be inited 
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
     private final TokenRepository tokenRepository;
@@ -159,4 +162,74 @@ public class UserService {
             throw new RuntimeException("Username must contain at least 3 characters");
         }
     }
+
+
+    //TODO: need to test 
+     public String register(String username,
+                           String password,
+                           String email,
+                           String phone,
+                           VerificationMethod verificationMethod) {
+
+        validateUsername(username);
+        validatePassword(password);
+        validateVerificationTarget(email, phone, verificationMethod);
+
+        if (userRepository.existsByUsername(username)) {
+            throw new RuntimeException("Username already exists");
+        }
+
+        String memberId = UUID.randomUUID().toString();
+        String passwordHash = passwordHasher.hash(password);
+
+        Member member = new Member(memberId, username, passwordHash);
+        member.setEmail(email);
+        member.setPhone(phone);
+        member.setVerified(false);
+        member.logout();
+
+        userRepository.save(member);
+
+        verificationService.createAndSendCode(member, verificationMethod);
+
+        return memberId;
+    }
+
+    public void verifyAccount(String memberId, String code) {
+        if (memberId == null || memberId.isBlank()) {
+            throw new RuntimeException("Member id is required");
+        }
+
+        if (code == null || code.isBlank()) {
+            throw new RuntimeException("Verification code is required");
+        }
+
+        Member member = userRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Member not found"));
+
+        verificationService.verifyCode(member, code);
+        member.setVerified(true);
+        userRepository.save(member);
+    }
+
+    private void validateVerificationTarget(String email,
+                                            String phone,
+                                            VerificationMethod method) {
+        if (method == null) {
+            throw new RuntimeException("Verification method is required");
+        }
+
+        if (method == VerificationMethod.EMAIL) {
+            if (email == null || email.isBlank()) {
+                throw new RuntimeException("Email is required for email verification");
+            }
+        }
+
+        if (method == VerificationMethod.PHONE) {
+            if (phone == null || phone.isBlank()) {
+                throw new RuntimeException("Phone is required for phone verification");
+            }
+        }
+    }
+
 }
