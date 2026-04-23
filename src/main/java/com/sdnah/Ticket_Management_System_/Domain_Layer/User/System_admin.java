@@ -1,5 +1,11 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.User;
 
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+
+@Entity
+@DiscriminatorValue("SYSTEM_ADMIN")
 public class System_admin extends Member {
 
     private String who_assigned;

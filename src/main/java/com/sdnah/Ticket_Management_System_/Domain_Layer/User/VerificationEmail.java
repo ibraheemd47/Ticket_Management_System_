@@ -13,6 +13,7 @@ import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
 public class VerificationEmail {
 
     private static final int CODE_EXPIRE_MINUTES = 10;
+
     private final JavaMailSender mailSender;
     private final SecureRandom random = new SecureRandom();
 
@@ -29,7 +30,6 @@ public class VerificationEmail {
             throw new RuntimeException("Verification method is required");
         }
 
-        // adjust this condition if your enum names are different
         if (verificationMethod != VerificationMethod.EMAIL) {
             throw new RuntimeException("Only EMAIL verification is supported");
         }

@@ -23,11 +23,12 @@ public class UserService {
     private final AuthTokenService authTokenService;
 
     public UserService(UserRepository userRepository, PasswordHasher passwordHasher, TokenRepository tokenRepository,
-            AuthTokenService authTokenService) {
+            AuthTokenService authTokenService , VerificationEmail verificationService) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.tokenRepository = tokenRepository;
         this.authTokenService = authTokenService;
+        this.verificationService = verificationService;
     }
 
     public boolean register(String username, String password) {
@@ -80,7 +81,7 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Member not found"));
         member.logout(); // Mark the member as logged out
         userRepository.save(member);
-        tokenRepository.deleteByToken(tokenValue);
+        tokenRepository.deleteBytokenValue(tokenValue);
     }
 
     // ===================================================================================================================================
@@ -114,7 +115,7 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
 
         if (token.isExpired(java.time.LocalDateTime.now())) {
-            tokenRepository.deleteByToken(tokenValue);
+            tokenRepository.deleteBytokenValue(tokenValue);
             throw new RuntimeException("Token expired");
         }
 
@@ -133,7 +134,7 @@ public class UserService {
         }
 
         if (token.isExpired(java.time.LocalDateTime.now())) {
-            tokenRepository.deleteByToken(tokenValue);
+            tokenRepository.deleteBytokenValue(tokenValue);
             return false;
         }
 
@@ -188,23 +189,23 @@ public class UserService {
         member.setVerified(false);
         member.logout();
 
-        userRepository.save(member);
 
         verificationService.createAndSendCode(member, verificationMethod);
+        userRepository.save(member);
 
         return memberId;
     }
 
-    public void verifyAccount(String memberId, String code) {
-        if (memberId == null || memberId.isBlank()) {
-            throw new RuntimeException("Member id is required");
+    public void verifyAccount(String username, String code) {
+        if (username == null || username.isBlank()) {
+            throw new RuntimeException("Username is required");
         }
 
         if (code == null || code.isBlank()) {
             throw new RuntimeException("Verification code is required");
         }
 
-        Member member = userRepository.findById(memberId)
+        Member member = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Member not found"));
 
         verificationService.verifyCode(member, code);

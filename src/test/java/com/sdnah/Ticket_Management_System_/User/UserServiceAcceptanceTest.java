@@ -172,7 +172,7 @@ class UserServiceAcceptanceTest {
 
         assertFalse(member.isLoggedin());
         verify(userRepository).save(member);
-        verify(tokenRepository).deleteByToken("token-123");
+        verify(tokenRepository).deleteBytokenValue("token-123");
     }
 
     @Test
@@ -205,7 +205,7 @@ class UserServiceAcceptanceTest {
                 () -> userService.getMemberByToken("token-123"));
 
         assertEquals("Token expired", ex.getMessage());
-        verify(tokenRepository).deleteByToken("token-123");
+        verify(tokenRepository).deleteBytokenValue("token-123");
     }
 
     @Test
@@ -235,7 +235,7 @@ class UserServiceAcceptanceTest {
         when(tokenRepository.findById("token-123")).thenReturn(Optional.of(expired));
 
         assertFalse(userService.isTokenValid("token-123"));
-        verify(tokenRepository).deleteByToken("token-123");
+        verify(tokenRepository).deleteBytokenValue("token-123");
     }
 
 }

@@ -26,7 +26,7 @@ public class SystemAdminService {
     }
 
     public void assign_system_admin(String token, String target_member_id) {
-        AuthToken user_token = tokenRepository.findByToken(token);
+        AuthToken user_token = tokenRepository.findBytokenValue(token);
         if (user_token == null) {
             throw new IllegalArgumentException("Invalid token for admin ");
         }

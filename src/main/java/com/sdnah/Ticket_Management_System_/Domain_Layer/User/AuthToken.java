@@ -4,12 +4,15 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 import jakarta.persistence.Entity;
+
+import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "auth_tokens")
 public class AuthToken {
 
+    @Id
     private final String tokenValue;
     private final String memberId;
     private final LocalDateTime expiresAt;

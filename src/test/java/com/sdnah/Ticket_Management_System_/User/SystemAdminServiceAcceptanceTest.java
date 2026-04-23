@@ -47,7 +47,7 @@ class SystemAdminServiceAcceptanceTest {
 
     @Test
     void assignSystemAdmin_byExistingAdmin_savesNewAdmin() {
-        when(tokenRepository.findByToken("token-123")).thenReturn(validToken);
+        when(tokenRepository.findBytokenValue("token-123")).thenReturn(validToken);
         when(systemAdminRepository.existsById("admin-1")).thenReturn(true);
         when(userRepository.findById("member-1")).thenReturn(Optional.of(targetMember));
         when(systemAdminRepository.existsById("member-1")).thenReturn(false);
@@ -60,7 +60,7 @@ class SystemAdminServiceAcceptanceTest {
 
     @Test
     void assignSystemAdmin_withInvalidToken_throwsException() {
-        when(tokenRepository.findByToken("bad-token")).thenReturn(null);
+        when(tokenRepository.findBytokenValue("bad-token")).thenReturn(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> systemAdminService.assign_system_admin("bad-token", "member-1"));
@@ -70,7 +70,7 @@ class SystemAdminServiceAcceptanceTest {
 
     @Test
     void assignSystemAdmin_byNonAdmin_throwsException() {
-        when(tokenRepository.findByToken("token-123")).thenReturn(validToken);
+        when(tokenRepository.findBytokenValue("token-123")).thenReturn(validToken);
         when(systemAdminRepository.existsById("admin-1")).thenReturn(false);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
@@ -81,7 +81,7 @@ class SystemAdminServiceAcceptanceTest {
 
     @Test
     void assignSystemAdmin_whenTargetNotFound_throwsException() {
-        when(tokenRepository.findByToken("token-123")).thenReturn(validToken);
+        when(tokenRepository.findBytokenValue("token-123")).thenReturn(validToken);
         when(systemAdminRepository.existsById("admin-1")).thenReturn(true);
         when(userRepository.findById("member-1")).thenReturn(Optional.empty());
 
@@ -93,7 +93,7 @@ class SystemAdminServiceAcceptanceTest {
 
     @Test
     void assignSystemAdmin_whenTargetAlreadyAdmin_throwsException() {
-        when(tokenRepository.findByToken("token-123")).thenReturn(validToken);
+        when(tokenRepository.findBytokenValue("token-123")).thenReturn(validToken);
         when(systemAdminRepository.existsById("admin-1")).thenReturn(true);
         when(userRepository.findById("member-1")).thenReturn(Optional.of(targetMember));
         when(systemAdminRepository.existsById("member-1")).thenReturn(true);

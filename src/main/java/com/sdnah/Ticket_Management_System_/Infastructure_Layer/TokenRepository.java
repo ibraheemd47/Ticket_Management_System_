@@ -7,9 +7,9 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 @Repository
 public interface TokenRepository extends JpaRepository<AuthToken, String> {
     
-    AuthToken findByToken(String token);
+    AuthToken findBytokenValue(String token);
 
-    boolean existsByToken(String token);
+    boolean existsBytokenValue(String token);
 
-    boolean deleteByToken(String token);
+    boolean deleteBytokenValue(String token);
 }

@@ -6,11 +6,15 @@ import java.util.Objects;
 import java.util.Set;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "company_role_assignments")
 public class CompanyRoleAssignment {
+    @Id
+    @jakarta.persistence.GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
+    private Long id;
     private final String companyId;
     private final CompanyRoleType roleType;
     private final Set<ManagerPermission> permissions;
