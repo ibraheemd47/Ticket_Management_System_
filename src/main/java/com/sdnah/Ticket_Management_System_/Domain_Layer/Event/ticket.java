@@ -3,18 +3,17 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.UUID;
 
 public class ticket {
     
     private final String ticketId; // QR code
-    private final Long showId;     // The show this ticket is for
+    private final UUID showId;     // The show this ticket is for
     private String ownerId;        // The user who bought it
 
     // The Ticket holds a reference to the exact Seat object
     private final Seat seat; 
     private final Area area; // The area this ticket belongs to
-    private final Row row;   // The row this ticket belongs to
-    private final Block block; // The block this ticket belongs to
     private BigDecimal price;
     private TicketStatus status;
     private Date showDate; // The date of the show, useful for sorting and filtering
@@ -27,25 +26,21 @@ public class ticket {
     }
     
     // Constructor
-    public ticket(Long showId, Seat seat, Area area, Row row, Block block, Date showDate, BigDecimal price) {
+    public ticket(UUID showId, Seat seat, Area area,  Date showDate, BigDecimal price) {
         this.ticketId = null ; // we want to generate a QR code Based on the ticketId.
         this.showId = showId;
         this.seat = seat;
         this.area = area;
-        this.row = row;
-        this.block = block;
         this.showDate = showDate;
         this.price = price;
         this.status = TicketStatus.AVAILABLE;
     }
     //ticket for stranding areas
-    public ticket(Long showId, Area area, Date showDate, BigDecimal price) {
+    public ticket(UUID showId, Area standingArea, Date showDate, BigDecimal price) {
         this.ticketId = null ; // we want to generate a QR code Based on the ticketId.
         this.showId = showId;
-        this.seat = null; // No specific seat for standing areas
-        this.area = area;
-        this.row = null; // No specific row for standing areas
-        this.block = null; // No specific block for standing areas
+        this.area = standingArea;
+        this.seat = null; // No specific seat for standing area
         this.showDate = showDate;
         this.price = price;
         this.status = TicketStatus.AVAILABLE;
@@ -94,5 +89,19 @@ public class ticket {
     public String getTicketId() {
         return ticketId;
     }
+
+
+    public String getFullSeatLocation() {
+    if (this.seat == null) {
+        return "General Admission - " + this.area.getName();
+    }
+    
+    // Walking up the hierarchy!
+    String seatNum = this.seat.getSeatNumber();
+    String rowNum = this.seat.getRow().getRowNumber();
+    String blockName = this.seat.getRow().getBlock().getBlockIdentifier();
+    
+    return blockName + ", " + rowNum + ", " + seatNum;
+}
 
 }

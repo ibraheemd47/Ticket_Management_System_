@@ -17,10 +17,13 @@ public class Block {
     @JoinColumn(name = "block_id")
     private List<Row> rows;
 
-    public Block(long id, String blockIdentifier, int numberofRows) {
+    private SeatedArea seatedArea;
+
+    public Block(long id, String blockIdentifier, int numberofRows, SeatedArea seatedArea) {
         this.id = id;
         this.blockIdentifier = blockIdentifier;
         this.rows = new ArrayList<>(numberofRows);
+        this.seatedArea = seatedArea;
     }
     public void setId(Long id) {
         this.id = id;
@@ -40,5 +43,7 @@ public class Block {
     public void setRows(List<Row> rows) {
         this.rows = rows;
     }
-
+    public SeatedArea getSeatedArea() {
+        return seatedArea;
+    }   
 }

@@ -21,10 +21,16 @@ public class Row {
     @JoinColumn(name = "row_id")
     private List<Seat> seats;
 
-    public Row(long id, String rowNumber, int numberOfSeats) {
+    // Links back to the parent Block
+    @ManyToOne
+    @JoinColumn(name = "block_id")
+    private Block block;
+
+    public Row(long id, String rowNumber, int numberOfSeats, Block block) {
         this.id = id;
         this.rowNumber = rowNumber;
         this.seats = new ArrayList<>(numberOfSeats);
+        this.block = block;
     }
     public void setId(Long id) {
         this.id = id;
@@ -44,4 +50,11 @@ public class Row {
     public void setSeats(List<Seat> seats) {
         this.seats = seats;
     }
+    public Block getBlock() {
+        return block;
+    }
+    public void setBlock(Block block) {
+        this.block = block;
+    }
+    
 }

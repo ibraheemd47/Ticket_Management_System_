@@ -1,6 +1,8 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
 import jakarta.persistence.*;
+
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -66,6 +68,11 @@ public class show {
     }
     public void setEventId(UUID eventId) {
         EventId = eventId;
+    }
+
+    public Date getShowDate() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getShowDate'");
     }
     
 }
