@@ -16,8 +16,8 @@ class PurchaseTest {
     @Test
     void constructor_shouldCopyDataFromOrder() {
         ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
-        order.addItem(new OrderItem(1, 1, 1, new BigDecimal("50")));
-        order.addItem(new OrderItem(2, 2, 1, new BigDecimal("30")));
+        order.addItem(new OrderItem("1", 1, 1, new BigDecimal("50")));
+        order.addItem(new OrderItem("2", 2, 1, new BigDecimal("30")));
 
         Purchase purchase = new Purchase(order);
 
