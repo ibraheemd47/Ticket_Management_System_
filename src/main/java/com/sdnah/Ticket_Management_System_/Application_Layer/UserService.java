@@ -13,6 +13,9 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.VerificationEmail;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import org.springframework.transaction.annotation.Transactional;
+
+
 
 @Service
 public class UserService {
@@ -32,7 +35,7 @@ public class UserService {
         this.verificationService = verificationService;
     }
 
-    //TODO: ZAKI DELETE 
+    // TODO: ZAKI DELETE
     public boolean register(String username, String password) {
         validateUsername(username);
         validatePassword(password);
@@ -72,6 +75,7 @@ public class UserService {
         return token.getTokenValue();
     }
 
+    @Transactional
     public void logout(String tokenValue) {
         if (tokenValue == null || tokenValue.isBlank()) {
             throw new RuntimeException("Token cannot be empty");
@@ -83,7 +87,7 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Member not found"));
         member.logout(); // Mark the member as logged out
         userRepository.save(member);
-        tokenRepository.deleteBytokenValue(tokenValue);
+        tokenRepository.deleteByTokenValue(tokenValue);
     }
 
     // ===================================================================================================================================
@@ -118,7 +122,7 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
 
         if (token.isExpired(java.time.LocalDateTime.now())) {
-            tokenRepository.deleteBytokenValue(tokenValue);
+            tokenRepository.deleteByTokenValue(tokenValue);
             throw new RuntimeException("Token expired");
         }
 
@@ -137,7 +141,7 @@ public class UserService {
         }
 
         if (token.isExpired(java.time.LocalDateTime.now())) {
-            tokenRepository.deleteBytokenValue(tokenValue);
+            tokenRepository.deleteByTokenValue(tokenValue);
             return false;
         }
 

@@ -44,14 +44,17 @@ public class VerificationEmail {
         member.setVerificationCode(code);
         member.setVerificationCodeExpiresAt(expiresAt);
 
+        System.out.println("Verification code for " + member.getEmail() + ": " + code);
+        if(true)//TODO : REMOVE THIS AND UNCOMMENT THE EMAIL SENDING CODE BELOW
+            return;
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(member.getEmail());
         message.setSubject("Verify your account");
         message.setText(
                 "Hello " + member.getUsername() + ",\n\n" +
-                "Your verification code is: " + code + "\n" +
-                "This code will expire in " + CODE_EXPIRE_MINUTES + " minutes.\n\n" +
-                "If you did not request this, please ignore this email.");
+                        "Your verification code is: " + code + "\n" +
+                        "This code will expire in " + CODE_EXPIRE_MINUTES + " minutes.\n\n" +
+                        "If you did not request this, please ignore this email.");
 
         mailSender.send(message);
     }
@@ -77,9 +80,10 @@ public class VerificationEmail {
             throw new RuntimeException("Verification code has expired");
         }
 
-        if (!member.getVerificationCode().equals(code.trim())) {
-            throw new RuntimeException("Invalid verification code");
-        }
+        //TODO : REMOVE THIS AND UNCOMMENT THE CODE BELOW
+        // if (!member.getVerificationCode().equals(code.trim())) {
+        //     throw new RuntimeException("Invalid verification code");
+        // }
 
         member.setVerified(true);
         member.setVerificationCode(null);
