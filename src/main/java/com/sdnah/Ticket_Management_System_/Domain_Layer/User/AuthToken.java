@@ -13,9 +13,12 @@ import jakarta.persistence.Table;
 public class AuthToken {
 
     @Id
-    private final String tokenValue;
-    private final String memberId;
-    private final LocalDateTime expiresAt;
+    private  String tokenValue;
+    private  String memberId;
+    private  LocalDateTime expiresAt;
+    protected AuthToken() {
+        // required by JPA
+    }
 
     public AuthToken(String tokenValue, String memberId, LocalDateTime expiresAt) {
         this.tokenValue = Objects.requireNonNull(tokenValue);

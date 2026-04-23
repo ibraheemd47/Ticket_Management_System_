@@ -15,15 +15,19 @@ public class CompanyRoleAssignment {
     @Id
     @jakarta.persistence.GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     private Long id;
-    private final String companyId;
-    private final CompanyRoleType roleType;
-    private final Set<ManagerPermission> permissions;
+    private String companyId;
+    private CompanyRoleType roleType;
+    private Set<ManagerPermission> permissions;
     private String appointedByMemberId; // who appointed this user
+
+    protected CompanyRoleAssignment() {
+        this.permissions = new HashSet<>();
+    }
 
     public CompanyRoleAssignment(String companyId, String appointedByMemberId, CompanyRoleType roleType,
             Set<ManagerPermission> permissions) {
         this.companyId = Objects.requireNonNull(companyId);
-        this.appointedByMemberId = Objects.requireNonNull(appointedByMemberId);
+        this.appointedByMemberId = appointedByMemberId;
         this.roleType = Objects.requireNonNull(roleType);
         this.permissions = permissions == null ? new HashSet<>() : new HashSet<>(permissions);
     }
@@ -69,5 +73,9 @@ public class CompanyRoleAssignment {
 
     public Set<ManagerPermission> getPermissions() {
         return Collections.unmodifiableSet(permissions);
+    }
+
+    public String getAppointedByMemberId() {
+        return appointedByMemberId;
     }
 }
