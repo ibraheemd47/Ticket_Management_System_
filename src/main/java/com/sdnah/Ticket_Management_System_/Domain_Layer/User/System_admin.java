@@ -13,7 +13,9 @@ public class System_admin extends Member {
     public System_admin(Member member) {
         super(member.getMemberId(), member.getUsername(), member.getPasswordHash());
         this.who_assigned = "System";
+        this.role = UserRole.SYSTEM_ADMIN;
     }
+
     public String getWhoAssigned() {
         return who_assigned;
     }

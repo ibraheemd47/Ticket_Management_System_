@@ -22,6 +22,15 @@ public class Member {
     private final Set<CompanyRoleAssignment> companyRoles;
 
     public Member(String memberId, String username, String passwordHash) {
+        if (memberId == null || memberId.isEmpty()) {
+            throw new NullPointerException("memberId cannot be null or empty");
+        }
+        if (username == null || username.isEmpty()) {
+            throw new NullPointerException("username cannot be null or empty");
+        }
+        if (passwordHash == null || passwordHash.isEmpty()) {
+            throw new NullPointerException("passwordHash cannot be null or empty");
+        }
         this.companyRoles = new java.util.HashSet<>();
         this.memberId = memberId;
         this.username = username;
@@ -67,6 +76,7 @@ public class Member {
     public void addCompanyRole(CompanyRoleAssignment assignment) {
         companyRoles.add(assignment);
     }
+
     public Set<CompanyRoleAssignment> getCompanyRoles() {
         return Collections.unmodifiableSet(companyRoles);
     }
