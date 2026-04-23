@@ -319,7 +319,8 @@ public class Company {
     public List<Integer> getManagers() {
         // TODO Auto-generated method stub
         //throw new UnsupportedOperationException("Unimplemented method 'getManagers'");
-        return Collections.unmodifiableList(authorizedManagerIds);
+        // return Collections.unmodifiableList(authorizedManagerIds);
+        return List.copyOf(managerPermissions.keySet());
     }
 
     public void setOpen(boolean isOpen2) {

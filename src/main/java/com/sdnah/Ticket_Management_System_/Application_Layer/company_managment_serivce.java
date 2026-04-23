@@ -80,14 +80,14 @@ public class company_managment_serivce {
     }
 
     // --- II.4.7: View and Appoint Company Managers ---
-    public void appointManager(int actingUserId, int companyId, int newManagerId) {
-        Company company = getCompanyOrThrow(companyId);
-        if (company.getCompanyFounderId() != actingUserId) {
-            throw new SecurityException("Only the founder can appoint managers.");
-        }
-        company.appointManager(newManagerId);
-        companyRepository.save(company);
+    public void appointManager(int actingUserId, int companyId, int newManagerId, Set<CompanyPermission> permissions) {
+    Company company = getCompanyOrThrow(companyId);
+    if (company.getCompanyFounderId() != actingUserId) {
+        throw new SecurityException("Only the founder can appoint managers.");
     }
+    company.appointManager(actingUserId, newManagerId, permissions);
+    companyRepository.save(company);
+}
 
     // // --- II.4.13 & II.4.14: Set Company Status (Open/Close) ---
     // public void setCompanyStatus(int actingUserId, int companyId, boolean open) {
