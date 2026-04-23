@@ -14,6 +14,8 @@ public class ActiveOrder {
     private final LocalDateTime expiresAt;
     private Status status;
     private long version; // optimistic locking
+    private BigDecimal discount = BigDecimal.ZERO;
+    private String appliedCouponCode;
 
     public enum Status {
         ACTIVE, EXPIRED, COMPLETED, CANCELLED
@@ -73,6 +75,28 @@ public class ActiveOrder {
         return total;
     }
 
+    // Apply discount (provided by PolicyService)
+    public void applyDiscount(BigDecimal discount) {
+        if (discount == null || discount.compareTo(BigDecimal.ZERO) < 0)
+            throw new IllegalArgumentException("invalid discount");
+
+        this.discount = discount;
+    }
+
+    // Calculate final price after discount
+    public BigDecimal getFinalPrice() {
+        BigDecimal finalPrice = getTotal().subtract(discount);
+
+        if (finalPrice.compareTo(BigDecimal.ZERO) < 0) {
+            return BigDecimal.ZERO;
+        }
+        return finalPrice;
+    }
+
+    public void setAppliedCouponCode(String code) {
+        this.appliedCouponCode = code;
+    }
+
     public void markCompleted() {
         this.status = Status.COMPLETED;
     }
@@ -117,4 +141,7 @@ public class ActiveOrder {
         this.version = v;
     }
 
+    public String getAppliedCouponCode() {
+        return appliedCouponCode;
+    }
 }
