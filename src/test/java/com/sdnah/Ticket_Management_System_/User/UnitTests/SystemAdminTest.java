@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.User;
+package com.sdnah.Ticket_Management_System_.User.UnitTests;
 
 import static org.junit.jupiter.api.Assertions.*;
 
