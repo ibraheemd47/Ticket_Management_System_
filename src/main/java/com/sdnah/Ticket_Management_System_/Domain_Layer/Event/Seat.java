@@ -9,6 +9,7 @@ public class Seat {
     private Long id;
 
     private String seatNumber;
+    private boolean isFilled; // To track if the seat is filled or not
 
     public Seat(long id, String seatNumber) {
         this.id = id;
@@ -26,4 +27,12 @@ public class Seat {
     public void setSeatNumber(String seatNumber) {
         this.seatNumber = seatNumber;
     }
+    public void Fillseat() {
+        if (isFilled) {
+            throw new IllegalStateException("Seat is already filled!");
+        }
+        this.isFilled = true; // Mark the seat as filled
+        // Implementation for filling the seat with a ticket
+    }
 }
+

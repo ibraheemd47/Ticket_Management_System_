@@ -2,6 +2,8 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
 
 import jakarta.persistence.*;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -19,10 +21,10 @@ public class Row {
     @JoinColumn(name = "row_id")
     private List<Seat> seats;
 
-    public Row(long id, String rowNumber, List<Seat> seats) {
+    public Row(long id, String rowNumber, int numberOfSeats) {
         this.id = id;
         this.rowNumber = rowNumber;
-        this.seats = seats;
+        this.seats = new ArrayList<>(numberOfSeats);
     }
     public void setId(Long id) {
         this.id = id;

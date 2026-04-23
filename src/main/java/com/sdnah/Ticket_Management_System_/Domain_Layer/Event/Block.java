@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 import jakarta.persistence.*;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -15,11 +17,10 @@ public class Block {
     @JoinColumn(name = "block_id")
     private List<Row> rows;
 
-    public Block(long id, String blockIdentifier, List<Row> rows) {
+    public Block(long id, String blockIdentifier, int numberofRows) {
         this.id = id;
         this.blockIdentifier = blockIdentifier;
-        this.rows = rows;
-    
+        this.rows = new ArrayList<>(numberofRows);
     }
     public void setId(Long id) {
         this.id = id;

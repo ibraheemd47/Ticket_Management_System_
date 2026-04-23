@@ -2,6 +2,8 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
 
 import jakarta.persistence.*;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -11,7 +13,17 @@ public class SeatedArea extends Area {
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "seated_area_id")
     private List<Block> blocks;
+    private int NumberofBlocks;
 
-    public SeatedArea() {}
-    // TODO: Add Getters and Setters
+    public SeatedArea(String name,int NumberofBlocks) {
+        super(name);
+        this.NumberofBlocks = NumberofBlocks;
+        this.blocks = new ArrayList<>(NumberofBlocks); // Initialize the list with the specified number of blocks
+    }
+
+    public Block[] getBlocks() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getBlocks'");
+    }
+    
 }

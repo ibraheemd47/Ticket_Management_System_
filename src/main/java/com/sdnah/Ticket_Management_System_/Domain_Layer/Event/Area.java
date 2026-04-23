@@ -2,19 +2,27 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
 import jakarta.persistence.*;
 
+import java.util.UUID; // Import the UUID class
+
 @Entity
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE) // Keeps all areas in one table for faster queries
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 public abstract class Area {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID) // Specifically tells JPA to use a UUID
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
 
-    private String name; // i dont know if we need this but it can be useful for identifying the area
-    
-    public Area() {}
-   // TODO: Implementation of AREA class and its subclasses (Seated_area and Standing_area) with necessary fields and methods.
-   public Long getId() {
+    private String name;
+
+    public Area(String name) {
+        this.id = UUID.randomUUID(); // Generate a new UUID when an Area is created
+        this.name = name;
+       
+    }
+
+    // Updated getter to return UUID
+    public UUID getId() {
         return id;
     }
 

@@ -2,14 +2,15 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
 import jakarta.persistence.Entity;
 import java.util.LinkedList;
+import java.util.UUID;
 @Entity
 public class StandingArea extends Area {
 
     private int maxCapacity; // Added because standing areas usually need a limit
     private LinkedList<ticket> areaMap ;
     
-    public StandingArea(int maxCapacity) {
-        super();
+    public StandingArea(String name, int maxCapacity) {
+        super(name);
         this.maxCapacity = maxCapacity;
         this.areaMap = new LinkedList<ticket>();
     }
@@ -21,7 +22,7 @@ public class StandingArea extends Area {
         }
         return false; // Can't add more tickets, standing area is at full capacity
     }
-    public Long getId() {
+    public UUID getId() {
         return super.getId();
     }
     public boolean isFull() {
