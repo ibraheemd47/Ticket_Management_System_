@@ -23,7 +23,7 @@ class ActiveOrderTest {
     @Test
     void addItem_shouldIncreaseSize() {
         ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
-        OrderItem item = new OrderItem(1, 1, 1, new BigDecimal("50"));
+        OrderItem item = new OrderItem("1", 1, 1, new BigDecimal("50"));
 
         order.addItem(item);
 
@@ -34,8 +34,8 @@ class ActiveOrderTest {
     void getTotal_shouldSumPrices() {
         ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
 
-        order.addItem(new OrderItem(1, 1, 1, new BigDecimal("50")));
-        order.addItem(new OrderItem(2, 2, 1, new BigDecimal("30")));
+        order.addItem(new OrderItem("1", 1, 1, new BigDecimal("50")));
+        order.addItem(new OrderItem("2", 2, 1, new BigDecimal("30")));
 
         assertEquals(new BigDecimal("80"), order.getTotal());
     }
@@ -51,7 +51,7 @@ class ActiveOrderTest {
     @Test
     void removeItem_shouldRemoveCorrectItem() {
         ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
-        OrderItem item = new OrderItem(1, 1, 1, new BigDecimal("50"));
+        OrderItem item = new OrderItem("1", 1, 1, new BigDecimal("50"));
 
         order.addItem(item);
         order.removeItem(item.getItemId());
