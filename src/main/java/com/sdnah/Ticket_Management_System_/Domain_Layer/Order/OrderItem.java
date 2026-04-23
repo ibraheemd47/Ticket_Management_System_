@@ -7,7 +7,7 @@ public class OrderItem {
     private final UUID itemId;
     private final String ticketId; // pre-existing ticket from EVENT aggregate
     private final Integer seatId; // null if standing area — display only
-    private final long areaId;
+    private final int areaId;
     private final BigDecimal price;
     private Lock lock; // null after checkout or expiry
 
