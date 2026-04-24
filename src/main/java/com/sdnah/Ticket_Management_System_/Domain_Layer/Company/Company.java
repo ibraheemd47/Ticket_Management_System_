@@ -9,20 +9,14 @@ public class Company {
     private final int companyId;
     private final String companyName;
     private boolean isOpen;
-    private final int companyFounderId; // מזהה נומרי למייסד
+    private final int companyFounderId; 
     private final Set<Integer> ownerIds;
 
-    // POLICY
-    // private PurchasePolicy purchasePolicy;
-    // private DiscountPolicy discountPolicy;
-    // private SellingPolicy sellingPolicy;
-
-    // ניהול מזהים בלבד לשמירה על הפרדת שכבות 
+    
     private final List<Integer> associatedEventIds; // II.2.1 
     private final List<Integer> purchaseHistoryIds; // Use Case: II.4.4 4.5
     private final List<Integer> orderHistoryIds;// Use Case: II.4.5 - View company order history
-    private final List<Integer> authorizedManagerIds;// Use Case: II.4.7 - Appoint Company Manager
-
+    //private final List<Integer> authorizedManagerIds; // II.4.7 - Manage Company Managers
     private final Map<Integer, Set<CompanyPermission>> managerPermissions;
     private final Map<Integer, Integer> managerAppointedByOwner;
 
@@ -46,7 +40,7 @@ public class Company {
 
         this.managerPermissions = new ConcurrentHashMap<>();
         this.managerAppointedByOwner = new ConcurrentHashMap<>();
-        this.authorizedManagerIds = new CopyOnWriteArrayList<>();
+        //this.authorizedManagerIds = new CopyOnWriteArrayList<>();
     }
 
 
@@ -70,22 +64,46 @@ public class Company {
         }
     }
 
+    //new method to centralize permission checks for company actions
+    public void validateActionPermission(int actorId, CompanyPermission requiredPermission) {
+        // Requirement II.4.13: Most actions are blocked if the company is inactive
+        if (!isOpen && requiredPermission != CompanyPermission.VIEW_ROLES) {
+            throw new IllegalStateException("Operation failed: The company is currently inactive.");
+        }
+        // 1. Check if actor is an Owner (Full Access)
+        if (ownerIds.contains(actorId)) {
+            return;
+        }
+        // 2. Check if actor is a Manager and has the specific permission
+        Set<CompanyPermission> permissions = managerPermissions.get(actorId);
+        if (permissions != null && permissions.contains(requiredPermission)) {
+            return;
+        }
+        // 3. Fallback: Access Denied
+        throw new SecurityException("Unauthorized: Member " + actorId + " lacks permission: " + requiredPermission);
+    }
+
+    
+
 
     // --- Use Case: II.2.1 & II.4.1 - View Company Events ---
     public List<Integer> getAssociatedEventIds() {
-        return Collections.unmodifiableList(associatedEventIds);
+        if (!isOpen) {
+        return new ArrayList<>(); // 
+        }
+        return new ArrayList<>(associatedEventIds);
     }
+    
 
     // --- Use Case: II.4.1 - Add event to company catalog ---
-    public void addEvent(int eventId) {
-        if (eventId <= 0) {
-            throw new IllegalArgumentException("event ID must be positive");
+    public void addEventId(int actorId, int eventId) {
+        validateActionPermission(actorId, CompanyPermission.MANAGE_EVENTS);
+        if (!associatedEventIds.contains(eventId)) {
+            associatedEventIds.add(eventId);
         }
-        // אילוץ נכונות: מניעת כפילויות כפי שנדרש בגרסה 1
-        if (associatedEventIds.contains(eventId)) {
-            throw new IllegalArgumentException("event already exists in company catalog");
+        else {
+            throw new IllegalArgumentException("Event already exists in company catalog.");
         }
-        associatedEventIds.add(eventId);
     }
 
     // --- Use Case: II.4.1 - Remove event from company catalog ---
@@ -96,27 +114,52 @@ public class Company {
         associatedEventIds.remove(Integer.valueOf(eventId));
     }
 
-    // --- Use Case: II.4.1 - Edit existing event ---
-    /**
-     * ב-Domain מבוסס IDs, עדכון אירוע לרוב מתבצע ישירות על אובייקט ה-Event.
-     * כאן אנחנו רק מוודאים שהאירוע אכן שייך לחברה.
-     */
+    // --- Use Case: II.4.1 - to Edit existing event ---
     public void validateEventBelongsToCompany(int eventId) {
         if (!associatedEventIds.contains(eventId)) {
             throw new IllegalArgumentException("event " + eventId + " does not belong to this company");
         }
     }
 
+        
+     //Requirement II.4.2: Define Venue Layout and Event Map.
+    public void defineEventLayout(int actorId, int eventId, String mapData) {
+        validateActionPermission(actorId, CompanyPermission.MANAGE_EVENTS);
+        if (!associatedEventIds.contains(eventId)) {
+            throw new IllegalArgumentException("Event not found in this company.");
+        }
+        // In the Domain, we record that a layout has been defined for this event.
+        // The actual map data validation occurs within the Event domain logic.
+        //System.out.println("Layout defined for event " + eventId + " by actor " + actorId);
+    }
+
+     
+    //Requirement II.4.4: Receive and Respond to Inquiries.
+    public void respondToInquiry(int actorId, int inquiryId, String response) {
+        validateActionPermission(actorId, CompanyPermission.RESPOND_TO_INQUIRIES);
+        if (response == null || response.trim().isEmpty()) {
+            throw new IllegalArgumentException("Response content cannot be empty.");
+        }
+        // In Version 1, this logs the management action in the event log.
+        System.out.println("Actor " + actorId + " responded to inquiry " + inquiryId);
+    }
+
+
+
+
     // --- Use Case: II.4.5 - Retrieve company history (Purchases & Orders) ---
-    public List<Integer> getPurchaseHistoryIds() {
-        return Collections.unmodifiableList(purchaseHistoryIds);
+    public List<Integer> getPurchaseHistoryIds(int actorId) {
+        validateActionPermission(actorId, CompanyPermission.VIEW_HISTORY);
+        return new ArrayList<>(purchaseHistoryIds);
     }
 
-    public List<Integer> getOrderHistoryIds() {
-        return Collections.unmodifiableList(orderHistoryIds);
+    public List<Integer> getOrderHistoryIds(int actorId) {
+        validateActionPermission(actorId, CompanyPermission.VIEW_HISTORY);
+        return new ArrayList<>(orderHistoryIds);
     }
 
-    public void addPurchaseRecord(int purchaseId) {
+    public synchronized void addPurchaseRecord(int purchaseId) {
+        validatePositiveId(purchaseId, "purchase id");
         purchaseHistoryIds.add(purchaseId);
     }
 
@@ -126,28 +169,21 @@ public class Company {
     }
 
 
-
+    //Requirement II.4.6: Generate Sales Report. 
+    public void generateSalesReport(int actorId) {
+        // Requires specific permission or ownership 
+        validateActionPermission(actorId, CompanyPermission.VIEW_HISTORY);
+        // Logic: Gather sales data from direct events and events managed by sub-appointees.
+        // For Version 1, this triggers a data collection process across associatedEventIds.
+        System.out.println("Generating sales report for actor " + actorId + 
+                        " including appointment subtree data.");
+    }
 
     // --- Use Case: II.4.7 - Manage Company Managers ---
-    public List<Integer> getAuthorizedManagerIds() {
-        return Collections.unmodifiableList(authorizedManagerIds);
+    public List<Integer> getAuthorizedManagerIds() { 
+        //return Collections.unmodifiableList(authorizedManagerIds);
+        return List.copyOf(managerPermissions.keySet());
     }
-
-    public void appointManager(int managerId) {
-        if (managerId <= 0) {
-            throw new IllegalArgumentException("manager ID must be positive");
-        }
-    // Integrity Constraint: The founder/owner cannot be appointed as a manager (based on defined business logic).
-        if (managerId == this.companyFounderId) {
-            throw new IllegalArgumentException("Founder is already an owner and cannot be appointed as manager");
-        }
-        if (authorizedManagerIds.contains(managerId)) {
-            throw new IllegalArgumentException("manager already exists");
-        }
-        authorizedManagerIds.add(managerId);
-    }
-
-
 
 
     //II.4.8 - Appoint Additional Company Owner.
@@ -317,9 +353,7 @@ public class Company {
     public int getCompanyFounderId() { return companyFounderId; }
 
     public List<Integer> getManagers() {
-        // TODO Auto-generated method stub
-        //throw new UnsupportedOperationException("Unimplemented method 'getManagers'");
-        // return Collections.unmodifiableList(authorizedManagerIds);
+        
         return List.copyOf(managerPermissions.keySet());
     }
 

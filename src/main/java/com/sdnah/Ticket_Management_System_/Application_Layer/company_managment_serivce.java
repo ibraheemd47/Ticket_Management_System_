@@ -14,12 +14,10 @@ public class company_managment_serivce {
     private static final Logger logger = Logger.getLogger(company_managment_serivce.class.getName());
 
     private final ICompanyRepository companyRepository;
-    // private final PolicyService policyService; // הקשר ל-PolicyService לפי התרשים
 
     @Autowired
     public company_managment_serivce(ICompanyRepository companyRepository) {
         this.companyRepository = companyRepository;
-        // this.policyService = policyService;
     }
 
     // --- II.2.1: View Active Production Companies ---
@@ -31,6 +29,8 @@ public class company_managment_serivce {
 
     // --- II.3.2: Open Production Company (Triggered by II.1.1) ---
     public void openCompany(int companyId, String name, int founderId) {
+        //Company company = getCompanyOrThrow(companyId);
+        //validateManagerOrFounder(founderId, company);
         if (companyRepository.existsById(companyId)) {
             throw new IllegalStateException("Company ID already exists.");
         }
@@ -38,14 +38,14 @@ public class company_managment_serivce {
         companyRepository.save(newCompany);
     }
 
-    
 
     // --- II.4.1: Manage Events (Add/Remove) ---
     public void addEvent(int actingUserId, int companyId, int eventId) {
         Company company = getCompanyOrThrow(companyId);
         validateManagerOrFounder(actingUserId, company);
-        company.addEvent(eventId);
+        company.addEventId(actingUserId, eventId);
         companyRepository.save(company);
+        logger.info("Event " + eventId + " added to company " + companyId);
     }
 
     public void removeEvent(int actingUserId, int companyId, int eventId) {
@@ -53,31 +53,50 @@ public class company_managment_serivce {
         validateManagerOrFounder(actingUserId, company);
         company.removeEvent(eventId);
         companyRepository.save(company);
+        logger.info("Event " + eventId + " removed from company " + companyId);
     }
 
-    // --- II.4.3: Change Purchase and Discount Policies ---
-    public void updateCompanyPolicies(int actingUserId, int companyId, int newPolicyId) {
-        Company company = getCompanyOrThrow(companyId);
+    // --- II.4.3:not for this version
+    // public void updateCompanyPolicies(int actingUserId, int companyId, int newPolicyId) {
+    //     Company company = getCompanyOrThrow(companyId);
         
-        if (company.getCompanyFounderId() != actingUserId) {
-            throw new SecurityException("Only the founder is authorized to update company policies.");
-        }
+    //     if (company.getCompanyFounderId() != actingUserId) {
+    //         throw new SecurityException("Only the founder is authorized to update company policies.");
+    //     }
 
-        // policyService.updateCompanyPolicy(companyId, newPolicyId);
+    //     // policyService.updateCompanyPolicy(companyId, newPolicyId);
+    // }
+
+    // --- II.4.4: Communication ---
+    /** Use Case II.4.4: Receive and respond to inquiries */
+    public void respondToInquiry(int actorId, int companyId, int inquiryId, String response) {
+        Company company = getCompanyOrThrow(companyId);
+        company.respondToInquiry(actorId, inquiryId, response);
+        companyRepository.save(company);
     }
+
 
     // --- II.4.5: View Company Purchase and Order History ---
     public List<Integer> getPurchaseHistory(int actingUserId, int companyId) {
         Company company = getCompanyOrThrow(companyId);
         validateManagerOrFounder(actingUserId, company);
-        return company.getPurchaseHistoryIds();
+        return company.getPurchaseHistoryIds(actingUserId);
     }
 
     public List<Integer> getOrderHistory(int actingUserId, int companyId) {
         Company company = getCompanyOrThrow(companyId);
         validateManagerOrFounder(actingUserId, company);
-        return company.getOrderHistoryIds();
+        return company.getOrderHistoryIds(actingUserId);
     }
+
+    // --- II.4.6: Reporting ---
+    /** Use Case II.4.6: Generate sales report including subtree data */
+    public void generateSalesReport(int actorId, int companyId) {
+        Company company = getCompanyOrThrow(companyId);
+        validateManagerOrFounder(actorId, company);
+        company.generateSalesReport(actorId);
+    }
+
 
     // --- II.4.7: View and Appoint Company Managers ---
     public void appointManager(int actingUserId, int companyId, int newManagerId, Set<CompanyPermission> permissions) {
@@ -99,12 +118,7 @@ public class company_managment_serivce {
     //     companyRepository.save(company);
     // }
 
-    // --- II.4.4: Respond to Inquiries ---
-    public void respondToInquiry(int actingUserId, int companyId, int inquiryId) {
-        Company company = getCompanyOrThrow(companyId);
-        validateManagerOrFounder(actingUserId, company);
-        // לוגיקה לטיפול בפנייה...
-    }
+    
 
     // --- II.4.8: Appoint Additional Company Owner ---
     public void appointAdditionalOwner(int actingOwnerId, int companyId, int newOwnerId) {
