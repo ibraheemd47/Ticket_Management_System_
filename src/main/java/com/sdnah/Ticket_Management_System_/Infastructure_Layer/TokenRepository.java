@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Infastructure_Layer;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,4 +17,6 @@ public interface TokenRepository extends JpaRepository<AuthToken, String> {
 
     @Transactional
     void deleteByTokenValue(String token);
+
+    List<AuthToken> findAllByMemberId(String memberId);
 }
