@@ -180,6 +180,11 @@ public class DiscountPolicy extends Policy {
         }
     }
     // for test
+    public void addDiscountRule(DiscountRule rule) {
+    if (rule != null) {
+        this.activeDiscounts.add(rule);
+    } }
+    //addDiscount
     public void addDiscount(DiscountRule rule) {
     if (rule != null) {
         this.activeDiscounts.add(rule);
