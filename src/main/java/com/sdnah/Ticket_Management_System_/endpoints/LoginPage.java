@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
@@ -34,6 +35,28 @@ public class LoginPage {
         try {
             userService.logout(userDTO.getToken());
             return ResponseEntity.ok("Logged out successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+
+    
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestParam String email) {
+        try {
+            userService.forgotPassword(email);
+            return ResponseEntity.ok("Password reset code sent successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody UserDTO userDTO) {
+        try {
+            userService.resetPassword(userDTO.getEmail(), userDTO.getCode(), userDTO.getNewPassword());
+            return ResponseEntity.ok("Password reset successfully");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
