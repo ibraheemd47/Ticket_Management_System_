@@ -15,8 +15,6 @@ import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 import org.springframework.transaction.annotation.Transactional;
 
-
-
 @Service
 public class UserService {
 
@@ -111,6 +109,22 @@ public class UserService {
                 assignment.getRoleType() == CompanyRoleType.MANAGER) {
             throw new RuntimeException("Appointed by member id is required");
         }
+    }
+
+    public void forgotPassword(String email) {
+        Member member = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("No member found with this email"));
+
+        verificationService.createAndSendPasswordResetCode(member);
+        userRepository.save(member);
+    }
+
+    public void resetPassword(String email, String code, String newPassword) {
+        Member member = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("No member found with this email"));
+
+        verificationService.resetPassword(member, code, newPassword, passwordHasher);
+        userRepository.save(member);
     }
 
     public Member getMemberByToken(String tokenValue) {

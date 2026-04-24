@@ -53,6 +53,10 @@ public class Member {
     private LocalDateTime verificationCodeExpiresAt;
     private boolean verified;
 
+    // rest
+    private String passwordResetCode;
+    private java.time.LocalDateTime passwordResetCodeExpiresAt;
+
     protected Member() {
         // Required by JPA
     }
@@ -242,16 +246,41 @@ public class Member {
         String last = lastName == null ? "" : lastName.trim();
         return (first + " " + last).trim();
     }
+
     public String getVerificationCode() {
         return verificationCode;
     }
+
     public void setVerificationCode(String verificationCode) {
         this.verificationCode = verificationCode;
     }
+
     public LocalDateTime getVerificationCodeExpiresAt() {
         return verificationCodeExpiresAt;
     }
+
     public void setVerificationCodeExpiresAt(LocalDateTime expiresAt) {
         this.verificationCodeExpiresAt = expiresAt;
+    }
+
+    public String getPasswordResetCode() {
+        return passwordResetCode;
+    }
+
+    public void setPasswordResetCode(String passwordResetCode) {
+        this.passwordResetCode = passwordResetCode;
+    }
+
+    public java.time.LocalDateTime getPasswordResetCodeExpiresAt() {
+        return passwordResetCodeExpiresAt;
+    }
+
+    public void setPasswordResetCodeExpiresAt(java.time.LocalDateTime passwordResetCodeExpiresAt) {
+        this.passwordResetCodeExpiresAt = passwordResetCodeExpiresAt;
+    }
+
+    public void clearPasswordResetCode() {
+        this.passwordResetCode = null;
+        this.passwordResetCodeExpiresAt = null;
     }
 }

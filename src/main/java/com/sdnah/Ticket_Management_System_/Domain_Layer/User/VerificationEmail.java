@@ -7,6 +7,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.PasswordHasher;
 import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
 
 @Service
@@ -21,6 +22,9 @@ public class VerificationEmail {
         this.mailSender = mailSender;
     }
 
+    // =========================================================
+    // ACCOUNT VERIFICATION
+    // =========================================================
     public void createAndSendCode(Member member, VerificationMethod verificationMethod) {
         if (member == null) {
             throw new RuntimeException("Member cannot be null");
@@ -45,7 +49,7 @@ public class VerificationEmail {
         member.setVerificationCodeExpiresAt(expiresAt);
 
         System.out.println("Verification code for " + member.getEmail() + ": " + code);
-        if(true)//TODO : REMOVE THIS AND UNCOMMENT THE EMAIL SENDING CODE BELOW
+        if (true)// TODO : REMOVE THIS AND UNCOMMENT THE EMAIL SENDING CODE BELOW
             return;
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(member.getEmail());
@@ -80,9 +84,9 @@ public class VerificationEmail {
             throw new RuntimeException("Verification code has expired");
         }
 
-        //TODO : REMOVE THIS AND UNCOMMENT THE CODE BELOW
+        // TODO : REMOVE THIS AND UNCOMMENT THE CODE BELOW
         // if (!member.getVerificationCode().equals(code.trim())) {
-        //     throw new RuntimeException("Invalid verification code");
+        // throw new RuntimeException("Invalid verification code");
         // }
 
         member.setVerified(true);
@@ -94,4 +98,87 @@ public class VerificationEmail {
         int value = 100000 + random.nextInt(900000);
         return String.valueOf(value);
     }
+
+    // =========================================================
+    // FORGOT PASSWORD / RESET PASSWORD
+    // =========================================================
+    public void createAndSendPasswordResetCode(Member member) {
+        if (member == null) {
+            throw new RuntimeException("Member cannot be null");
+        }
+
+        if (member.getEmail() == null || member.getEmail().isBlank()) {
+            throw new RuntimeException("Member email is missing");
+        }
+
+        String code = generateCode();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CODE_EXPIRE_MINUTES);
+
+        member.setPasswordResetCode(code);
+        member.setPasswordResetCodeExpiresAt(expiresAt);
+
+        System.out.println("Password reset code for " + member.getEmail() + ": " + code);
+        if (true) // TODO : REMOVE THIS AND UNCOMMENT THE EMAIL SENDING CODE BELOW
+            return;
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(member.getEmail());
+        message.setSubject("Reset your password");
+        message.setText(
+                "Hello " + member.getUsername() + ",\n\n" +
+                        "Your password reset code is: " + code + "\n" +
+                        "This code will expire in " + CODE_EXPIRE_MINUTES + " minutes.\n\n" +
+                        "If you did not request this, please ignore this email.");
+
+        mailSender.send(message);
+    }
+
+    public void verifyPasswordResetCode(Member member, String code) {
+        if (member == null) {
+            throw new RuntimeException("Member cannot be null");
+        }
+
+        if (code == null || code.isBlank()) {
+            throw new RuntimeException("Reset code cannot be empty");
+        }
+
+        if (member.getPasswordResetCode() == null || member.getPasswordResetCode().isBlank()) {
+            throw new RuntimeException("No password reset code was generated for this member");
+        }
+
+        if (member.getPasswordResetCodeExpiresAt() == null) {
+            throw new RuntimeException("Password reset code expiration is missing");
+        }
+
+        if (LocalDateTime.now().isAfter(member.getPasswordResetCodeExpiresAt())) {
+            throw new RuntimeException("Password reset code has expired");
+        }
+
+        if (!member.getPasswordResetCode().equals(code.trim())) {
+            throw new RuntimeException("Invalid password reset code");
+        }
+    }
+
+    public void resetPassword(Member member, String code, String newPassword, PasswordHasher passwordHasher) {
+        if (member == null) {
+            throw new RuntimeException("Member cannot be null");
+        }
+
+        if (passwordHasher == null) {
+            throw new RuntimeException("PasswordHasher cannot be null");
+        }
+
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new RuntimeException("Password must contain at least 6 characters");
+        }
+
+        verifyPasswordResetCode(member, code);
+
+        String newPasswordHash = passwordHasher.hash(newPassword);
+        member.setPasswordHash(newPasswordHash);
+
+        member.setPasswordResetCode(null);
+        member.setPasswordResetCodeExpiresAt(null);
+    }
+
 }
