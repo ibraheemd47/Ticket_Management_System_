@@ -65,7 +65,7 @@ class SystemAdminServiceAcceptanceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> systemAdminService.assign_system_admin("bad-token", "member-1"));
 
-        assertEquals("Invalid token for admin ", ex.getMessage());
+        assertEquals("Invalid token for admin", ex.getMessage());
     }
 
     @Test
@@ -88,7 +88,7 @@ class SystemAdminServiceAcceptanceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> systemAdminService.assign_system_admin("token-123", "member-1"));
 
-        assertEquals("Admin not found", ex.getMessage());
+        assertEquals("Member not found", ex.getMessage());
     }
 
     @Test

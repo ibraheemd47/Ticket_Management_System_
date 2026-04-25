@@ -4,8 +4,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
-import com.sdnah.Ticket_Management_System_.DTOs.ProfileDTO;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+
+
+import com.sdnah.Ticket_Management_System_.DTOs.ProfileResponse;
+import com.sdnah.Ticket_Management_System_.DTOs.UpdateProfileRequest;
 
 @RestController
 @RequestMapping("/api/ProfilePage")
@@ -17,31 +19,32 @@ public class ProfilePage {
         this.userService = userService;
     }
 
-    @GetMapping
-    public ResponseEntity<?> getProfile(@RequestParam String token) {
-        try {
-            Member member = userService.getMemberByToken(token);
+    @GetMapping("/me")
+    public ResponseEntity<ProfileResponse> getMyProfile(
+            @RequestHeader("Authorization") String authorizationHeader) {
 
-            ProfileDTO dto = new ProfileDTO();
-            dto.setMemberId(member.getMemberId());
-            dto.setUsername(member.getUsername());
-            dto.setFirstName(member.getFirstName());
-            dto.setLastName(member.getLastName());
-            dto.setFullName(member.getFullName());
-            dto.setEmail(member.getEmail());
-            dto.setPhone(member.getPhone());
-            dto.setAddress(member.getAddress());
-            dto.setCity(member.getCity());
-            dto.setCountry(member.getCountry());
-            dto.setBirthDate(member.getBirthDate());
-            dto.setActive(member.isActive());
-            dto.setLoggedin(member.isLoggedin());
-            dto.setVerified(member.isVerified());
-            dto.setRole(member.getRole() == null ? null : member.getRole().name());
+        String token = extractToken(authorizationHeader);
+        return ResponseEntity.ok(userService.getMyProfile(token));
+    }
 
-            return ResponseEntity.ok(dto);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+    @PutMapping("/update")
+    public ResponseEntity<ProfileResponse> updateMyProfile(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestBody UpdateProfileRequest request) {
+
+        String token = extractToken(authorizationHeader);
+        return ResponseEntity.ok(userService.updateMyProfile(token, request));
+    }
+
+    private String extractToken(String authorizationHeader) {
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            throw new RuntimeException("Missing Authorization header");
         }
+
+        if (authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+
+        return authorizationHeader;
     }
 }

@@ -32,19 +32,24 @@ public class SystemAdminService {
         AuthToken user_token = requireAdminToken(token);
 
         Member to_assign = userRepository.findById(target_member_id)
-                .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Member not found"));
 
         if (is_admin(target_member_id)) {
             logger.warn("Assign system admin rejected: member already admin, targetMemberId={}", target_member_id);
             throw new IllegalArgumentException("Member is already an admin");
         }
 
-        // Create a new System_admin entity and save it to the database.
         System_admin new_admin = new System_admin(to_assign, user_token.getMemberId());
         systemAdminRepository.save(new_admin);
 
-        logger.info("System admin assigned successfully, targetMemberId={}, assignedBy={}", target_member_id,
-                user_token.getMemberId());
+        logger.info("System admin assigned successfully, targetMemberId={}, assignedBy={}",
+                target_member_id, user_token.getMemberId());
+    }
+
+    public Member requireAdmin(String token) {
+        AuthToken authToken = requireAdminToken(token);
+        return userRepository.findById(authToken.getMemberId())
+                .orElseThrow(() -> new IllegalArgumentException("Admin member not found"));
     }
 
     private boolean is_admin(String memberId) {

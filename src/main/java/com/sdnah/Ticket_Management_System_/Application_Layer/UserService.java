@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.sdnah.Ticket_Management_System_.DTOs.ProfileResponse;
+import com.sdnah.Ticket_Management_System_.DTOs.UpdateProfileRequest;
 import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
@@ -28,14 +30,15 @@ public class UserService {
     private final PasswordHasher passwordHasher;
     private final TokenRepository tokenRepository;
     private final AuthTokenService authTokenService;
-
+private final SystemAdminService systemAdminService;
     public UserService(UserRepository userRepository, PasswordHasher passwordHasher, TokenRepository tokenRepository,
-            AuthTokenService authTokenService, VerificationEmail verificationService) {
+            AuthTokenService authTokenService, VerificationEmail verificationService, SystemAdminService systemAdminService) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.tokenRepository = tokenRepository;
         this.authTokenService = authTokenService;
         this.verificationService = verificationService;
+        this.systemAdminService = systemAdminService;
     }
 
     // TODO: ZAKI DELETE
@@ -246,12 +249,12 @@ public class UserService {
         //////// validation/////////////////////////
         if (!validateUsername(username) ||
                 !validatePassword(password) ||
-                !validateEmail(email) ||
-                !validatePhone(phone) ||
+                !validateEmail(email) ||  
                 !validateVerificationTarget(email, phone, verificationMethod)) {
             logger.warn("Register with verification rejected: invalid input data for username={}", username);
             throw new RuntimeException("Invalid input data");
         }
+    
 
         if (userRepository.existsByUsername(username)) {
             logger.warn("Register with verification rejected: username already exists, username={}", username);
@@ -358,8 +361,82 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Member not found"));
     }
 
-    private  List<AuthToken>  getAllTokensForMember(String memberId) {
+    private List<AuthToken> getAllTokensForMember(String memberId) {
         return tokenRepository.findAllByMemberId(memberId);
     }
 
+    public ProfileResponse getMyProfile(String tokenValue) {
+        Member member = getMemberByToken(tokenValue);
+
+        return new ProfileResponse(
+                member.getMemberId(),
+                member.getUsername(),
+                member.getFirstName(),
+                member.getLastName(),
+                member.getEmail(),
+                member.getPhone(),
+                member.getAddress(),
+                member.getCity(),
+                member.getCountry(),
+                member.getBirthDate(),
+                member.getRole().name(),
+                member.isActive(),
+                member.isLoggedin(),
+                member.isVerified());
+    }
+
+    public ProfileResponse updateMyProfile(String tokenValue, UpdateProfileRequest request) {
+        Member member = getMemberByToken(tokenValue);
+
+        member.setFirstName(request.getFirstName());
+        member.setLastName(request.getLastName());
+        member.setEmail(request.getEmail());
+        member.setPhone(request.getPhone());
+        member.setAddress(request.getAddress());
+        member.setCity(request.getCity());
+        member.setCountry(request.getCountry());
+        member.setBirthDate(request.getBirthDate());
+
+        userRepository.save(member);
+
+        return new ProfileResponse(
+                member.getMemberId(),
+                member.getUsername(),
+                member.getFirstName(),
+                member.getLastName(),
+                member.getEmail(),
+                member.getPhone(),
+                member.getAddress(),
+                member.getCity(),
+                member.getCountry(),
+                member.getBirthDate(),
+                member.getRole().name(),
+                member.isActive(),
+                member.isLoggedin(),
+                member.isVerified());
+    }
+
+    public Member requireOwner(String tokenValue, String companyId) {
+        Member member = getMemberByToken(tokenValue);
+
+        if (!member.isOwnerInCompany(companyId)) {
+            throw new RuntimeException("Owner permission required");
+        }
+
+        return member;
+    }
+
+    public Member requireManager(String tokenValue, String companyId) {
+        Member member = getMemberByToken(tokenValue);
+
+        if (!member.isManagerInCompany(companyId) && !member.isOwnerInCompany(companyId)) {
+            throw new RuntimeException("Manager permission required");
+        }
+
+        return member;
+    }
+
+public Member requireAdmin(String tokenValue) {
+    return systemAdminService.requireAdmin(tokenValue);
+}
 }
