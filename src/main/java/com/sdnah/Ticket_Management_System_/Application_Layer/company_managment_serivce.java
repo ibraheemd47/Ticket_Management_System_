@@ -1,7 +1,8 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer;
 
 import java.util.*;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -11,8 +12,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermissio
 
 public class company_managment_serivce {
 
-    private static final Logger logger = Logger.getLogger(company_managment_serivce.class.getName());
-
+   private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
     private final ICompanyRepository companyRepository;
 
     @Autowired
@@ -40,12 +40,19 @@ public class company_managment_serivce {
     public void openCompany(int companyId, String name, int founderId) {
         //Company company = getCompanyOrThrow(companyId);
         //validateManagerOrFounder(founderId, company);
+    try {
+        logger.info("Opening company. companyId={}, founderId={}", companyId, founderId);
         if (companyRepository.existsById(companyId)) {
             throw new IllegalStateException("Company ID already exists.");
         }
         Company newCompany = new Company(companyId, name, founderId);
         companyRepository.save(newCompany);
+        logger.info("Company opened successfully. companyId={}", companyId);
+    } catch (Exception e) {
+        logger.error("Failed to open company. companyId={}, error={}", companyId, e.getMessage());
+        throw e;
     }
+}
 
 
     // --- II.4.1: Manage Events (Add/Remove) ---
@@ -79,42 +86,111 @@ public class company_managment_serivce {
     // --- II.4.4: Communication ---
     /** Use Case II.4.4: Receive and respond to inquiries */
     public void respondToInquiry(int actorId, int companyId, int inquiryId, String response) {
+        // Company company = getCompanyOrThrow(companyId);
+        // company.respondToInquiry(actorId, inquiryId, response);
+        // companyRepository.save(company);
+        try {
+        logger.info("Responding to inquiry. companyId={}, actorId={}, inquiryId={}",
+                companyId, actorId, inquiryId);
         Company company = getCompanyOrThrow(companyId);
         company.respondToInquiry(actorId, inquiryId, response);
         companyRepository.save(company);
+        logger.info("Inquiry response saved successfully. companyId={}, inquiryId={}",
+                companyId, inquiryId);
+    } catch (Exception e) {
+        logger.error("Failed to respond to inquiry. companyId={}, actorId={}, inquiryId={}",
+                companyId, actorId, inquiryId, e);
+        throw e;
+    }
     }
 
 
     // --- II.4.5: View Company Purchase and Order History ---
     public List<Integer> getPurchaseHistory(int actingUserId, int companyId) {
+        // Company company = getCompanyOrThrow(companyId);
+        // validateManagerOrFounder(actingUserId, company);
+        // return company.getPurchaseHistoryIds(actingUserId);
+        try {
+        logger.info("Fetching purchase history. companyId={}, actingUserId={}",
+                companyId, actingUserId);
         Company company = getCompanyOrThrow(companyId);
         validateManagerOrFounder(actingUserId, company);
-        return company.getPurchaseHistoryIds(actingUserId);
+        List<Integer> history = company.getPurchaseHistoryIds(actingUserId);
+        logger.info("Purchase history fetched successfully. companyId={}, records={}",
+                companyId, history.size());
+        return history;
+    } catch (Exception e) {
+        logger.error("Failed to fetch purchase history. companyId={}, actingUserId={}",
+                companyId, actingUserId, e);
+        throw e;
+    }
     }
 
     public List<Integer> getOrderHistory(int actingUserId, int companyId) {
+        // Company company = getCompanyOrThrow(companyId);
+        // validateManagerOrFounder(actingUserId, company);
+        // return company.getOrderHistoryIds(actingUserId);
+        try {
+        logger.info("Fetching order history. companyId={}, actingUserId={}",
+                companyId, actingUserId);
         Company company = getCompanyOrThrow(companyId);
         validateManagerOrFounder(actingUserId, company);
-        return company.getOrderHistoryIds(actingUserId);
+        List<Integer> history = company.getOrderHistoryIds(actingUserId);
+        logger.info("Order history fetched successfully. companyId={}, records={}",
+                companyId, history.size());
+        return history;
+    } catch (Exception e) {
+        logger.error("Failed to fetch order history. companyId={}, actingUserId={}",
+                companyId, actingUserId, e);
+        throw e;
+    }
     }
 
     // --- II.4.6: Reporting ---
     /** Use Case II.4.6: Generate sales report including subtree data */
     public void generateSalesReport(int actorId, int companyId) {
+        // Company company = getCompanyOrThrow(companyId);
+        // validateManagerOrFounder(actorId, company);
+        // company.generateSalesReport(actorId);
+        try {
+        logger.info("Generating sales report. companyId={}, actorId={}", companyId, actorId);
         Company company = getCompanyOrThrow(companyId);
         validateManagerOrFounder(actorId, company);
         company.generateSalesReport(actorId);
+        logger.info("Sales report generated successfully. companyId={}, actorId={}",
+                companyId, actorId);
+    } catch (Exception e) {
+        logger.error("Failed to generate sales report. companyId={}, actorId={}",
+                companyId, actorId, e);
+        throw e;
+    }
     }
 
 
     // --- II.4.7: View and Appoint Company Managers ---
     public void appointManager(int actingUserId, int companyId, int newManagerId, Set<CompanyPermission> permissions) {
-    Company company = getCompanyOrThrow(companyId);
-    if (company.getCompanyFounderId() != actingUserId) {
-        throw new SecurityException("Only the founder can appoint managers.");
+    // Company company = getCompanyOrThrow(companyId);
+    // if (company.getCompanyFounderId() != actingUserId) {
+    //     throw new SecurityException("Only the founder can appoint managers.");
+    // }
+    // company.appointManager(actingUserId, newManagerId, permissions);
+    // companyRepository.save(company);
+    try {
+        logger.info("Appointing manager. companyId={}, actingUserId={}, newManagerId={}",
+                companyId, actingUserId, newManagerId);
+        Company company = getCompanyOrThrow(companyId);
+        if (company.getCompanyFounderId() != actingUserId) {
+            throw new SecurityException("Only the founder can appoint managers.");
+        }
+        company.appointManager(actingUserId, newManagerId, permissions);
+        companyRepository.save(company);
+        logger.info("Manager appointed successfully. companyId={}, newManagerId={}",
+                companyId, newManagerId);
+    } catch (Exception e) {
+        logger.error("Failed to appoint manager. companyId={}, actingUserId={}, newManagerId={}",
+                companyId, actingUserId, newManagerId, e);
+        throw e;
     }
-    company.appointManager(actingUserId, newManagerId, permissions);
-    companyRepository.save(company);
 }
 
     // // --- II.4.13 & II.4.14: Set Company Status (Open/Close) ---
@@ -134,7 +210,6 @@ public class company_managment_serivce {
         Company company = getCompanyOrThrow(companyId);
         company.appointAdditionalOwner(actingOwnerId, newOwnerId);
         companyRepository.save(company);
-
         logger.info("Additional owner appointed. companyId=" + companyId +
                 ", newOwnerId=" + newOwnerId +
                 ", actingOwnerId=" + actingOwnerId);
@@ -145,7 +220,6 @@ public class company_managment_serivce {
         Company company = getCompanyOrThrow(companyId);
         company.removeOwnerAppointment(actingOwnerId, targetOwnerId);
         companyRepository.save(company);
-
         logger.info("Owner appointment removed. companyId=" + companyId +
                 ", targetOwnerId=" + targetOwnerId +
                 ", actingOwnerId=" + actingOwnerId);
@@ -156,20 +230,15 @@ public class company_managment_serivce {
         Company company = getCompanyOrThrow(companyId);
         company.resignOwnership(actingOwnerId);
         companyRepository.save(company);
-
         logger.info("Owner resigned from ownership. companyId=" + companyId +
                 ", ownerId=" + actingOwnerId);
     }
 
     // --- II.4.11: Modify Manager Permissions ---
-    public void modifyManagerPermissions(int actingOwnerId,
-                                         int companyId,
-                                         int managerId,
-                                         Set<CompanyPermission> updatedPermissions) {
+    public void modifyManagerPermissions(int actingOwnerId, int companyId, int managerId, Set<CompanyPermission> updatedPermissions) {
         Company company = getCompanyOrThrow(companyId);
         company.modifyManagerPermissions(actingOwnerId, managerId, updatedPermissions);
         companyRepository.save(company);
-
         logger.info("Manager permissions updated. companyId=" + companyId +
                 ", managerId=" + managerId +
                 ", actingOwnerId=" + actingOwnerId);
@@ -180,7 +249,6 @@ public class company_managment_serivce {
         Company company = getCompanyOrThrow(companyId);
         company.removeManagerAppointment(actingOwnerId, managerId);
         companyRepository.save(company);
-
         logger.info("Manager appointment removed. companyId=" + companyId +
                 ", managerId=" + managerId +
                 ", actingOwnerId=" + actingOwnerId);
@@ -191,7 +259,6 @@ public class company_managment_serivce {
         Company company = getCompanyOrThrow(companyId);
         boolean changed = company.closeCompany(actingFounderId);
         companyRepository.save(company);
-
         logger.info("Company close requested. companyId=" + companyId +
                 ", founderId=" + actingFounderId +
                 ", changed=" + changed);
@@ -204,22 +271,18 @@ public class company_managment_serivce {
         Company company = getCompanyOrThrow(companyId);
         boolean changed = company.reopenCompany(actingFounderId);
         companyRepository.save(company);
-
         logger.info("Company reopen requested. companyId=" + companyId +
                 ", founderId=" + actingFounderId +
                 ", changed=" + changed);
-
         return changed;
     }
 
     // --- II.4.15: View Roles and Permissions ---
     public CompanyRolesViewDTO viewRolesAndPermissions(int actingOwnerId, int companyId) {
         Company company = getCompanyOrThrow(companyId);
-
         if (!company.isOwner(actingOwnerId)) {
             throw new SecurityException("Only a company owner can view roles and permissions.");
         }
-
         return new CompanyRolesViewDTO(
                 company.getCompanyId(),
                 company.getCompanyFounderId(),
@@ -236,11 +299,9 @@ public class company_managment_serivce {
         if (company.isOwner(userId)) {
             return;
         }
-
         if (company.isManager(userId) && company.managerHasPermission(userId, permission)) {
             return;
         }
-
         throw new SecurityException("Unauthorized action for user " + userId + ".");
     }
 
