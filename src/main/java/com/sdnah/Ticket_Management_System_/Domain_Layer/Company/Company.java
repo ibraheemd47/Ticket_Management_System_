@@ -408,12 +408,13 @@ public class Company {
         this.rating = rating;
     }
 
-    public void hasEvent(int eventId) {
+    public  boolean hasEvent (int eventId) {
         if (!isOpen) {
             throw new IllegalStateException("Company is inactive.");
         }
         if (!associatedEventIds.contains(eventId)) {
             throw new NoSuchElementException("Event does not belong to this company.");
         }
+        return true;
     }
 }
