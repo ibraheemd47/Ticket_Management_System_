@@ -3,6 +3,8 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy.DiscountRule;
+
 
 /**
  * Represents the Discount Policy of a company or an event.
@@ -23,6 +25,11 @@ public class DiscountPolicy extends Policy {
          * @return The price after applying the specific discount.
          */
         double apply(double price, int quantity, String couponCode);
+
+        default boolean isConditionMet(int quantity) 
+        {
+            return true; // Default for non-conditional discounts (Visible/Hidden)
+        }
     }
 
     // List of active discount rules. Default is empty (No Discount).
@@ -34,30 +41,29 @@ public class DiscountPolicy extends Policy {
      */
     private boolean isAdditive = false; 
 
-    public DiscountPolicy(int policyId, String description) {
-        super(policyId, description);
+    public DiscountPolicy(int policyId, String description, int eventId) {
+        super(policyId, description, eventId);
     }
 
+    public boolean isAnyConditionalDiscountSatisfied(int quantity) 
+    {
+        for (DiscountRule rule : activeDiscounts) {
+            if (rule instanceof ConditionalDiscount && rule.isConditionMet(quantity)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     // ==========================================================
     // USE CASE II.2.8: Checkout Active Order
     // ==========================================================
-    /**
-     * This method implements the logic for Use Case II.2.8.
-     * The system applies the discount policy to calculate the final payment amount.
-     * * @param originalPrice Base price before any discounts.
-     * @param quantity Number of items being purchased.
-     * @param coupon The coupon code provided by the user at checkout.
-     * @return Final price after applying all relevant policy rules.
-     */
     public double calculateFinalPrice(double originalPrice, int quantity, String coupon) {
         validateSubtotal(originalPrice);
-
         // Default behavior: If no discounts are set, return the original price.
         if (activeDiscounts.isEmpty()) {
             return originalPrice;
         }
-
         if (isAdditive) {
             // Logic for Additive Composition: Apply all discounts sequentially.
             double currentPrice = originalPrice;
@@ -132,10 +138,11 @@ public class DiscountPolicy extends Policy {
         public double apply(double price, int quantity, String couponCode) {
             return price * (1 - (percentage / 100));
         }
+
     }
 
     /**
-     * 3.b: Conditional Discount (הנחה מותנית).
+     * 3.b: Conditional Discount 
      * Applied only if a specific condition is met, e.g., "Buy 3 get 1 free".
      */
     public static class ConditionalDiscount implements DiscountRule {
@@ -148,17 +155,25 @@ public class DiscountPolicy extends Policy {
         }
 
         @Override
-        public double apply(double price, int quantity, String couponCode) {
-            // Example logic: if quantity is enough, apply discount
-            if (quantity >= requiredQuantity) {
+        public double apply(double price, int quantity, String couponCode)
+         {
+            if (isConditionMet(quantity)) 
+            {
                 return price * (1 - (discountPercentage / 100));
             }
             return price;
         }
+        
+        
+        @Override
+        public boolean isConditionMet(int quantity) 
+        {
+            return quantity >= requiredQuantity;
+        }
     }
 
     /**
-     * 3.c: Coupon / Hidden Discount (קוד קופון).
+     * 3.c: Coupon / Hidden Discount 
      * Applied only if the provided coupon code matches.
      */
     public static class CouponDiscount implements DiscountRule {
@@ -172,7 +187,7 @@ public class DiscountPolicy extends Policy {
 
         @Override
         public double apply(double price, int quantity, String couponCode) {
-            // Applies discount only if the code matches during Checkout [cite: 1699]
+            // Applies discount only if the code matches during Checkout 
             if (validCode.equals(couponCode)) {
                 return Math.max(0, price - discountAmount);
             }
