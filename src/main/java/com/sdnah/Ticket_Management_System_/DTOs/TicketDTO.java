@@ -1,0 +1,25 @@
+package com.sdnah.Ticket_Management_System_.DTOs;
+import java.util.UUID;
+
+public class TicketDTO {
+    public UUID id;
+    public String eventId;
+    public String showId;
+    public String seatNumber;
+    public double price;
+    public boolean isLocked;
+    public String lockedByUserId;
+
+    public TicketDTO() {}
+
+    public TicketDTO(UUID id, String eventId, String showId, String seatNumber, double price) {
+        this.id = this.id;
+        this.eventId = eventId;
+        this.showId = showId;
+        this.seatNumber = seatNumber;
+        this.price = price;
+        this.isLocked = false;
+        this.lockedByUserId = null;
+    }
+
+}

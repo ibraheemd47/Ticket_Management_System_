@@ -4,6 +4,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.*;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class TicketGenerator {
 
@@ -20,7 +21,7 @@ public class TicketGenerator {
                 StandingArea standingArea = (StandingArea) area;
                 // Generate a ticket for every person up to the max capacity
                 for (int i = 0; i < standingArea.getMaxCapacity(); i++) {
-                    ticket ticket = new ticket(show.getShowid(), standingArea, show.getShowDate(), defaultPrice);
+                    ticket ticket = new ticket(UUID.randomUUID(), show.getShowid(), standingArea, show.getShowDate(), defaultPrice);
                     generatedTickets.add(ticket);
                 }
             } 
@@ -36,7 +37,7 @@ public class TicketGenerator {
                             // You can even put custom pricing logic here! 
                             // e.g., if (block.getName().equals("VIP")) { price = 500; }
                             
-                            ticket ticket = new ticket(show.getShowid(), seat, seatedArea, show.getShowDate(), defaultPrice);
+                            ticket ticket = new ticket(UUID.randomUUID(), show.getShowid(), seat, seatedArea, show.getShowDate(), defaultPrice);
                             generatedTickets.add(ticket);
                         }
                     }

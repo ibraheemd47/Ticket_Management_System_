@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
-public abstract class Event {
+public  class Event {
 
  
     
@@ -103,6 +103,7 @@ public abstract class Event {
         ManagerIds.remove(managerId);
         
     }
+    
 
 
 }

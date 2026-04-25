@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public class ticket {
     
-    private final String ticketId; // QR code
+    private final UUID ticketId; // QR code
     private final UUID showId;     // The show this ticket is for
     private String ownerId;        // The user who bought it
 
@@ -26,8 +26,8 @@ public class ticket {
     }
     
     // Constructor
-    public ticket(UUID showId, Seat seat, Area area,  Date showDate, BigDecimal price) {
-        this.ticketId = null ; // we want to generate a QR code Based on the ticketId.
+    public ticket(UUID ticketId, UUID showId, Seat seat, Area area,  Date showDate, BigDecimal price) {
+        this.ticketId = ticketId;
         this.showId = showId;
         this.seat = seat;
         this.area = area;
@@ -36,8 +36,8 @@ public class ticket {
         this.status = TicketStatus.AVAILABLE;
     }
     //ticket for stranding areas
-    public ticket(UUID showId, Area standingArea, Date showDate, BigDecimal price) {
-        this.ticketId = null ; // we want to generate a QR code Based on the ticketId.
+    public ticket(UUID ticketId, UUID showId, Area standingArea, Date showDate, BigDecimal price) {
+        this.ticketId = ticketId;
         this.showId = showId;
         this.area = standingArea;
         this.seat = null; // No specific seat for standing area
@@ -86,7 +86,7 @@ public class ticket {
         this.status = TicketStatus.AVAILABLE;
         return true;
     }
-    public String getTicketId() {
+    public UUID getTicketId() {
         return ticketId;
     }
 
