@@ -7,11 +7,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 public  class Event {
 
- 
+    private Logger logger = (Logger) LoggerFactory.getLogger(Event.class);
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID) // Specifically tells JPA to use a UUID
@@ -95,12 +99,14 @@ public  class Event {
         if (!ManagerIds.contains(ManagerId)) {
             throw new IllegalArgumentException("Only managers can update the shows list.");
         }
+        logger.info("Updating shows list for event {} by manager {}", this.EventId, ManagerId);
         this.shows = shows;
     }
     public void addShow(show show,Long ManagerId) {
         if (!ManagerIds.contains(ManagerId)) {
             throw new IllegalArgumentException("Only managers can add shows to the event.");
         }
+        logger.info("Adding show to event {} by manager {}", this.EventId, ManagerId);
         shows.add(show);
         show.setEvent(this);
     }
@@ -108,6 +114,7 @@ public  class Event {
         if (!ManagerIds.contains(ManagerId)) {
             throw new IllegalArgumentException("Only managers can remove shows from the event.");
         }
+        logger.info("Removing show from event {} by manager {}", this.EventId, ManagerId);
         shows.remove(show);
         show.setEvent(null);
     }
@@ -118,6 +125,7 @@ public  class Event {
         if (ManagerIds.contains(managerId)) {
             throw new IllegalArgumentException("This manager is already assigned to the event.");
         }
+        logger.info("Adding manager to event {} by owner {}", this.EventId, OwnerId);
         ManagerIds.add(managerId);
     }
     public void removeManager(Long managerId, Long OwnerId) {
@@ -127,8 +135,19 @@ public  class Event {
         if (!ManagerIds.contains(managerId)) {
             throw new IllegalArgumentException("This manager is not assigned to the event.");
         }
+        logger.info("Removing manager from event {} by owner {}", this.EventId, OwnerId);
         ManagerIds.remove(managerId);
         
+    }
+
+    public void delete(Long ownerId2) {
+        if (!ownerId2.equals(this.OwnerId)) {
+            throw new IllegalArgumentException("Only the owner can delete the event.");
+        }
+        logger.info("Deleting event {} by owner {}", this.EventId, ownerId2);
+        // Perform any necessary cleanup here, such as removing associated shows or tickets
+        this.shows.clear(); // Clear the list of shows
+        this.ManagerIds.clear(); // Clear the list of managers
     }
     
 

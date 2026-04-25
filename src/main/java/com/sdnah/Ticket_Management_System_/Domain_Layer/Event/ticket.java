@@ -5,8 +5,12 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.UUID;
 
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+
 public class ticket {
-    
+    private Logger logger = (Logger) LoggerFactory.getLogger(ticket.class);
     private final UUID ticketId; // QR code
     private final UUID showId;     // The show this ticket is for
     private String ownerId;        // The user who bought it
@@ -35,7 +39,7 @@ public class ticket {
         this.price = price;
         this.status = TicketStatus.AVAILABLE;
         this.ownerId = null;
-        
+        logger.info("Ticket created with ID: {} for show {}", this.ticketId, this.showId);
     }
     //ticket for stranding areas
     public ticket(UUID ticketId, UUID showId, Area standingArea, Date showDate, BigDecimal price) {
@@ -46,46 +50,57 @@ public class ticket {
         this.showDate = showDate;
         this.price = price;
         this.status = TicketStatus.AVAILABLE;
+        logger.info("Ticket created with ID: {} for standing area {}", this.ticketId, this.area.getId());
     }
 
     // Domain Logic: Buying the ticket
     public boolean purchase(String userId) {
         if (this.status != TicketStatus.LOCKED_IN_CART) {
+            logger.warn("Attempted to purchase ticket with ID: {} that is not locked in cart", this.ticketId);
             return false; 
         }
         this.ownerId = userId;
         this.status = TicketStatus.PURCHASED;
+        logger.info("Ticket purchased with ID: {} by user {}", this.ticketId, this.ownerId);
         return true;
     }
     public boolean lockInCart(String userId) {
         if (this.status != TicketStatus.AVAILABLE) {
+            logger.warn("Attempted to lock ticket with ID: {} that is not available", this.ticketId);
             return false; 
         }
         this.status = TicketStatus.LOCKED_IN_CART;
         this.ownerId = userId;
+        logger.info("Ticket locked in cart with ID: {} for user {}", this.ticketId, this.ownerId);
         return true;
     }
     public boolean unlockFromCart() {
         if (this.status != TicketStatus.LOCKED_IN_CART) {
+            logger.warn("Attempted to unlock ticket with ID: {} that is not locked in cart", this.ticketId);
             return false; 
         }
         this.ownerId = null;
         this.status = TicketStatus.AVAILABLE;
+        logger.info("Ticket unlocked from cart with ID: {}", this.ticketId);
         return true;
     }
     public boolean scan() {
         if (this.status != TicketStatus.PURCHASED) {
+            logger.warn("Attempted to scan ticket with ID: {} that is not purchased", this.ticketId);
             return false; 
         }
         this.status = TicketStatus.SCANNED;
+        logger.info("Ticket scanned with ID: {}", this.ticketId);
         return true;
     }
     public boolean cancel() {
         if (this.status != TicketStatus.PURCHASED) {
+            logger.warn("Attempted to cancel ticket with ID: {} that is not purchased", this.ticketId);
             return false; 
         }
         this.ownerId = null;
         this.status = TicketStatus.AVAILABLE;
+        logger.info("Ticket canceled with ID: {}", this.ticketId);
         return true;
     }
     public UUID getTicketId() {
@@ -112,11 +127,12 @@ public class ticket {
     public Date getShowDate() {
         return showDate;
     }
-    
+
 
 
     public String getFullSeatLocation() {
     if (this.seat == null) {
+        logger.info("Ticket {} is for a standing area, no specific seat assigned", this.ticketId);
         return "General Admission - " + this.area.getName();
     }
     
@@ -124,6 +140,7 @@ public class ticket {
     String seatNum = this.seat.getSeatNumber();
     String rowNum = this.seat.getRow().getRowNumber();
     String blockName = this.seat.getRow().getBlock().getBlockIdentifier();
+    logger.info("Retrieving full seat location for ticket {}: Block {}, Row {}, Seat {}", this.ticketId, blockName, rowNum, seatNum);
     
     return blockName + ", " + rowNum + ", " + seatNum;
 }

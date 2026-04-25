@@ -1,9 +1,13 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
 import jakarta.persistence.*;
 
 @Entity
 public class Seat {
+    private Logger logger = (Logger) LoggerFactory.getLogger(Seat.class);
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -34,6 +38,7 @@ public class Seat {
         if (isFilled) {
             throw new IllegalStateException("Seat is already filled!");
         }
+        logger.info("Filling seat {} in row {}", this.seatNumber, this.row.getRowNumber());
         this.isFilled = true; // Mark the seat as filled
         // Implementation for filling the seat with a ticket
     }

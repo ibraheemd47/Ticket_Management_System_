@@ -5,7 +5,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+
 public class TicketGenerator {
+    private Logger logger = (Logger) LoggerFactory.getLogger(TicketGenerator.class);
 
     // This method takes a Show and loops through its physical layout to map tickets
     public List<ticket> generateAllTicketsForShow(show show, BigDecimal defaultPrice) {
@@ -22,7 +27,9 @@ public class TicketGenerator {
                 for (int i = 0; i < standingArea.getMaxCapacity(); i++) {
                     ticket ticket = new ticket(UUID.randomUUID(), show.getShowid(), standingArea, show.getShowDate(), defaultPrice);
                     generatedTickets.add(ticket);
+
                 }
+                logger.info("Generated {} tickets for standing area {}", standingArea.getCurrentCapacity(), standingArea.getId());
             } 
             // Handle Seated Areas
             else if (area instanceof SeatedArea) {
@@ -39,11 +46,13 @@ public class TicketGenerator {
                             ticket ticket = new ticket(UUID.randomUUID(), show.getShowid(), seat, seatedArea, show.getShowDate(), defaultPrice);
                             generatedTickets.add(ticket);
                         }
+                        logger.info("Generated {} tickets for block {} in seated area {}", row.getSeats().size(), block.getBlockIdentifier(), seatedArea.getId());
                     }
                 }
             }
         }
 
+        logger.info("Generated {} tickets for show {}", generatedTickets.size(), show.getShowid());
         return generatedTickets;
     }
 }

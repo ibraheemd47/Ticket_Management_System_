@@ -3,8 +3,13 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 import jakarta.persistence.Entity;
 import java.util.LinkedList;
 import java.util.UUID;
+
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
 @Entity
 public class StandingArea extends Area {
+    private Logger logger = (Logger) LoggerFactory.getLogger(StandingArea.class);
 
     private int maxCapacity; // Added because standing areas usually need a limit
     private LinkedList<ticket> areaMap ;
@@ -14,7 +19,7 @@ public class StandingArea extends Area {
         this.maxCapacity = maxCapacity;
         this.areaMap = new LinkedList<ticket>();
     }
-    
+
     public boolean addTicket(ticket t) {
         if (areaMap.size() < maxCapacity) {
             areaMap.add(t);
@@ -26,12 +31,15 @@ public class StandingArea extends Area {
         return super.getId();
     }
     public boolean isFull() {
+        logger.info("Checking if standing area {} is full", this.getId());
         return areaMap.size() >= maxCapacity;
     }
     public int getCurrentCapacity() {
+        logger.info("Retrieving current capacity for standing area {}", this.getId());
         return areaMap.size();
     }
     public boolean removeTicket(ticket t) {
+        logger.info("Removing ticket from standing area {}", this.getId()); 
         return areaMap.remove(t);
     }
     public LinkedList<ticket> getAreaMap() {

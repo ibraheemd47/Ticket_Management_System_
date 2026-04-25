@@ -6,8 +6,13 @@ import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+
 @Entity
 public class SeatedArea extends Area {
+    private Logger logger = (Logger) LoggerFactory.getLogger(SeatedArea.class);
 
     // Composition: A Seated Area contains 1 to many Blocks
     @OneToMany(cascade = CascadeType.ALL)
@@ -25,6 +30,7 @@ public class SeatedArea extends Area {
         return NumberofBlocks;
     }
     public Block[] getBlocks() {
+        logger.info("Retrieving blocks for seated area {}", this.getId());
         return blocks.toArray(new Block[0]);
     }
     

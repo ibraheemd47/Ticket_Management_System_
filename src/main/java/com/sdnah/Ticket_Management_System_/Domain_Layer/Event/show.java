@@ -6,9 +6,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+
 @Entity
 public class show {
 
+    private Logger logger = (Logger) LoggerFactory.getLogger(show.class);
     @Id
     @GeneratedValue(strategy = GenerationType.UUID) // Specifically tells JPA to use a UUID
     private UUID showid;
@@ -31,6 +36,7 @@ public class show {
       this.showid= UUID.randomUUID(); 
     this.EventId=EventId;
     this.showDate = showDate;
+    logger.info("Show created with ID: {} for event {}", this.showid, this.EventId);
 
     }
     public UUID getShowid() {

@@ -2,9 +2,16 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Waiting_Queue;
 
 import java.util.LinkedList;
 import java.util.List;
+
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+
 import java.util.ArrayList;
 
 public class WaitingQueue {
+
+    private Logger logger = (Logger) LoggerFactory.getLogger(WaitingQueue.class);
     
     private final Long showId;
     
@@ -24,11 +31,13 @@ public class WaitingQueue {
 
     public boolean joinQueue(String userId) {
         QueueEntry newEntry = new QueueEntry(userId);
-        
+        logger.info("Attempting to join queue for user {}", userId);
         if (line.contains(newEntry)) { // to prevent the same user from joining the queue multiple times, we check if they are already in line before adding them
+            logger.info("User {} is already in the queue.", userId);
             return false; 
         }
         
+        logger.info("User {} has joined the queue.", userId);
         return line.add(newEntry);
     }
 
@@ -52,11 +61,13 @@ public class WaitingQueue {
         
         for (int i = 0; i < amountToAdmit; i++) {
             if (line.isEmpty()) {
+                logger.info("No users to admit from the queue.");
                 break;
             }
             // removeFirst() takes the person at the front of the line
             QueueEntry nextUser = line.removeFirst(); 
             admittedUsers.add(nextUser.getUserId());
+            logger.info("Admitted user {} from the queue.", nextUser.getUserId());
         }
         
         return admittedUsers;

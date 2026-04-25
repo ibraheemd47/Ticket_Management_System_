@@ -2,9 +2,13 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Waiting_Queue;
 
 import java.time.LocalDateTime;
 
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+
 public class QueueEntry { // this class represents an entry in the waiting queue and also to measure the time span and how to deal with fairness 
     // the waiting queue will be implemented as a list of QueueEntry objects, each entry will have the userId and the time they joined the queue, this way we can measure the time span and also to deal with fairness by giving priority to those who have been waiting longer
-
+    private Logger logger = (Logger) LoggerFactory.getLogger(QueueEntry.class);
     private final String userId;
     private final LocalDateTime joinTime;
 
@@ -22,6 +26,7 @@ public class QueueEntry { // this class represents an entry in the waiting queue
         if (this == o) return true;
         if (!(o instanceof QueueEntry)) return false;
         QueueEntry that = (QueueEntry) o;
+        logger.info("Comparing QueueEntry for user {} with QueueEntry for user {}", this.userId, that.userId);
         return userId.equals(that.userId);
     }
 

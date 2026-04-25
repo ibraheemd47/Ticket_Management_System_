@@ -4,8 +4,13 @@ import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+
 @Entity
 public class Block {
+    private Logger logger = (Logger) LoggerFactory.getLogger(Block.class);
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -24,6 +29,7 @@ public class Block {
         this.blockIdentifier = blockIdentifier;
         this.rows = new ArrayList<>(numberofRows);
         this.seatedArea = seatedArea;
+        this.logger.info("Block created with ID: {}", this.id);
     }
     public void setId(Long id) {
         this.id = id;
