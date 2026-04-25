@@ -27,6 +27,15 @@ public class company_managment_serivce {
                 .toList();
     }
 
+    // II.2.1 - Get all upcoming events from active companies
+    public List<Integer> getAllUpComingEventsForHomePage() {
+        return companyRepository.findAll().stream()
+                .filter(Company::isOpen)
+                .flatMap(company -> company.getAssociatedEventIds().stream())
+                .toList();
+    }
+
+
     // --- II.3.2: Open Production Company (Triggered by II.1.1) ---
     public void openCompany(int companyId, String name, int founderId) {
         //Company company = getCompanyOrThrow(companyId);
@@ -249,4 +258,46 @@ public class company_managment_serivce {
         }
         }
     
+
+        //for endpoints:
+
+        // Filter events by company name
+        public List<Integer> filterEventsByCompanyName(String companyName) {
+            return companyRepository.findAll().stream()
+                    .filter(Company::isOpen)
+                    .filter(company -> company.matchesName(companyName))
+                    .flatMap(company -> company.getAssociatedEventIds().stream())
+                    .toList();
+        }
+
+        public List<Company> showCompaniesByRating0() 
+        {
+            throw new UnsupportedOperationException("Company rating is not implemented yet.");
+        }
+
+        public List<Company> showCompaniesByRating() {
+            return companyRepository.findAll().stream()
+                .filter(Company::isOpen)
+                .sorted(Comparator.comparingDouble(Company::getRating).reversed())
+                .toList();
+        }
+
+        public List<Company> searchByCompanyName(String companyName) 
+        {
+            return companyRepository.findAll().stream()
+                    .filter(Company::isOpen)
+                    .filter(company -> company.matchesName(companyName))
+                    .toList();
+        }
+
+    public int getEventDetails(int eventId) 
+    {
+        return companyRepository.findAll().stream()
+                .filter(Company::isOpen)
+                .filter(company -> company.hasEvent(eventId))
+                .findFirst()
+                .map(company -> eventId)
+                .orElseThrow(() -> new NoSuchElementException("Event ID " + eventId + " not found."));
+    }
+
 }

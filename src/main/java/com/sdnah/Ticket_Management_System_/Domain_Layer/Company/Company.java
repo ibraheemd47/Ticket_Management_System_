@@ -20,6 +20,7 @@ public class Company {
     private final Map<Integer, Set<CompanyPermission>> managerPermissions;
     private final Map<Integer, Integer> managerAppointedByOwner;
 
+    private double rating;
 
     public Company(int companyId, String companyName, int companyFounderId) {
         validatePositiveId(companyId, "company id");
@@ -41,6 +42,7 @@ public class Company {
         this.managerPermissions = new ConcurrentHashMap<>();
         this.managerAppointedByOwner = new ConcurrentHashMap<>();
         //this.authorizedManagerIds = new CopyOnWriteArrayList<>();
+        this.rating = 0.0;
     }
 
 
@@ -83,7 +85,6 @@ public class Company {
         throw new SecurityException("Unauthorized: Member " + actorId + " lacks permission: " + requiredPermission);
     }
 
-    
 
 
     // --- Use Case: II.2.1 & II.4.1 - View Company Events ---
@@ -387,5 +388,32 @@ public class Company {
         return Collections.unmodifiableMap(copy);
     }
 
-    
+    //helper
+    public boolean matchesName(String companyName) {
+        if (companyName == null || companyName.trim().isEmpty()) {
+            return true; // אין סינון
+        }
+        return this.companyName.toLowerCase()
+                .contains(companyName.toLowerCase().trim());
+    }
+
+    public double getRating() {
+    return rating;
+}
+
+    public void updateRating(double rating) {
+        if (rating < 0 || rating > 5) {
+            throw new IllegalArgumentException("Rating must be between 0 and 5.");
+        }
+        this.rating = rating;
+    }
+
+    public void hasEvent(int eventId) {
+        if (!isOpen) {
+            throw new IllegalStateException("Company is inactive.");
+        }
+        if (!associatedEventIds.contains(eventId)) {
+            throw new NoSuchElementException("Event does not belong to this company.");
+        }
+    }
 }
