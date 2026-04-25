@@ -14,6 +14,7 @@ public class Company {
 
     
     private final List<Integer> associatedEventIds; // II.2.1 
+    
     private final List<Integer> purchaseHistoryIds; // Use Case: II.4.4 4.5
     private final List<Integer> orderHistoryIds;// Use Case: II.4.5 - View company order history
     //private final List<Integer> authorizedManagerIds; // II.4.7 - Manage Company Managers
@@ -21,6 +22,7 @@ public class Company {
     private final Map<Integer, Integer> managerAppointedByOwner;
 
     private double rating;
+    private String logoURL; // for ui display purposes, not used in domain logic
 
     public Company(int companyId, String companyName, int companyFounderId) {
         validatePositiveId(companyId, "company id");
@@ -416,5 +418,26 @@ public class Company {
             throw new NoSuchElementException("Event does not belong to this company.");
         }
         return true;
+    }
+
+    public String getLogoURL() {
+        return logoURL;
+    }
+    public void setLogoURL(String logoURL) {
+        if (logoURL == null || logoURL.trim().isEmpty()) {
+            throw new IllegalArgumentException("Logo URL cannot be empty.");
+        }
+        this.logoURL = logoURL.trim();
+    }
+    public String getFullDetails() {
+        return "Company Name: " + companyName + "\n" +
+               "Company ID: " + companyId + "\n" +
+               "Founder ID: " + companyFounderId + "\n" +
+               "Status: " + (isOpen ? "Active" : "Inactive") + "\n" +
+               "Rating: " + rating + "\n" +
+               "Logo URL: " + (logoURL != null ? logoURL : "No logo set") + "\n" +
+               "Owners: " + ownerIds + "\n" +
+               "Managers: " + managerPermissions.keySet() + "\n" +
+               "Associated Events: " + associatedEventIds;
     }
 }

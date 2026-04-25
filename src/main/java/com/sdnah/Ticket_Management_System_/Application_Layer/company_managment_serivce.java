@@ -29,6 +29,7 @@ public class company_managment_serivce {
 
     // II.2.1 - Get all upcoming events from active companies
     public List<Integer> getAllUpComingEventsForHomePage() {
+        //this return all of the events of all the companies, and the events service should handle the date filtering and return only the upcoming events in the response
         return companyRepository.findAll().stream()
                 .filter(Company::isOpen)
                 .flatMap(company -> company.getAssociatedEventIds().stream())
@@ -259,36 +260,41 @@ public class company_managment_serivce {
         }
     
 
-        //for endpoints:
+    //for endpoints:
 
-        // Filter events by company name
-        public List<Integer> filterEventsByCompanyName(String companyName) {
-            return companyRepository.findAll().stream()
-                    .filter(Company::isOpen)
-                    .filter(company -> company.matchesName(companyName))
-                    .flatMap(company -> company.getAssociatedEventIds().stream())
-                    .toList();
-        }
+    // Filter events by company name
+    public List<Integer> filterEventsByCompanyName(String companyName) {
+          return companyRepository.findAll().stream()
+                   .filter(Company::isOpen)
+                   .filter(company -> company.matchesName(companyName))
+                   .flatMap(company -> company.getAssociatedEventIds().stream())
+                  .toList();
+    }
 
-        public List<Company> showCompaniesByRating0() 
-        {
-            throw new UnsupportedOperationException("Company rating is not implemented yet.");
-        }
+    public List<Integer> getAllEventsByCompany(int companyId) {
+        Company company = getCompanyOrThrow(companyId);
+        return company.getAssociatedEventIds();
+    }
 
-        public List<Company> showCompaniesByRating() {
+    public List<Company> showCompaniesByRating0()       
+    {
+        throw new UnsupportedOperationException("Company rating is not implemented yet.");
+    }
+
+    public List<Company> showCompaniesByRating() {
             return companyRepository.findAll().stream()
                 .filter(Company::isOpen)
                 .sorted(Comparator.comparingDouble(Company::getRating).reversed())
                 .toList();
-        }
+    }
 
-        public List<Company> searchByCompanyName(String companyName) 
-        {
+    public List<Company> searchByCompanyName(String companyName) 
+    {
             return companyRepository.findAll().stream()
                     .filter(Company::isOpen)
                     .filter(company -> company.matchesName(companyName))
                     .toList();
-        }
+    }
 
     public int getEventDetails(int eventId) 
     {
@@ -298,6 +304,32 @@ public class company_managment_serivce {
                 .findFirst()
                 .map(company -> eventId)
                 .orElseThrow(() -> new NoSuchElementException("Event ID " + eventId + " not found."));
+    }
+
+    public String getCompanyLogoURL(int companyId) 
+    {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+        
+        return company.getLogoURL();
+    }
+
+    public String getCompanyDetails(int companyId)
+    {
+        Company company = getCompanyOrThrow(companyId);
+        return company.getFullDetails();
+    }
+
+    public void deleteCompany(int userId, int companyId) 
+    {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new NoSuchElementException("Company not found"));
+
+        if (!company.isOwner(userId)) {
+            throw new SecurityException("Only owner can delete company");
+        }
+
+        companyRepository.deleteById(companyId);
     }
 
 }
