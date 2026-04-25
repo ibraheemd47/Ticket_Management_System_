@@ -79,16 +79,6 @@ class MemberTest {
     }
 
     @Test
-    @DisplayName("Given valid data, when Member is constructed, then member is logged-in by default")
-    void givenValidData_WhenConstructed_ThenMemberIsLoggedInByDefault() {
-        // Arrange + Act
-        Member member = new Member("m-001", "alice", "hash");
-
-        // Assert
-        assertTrue(member.isLoggedin());
-    }
-
-    @Test
     @DisplayName("Given valid data, when Member is constructed, then role is MEMBER")
     void givenValidData_WhenConstructed_ThenRoleIsMember() {
         // Arrange + Act
@@ -126,6 +116,7 @@ class MemberTest {
     void givenLoggedInMember_WhenLogoutCalled_ThenIsLoggedinReturnsFalse() {
         // Arrange
         Member member = new Member("m-001", "alice", "hash");
+        member.login();
         assertTrue(member.isLoggedin()); // precondition
 
         // Act

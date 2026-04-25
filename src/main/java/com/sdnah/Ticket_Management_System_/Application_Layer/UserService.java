@@ -30,9 +30,11 @@ public class UserService {
     private final PasswordHasher passwordHasher;
     private final TokenRepository tokenRepository;
     private final AuthTokenService authTokenService;
-private final SystemAdminService systemAdminService;
+    private final SystemAdminService systemAdminService;
+
     public UserService(UserRepository userRepository, PasswordHasher passwordHasher, TokenRepository tokenRepository,
-            AuthTokenService authTokenService, VerificationEmail verificationService, SystemAdminService systemAdminService) {
+            AuthTokenService authTokenService, VerificationEmail verificationService,
+            SystemAdminService systemAdminService) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.tokenRepository = tokenRepository;
@@ -249,12 +251,11 @@ private final SystemAdminService systemAdminService;
         //////// validation/////////////////////////
         if (!validateUsername(username) ||
                 !validatePassword(password) ||
-                !validateEmail(email) ||  
+                !validateEmail(email) ||
                 !validateVerificationTarget(email, phone, verificationMethod)) {
             logger.warn("Register with verification rejected: invalid input data for username={}", username);
             throw new RuntimeException("Invalid input data");
         }
-    
 
         if (userRepository.existsByUsername(username)) {
             logger.warn("Register with verification rejected: username already exists, username={}", username);
@@ -436,7 +437,7 @@ private final SystemAdminService systemAdminService;
         return member;
     }
 
-public Member requireAdmin(String tokenValue) {
-    return systemAdminService.requireAdmin(tokenValue);
-}
+    public Member requireAdmin(String tokenValue) {
+        return systemAdminService.requireAdmin(tokenValue);
+    }
 }
