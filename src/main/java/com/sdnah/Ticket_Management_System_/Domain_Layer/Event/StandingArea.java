@@ -14,7 +14,7 @@ public class StandingArea extends Area {
         this.maxCapacity = maxCapacity;
         this.areaMap = new LinkedList<ticket>();
     }
-    // TODO: Implementation of StandingArea class with necessary fields and methods, such as maxCapacity to limit the number of people in the standing area.
+    
     public boolean addTicket(ticket t) {
         if (areaMap.size() < maxCapacity) {
             areaMap.add(t);

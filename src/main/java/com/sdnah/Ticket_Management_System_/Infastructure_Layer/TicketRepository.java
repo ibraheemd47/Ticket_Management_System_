@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-
+@Repository
 public interface TicketRepository extends JpaRepository<ticket, UUID> {
 
     public Optional<ticket> findById(UUID ticketId) ;

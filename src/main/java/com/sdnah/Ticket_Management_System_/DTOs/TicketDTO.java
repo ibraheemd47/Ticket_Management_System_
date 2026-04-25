@@ -13,7 +13,7 @@ public class TicketDTO {
     public TicketDTO() {}
 
     public TicketDTO(UUID id, String eventId, String showId, String seatNumber, double price) {
-        this.id = this.id;
+        this.id = id;
         this.eventId = eventId;
         this.showId = showId;
         this.seatNumber = seatNumber;

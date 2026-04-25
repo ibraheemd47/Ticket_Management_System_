@@ -25,29 +25,14 @@ public class show {
 
     private UUID EventId;
 
-    public show(UUID EventId) {
-      this.showid= UUID.randomUUID();  // TODO: Initialize the show with the given event ID
+    private Date showDate;
+
+    public show(UUID EventId, Date showDate) {
+      this.showid= UUID.randomUUID(); 
     this.EventId=EventId;
-    
+    this.showDate = showDate;
 
     }
-    // Create Tickets for each seat in the show 
-    // public void createTickets() {
-    //     for (Area area : areas) {
-    //         if (area instanceof SeatedArea) {
-    //             SeatedArea seatedArea = (SeatedArea) area;
-    //             for (Block block : seatedArea.getBlocks()) {
-    //                 for (Row row : block.getRows()) {
-    //                     for (Seat seat : row.getSeats()) {
-    //                         // Create a ticket for this seat
-    //                         ticket ticket = new ticket(Block,row, seat);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
     public UUID getShowid() {
         return showid;
     }
@@ -71,8 +56,10 @@ public class show {
     }
 
     public Date getShowDate() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getShowDate'");
+        return showDate;
     }
-    
+    public void setShowDate(Date showDate) {
+        this.showDate = showDate;
+    }
+
 }

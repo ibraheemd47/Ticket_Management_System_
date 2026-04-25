@@ -55,6 +55,33 @@ public  class Event {
     public void setName(String name) {
         this.name = name;
     }
+    public Long getCompanyId() {
+        return CompanyId;
+    }
+    public void setCompanyId(Long companyId) {
+        CompanyId = companyId;
+    }
+    public Long getOwnerId() {
+        return OwnerId;
+    }
+    public void setOwnerId(Long ownerId) {
+        OwnerId = ownerId;
+    }
+    public List<Long> getManagerIds() {
+        return ManagerIds;
+    }
+    public Date getStartDate() {
+        return StartDate;
+    }
+    public void setStartDate(Date startDate) {
+        StartDate = startDate;
+    }
+    public Date getEndDate() {
+        return EndDate;
+    }
+    public void setEndDate(Date endDate) {
+        EndDate = endDate;
+    }
     public show_type getEventType() {
         return eventType;
     }

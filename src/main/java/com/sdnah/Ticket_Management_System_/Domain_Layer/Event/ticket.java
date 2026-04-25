@@ -34,6 +34,8 @@ public class ticket {
         this.showDate = showDate;
         this.price = price;
         this.status = TicketStatus.AVAILABLE;
+        this.ownerId = null;
+        
     }
     //ticket for stranding areas
     public ticket(UUID ticketId, UUID showId, Area standingArea, Date showDate, BigDecimal price) {
@@ -89,6 +91,28 @@ public class ticket {
     public UUID getTicketId() {
         return ticketId;
     }
+    public UUID getShowId() {
+        return showId;
+    }
+    public String getOwnerId() {
+        return ownerId;
+    }
+    public Seat getSeat() {
+        return seat;
+    }
+    public Area getArea() {
+        return area;
+    }
+    public BigDecimal getPrice() {
+        return price;
+    }
+    public TicketStatus getStatus() {
+        return status;
+    }
+    public Date getShowDate() {
+        return showDate;
+    }
+    
 
 
     public String getFullSeatLocation() {

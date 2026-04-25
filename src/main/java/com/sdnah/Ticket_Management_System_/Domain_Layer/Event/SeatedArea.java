@@ -21,9 +21,11 @@ public class SeatedArea extends Area {
         this.blocks = new ArrayList<>(NumberofBlocks); // Initialize the list with the specified number of blocks
     }
 
+    public int getNumberofBlocks() {
+        return NumberofBlocks;
+    }
     public Block[] getBlocks() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBlocks'");
+        return blocks.toArray(new Block[0]);
     }
     
 }
