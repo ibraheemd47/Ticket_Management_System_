@@ -14,7 +14,7 @@ public class Company {
 
     
     private final List<Integer> associatedEventIds; // II.2.1 
-    
+
     private final List<Integer> purchaseHistoryIds; // Use Case: II.4.4 4.5
     private final List<Integer> orderHistoryIds;// Use Case: II.4.5 - View company order history
     //private final List<Integer> authorizedManagerIds; // II.4.7 - Manage Company Managers
@@ -99,7 +99,7 @@ public class Company {
     
 
     // --- Use Case: II.4.1 - Add event to company catalog ---
-    public void addEventId(int actorId, int eventId) {
+    public synchronized void addEventId(int actorId, int eventId) {
         validateActionPermission(actorId, CompanyPermission.MANAGE_EVENTS);
         if (!associatedEventIds.contains(eventId)) {
             associatedEventIds.add(eventId);
