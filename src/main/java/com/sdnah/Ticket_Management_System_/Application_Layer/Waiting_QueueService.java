@@ -1,16 +1,10 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer;
 import java.util.List;
-import java.util.UUID;
-
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
 import com.sdnah.Ticket_Management_System_.DTOs.Waiting_QueueDTO;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Waiting_Queue.QueueEntry;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Waiting_Queue.WaitingQueue;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.Waiting_QueueRepository;
 
 import ch.qos.logback.classic.Logger;
@@ -22,6 +16,10 @@ public class Waiting_QueueService {
     @Autowired
     private Waiting_QueueRepository WaitingQueueRepository;
     private final Logger logger = (Logger) LoggerFactory.getLogger(Waiting_QueueService.class);
+    
+    public Waiting_QueueService(Waiting_QueueRepository WaitingQueueRepository) {
+        this.WaitingQueueRepository = WaitingQueueRepository;
+    }
 
    
       public boolean JoinQueue(long userId,long showId) {

@@ -39,6 +39,9 @@ public class show {
     logger.info("Show created with ID: {} for event {}", this.showid, this.EventId);
 
     }
+    public show() {
+        //TODO Auto-generated constructor stub
+    }
     public UUID getShowid() {
         return showid;
     }

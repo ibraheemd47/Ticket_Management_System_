@@ -10,7 +10,7 @@ import ch.qos.logback.classic.Logger;
 
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-public abstract class Area {
+public class Area {
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID) // Specifically tells JPA to use a UUID
@@ -25,6 +25,7 @@ public abstract class Area {
         this.name = name;
         this.logger.info("Area created with ID: {}", this.id);
     }
+   
 
     // Updated getter to return UUID
     public UUID getId() {

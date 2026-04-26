@@ -19,6 +19,10 @@ public class TicketService {
     @Autowired
     private TicketRepository ticketRepository;
     private final Logger logger = (Logger) LoggerFactory.getLogger(TicketService.class);
+    
+    public TicketService(TicketRepository ticketRepository) {
+        this.ticketRepository = ticketRepository;
+    }
 
     /**
      * When a user selects a ticket in React, we lock it so others can't buy it.

@@ -18,6 +18,10 @@ public class EventService {
     @Autowired
     private IEventRepository eventRepository;
     private final Logger logger = (Logger) LoggerFactory.getLogger(EventService.class);
+    
+    public EventService(IEventRepository eventRepository) {
+        this.eventRepository = eventRepository;
+    }
 
 
     public Event createEvent(EventDto dto, Long companyId, Long ownerId) {
