@@ -38,7 +38,7 @@ public class OrderRepositoryImpl implements IOrderRepository {
     }
 
     @Override
-    public Optional<ActiveOrder> findActiveOrder(String buyerId, int eventId) {
+    public Optional<ActiveOrder> findActiveOrder(String buyerId, UUID eventId) {
         for (ActiveOrder order : orders.values()) {
             if (order.getBuyerId().equals(buyerId) && order.getEventId() == eventId
                     && !order.isExpired()) {
@@ -115,6 +115,33 @@ public class OrderRepositoryImpl implements IOrderRepository {
             }
         }
 
+        return result;
+    }
+
+    @Override
+    public List<Purchase> findPurchasesByEventId(UUID eventId) {
+        List<Purchase> result = new ArrayList<>();
+        for (Purchase p : purchases.values()) {
+            if (p.getEventId() == eventId)
+                result.add(p);
+        }
+        return result;
+    }
+
+    /**
+     * Returns all ACTIVE (not yet purchased, not expired, not cancelled) orders for
+     * a given buyer.
+     */
+    @Override
+    public List<ActiveOrder> findPendingOrdersByBuyer(String buyerId) {
+        List<ActiveOrder> result = new ArrayList<>();
+        for (ActiveOrder order : orders.values()) {
+            if (order.getBuyerId().equals(buyerId)
+                    && order.getStatus() == ActiveOrder.Status.ACTIVE
+                    && !order.isExpired()) {
+                result.add(order);
+            }
+        }
         return result;
     }
 

@@ -6,11 +6,11 @@ import java.util.UUID;
 public class OrderItemDTO {
     private final UUID itemId;
     private final String ticketId;
-    private final int seatId;
-    private final int areaId;
+    private final Long seatId;
+    private final UUID areaId;
     private final BigDecimal price;
 
-    public OrderItemDTO(UUID itemId, String ticketId, int seatId, int areaId, BigDecimal price) {
+    public OrderItemDTO(UUID itemId, String ticketId, Long seatId, UUID areaId, BigDecimal price) {
         this.itemId = itemId;
         this.ticketId = ticketId;
         this.seatId = seatId;
@@ -26,11 +26,11 @@ public class OrderItemDTO {
         return ticketId;
     }
 
-    public int getSeatId() {
+    public Long getSeatId() {
         return seatId;
     }
 
-    public int getAreaId() {
+    public UUID getAreaId() {
         return areaId;
     }
 

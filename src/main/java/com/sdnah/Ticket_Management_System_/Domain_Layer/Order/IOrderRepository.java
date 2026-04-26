@@ -9,7 +9,7 @@ public interface IOrderRepository {
 
     Optional<ActiveOrder> findById(UUID orderId);
 
-    Optional<ActiveOrder> findActiveOrder(String buyerId, int eventId);
+    Optional<ActiveOrder> findActiveOrder(String buyerId, UUID eventId);
 
     void delete(UUID orderId);
 
@@ -24,8 +24,12 @@ public interface IOrderRepository {
     void releaseLock(String resourceId);
 
     // Returns locks that expired AND have no matching active order
-    // Used by ExpiredOrderService to clean up orphaned locks 
+    // Used by ExpiredOrderService to clean up orphaned locks
     List<Lock> findExpiredLocks();
 
     List<ActiveOrder> findExpiredOrders();
+
+    List<Purchase> findPurchasesByEventId(UUID eventId);
+
+    List<ActiveOrder> findPendingOrdersByBuyer(String buyerId);
 }

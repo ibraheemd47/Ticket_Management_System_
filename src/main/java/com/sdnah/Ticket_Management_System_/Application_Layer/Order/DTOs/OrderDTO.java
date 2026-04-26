@@ -8,7 +8,7 @@ import java.util.List;
 public class OrderDTO {
     private final UUID orderId;
     private final String buyerId;
-    private final int eventId;
+    private final UUID eventId;
     private final List<OrderItemDTO> items;
     private final LocalDateTime expiresAt;
     private final String status;
@@ -19,7 +19,7 @@ public class OrderDTO {
 
     public OrderDTO(UUID orderId,
             String buyerId,
-            int eventId,
+            UUID eventId,
             List<OrderItemDTO> items,
             LocalDateTime expiresAt,
             String status,
@@ -48,7 +48,7 @@ public class OrderDTO {
         return buyerId;
     }
 
-    public int getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
 

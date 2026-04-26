@@ -67,6 +67,23 @@ public class ActiveOrder {
             throw new IllegalArgumentException("Item not found: " + itemId);
     }
 
+    public OrderItem removeTicket(UUID itemId) {
+
+        if (status != Status.ACTIVE)
+            throw new IllegalStateException("Order is not active");
+
+        if (isExpired())
+            throw new IllegalStateException("Order has expired");
+
+        for (OrderItem item : items) {
+            if (item.getItemId().equals(itemId)) {
+                items.remove(item);
+                return item;
+            }
+        }
+        throw new IllegalArgumentException("Item not found: " + itemId);
+    }
+
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt)
                 || status == Status.EXPIRED
@@ -102,19 +119,19 @@ public class ActiveOrder {
     public BigDecimal getFinalPrice() {
         return finalPrice != null ? finalPrice : getTotal();
     }
- 
+
     /** Discount = total - finalPrice */
     public BigDecimal getDiscount() {
-        this.discount=getTotal().subtract(getFinalPrice());
-        return discount;
+        return getTotal().subtract(getFinalPrice());
     }
 
     /**
      * Updates finalPrice directly from PolicyService result.
      * Called after every PolicyService call:
-     *   - applyGeneralDiscounts (type b) in reserveTickets / removeFromOrder
-     *   - calculateCouponDiscount (type c) in applyCoupon
-     * If no discount applies, PolicyService returns original total → finalPrice = total → discount = 0.
+     * - applyGeneralDiscounts (type b) in reserveTickets / removeFromOrder
+     * - calculateCouponDiscount (type c) in applyCoupon
+     * If no discount applies, PolicyService returns original total → finalPrice =
+     * total → discount = 0.
      */
     public void updateFinalPrice(double priceFromPolicyService) {
         BigDecimal price = BigDecimal.valueOf(priceFromPolicyService);
@@ -123,6 +140,7 @@ public class ActiveOrder {
         if (price.compareTo(getTotal()) > 0)
             throw new IllegalArgumentException("finalPrice cannot exceed total");
         this.finalPrice = price;
+        this.discount = getTotal().subtract(this.finalPrice);
     }
 
     /**

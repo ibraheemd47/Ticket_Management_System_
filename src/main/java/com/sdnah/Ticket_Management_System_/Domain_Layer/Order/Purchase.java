@@ -13,6 +13,7 @@ public class Purchase {
     private final List<OrderItem> items;
     private final BigDecimal totalPrice;
     private final LocalDateTime purchasedAt;
+    private final UUID eventId;
 
     public Purchase(ActiveOrder order) {
         if (order == null)
@@ -23,6 +24,7 @@ public class Purchase {
         this.items = new ArrayList<>(order.getItems());
         this.totalPrice = order.getTotal();
         this.purchasedAt = LocalDateTime.now();
+        this.eventId= order.getEventId();
     }
 
     public UUID getPurchaseId() {
@@ -31,6 +33,9 @@ public class Purchase {
 
     public UUID getOrderId() {
         return orderId;
+    }
+    public UUID getEventId() {
+        return eventId;
     }
 
     public String getBuyerId() {

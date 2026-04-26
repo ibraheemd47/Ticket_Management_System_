@@ -3,7 +3,7 @@ package com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs;
 public class PaymentDetailsDTO {
     private final String cardToken;
     private final String billingName;
-    private final String paymentMethod;
+    private String paymentMethod;
 
     public PaymentDetailsDTO(String cardToken,
             String billingName,
@@ -24,6 +24,10 @@ public class PaymentDetailsDTO {
 
     public String getPaymentMethod() {
         return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
     }
 
 }

@@ -26,11 +26,19 @@ public class PaymentService {
     }
 
     public PaymentTransaction charge(UUID orderId, BigDecimal amount, PaymentDetails details) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        logger.info("Charging order {} amount {}", orderId, amount);
+        PaymentTransaction tx = paymentGateway.charge(orderId, amount, details);
+        orderRepository.saveTransaction(tx);
+        logger.info("Charge result for order {}: {}", orderId, tx.getStatus());
+        return tx;
     }
 
     public PaymentTransaction refund(String transactionId) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        logger.info("Refunding transaction {}", transactionId);
+        PaymentTransaction tx = paymentGateway.refund(transactionId);
+        orderRepository.saveTransaction(tx);
+        logger.info("Refund result for transaction {}: {}", transactionId, tx.getStatus());
+        return tx;
     }
 
 }
