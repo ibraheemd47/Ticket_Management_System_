@@ -9,19 +9,20 @@ import java.util.UUID;
 public class ActiveOrder {
     private final UUID id;
     private final String buyerId;
-    private final int eventId;
+    private final UUID eventId;
     private final List<OrderItem> items;
     private final LocalDateTime expiresAt;
     private Status status;
     private long version; // optimistic locking
     private BigDecimal discount = BigDecimal.ZERO;
     private String appliedCouponCode;
+    private BigDecimal finalPrice = null; // updated every time PolicyService returns a result
 
     public enum Status {
         ACTIVE, EXPIRED, COMPLETED, CANCELLED
     }
 
-    public ActiveOrder(String buyerId, int eventId, int ttlMinutes) {
+    public ActiveOrder(String buyerId, UUID eventId, int ttlMinutes) {
         if (buyerId == null || buyerId.isBlank())
             throw new IllegalArgumentException("buyerId required");
         if (ttlMinutes <= 0)
@@ -35,14 +36,25 @@ public class ActiveOrder {
         this.version = 0;
     }
 
-    public void addItem(OrderItem item) {
-        if (item == null)
-            throw new IllegalArgumentException("item required");
+    // public void addItem(OrderItem item) {
+    // if (item == null)
+    // throw new IllegalArgumentException("item required");
+    // if (status != Status.ACTIVE)
+    // throw new IllegalStateException("Order is not active");
+    // if (isExpired())
+    // throw new IllegalStateException("Order has expired");
+    // items.add(item);
+    // }
+    public OrderItem addTicket(String ticketId, Long seatId, UUID areaId,
+            BigDecimal price, Lock lock) {
         if (status != Status.ACTIVE)
             throw new IllegalStateException("Order is not active");
         if (isExpired())
             throw new IllegalStateException("Order has expired");
+        OrderItem item = new OrderItem(ticketId, seatId, areaId, price);
+        item.setLock(lock);
         items.add(item);
+        return item;
     }
 
     public void removeItem(UUID itemId) {
@@ -83,14 +95,47 @@ public class ActiveOrder {
         this.discount = discount;
     }
 
-    // Calculate final price after discount
+    /**
+     * Final price — updated every time PolicyService is called.
+     * If PolicyService was not called yet, returns original total.
+     */
     public BigDecimal getFinalPrice() {
-        BigDecimal finalPrice = getTotal().subtract(discount);
+        return finalPrice != null ? finalPrice : getTotal();
+    }
+ 
+    /** Discount = total - finalPrice */
+    public BigDecimal getDiscount() {
+        this.discount=getTotal().subtract(getFinalPrice());
+        return discount;
+    }
 
-        if (finalPrice.compareTo(BigDecimal.ZERO) < 0) {
-            return BigDecimal.ZERO;
+    /**
+     * Updates finalPrice directly from PolicyService result.
+     * Called after every PolicyService call:
+     *   - applyGeneralDiscounts (type b) in reserveTickets / removeFromOrder
+     *   - calculateCouponDiscount (type c) in applyCoupon
+     * If no discount applies, PolicyService returns original total → finalPrice = total → discount = 0.
+     */
+    public void updateFinalPrice(double priceFromPolicyService) {
+        BigDecimal price = BigDecimal.valueOf(priceFromPolicyService);
+        if (price.compareTo(BigDecimal.ZERO) < 0)
+            throw new IllegalArgumentException("finalPrice cannot be negative");
+        if (price.compareTo(getTotal()) > 0)
+            throw new IllegalArgumentException("finalPrice cannot exceed total");
+        this.finalPrice = price;
+    }
+
+    /**
+     * Clears all locks from items and returns their resource IDs.
+     * Service uses the returned IDs to release locks in the repository.
+     */
+    public List<String> releaseAllLocks() {
+        List<String> lockIds = new ArrayList<>();
+        for (OrderItem item : items) {
+            lockIds.add(item.getLockResourceId());
+            item.clearLock();
         }
-        return finalPrice;
+        return lockIds;
     }
 
     public void setAppliedCouponCode(String code) {
@@ -117,7 +162,7 @@ public class ActiveOrder {
         return buyerId;
     }
 
-    public int getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
 
