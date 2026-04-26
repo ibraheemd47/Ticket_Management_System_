@@ -59,7 +59,7 @@ public class EventService {
     public void removeShowFromEvent(UUID eventId, show showId, Long managerId) {
         Event event = eventRepository.findById(eventId)
             .orElseThrow(() -> new RuntimeException("Event not found"));
-            
+
         logger.info("Removing show {} from event {}", showId.getShowid(), eventId);
             
         event.removeShow(showId, managerId);

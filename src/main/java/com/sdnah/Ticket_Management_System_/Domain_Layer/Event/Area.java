@@ -38,4 +38,5 @@ public abstract class Area {
     public void setName(String name) {
         this.name = name;
     }
+    
 }

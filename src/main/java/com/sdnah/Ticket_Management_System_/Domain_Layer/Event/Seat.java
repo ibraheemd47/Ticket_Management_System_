@@ -34,13 +34,14 @@ public class Seat {
     public void setSeatNumber(String seatNumber) {
         this.seatNumber = seatNumber;
     }
-    public void Fillseat() {
+    public boolean Fillseat() {
         if (isFilled) {
             throw new IllegalStateException("Seat is already filled!");
         }
         logger.info("Filling seat {} in row {}", this.seatNumber, this.row.getRowNumber());
         this.isFilled = true; // Mark the seat as filled
         // Implementation for filling the seat with a ticket
+        return isFilled;
     }
     public Row getRow() {
         return row;

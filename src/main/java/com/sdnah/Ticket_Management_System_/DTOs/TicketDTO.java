@@ -3,8 +3,8 @@ import java.util.UUID;
 
 public class TicketDTO {
     public UUID id;
-    public String eventId;
-    public String showId;
+    public long eventId;
+    public long showId;
     public String seatNumber;
     public double price;
     public boolean isLocked;
@@ -12,7 +12,7 @@ public class TicketDTO {
 
     public TicketDTO() {}
 
-    public TicketDTO(UUID id, String eventId, String showId, String seatNumber, double price) {
+    public TicketDTO(UUID id, long eventId, long showId, String seatNumber, double price) {
         this.id = id;
         this.eventId = eventId;
         this.showId = showId;

@@ -29,7 +29,7 @@ public class WaitingQueue {
 
 // ------------------------------------------------------DOMAIN LOGIC METHODS ---------------------------------------------------------------------------------
 
-    public boolean joinQueue(String userId) {
+    public boolean joinQueue(long userId) {
         QueueEntry newEntry = new QueueEntry(userId);
         logger.info("Attempting to join queue for user {}", userId);
         if (line.contains(newEntry)) { // to prevent the same user from joining the queue multiple times, we check if they are already in line before adding them
@@ -41,12 +41,12 @@ public class WaitingQueue {
         return line.add(newEntry);
     }
 
-    public int getPosition(String userId) {
+    public int getPosition(long userId) {
         QueueEntry searchEntry = new QueueEntry(userId);
         return line.indexOf(searchEntry);
     }
 
-    public int calculateEstimatedWaitTimeInMinutes(String userId) {
+    public int calculateEstimatedWaitTimeInMinutes(long userId) {
         int position = getPosition(userId);
         
         if (position == -1) {
@@ -56,8 +56,8 @@ public class WaitingQueue {
         return position / checkoutCapacityPerMinute; // this will calculate the estimated wait time based on the user's position in the queue and the checkout capacity.
     }
 
-    public List<String> admitNextUsers(int amountToAdmit) { // this function will be the amount of users that we can admit (will have the opportunity to purchase tickets) to the checkout system per minute, it will take the first "amountToAdmit" users from the front of the line and return their userIds in a list, it will also remove them from the line
-        List<String> admittedUsers = new ArrayList<>();
+    public List<Long> admitNextUsers(int amountToAdmit) { // this function will be the amount of users that we can admit (will have the opportunity to purchase tickets) to the checkout system per minute, it will take the first "amountToAdmit" users from the front of the line and return their userIds in a list, it will also remove them from the line
+        List<Long> admittedUsers = new ArrayList<>();
         
         for (int i = 0; i < amountToAdmit; i++) {
             if (line.isEmpty()) {
@@ -71,6 +71,10 @@ public class WaitingQueue {
         }
         
         return admittedUsers;
+    }
+    public void clearQueue() {
+        logger.info("Clearing the waiting queue for show {}", this.showId);
+        line.clear();
     }
 
     // Getters
