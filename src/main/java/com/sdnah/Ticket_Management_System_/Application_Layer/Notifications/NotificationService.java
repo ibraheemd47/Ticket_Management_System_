@@ -11,13 +11,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
-public class NotificationsService {
+public class NotificationService {
 
-    private static final Logger logger = Logger.getLogger(NotificationsService.class.getName());
+    private static final Logger logger = Logger.getLogger(NotificationService.class.getName());
 
     private final INotificationRepository notificationRepository;
 
-    public NotificationsService(INotificationRepository notificationRepository) {
+    public NotificationService(INotificationRepository notificationRepository) {
         this.notificationRepository = Objects.requireNonNull(notificationRepository);
     }
 
@@ -31,11 +31,14 @@ public class NotificationsService {
             logger.info("Notification created for recipient=" + recipientUsername + ", type=" + type);
 
             return notification.getId();
-        } catch (RuntimeException e) {
-            //error log requirement: log system errors, not business negative scenarios only
-            logger.log(Level.SEVERE, "Failed to create notification.", e);
-            throw e;
-        }
+        } catch (IllegalArgumentException e) {
+        logger.warning("Invalid notification request: " + e.getMessage());
+        throw e;
+
+     } catch (RuntimeException e) {
+        logger.log(Level.SEVERE, "System error while creating notification.", e);
+        throw e;
+    }
     }
 
     public List<NotificationDTO> getNotificationsForUser(String recipientUsername) {
@@ -44,9 +47,13 @@ public class NotificationsService {
                     .sorted(Comparator.comparing(Notification::getCreatedAt).reversed())
                     .map(NotificationDTO::fromDomain)
                     .toList();
-        } catch (RuntimeException e) {
-            logger.log(Level.SEVERE, "Failed to fetch notifications for user=" + recipientUsername, e);
-            throw e;
-        }
+        } catch (IllegalArgumentException e) {
+        logger.warning("Invalid notification fetch request: " + e.getMessage());
+        throw e;
+
+    } catch (RuntimeException e) {
+        logger.log(Level.SEVERE, "System error while fetching notifications for user=" + recipientUsername, e);
+        throw e;
+    }
     }
 }

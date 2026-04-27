@@ -1,7 +1,7 @@
 package com.sdnah.Ticket_Management_System_.NotificationTests;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.Notifications.NotificationDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Notifications.NotificationsService;
+import com.sdnah.Ticket_Management_System_.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.NotificationType;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.InMemoryNotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,11 +13,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class NotificationsAcceptanceTest {
 
-    private NotificationsService notificationsService;
+    private NotificationService notificationsService;
 
     @BeforeEach
     void setUp() {
-        notificationsService = new NotificationsService(new InMemoryNotificationRepository());
+        notificationsService = new NotificationService(new InMemoryNotificationRepository());
     }
 
 

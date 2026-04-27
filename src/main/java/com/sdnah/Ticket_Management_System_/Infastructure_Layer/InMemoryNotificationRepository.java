@@ -22,13 +22,22 @@ public class InMemoryNotificationRepository implements INotificationRepository {
 
     @Override
     public Optional<Notification> findById(String notificationId) {
-        return Optional.ofNullable(notifications.get(notificationId));
+        if (notificationId == null || notificationId.isBlank()) {
+        throw new IllegalArgumentException("Notification id cannot be null or blank.");
+         }
+      return Optional.ofNullable(notifications.get(notificationId.trim()));
     }
 
     @Override
     public List<Notification> findByRecipientUsername(String recipientUsername) {
+            if (recipientUsername == null || recipientUsername.isBlank()) {
+            throw new IllegalArgumentException("Recipient username cannot be null or blank.");
+        }
+
+        String normalizedUsername = recipientUsername.trim();
+
         return notifications.values().stream()
-                .filter(notification -> notification.belongsTo(recipientUsername))
+                .filter(notification -> notification.belongsTo(normalizedUsername))
                 .toList();
     }
 
