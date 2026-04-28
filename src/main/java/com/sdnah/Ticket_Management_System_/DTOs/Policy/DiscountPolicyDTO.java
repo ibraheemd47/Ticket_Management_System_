@@ -1,24 +1,43 @@
 package com.sdnah.Ticket_Management_System_.DTOs.Policy;
 
-
+import java.util.ArrayList;
 import java.util.List;
 
-public class DiscountPolicyDTO {
-    private int eventId;
-    private boolean isAdditive;
+public class DiscountPolicyDTO extends PolicyDTO {
+
+    private boolean additive;
     private List<DiscountRuleDTO> rules;
 
-    public static class DiscountRuleDTO {
-        private String ruleType; // "CONDITIONAL" או "COUPON"
-        private double discountPercentage;
-        private Integer requiredQuantity; // עבור הנחה מותנית
-        private String couponCode; // עבור הנחת קופון
-        
-        // Getters and Setters
+    public DiscountPolicyDTO() {
+        setType("DISCOUNT");
+        this.rules = new ArrayList<>();
     }
 
-    // Getters and Setters
-    public int getEventId() { return eventId; }
-    public boolean isAdditive() { return isAdditive; }
-    public List<DiscountRuleDTO> getRules() { return rules; }
+    public DiscountPolicyDTO(
+            int policyId,
+            String description,
+            int eventId,
+            boolean additive,
+            List<DiscountRuleDTO> rules) {
+
+        super(policyId, description, eventId, "DISCOUNT");
+        this.additive = additive;
+        this.rules = rules;
+    }
+
+    public boolean isAdditive() {
+        return additive;
+    }
+
+    public void setAdditive(boolean additive) {
+        this.additive = additive;
+    }
+
+    public List<DiscountRuleDTO> getRules() {
+        return rules;
+    }
+
+    public void setRules(List<DiscountRuleDTO> rules) {
+        this.rules = rules;
+    }
 }

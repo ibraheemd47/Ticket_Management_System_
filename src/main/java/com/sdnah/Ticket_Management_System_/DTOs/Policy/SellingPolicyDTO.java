@@ -1,18 +1,28 @@
 package com.sdnah.Ticket_Management_System_.DTOs.Policy;
 
+public class SellingPolicyDTO extends PolicyDTO {
 
-public class SellingPolicyDTO {
-    private int eventId;
-    private String sellingType; // "REGULAR" או "LOTTERY"
+    private String sellingType; // "REGULAR" or "LOTTERY"
 
-    public SellingPolicyDTO() {}
+    public SellingPolicyDTO() {
+        setType("SELLING");
+    }
 
-    public SellingPolicyDTO(int eventId, String sellingType) {
-        this.eventId = eventId;
+    public SellingPolicyDTO(
+            int policyId,
+            String description,
+            int eventId,
+            String sellingType) {
+
+        super(policyId, description, eventId, "SELLING");
         this.sellingType = sellingType;
     }
 
-    // Getters and Setters
-    public int getEventId() { return eventId; }
-    public String getSellingType() { return sellingType; }
+    public String getSellingType() {
+        return sellingType;
+    }
+
+    public void setSellingType(String sellingType) {
+        this.sellingType = sellingType;
+    }
 }
