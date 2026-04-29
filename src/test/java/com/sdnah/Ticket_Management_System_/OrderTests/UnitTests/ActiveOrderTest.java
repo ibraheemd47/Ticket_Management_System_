@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.UnitTests;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,35 +15,34 @@ class ActiveOrderTest {
 
     @Test
     void createOrder_shouldBeActive() {
-        ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
+        ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
         assertEquals(ActiveOrder.Status.ACTIVE, order.getStatus());
         assertTrue(order.getItems().isEmpty());
     }
 
     @Test
-    void addItem_shouldIncreaseSize() {
-        ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
-        OrderItem item = new OrderItem("1", 1, 1, new BigDecimal("50"));
+    void addTicket_shouldIncreaseSize() {
+        ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
-        order.addItem(item);
+        order.addTicket("1", 1L, UUID.randomUUID(), new BigDecimal("50"), null);
 
         assertEquals(1, order.getItems().size());
     }
 
     @Test
     void getTotal_shouldSumPrices() {
-        ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
+        ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
-        order.addItem(new OrderItem("1", 1, 1, new BigDecimal("50")));
-        order.addItem(new OrderItem("2", 2, 1, new BigDecimal("30")));
+        order.addTicket("1", 1L, UUID.randomUUID(), new BigDecimal("50"), null);
+        order.addTicket("2", 2L, UUID.randomUUID(), new BigDecimal("30"), null);
 
         assertEquals(new BigDecimal("80"), order.getTotal());
     }
 
     @Test
     void isOwnedBy_shouldReturnTrueForCorrectBuyer() {
-        ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
+        ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
         assertTrue(order.isOwnedBy("buyer1"));
         assertFalse(order.isOwnedBy("buyer2"));
@@ -50,10 +50,10 @@ class ActiveOrderTest {
 
     @Test
     void removeItem_shouldRemoveCorrectItem() {
-        ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
-        OrderItem item = new OrderItem("1", 1, 1, new BigDecimal("50"));
+        ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
-        order.addItem(item);
+        OrderItem item = order.addTicket("1", 1L, UUID.randomUUID(), new BigDecimal("50"), null);
+
         order.removeItem(item.getItemId());
 
         assertEquals(0, order.getItems().size());

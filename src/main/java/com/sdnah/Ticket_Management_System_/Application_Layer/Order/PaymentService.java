@@ -1,15 +1,17 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer.Order;
 
-import org.slf4j.LoggerFactory;
-
 import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.IOrderRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
+
+@Service
 
 public class PaymentService {
     private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);

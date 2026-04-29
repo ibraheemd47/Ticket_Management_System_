@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.UnitTests;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -8,16 +9,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 
 class PurchaseTest {
 
     @Test
     void constructor_shouldCopyDataFromOrder() {
-        ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
-        order.addItem(new OrderItem("1", 1, 1, new BigDecimal("50")));
-        order.addItem(new OrderItem("2", 2, 1, new BigDecimal("30")));
+        ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
+
+        order.addTicket("1", 1L, UUID.randomUUID(), new BigDecimal("50"), null);
+        order.addTicket("2", 2L, UUID.randomUUID(), new BigDecimal("30"), null);
 
         Purchase purchase = new Purchase(order);
 
@@ -39,7 +40,7 @@ class PurchaseTest {
 
     @Test
     void purchase_shouldHaveTimestamp() {
-        ActiveOrder order = new ActiveOrder("buyer1", 1, 10);
+        ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
         Purchase purchase = new Purchase(order);
 

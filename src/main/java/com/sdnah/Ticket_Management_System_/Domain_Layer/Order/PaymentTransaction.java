@@ -27,7 +27,7 @@ public class PaymentTransaction {
         this.transactionId = transactionId;
         this.orderId = orderId;
         this.amount = amount;
-        this.status = Status.PENDING;
+        this.status = status;
         this.timestamp = LocalDateTime.now();
     }
 

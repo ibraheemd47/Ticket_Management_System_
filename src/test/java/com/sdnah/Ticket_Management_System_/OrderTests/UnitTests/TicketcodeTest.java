@@ -1,7 +1,6 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.UnitTests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
@@ -11,29 +10,49 @@ class TicketcodeTest {
 
     @Test
     void constructor_shouldStoreValuesCorrectly() {
-        Ticketcode code = new Ticketcode("ABC123", "QRDATA");
+        Ticketcode ticket = new Ticketcode("code123", "qrData123");
 
-        assertEquals("ABC123", code.getCode());
-        assertEquals("QRDATA", code.getQrData());
+        assertEquals("code123", ticket.getCode());
+        assertEquals("qrData123", ticket.getQrData());
+    }
+
+    @Test
+    void constructor_shouldThrow_whenCodeIsNull() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> new Ticketcode(null, "qrData")
+        );
+
+        assertEquals("code must not be empty", ex.getMessage());
     }
 
     @Test
     void constructor_shouldThrow_whenCodeIsBlank() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> new Ticketcode("", "QRDATA")
+                () -> new Ticketcode("", "qrData")
         );
 
-        assertNotNull(ex);
+        assertEquals("code must not be empty", ex.getMessage());
+    }
+
+    @Test
+    void constructor_shouldThrow_whenQrDataIsNull() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> new Ticketcode("code123", null)
+        );
+
+        assertEquals("qrData must not be empty", ex.getMessage());
     }
 
     @Test
     void constructor_shouldThrow_whenQrDataIsBlank() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> new Ticketcode("ABC123", "")
+                () -> new Ticketcode("code123", "")
         );
 
-        assertNotNull(ex);
+        assertEquals("qrData must not be empty", ex.getMessage());
     }
 }

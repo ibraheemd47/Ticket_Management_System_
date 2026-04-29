@@ -1,13 +1,13 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.UnitTests;
 import java.time.LocalDateTime;
 
-public class Lock {
+public class LockTest {
 
     private final String resourceId;
     private final String ownerId;
     private final LocalDateTime expiresAt;
 
-    public Lock(String resourceId, String ownerId, LocalDateTime expiresAt) {
+    public LockTest(String resourceId, String ownerId, LocalDateTime expiresAt) {
 
         if (resourceId == null || resourceId.isBlank()) {
             throw new IllegalArgumentException("resourceId must not be empty");

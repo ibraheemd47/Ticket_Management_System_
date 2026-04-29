@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.OrderTests.UnitTests;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -18,21 +19,21 @@ class OrderItemTest {
 
     @Test
     void isSeated_shouldReturnTrueWhenSeatIdExists() {
-        OrderItem item = new OrderItem("1", 10, 5, new BigDecimal("50"));
+        OrderItem item = new OrderItem("1", 10L, UUID.randomUUID(), new BigDecimal("50"));
 
         assertTrue(item.isSeated());
     }
 
     @Test
     void isSeated_shouldReturnFalseWhenSeatIdIsNull() {
-        OrderItem item = new OrderItem("1", null, 5, new BigDecimal("50"));
+        OrderItem item = new OrderItem("1", null, UUID.randomUUID(), new BigDecimal("50"));
 
         assertFalse(item.isSeated());
     }
 
     @Test
     void setLock_shouldSaveLock() {
-        OrderItem item = new OrderItem("1", 10, 5, new BigDecimal("50"));
+        OrderItem item = new OrderItem("1", 10L, UUID.randomUUID(), new BigDecimal("50"));
         Lock lock = new Lock("1", "buyer1", LocalDateTime.now().plusMinutes(5));
 
         item.setLock(lock);
@@ -42,7 +43,7 @@ class OrderItemTest {
 
     @Test
     void clearLock_shouldRemoveLock() {
-        OrderItem item = new OrderItem("1", 10, 5, new BigDecimal("50"));
+        OrderItem item = new OrderItem("1", 10L, UUID.randomUUID(), new BigDecimal("50"));
         Lock lock = new Lock("1", "buyer1", LocalDateTime.now().plusMinutes(5));
 
         item.setLock(lock);
@@ -55,7 +56,7 @@ class OrderItemTest {
     void constructor_shouldThrowExceptionWhenPriceIsNegative() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> new OrderItem("1", 10, 5, new BigDecimal("-1"))
+                () -> new OrderItem("1", 10L, UUID.randomUUID(), new BigDecimal("-1"))
         );
 
         assertNotNull(ex);

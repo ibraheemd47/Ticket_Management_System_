@@ -2,7 +2,7 @@ package com.sdnah.Ticket_Management_System_.OrderTests.UnitTests;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public class PaymentTransaction {
+public class PaymentTransactionTest {
 
     public enum Status {
         SUCCESS,
@@ -15,7 +15,7 @@ public class PaymentTransaction {
     private final BigDecimal amount;
     private Status status;
 
-    public PaymentTransaction(String transactionId, UUID orderId, BigDecimal amount, Status status) {
+    public PaymentTransactionTest(String transactionId, UUID orderId, BigDecimal amount, Status status) {
 
         if (transactionId == null || transactionId.isBlank()) {
             throw new IllegalArgumentException("transactionId must not be empty");

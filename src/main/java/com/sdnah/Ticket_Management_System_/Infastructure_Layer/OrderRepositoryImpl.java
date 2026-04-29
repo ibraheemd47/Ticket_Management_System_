@@ -3,19 +3,21 @@ package com.sdnah.Ticket_Management_System_.Infastructure_Layer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.stereotype.Repository;
+
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.IOrderRepository;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 
-import java.util.Optional;
-import java.util.Set;
-
+@Repository
 public class OrderRepositoryImpl implements IOrderRepository {
     private final ConcurrentHashMap<UUID, ActiveOrder> orders = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, Purchase> purchases = new ConcurrentHashMap<>();
@@ -40,7 +42,7 @@ public class OrderRepositoryImpl implements IOrderRepository {
     @Override
     public Optional<ActiveOrder> findActiveOrder(String buyerId, UUID eventId) {
         for (ActiveOrder order : orders.values()) {
-            if (order.getBuyerId().equals(buyerId) && order.getEventId() == eventId
+            if (order.getBuyerId().equals(buyerId) && order.getEventId().equals(eventId)
                     && !order.isExpired()) {
                 return Optional.of(order);
             }
@@ -122,7 +124,7 @@ public class OrderRepositoryImpl implements IOrderRepository {
     public List<Purchase> findPurchasesByEventId(UUID eventId) {
         List<Purchase> result = new ArrayList<>();
         for (Purchase p : purchases.values()) {
-            if (p.getEventId() == eventId)
+            if (p.getEventId().equals(eventId))
                 result.add(p);
         }
         return result;
