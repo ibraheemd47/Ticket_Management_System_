@@ -5,20 +5,28 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
-@Entity
-@Table(name = "company_role_assignments")
+@Embeddable
 public class CompanyRoleAssignment {
-    @Id
-    @jakarta.persistence.GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-    private Long id;
+
+    @Column(name = "company_id", nullable = false)
     private String companyId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role_type", nullable = false)
     private CompanyRoleType roleType;
-    private Set<ManagerPermission> permissions;
-    private String appointedByMemberId; // who appointed this user
+
+    @Convert(converter = ManagerPermissionSetConverter.class)
+    @Column(name = "permissions", length = 1024)
+    private Set<ManagerPermission> permissions = new HashSet<>();
+
+    @Column(name = "appointed_by_member_id")
+    private String appointedByMemberId;
 
     protected CompanyRoleAssignment() {
         this.permissions = new HashSet<>();
@@ -30,14 +38,6 @@ public class CompanyRoleAssignment {
         this.appointedByMemberId = appointedByMemberId;
         this.roleType = Objects.requireNonNull(roleType);
         this.permissions = permissions == null ? new HashSet<>() : new HashSet<>(permissions);
-    }
-
-    private static Set<ManagerPermission> convertPermissions(Set<String> permissionStrings) {
-        Set<ManagerPermission> permissions = new HashSet<>();
-        for (String perm : permissionStrings) {
-            permissions.add(ManagerPermission.valueOf(perm));
-        }
-        return permissions;
     }
 
     public void addPermission(ManagerPermission permission) {
@@ -77,5 +77,21 @@ public class CompanyRoleAssignment {
 
     public String getAppointedByMemberId() {
         return appointedByMemberId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof CompanyRoleAssignment))
+            return false;
+        CompanyRoleAssignment that = (CompanyRoleAssignment) o;
+        return Objects.equals(companyId, that.companyId)
+                && roleType == that.roleType;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(companyId, roleType);
     }
 }

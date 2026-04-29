@@ -12,9 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyRoleService;
+import com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
@@ -36,6 +38,9 @@ class CompanyRoleServiceAcceptanceTest {
 
     @Mock
     private UserService userService;
+
+    @Spy
+    private KeyedLock keyedLock = new KeyedLock();
 
     @InjectMocks
     private CompanyRoleService companyRoleService;

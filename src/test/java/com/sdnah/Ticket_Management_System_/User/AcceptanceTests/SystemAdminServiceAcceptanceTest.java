@@ -14,8 +14,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
@@ -41,6 +43,9 @@ class SystemAdminServiceAcceptanceTest {
 
     @Mock
     private TokenRepository tokenRepository;
+
+    @Spy
+    private KeyedLock keyedLock = new KeyedLock();
 
     @InjectMocks
     private SystemAdminService systemAdminService;
