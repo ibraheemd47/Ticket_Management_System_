@@ -31,16 +31,21 @@ public class UserService {
     private final TokenRepository tokenRepository;
     private final AuthTokenService authTokenService;
     private final SystemAdminService systemAdminService;
+    private final KeyedLock keyedLock;
+
+    private static final String LOCK_NS_USERNAME = "user:username";
+    private static final String LOCK_NS_MEMBER = "user:member";
 
     public UserService(UserRepository userRepository, PasswordHasher passwordHasher, TokenRepository tokenRepository,
             AuthTokenService authTokenService, VerificationEmail verificationService,
-            SystemAdminService systemAdminService) {
+            SystemAdminService systemAdminService, KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.tokenRepository = tokenRepository;
         this.authTokenService = authTokenService;
         this.verificationService = verificationService;
         this.systemAdminService = systemAdminService;
+        this.keyedLock = keyedLock;
     }
 
     // TODO: ZAKI DELETE
@@ -49,21 +54,23 @@ public class UserService {
         validateUsername(username);
         validatePassword(password);
 
-        // check if username already exists
-        if (userRepository.existsByUsername(username)) {
-            logger.warn("Register rejected: username already exists, username={}", username);
-            throw new RuntimeException("Username already exists");
-        }
+        return keyedLock.callLocked(LOCK_NS_USERNAME, username, () -> {
+            // check if username already exists (inside lock to prevent race)
+            if (userRepository.existsByUsername(username)) {
+                logger.warn("Register rejected: username already exists, username={}", username);
+                throw new RuntimeException("Username already exists");
+            }
 
-        String memberId = get_new_member_id();
-        String passwordHash = passwordHasher.hash(password);
+            String memberId = get_new_member_id();
+            String passwordHash = passwordHasher.hash(password);
 
-        Member member = new Member(memberId, username, passwordHash);
-        userRepository.save(member);
+            Member member = new Member(memberId, username, passwordHash);
+            userRepository.save(member);
 
-        logger.info("Member registered successfully, memberId={}, username={}", memberId, username);
+            logger.info("Member registered successfully, memberId={}, username={}", memberId, username);
 
-        return true;
+            return true;
+        });
     }
 
     public String login(String username, String password) {
@@ -121,7 +128,6 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Member not found"));
     }
 
-    // TODO: ZAKI DELTE ME
     public void validateCompanyRoleRequest(CompanyRoleAssignment assignment) {
         logger.debug("Validating company role request for companyId={}", assignment.getCompanyId());
         if (assignment.getCompanyId() == null || assignment.getCompanyId().isBlank()) {
@@ -134,8 +140,10 @@ public class UserService {
             throw new RuntimeException("Role type is required");
         }
 
-        if (assignment.getRoleType() == CompanyRoleType.OWNER ||
-                assignment.getRoleType() == CompanyRoleType.MANAGER) {
+        if ((assignment.getRoleType() == CompanyRoleType.OWNER
+                || assignment.getRoleType() == CompanyRoleType.MANAGER)
+                && (assignment.getAppointedByMemberId() == null
+                        || assignment.getAppointedByMemberId().isBlank())) {
             logger.warn("Company role validation failed: appointed by member id is required for roleType={}",
                     assignment.getRoleType());
             throw new RuntimeException("Appointed by member id is required");
@@ -257,26 +265,28 @@ public class UserService {
             throw new RuntimeException("Invalid input data");
         }
 
-        if (userRepository.existsByUsername(username)) {
-            logger.warn("Register with verification rejected: username already exists, username={}", username);
-            throw new RuntimeException("Username already exists");
-        }
+        return keyedLock.callLocked(LOCK_NS_USERNAME, username, () -> {
+            if (userRepository.existsByUsername(username)) {
+                logger.warn("Register with verification rejected: username already exists, username={}", username);
+                throw new RuntimeException("Username already exists");
+            }
 
-        String memberId = UUID.randomUUID().toString();
-        String passwordHash = passwordHasher.hash(password);
+            String memberId = UUID.randomUUID().toString();
+            String passwordHash = passwordHasher.hash(password);
 
-        Member member = new Member(memberId, username, passwordHash);
-        member.setEmail(email);
-        member.setPhone(phone);
-        member.setVerified(false);
-        member.logout();
+            Member member = new Member(memberId, username, passwordHash);
+            member.setEmail(email);
+            member.setPhone(phone);
+            member.setVerified(false);
+            member.logout();
 
-        verificationService.createAndSendCode(member, verificationMethod);
-        userRepository.save(member);
+            verificationService.createAndSendCode(member, verificationMethod);
+            userRepository.save(member);
 
-        logger.info("Member registered pending verification, memberId={}, username={}", memberId, username);
+            logger.info("Member registered pending verification, memberId={}, username={}", memberId, username);
 
-        return memberId;
+            return memberId;
+        });
     }
 
     public void verifyAccount(String username, String code) {
@@ -387,18 +397,23 @@ public class UserService {
     }
 
     public ProfileResponse updateMyProfile(String tokenValue, UpdateProfileRequest request) {
-        Member member = getMemberByToken(tokenValue);
+        Member resolved = getMemberByToken(tokenValue);
 
-        member.setFirstName(request.getFirstName());
-        member.setLastName(request.getLastName());
-        member.setEmail(request.getEmail());
-        member.setPhone(request.getPhone());
-        member.setAddress(request.getAddress());
-        member.setCity(request.getCity());
-        member.setCountry(request.getCountry());
-        member.setBirthDate(request.getBirthDate());
-
-        userRepository.save(member);
+        Member member = keyedLock.callLocked(LOCK_NS_MEMBER, resolved.getMemberId(), () -> {
+            // Re-read inside the lock so concurrent updates don't overwrite each other
+            Member fresh = userRepository.findById(resolved.getMemberId())
+                    .orElseThrow(() -> new RuntimeException("Member not found"));
+            fresh.setFirstName(request.getFirstName());
+            fresh.setLastName(request.getLastName());
+            fresh.setEmail(request.getEmail());
+            fresh.setPhone(request.getPhone());
+            fresh.setAddress(request.getAddress());
+            fresh.setCity(request.getCity());
+            fresh.setCountry(request.getCountry());
+            fresh.setBirthDate(request.getBirthDate());
+            userRepository.save(fresh);
+            return fresh;
+        });
 
         return new ProfileResponse(
                 member.getMemberId(),

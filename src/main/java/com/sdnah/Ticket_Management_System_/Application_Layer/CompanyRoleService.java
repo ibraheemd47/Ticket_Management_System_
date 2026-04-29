@@ -21,10 +21,14 @@ public class CompanyRoleService {
 
     private final UserRepository userRepository;
     private final UserService userService;
+    private final KeyedLock keyedLock;
 
-    public CompanyRoleService(UserRepository userRepository, UserService userService) {
+    private static final String LOCK_NS = "company-role:member";
+
+    public CompanyRoleService(UserRepository userRepository, UserService userService, KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.userService = userService;
+        this.keyedLock = keyedLock;
     }
 
     public void assignOwner(String actorToken, String companyId, String newOwnerId) {
@@ -39,25 +43,27 @@ public class CompanyRoleService {
             throw new RuntimeException("Only Company owner can assign ownership");
         }
 
-        Member target = userRepository.findById(newOwnerId)
-                .orElseThrow(() -> {
-                    logger.warn("Assign owner rejected: target member not found, newOwnerId={}", newOwnerId);
-                    return new RuntimeException("Target member not found");
-                });
+        keyedLock.runLocked(LOCK_NS, newOwnerId, () -> {
+            Member target = userRepository.findById(newOwnerId)
+                    .orElseThrow(() -> {
+                        logger.warn("Assign owner rejected: target member not found, newOwnerId={}", newOwnerId);
+                        return new RuntimeException("Target member not found");
+                    });
 
-        if (target.isOwnerInCompany(companyId) || target.isManagerInCompany(companyId)) {
-            logger.warn("Assign owner rejected: target already has a role, targetId={}, companyId={}",
-                    newOwnerId, companyId);
-            throw new RuntimeException("Target already has a role in this Company");
-        }
+            if (target.isOwnerInCompany(companyId) || target.isManagerInCompany(companyId)) {
+                logger.warn("Assign owner rejected: target already has a role, targetId={}, companyId={}",
+                        newOwnerId, companyId);
+                throw new RuntimeException("Target already has a role in this Company");
+            }
 
-        CompanyRoleAssignment assignment = new CompanyRoleAssignment(
-                companyId, actor.getMemberId(), CompanyRoleType.OWNER, new HashSet<>());
+            CompanyRoleAssignment assignment = new CompanyRoleAssignment(
+                    companyId, actor.getMemberId(), CompanyRoleType.OWNER, new HashSet<>());
 
-        target.addCompanyRole(assignment);
-        userRepository.save(target);
-        logger.info("Owner assigned successfully, actorId={}, targetId={}, companyId={}",
-                actor.getMemberId(), newOwnerId, companyId);
+            target.addCompanyRole(assignment);
+            userRepository.save(target);
+            logger.info("Owner assigned successfully, actorId={}, targetId={}, companyId={}",
+                    actor.getMemberId(), newOwnerId, companyId);
+        });
     }
 
     public void assignManager(String actorToken, String companyId, String managerId) {
@@ -72,25 +78,27 @@ public class CompanyRoleService {
             throw new RuntimeException("Only Company owner can assign manager");
         }
 
-        Member target = userRepository.findById(managerId)
-                .orElseThrow(() -> {
-                    logger.warn("Assign manager rejected: target member not found, managerId={}", managerId);
-                    return new RuntimeException("Target member not found");
-                });
+        keyedLock.runLocked(LOCK_NS, managerId, () -> {
+            Member target = userRepository.findById(managerId)
+                    .orElseThrow(() -> {
+                        logger.warn("Assign manager rejected: target member not found, managerId={}", managerId);
+                        return new RuntimeException("Target member not found");
+                    });
 
-        if (target.isOwnerInCompany(companyId) || target.isManagerInCompany(companyId)) {
-            logger.warn("Assign manager rejected: target already has a role, targetId={}, companyId={}",
-                    managerId, companyId);
-            throw new RuntimeException("Target already has a role in this Company");
-        }
+            if (target.isOwnerInCompany(companyId) || target.isManagerInCompany(companyId)) {
+                logger.warn("Assign manager rejected: target already has a role, targetId={}, companyId={}",
+                        managerId, companyId);
+                throw new RuntimeException("Target already has a role in this Company");
+            }
 
-        CompanyRoleAssignment assignment = new CompanyRoleAssignment(
-                companyId, actor.getMemberId(), CompanyRoleType.MANAGER, new HashSet<>());
+            CompanyRoleAssignment assignment = new CompanyRoleAssignment(
+                    companyId, actor.getMemberId(), CompanyRoleType.MANAGER, new HashSet<>());
 
-        target.addCompanyRole(assignment);
-        userRepository.save(target);
-        logger.info("Manager assigned successfully, actorId={}, targetId={}, companyId={}",
-                actor.getMemberId(), managerId, companyId);
+            target.addCompanyRole(assignment);
+            userRepository.save(target);
+            logger.info("Manager assigned successfully, actorId={}, targetId={}, companyId={}",
+                    actor.getMemberId(), managerId, companyId);
+        });
     }
 
     public void removeOwner(String actorToken, String companyId, String ownerId) {
@@ -105,25 +113,27 @@ public class CompanyRoleService {
             throw new RuntimeException("Only Company owner can remove ownership");
         }
 
-        Member target = userRepository.findById(ownerId)
-                .orElseThrow(() -> {
-                    logger.warn("Remove owner rejected: target member not found, ownerId={}", ownerId);
-                    return new RuntimeException("Target member not found");
-                });
+        keyedLock.runLocked(LOCK_NS, ownerId, () -> {
+            Member target = userRepository.findById(ownerId)
+                    .orElseThrow(() -> {
+                        logger.warn("Remove owner rejected: target member not found, ownerId={}", ownerId);
+                        return new RuntimeException("Target member not found");
+                    });
 
-        if (!target.isOwnerInCompany(companyId)) {
-            logger.warn("Remove owner rejected: target is not an owner, targetId={}, companyId={}",
-                    ownerId, companyId);
-            throw new RuntimeException("Target is not an owner in this Company");
-        }
+            if (!target.isOwnerInCompany(companyId)) {
+                logger.warn("Remove owner rejected: target is not an owner, targetId={}, companyId={}",
+                        ownerId, companyId);
+                throw new RuntimeException("Target is not an owner in this Company");
+            }
 
-        Set<CompanyRoleAssignment> updatedRoles = new HashSet<>(target.getCompanyRoles());
-        updatedRoles.removeIf(role -> role.getCompanyId().equals(companyId) && role.isOwner());
+            Set<CompanyRoleAssignment> updatedRoles = new HashSet<>(target.getCompanyRoles());
+            updatedRoles.removeIf(role -> role.getCompanyId().equals(companyId) && role.isOwner());
 
-        target.setCompanyRoles(updatedRoles);
-        userRepository.save(target);
-        logger.info("Owner removed successfully, actorId={}, targetId={}, companyId={}",
-                actor.getMemberId(), ownerId, companyId);
+            target.setCompanyRoles(updatedRoles);
+            userRepository.save(target);
+            logger.info("Owner removed successfully, actorId={}, targetId={}, companyId={}",
+                    actor.getMemberId(), ownerId, companyId);
+        });
     }
 
     public void addManagerPermission(String actorToken, String companyId, String managerId,
@@ -140,29 +150,31 @@ public class CompanyRoleService {
             throw new RuntimeException("Only Company owner can add manager permissions");
         }
 
-        Member target = userRepository.findById(managerId)
-                .orElseThrow(() -> {
-                    logger.warn("Add permission rejected: target member not found, managerId={}", managerId);
-                    return new RuntimeException("Target member not found");
-                });
+        keyedLock.runLocked(LOCK_NS, managerId, () -> {
+            Member target = userRepository.findById(managerId)
+                    .orElseThrow(() -> {
+                        logger.warn("Add permission rejected: target member not found, managerId={}", managerId);
+                        return new RuntimeException("Target member not found");
+                    });
 
-        CompanyRoleAssignment managerRole = target.getRoleInCompany(companyId)
-                .orElseThrow(() -> {
-                    logger.warn("Add permission rejected: target has no role in company, targetId={}, companyId={}",
-                            managerId, companyId);
-                    return new RuntimeException("Target has no role in this Company");
-                });
+            CompanyRoleAssignment managerRole = target.getRoleInCompany(companyId)
+                    .orElseThrow(() -> {
+                        logger.warn("Add permission rejected: target has no role in company, targetId={}, companyId={}",
+                                managerId, companyId);
+                        return new RuntimeException("Target has no role in this Company");
+                    });
 
-        if (!managerRole.isManager()) {
-            logger.warn("Add permission rejected: target is not a manager, targetId={}, companyId={}",
-                    managerId, companyId);
-            throw new RuntimeException("Target is not a manager in this Company");
-        }
+            if (!managerRole.isManager()) {
+                logger.warn("Add permission rejected: target is not a manager, targetId={}, companyId={}",
+                        managerId, companyId);
+                throw new RuntimeException("Target is not a manager in this Company");
+            }
 
-        managerRole.addPermission(permission);
-        userRepository.save(target);
-        logger.info("Permission added successfully, actorId={}, targetId={}, companyId={}, permission={}",
-                actor.getMemberId(), managerId, companyId, permission);
+            managerRole.addPermission(permission);
+            userRepository.save(target);
+            logger.info("Permission added successfully, actorId={}, targetId={}, companyId={}, permission={}",
+                    actor.getMemberId(), managerId, companyId, permission);
+        });
     }
 
     public void removeManagerPermission(String actorToken, String companyId, String managerId,
@@ -179,29 +191,32 @@ public class CompanyRoleService {
             throw new RuntimeException("Only Company owner can remove manager permissions");
         }
 
-        Member target = userRepository.findById(managerId)
-                .orElseThrow(() -> {
-                    logger.warn("Remove permission rejected: target member not found, managerId={}", managerId);
-                    return new RuntimeException("Target member not found");
-                });
+        keyedLock.runLocked(LOCK_NS, managerId, () -> {
+            Member target = userRepository.findById(managerId)
+                    .orElseThrow(() -> {
+                        logger.warn("Remove permission rejected: target member not found, managerId={}", managerId);
+                        return new RuntimeException("Target member not found");
+                    });
 
-        CompanyRoleAssignment managerRole = target.getRoleInCompany(companyId)
-                .orElseThrow(() -> {
-                    logger.warn("Remove permission rejected: target has no role in company, targetId={}, companyId={}",
-                            managerId, companyId);
-                    return new RuntimeException("Target has no role in this Company");
-                });
+            CompanyRoleAssignment managerRole = target.getRoleInCompany(companyId)
+                    .orElseThrow(() -> {
+                        logger.warn(
+                                "Remove permission rejected: target has no role in company, targetId={}, companyId={}",
+                                managerId, companyId);
+                        return new RuntimeException("Target has no role in this Company");
+                    });
 
-        if (!managerRole.isManager()) {
-            logger.warn("Remove permission rejected: target is not a manager, targetId={}, companyId={}",
-                    managerId, companyId);
-            throw new RuntimeException("Target is not a manager in this Company");
-        }
+            if (!managerRole.isManager()) {
+                logger.warn("Remove permission rejected: target is not a manager, targetId={}, companyId={}",
+                        managerId, companyId);
+                throw new RuntimeException("Target is not a manager in this Company");
+            }
 
-        managerRole.removePermission(permission);
-        userRepository.save(target);
-        logger.info("Permission removed successfully, actorId={}, targetId={}, companyId={}, permission={}",
-                actor.getMemberId(), managerId, companyId, permission);
+            managerRole.removePermission(permission);
+            userRepository.save(target);
+            logger.info("Permission removed successfully, actorId={}, targetId={}, companyId={}, permission={}",
+                    actor.getMemberId(), managerId, companyId, permission);
+        });
     }
 
     public boolean hasManagerPermission(String managerId, String companyId, ManagerPermission permission) {

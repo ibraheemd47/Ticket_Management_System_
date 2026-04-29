@@ -18,32 +18,42 @@ public class SystemAdminService {
     private final UserRepository userRepository;
     private final SystemAdminRepository systemAdminRepository;
     private final TokenRepository tokenRepository;
+    private final KeyedLock keyedLock;
+
+    private static final String LOCK_NS = "system-admin:member";
 
     public SystemAdminService(UserRepository userRepository, SystemAdminRepository systemAdminRepository,
-            TokenRepository tokenRepository) {
+            TokenRepository tokenRepository, KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.systemAdminRepository = systemAdminRepository;
         this.tokenRepository = tokenRepository;
-
+        this.keyedLock = keyedLock;
     }
 
     public void assign_system_admin(String token, String target_member_id) {
         logger.info("Assign system admin requested for targetMemberId={}", target_member_id);
         AuthToken user_token = requireAdminToken(token);
 
-        Member to_assign = userRepository.findById(target_member_id)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found"));
+        keyedLock.runLocked(LOCK_NS, target_member_id, () -> {
+            Member to_assign = userRepository.findById(target_member_id)
+                    .orElseThrow(() -> new IllegalArgumentException("Member not found"));
 
-        if (is_admin(target_member_id)) {
-            logger.warn("Assign system admin rejected: member already admin, targetMemberId={}", target_member_id);
-            throw new IllegalArgumentException("Member is already an admin");
-        }
+            if (is_admin(target_member_id)) {
+                logger.warn("Assign system admin rejected: member already admin, targetMemberId={}", target_member_id);
+                throw new IllegalArgumentException("Member is already an admin");
+            }
 
-        System_admin new_admin = new System_admin(to_assign, user_token.getMemberId());
-        systemAdminRepository.save(new_admin);
+            // Promote: build the new System_admin from the existing Member's profile,
+            // then delete the Member row and flush so the INSERT below uses the
+            // SYSTEM_ADMIN discriminator without colliding on the primary key.
+            System_admin new_admin = new System_admin(to_assign, user_token.getMemberId());
+            userRepository.delete(to_assign);
+            userRepository.flush();
+            systemAdminRepository.save(new_admin);
 
-        logger.info("System admin assigned successfully, targetMemberId={}, assignedBy={}",
-                target_member_id, user_token.getMemberId());
+            logger.info("System admin assigned successfully, targetMemberId={}, assignedBy={}",
+                    target_member_id, user_token.getMemberId());
+        });
     }
 
     public Member requireAdmin(String token) {

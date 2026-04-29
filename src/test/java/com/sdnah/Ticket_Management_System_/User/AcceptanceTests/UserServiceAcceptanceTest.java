@@ -73,7 +73,8 @@ class UserServiceAcceptanceTest {
                 tokenRepository,
                 authTokenService,
                 verificationService,
-                systemAdminService);
+                systemAdminService,
+                new com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock());
     }
 
     // =========================================================================
