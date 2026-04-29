@@ -1,7 +1,5 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
-import jakarta.persistence.*;
-
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -9,6 +7,14 @@ import java.util.UUID;
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 
 @Entity
 public class show {
@@ -31,11 +37,17 @@ public class show {
     private UUID EventId;
 
     private Date showDate;
+    private String name;
+    private String description;
+    private String singer;
 
-    public show(UUID EventId, Date showDate) {
+    public show(UUID EventId,String name , String description,String singer , Date showDate) {
       this.showid= UUID.randomUUID(); 
     this.EventId=EventId;
     this.showDate = showDate;
+    this.name = name;
+    this.description = description;
+    this.singer = singer;
     logger.info("Show created with ID: {} for event {}", this.showid, this.EventId);
 
     }

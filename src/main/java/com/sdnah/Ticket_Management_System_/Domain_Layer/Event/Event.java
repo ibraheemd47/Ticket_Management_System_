@@ -1,16 +1,26 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
-import jakarta.persistence.*;
-
-import java.util.Date;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
-
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.OneToMany;
+import java.util.Dictionary;
+import java.util.HashMap;
+import java.util.Map;
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 public  class Event {
@@ -30,7 +40,9 @@ public  class Event {
     private List<Long> ManagerIds; // Assuming this is a list of strings, adjust type if needed
     private Date StartDate; // Assuming you want to track the start date of the event
     private Date EndDate; // Assuming you want to track the end date of the event
-    
+    private Map<UUID, Integer> usersReviews = new HashMap<>();
+
+
     // And you use it exactly the same way
     @Enumerated(EnumType.STRING)
     private show_type eventType;
@@ -102,6 +114,7 @@ public  class Event {
         logger.info("Updating shows list for event {} by manager {}", this.EventId, ManagerId);
         this.shows = shows;
     }
+    
     public void addShow(show show,Long ManagerId) {
         if (!ManagerIds.contains(ManagerId)) {
             throw new IllegalArgumentException("Only managers can add shows to the event.");
@@ -149,7 +162,36 @@ public  class Event {
         this.shows.clear(); // Clear the list of shows
         this.ManagerIds.clear(); // Clear the list of managers
     }
+    public List<show> getShowsForThisWeek() {
+        logger.info("Retrieving shows for event {} for the current week", this.EventId);
+        List<show> showsForThisWeek = new ArrayList<>();
+        Date now = new Date();
+        for (show show : shows) {
+            if (isSameWeek(show.getShowDate(), now)) {
+                showsForThisWeek.add(show);
+            }
+        }
+        return showsForThisWeek;
+    }
     
+    private boolean isSameWeek(Date showDate, Date now) {
+        // Simple implementation to check if two dates are in the same week
+        // This can be improved with a more robust date handling library like Joda-Time or java.time
+        long millisInWeek = 7 * 24 * 60 * 60 * 1000L;
+        long showTime = showDate.getTime();
+        long nowTime = now.getTime();
+        return (showTime / millisInWeek) == (nowTime / millisInWeek);
+    }
+    public void addReview(UUID userId, int rating) {
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("Rating must be between 1 and 5.");
+        }
+        logger.info("Adding review for event {} by user {}", this.EventId, userId);
+        usersReviews.put(userId, rating);
+    }
+    public Map<UUID, Integer> getReviews() {
+        return usersReviews;
+    }
 
 
 }
