@@ -62,7 +62,7 @@ class OrderAcceptanceTest {
         orderService = new ActiveOrderService(orderRepository, paymentService, ticketGateway, policyService);
     }
 
-    @Test
+    @Test//this test makes sure that the active order is executed in the right way 
     void reserveTickets_shouldCreateActiveOrderAndReserveTickets() {
         UUID eventId = UUID.randomUUID();
 
@@ -82,7 +82,7 @@ class OrderAcceptanceTest {
         assertEquals("ACTIVE", result.getStatus());
     }
 
-    @Test
+    @Test//checks the option for trying to reserve a ticket already reserved,and not get it through
     void reserveTickets_shouldFail_whenTicketAlreadyReserved() {
         UUID eventId = UUID.randomUUID();
 
@@ -95,15 +95,15 @@ class OrderAcceptanceTest {
 
         orderService.reserveTickets("buyer1", eventId, List.of(seat));
 
-        IllegalStateException ex = assertThrows(
+        IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
                 () -> orderService.reserveTickets("buyer2", eventId, List.of(seat))
         );
 
-        assertEquals("Ticket already reserved: ticket1", ex.getMessage());
+        assertEquals("Ticket already reserved: ticket1", exception.getMessage());
     }
 
-    @Test
+    @Test//verifies the successful checkout flow confirms that a purchase is created, linked to the original order, contains the issued ticket code, and has the correct final price.
     void checkout_shouldCompletePurchase_whenPaymentAndTicketIssuanceSucceed() {
         UUID eventId = UUID.randomUUID();
 
@@ -116,7 +116,7 @@ class OrderAcceptanceTest {
 
         OrderDTO order = orderService.reserveTickets("buyer1", eventId, List.of(seat));
 
-        PaymentTransaction tx = new PaymentTransaction(
+        PaymentTransaction Transaction = new PaymentTransaction(
                 "tx-success",
                 order.getOrderId(),
                 new BigDecimal("50"),
@@ -124,7 +124,7 @@ class OrderAcceptanceTest {
         );
 
         when(paymentGateway.charge(any(UUID.class), any(BigDecimal.class), any(PaymentDetails.class)))
-                .thenReturn(tx);
+                .thenReturn(Transaction);
 
         when(ticketGateway.issueTickets(any(UUID.class), anyList()))
                 .thenReturn(List.of(new Ticketcode("code1", "qr1")));
@@ -143,7 +143,7 @@ class OrderAcceptanceTest {
         assertEquals(new BigDecimal("50"), purchase.getFinalPrice());
     }
 
-    @Test
+    @Test//the payment didnt work so the checkout dosent happen
     void checkout_shouldFail_whenPaymentRejected() {
         UUID eventId = UUID.randomUUID();
 
@@ -156,7 +156,7 @@ class OrderAcceptanceTest {
 
         OrderDTO order = orderService.reserveTickets("buyer1", eventId, List.of(seat));
 
-        PaymentTransaction failedTx = new PaymentTransaction(
+        PaymentTransaction failedTransaction = new PaymentTransaction(
                 "tx-failed",
                 order.getOrderId(),
                 new BigDecimal("50"),
@@ -164,7 +164,7 @@ class OrderAcceptanceTest {
         );
 
         when(paymentGateway.charge(any(UUID.class), any(BigDecimal.class), any(PaymentDetails.class)))
-                .thenReturn(failedTx);
+                .thenReturn(failedTransaction);
 
         PaymentDetailsDTO paymentDTO = new PaymentDetailsDTO(
                 "token123",
@@ -180,7 +180,7 @@ class OrderAcceptanceTest {
         assertEquals("Payment failed", ex.getMessage());
     }
 
-    @Test
+    @Test//the system does refund if the transaction worked but doing the ticket failed
     void checkout_shouldRefund_whenTicketIssuanceFails() {
         UUID eventId = UUID.randomUUID();
 
@@ -230,7 +230,7 @@ class OrderAcceptanceTest {
         assertEquals("Ticket issuance failed, payment refunded", ex.getMessage());
         verify(paymentGateway).refund("tx-success");
     }
-    @Test
+    @Test//prevents the user to make 2 active orders for the same event
     void reserveTickets_shouldFail_whenActiveOrderAlreadyExists() {
         UUID eventId = UUID.randomUUID();
 
@@ -257,7 +257,7 @@ class OrderAcceptanceTest {
 
         assertEquals("Active order already exists", ex.getMessage());
     }
-   @Test
+   @Test//the idea from this that after the user booked a ticket he can go back and see his active order
     void getActiveOrder_shouldReturnExistingActiveOrder() {
     UUID eventId = UUID.randomUUID();
 
@@ -277,7 +277,7 @@ class OrderAcceptanceTest {
     assertEquals(eventId, activeOrder.getEventId());
     assertEquals(1, activeOrder.getItems().size());
     }
-    @Test
+    @Test//cancels the order and checks that the system cant get active order after deleting it 
     void cancelOrder_shouldRemoveOrder() {
     UUID eventId = UUID.randomUUID();
 
@@ -292,14 +292,15 @@ class OrderAcceptanceTest {
 
     orderService.cancelOrder(order.getOrderId(), "buyer1");
 
-    assertThrows(
+    IllegalStateException exception = assertThrows(
             IllegalStateException.class,
             () -> orderService.getActiveOrder("buyer1", eventId)
     );
+    assertEquals("No active order", exception.getMessage());
    }
     
 
-    @Test
+    @Test//after the user does a checkot it will be added to purchase history 
     void getPurchaseHistory_shouldReturnCompletedPurchasesForBuyer() {
         UUID eventId = UUID.randomUUID();
 
@@ -337,7 +338,7 @@ class OrderAcceptanceTest {
 
         assertEquals(1, history.size());
     }
-    @Test
+    @Test//if the oder expires the user cant checkout
     void checkout_shouldFail_whenActiveOrderExpired() {
     UUID eventId = UUID.randomUUID();
 

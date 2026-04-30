@@ -1,48 +1,54 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.UnitTests;
+
 import java.time.LocalDateTime;
 
-public class LockTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
-    private final String resourceId;
-    private final String ownerId;
-    private final LocalDateTime expiresAt;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
 
-    public LockTest(String resourceId, String ownerId, LocalDateTime expiresAt) {
+class LockTest {
 
-        if (resourceId == null || resourceId.isBlank()) {
-            throw new IllegalArgumentException("resourceId must not be empty");
-        }
+    @Test
+    void constructor_shouldStoreValuesCorrectly() {
+        LocalDateTime future = LocalDateTime.now().plusMinutes(10);
 
-        if (ownerId == null || ownerId.isBlank()) {
-            throw new IllegalArgumentException("ownerId must not be empty");
-        }
+        Lock lock = new Lock("ticket1", "buyer1", future);
 
-        if (expiresAt == null) {
-            throw new IllegalArgumentException("expiresAt must not be null");
-        }
-
-        this.resourceId = resourceId;
-        this.ownerId = ownerId;
-        this.expiresAt = expiresAt;
+        assertEquals("ticket1", lock.getResourceId());
+        assertEquals("buyer1", lock.getOwnerId());
+        assertEquals(future, lock.getExpiresAt());
     }
 
-    public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiresAt);
+    @Test
+    void isExpired_shouldReturnFalse_whenNotExpired() {
+        LocalDateTime future = LocalDateTime.now().plusMinutes(10);
+        Lock lock = new Lock("ticket1", "buyer1", future);
+
+        assertFalse(lock.isExpired());
     }
 
-    public boolean isHeldBy(String buyerId) {
-        return ownerId.equals(buyerId);
+    @Test
+    void isExpired_shouldReturnTrue_whenExpired() {
+        LocalDateTime past = LocalDateTime.now().minusMinutes(10);
+        Lock lock = new Lock("ticket1", "buyer1", past);
+
+        assertTrue(lock.isExpired());
     }
 
-    public String getResourceId() {
-        return resourceId;
+    @Test
+    void isHeldBy_shouldReturnTrue_forSameOwner() {
+        Lock lock = new Lock("ticket1", "buyer1", LocalDateTime.now().plusMinutes(10));
+
+        assertTrue(lock.isHeldBy("buyer1"));
     }
 
-    public String getOwnerId() {
-        return ownerId;
-    }
+    @Test
+    void isHeldBy_shouldReturnFalse_forDifferentOwner() {
+        Lock lock = new Lock("ticket1", "buyer1", LocalDateTime.now().plusMinutes(10));
 
-    public LocalDateTime getExpiresAt() {
-        return expiresAt;
+        assertFalse(lock.isHeldBy("buyer2"));
     }
 }

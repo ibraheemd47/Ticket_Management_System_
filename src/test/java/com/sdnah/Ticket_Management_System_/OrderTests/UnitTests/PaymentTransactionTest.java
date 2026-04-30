@@ -1,69 +1,68 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.UnitTests;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public class PaymentTransactionTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
-    public enum Status {
-        SUCCESS,
-        FAILED,
-        REFUNDED
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
+
+class PaymentTransactionTest {
+
+    @Test
+    void constructor_shouldStoreValuesCorrectly() {
+        UUID orderId = UUID.randomUUID();
+
+        PaymentTransaction tx = new PaymentTransaction(
+                "tx1",
+                orderId,
+                new BigDecimal("50"),
+                PaymentTransaction.Status.SUCCESS
+        );
+
+        assertEquals("tx1", tx.getTransactionId());
+        assertEquals(orderId, tx.getOrderId());
+        assertEquals(new BigDecimal("50"), tx.getAmount());
     }
 
-    private final String transactionId;
-    private final UUID orderId;
-    private final BigDecimal amount;
-    private Status status;
+    @Test
+    void isSuccessful_shouldReturnTrue_whenStatusSuccess() {
+        PaymentTransaction tx = new PaymentTransaction(
+                "tx1",
+                UUID.randomUUID(),
+                new BigDecimal("50"),
+                PaymentTransaction.Status.SUCCESS
+        );
 
-    public PaymentTransactionTest(String transactionId, UUID orderId, BigDecimal amount, Status status) {
-
-        if (transactionId == null || transactionId.isBlank()) {
-            throw new IllegalArgumentException("transactionId must not be empty");
-        }
-
-        if (orderId == null) {
-            throw new IllegalArgumentException("orderId must not be null");
-        }
-
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("amount must be non-negative");
-        }
-
-        if (status == null) {
-            throw new IllegalArgumentException("status must not be null");
-        }
-
-        this.transactionId = transactionId;
-        this.orderId = orderId;
-        this.amount = amount;
-        this.status = status;
+        assertTrue(tx.isSuccessful());
     }
 
-    public boolean isSuccessful() {
-        return status == Status.SUCCESS;   // 🔥 THIS FIXES YOUR TEST
+    @Test
+    void isSuccessful_shouldReturnFalse_whenStatusFailed() {
+        PaymentTransaction tx = new PaymentTransaction(
+                "tx1",
+                UUID.randomUUID(),
+                new BigDecimal("50"),
+                PaymentTransaction.Status.FAILED
+        );
+
+        assertFalse(tx.isSuccessful());
     }
 
-    public boolean isRefunded() {
-        return status == Status.REFUNDED;
-    }
+    @Test
+    void markRefunded_shouldChangeStatus() {
+        PaymentTransaction tx = new PaymentTransaction(
+                "tx1",
+                UUID.randomUUID(),
+                new BigDecimal("50"),
+                PaymentTransaction.Status.SUCCESS
+        );
 
-    public void markRefunded() {
-        this.status = Status.REFUNDED;
-    }
+        tx.markRefunded();
 
-    public String getTransactionId() {
-        return transactionId;
-    }
-
-    public UUID getOrderId() {
-        return orderId;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public Status getStatus() {
-        return status;
+        assertTrue(tx.isRefunded());
     }
 }
