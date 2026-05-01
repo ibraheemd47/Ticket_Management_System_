@@ -9,6 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -17,8 +20,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.OneToMany;
-import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.Map;
 @Entity
@@ -37,9 +41,20 @@ public  class Event {
 
     private Long OwnerId; // Assuming this is a string, adjust type if needed
     
-    private List<Long> ManagerIds; // Assuming this is a list of strings, adjust type if needed
-    private Date StartDate; // Assuming you want to track the start date of the event
-    private Date EndDate; // Assuming you want to track the end date of the event
+    @ElementCollection
+    @CollectionTable(name = "event_manager_ids", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "manager_id")
+    private List<Long> ManagerIds;
+
+    private Date StartDate;
+    private Date EndDate;
+    private String venue;
+    private String description;
+
+    @ElementCollection
+    @CollectionTable(name = "event_reviews", joinColumns = @JoinColumn(name = "event_id"))
+    @MapKeyColumn(name = "user_id")
+    @Column(name = "rating")
     private Map<UUID, Integer> usersReviews = new HashMap<>();
 
 
@@ -182,6 +197,50 @@ public  class Event {
         long nowTime = now.getTime();
         return (showTime / millisInWeek) == (nowTime / millisInWeek);
     }
+    public String getVenue() {
+        return venue;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void editName(String newName, Long managerId) {
+        if (!ManagerIds.contains(managerId))
+            throw new IllegalArgumentException("Only managers can edit the event name.");
+        logger.info("Editing name of event {} by manager {}", this.EventId, managerId);
+        this.name = newName;
+    }
+
+    public void editType(show_type newType, Long managerId) {
+        if (!ManagerIds.contains(managerId))
+            throw new IllegalArgumentException("Only managers can edit the event type.");
+        logger.info("Editing type of event {} by manager {}", this.EventId, managerId);
+        this.eventType = newType;
+    }
+
+    public void editDates(Date newStartDate, Date newEndDate, Long managerId) {
+        if (!ManagerIds.contains(managerId))
+            throw new IllegalArgumentException("Only managers can edit the event dates.");
+        logger.info("Editing dates of event {} by manager {}", this.EventId, managerId);
+        this.StartDate = newStartDate;
+        this.EndDate = newEndDate;
+    }
+
+    public void editVenue(String newVenue, Long managerId) {
+        if (!ManagerIds.contains(managerId))
+            throw new IllegalArgumentException("Only managers can edit the event venue.");
+        logger.info("Editing venue of event {} by manager {}", this.EventId, managerId);
+        this.venue = newVenue;
+    }
+
+    public void editDescription(String newDescription, Long managerId) {
+        if (!ManagerIds.contains(managerId))
+            throw new IllegalArgumentException("Only managers can edit the event description.");
+        logger.info("Editing description of event {} by manager {}", this.EventId, managerId);
+        this.description = newDescription;
+    }
+
     public void addReview(UUID userId, int rating) {
         if (rating < 1 || rating > 5) {
             throw new IllegalArgumentException("Rating must be between 1 and 5.");

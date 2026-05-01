@@ -1,533 +1,495 @@
 package com.sdnah.Ticket_Management_System_.AcceptanceTests;
 
-import static org.junit.jupiter.api.Assertions.fail;
+import com.sdnah.Ticket_Management_System_.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
 
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Nested;
-public class EventAcceptanceTest {
-    @DisplayName("Event Module — Acceptance Tests")
-class EventAcceptanceTests {
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-    // -----------------------------------------------------------------
-    // UC II.4.1: Manage Events and Ticket Inventory
-    // Actor: Production Company Owner
-    // -----------------------------------------------------------------
+import java.util.*;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("Event Module — Acceptance Tests")
+class EventAcceptanceTest {
+
+    @Mock
+    private IEventRepository eventRepository;
+
+    @InjectMocks
+    private EventService eventService;
+
+    private static final Long OWNER_ID       = 1L;
+    private static final Long MANAGER_ID     = 2L;
+    private static final Long COMPANY_ID     = 10L;
+    private static final Long UNAUTHORIZED   = 99L;
+
+    private Event existingEvent;
+    private UUID  eventId;
+
+    @BeforeEach
+    void setUp() {
+        existingEvent = new Event("Rock Festival", show_type.FESTIVAL, COMPANY_ID, OWNER_ID);
+        eventId = existingEvent.getEventId();
+    }
+
+    // -------------------------------------------------------------------------
+    // UC II.4.1 — Manage Events and Ticket Inventory
+    // -------------------------------------------------------------------------
     @Nested
     @DisplayName("UC II.4.1 — Manage Events and Ticket Inventory")
     class ManageEventsAndInventory {
 
         @Test
-        @Disabled("Requires Event_Service.createEvent")
-        @DisplayName("Add Event Successfully")
+        @DisplayName("Owner creates an event successfully")
         void addEventSuccessfully() {
-            // Given: company exists, owner is logged in, valid event details
-            // When : owner creates an event via Event_Service.createEvent(...)
-            // Then : event is created, associated with the company, success confirmed
-            fail("Not implemented");
+            EventDto dto = new EventDto(null, "Jazz Night", null, show_type.PERFORMANCE, "Tel Aviv");
+            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            Event created = eventService.createEvent(dto, COMPANY_ID, OWNER_ID);
+
+            assertThat(created.getName()).isEqualTo("Jazz Night");
+            assertThat(created.getCompanyId()).isEqualTo(COMPANY_ID);
+            assertThat(created.getOwnerId()).isEqualTo(OWNER_ID);
+            assertThat(created.getManagerIds()).contains(OWNER_ID);
+            verify(eventRepository).save(any(Event.class));
         }
 
         @Test
-        @Disabled("Requires Event_Service.editEvent")
-        @DisplayName("Edit Event Successfully")
-        void editEventSuccessfully() {
-            // Given: company + event exist, owner logged in, valid updates
-            // When : owner edits the event
-            // Then : event is updated, changes persisted
-            fail("Not implemented");
+        @DisplayName("Manager edits event name successfully")
+        void editEventNameSuccessfully() {
+            existingEvent.addManager(MANAGER_ID, OWNER_ID);
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            eventService.editEventName(eventId, "Updated Name", MANAGER_ID);
+
+            assertThat(existingEvent.getName()).isEqualTo("Updated Name");
+            verify(eventRepository).save(existingEvent);
         }
 
         @Test
-        @Disabled("Requires Event_Service.removeEvent")
-        @DisplayName("Remove Event Successfully")
+        @DisplayName("Manager edits event type successfully")
+        void editEventTypeSuccessfully() {
+            existingEvent.addManager(MANAGER_ID, OWNER_ID);
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            eventService.editEventType(eventId, show_type.CONFERENCE, MANAGER_ID);
+
+            assertThat(existingEvent.getEventType()).isEqualTo(show_type.CONFERENCE);
+        }
+
+        @Test
+        @DisplayName("Manager edits event dates successfully")
+        void editEventDatesSuccessfully() {
+            existingEvent.addManager(MANAGER_ID, OWNER_ID);
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            Date start = new Date();
+            Date end   = new Date(start.getTime() + 86_400_000L);
+            eventService.editEventDates(eventId, start, end, MANAGER_ID);
+
+            assertThat(existingEvent.getStartDate()).isEqualTo(start);
+            assertThat(existingEvent.getEndDate()).isEqualTo(end);
+        }
+
+        @Test
+        @DisplayName("Manager edits event venue successfully")
+        void editEventVenueSuccessfully() {
+            existingEvent.addManager(MANAGER_ID, OWNER_ID);
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            eventService.editEventVenue(eventId, "Yarkon Park", MANAGER_ID);
+
+            assertThat(existingEvent.getVenue()).isEqualTo("Yarkon Park");
+        }
+
+        @Test
+        @DisplayName("Manager edits event description successfully")
+        void editEventDescriptionSuccessfully() {
+            existingEvent.addManager(MANAGER_ID, OWNER_ID);
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            eventService.editEventDescription(eventId, "An amazing outdoor concert", MANAGER_ID);
+
+            assertThat(existingEvent.getDescription()).isEqualTo("An amazing outdoor concert");
+        }
+
+        @Test
+        @DisplayName("Owner removes event successfully")
         void removeEventSuccessfully() {
-            // Given: company + event exist, owner logged in
-            // When : owner removes the event
-            // Then : event is removed from the company
-            fail("Not implemented");
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            eventService.deleteEvent(eventId, OWNER_ID);
+
+            verify(eventRepository).delete(existingEvent);
         }
 
         @Test
-        @Disabled("Requires Event_Service.updateInventory")
-        @DisplayName("Update Inventory Successfully — add seated area with blocks/rows/seats")
-        void updateInventorySeatedSuccessfully() {
-            // Given: event exists, owner logged in
-            // When : owner adds a SeatedArea with blocks/rows/seats
-            // Then : inventory reflects the new structure; tickets created per seat
-            fail("Not implemented");
+        @DisplayName("Non-owner cannot delete event — permission denied")
+        void deleteEventUnauthorized() {
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            assertThatThrownBy(() -> eventService.deleteEvent(eventId, UNAUTHORIZED))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only the owner can delete the event");
+
+            verify(eventRepository, never()).delete(any());
         }
 
         @Test
-        @Disabled("Requires Event_Service.updateInventory")
-        @DisplayName("Update Inventory Successfully — add standing area with capacity")
-        void updateInventoryStandingSuccessfully() {
-            // Given: event exists, owner logged in
-            // When : owner adds a StandingArea with maxCapacity = N
-            // Then : inventory reflects N available standing tickets
-            fail("Not implemented");
+        @DisplayName("Unauthorized user cannot edit event name — permission denied")
+        void editEventNameUnauthorized() {
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            assertThatThrownBy(() -> eventService.editEventName(eventId, "Hack", UNAUTHORIZED))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only managers can edit the event name");
+
+            verify(eventRepository, never()).save(any());
         }
 
         @Test
-        @Disabled("Requires Event_Service.createEvent")
-        @DisplayName("Company Not Found — rejection")
-        void companyNotFound() {
-            // Given: company does NOT exist
-            // When : user attempts to add an event for that company
-            // Then : operation rejected with "company not found"
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.createEvent + auth check")
-        @DisplayName("User Not Owner — permission denied")
-        void userNotOwner() {
-            // Given: company exists, user is a member but not an owner
-            // When : user attempts to add an event
-            // Then : permission denied
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service input validation")
-        @DisplayName("Invalid Event Data — rejection")
-        void invalidEventData() {
-            // Given: owner logged in, event data is missing required fields
-            // When : owner attempts to create the event
-            // Then : request rejected, validation error returned
-            fail("Not implemented");
-        }
-    }
-
-    // -----------------------------------------------------------------
-    // UC II.4.2: Define Venue Layout and Event Map
-    // -----------------------------------------------------------------
-    @Nested
-    @DisplayName("UC II.4.2 — Define Venue Layout and Event Map")
-    class DefineVenueLayout {
-
-        @Test
-        @Disabled("Requires Event_Service.defineEventMap")
-        @DisplayName("Hall Map Defined Successfully")
-        void hallMapDefinedSuccessfully() {
-            // Given: company + event exist, owner logged in, valid map
-            // When : owner submits hall map (stage, entrances, areas linked to pricing zones)
-            // Then : map stored, areas linked correctly to inventory
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.defineEventMap consistency check")
-        @DisplayName("Map–Inventory Consistency — areas in map must match inventory areas")
-        void mapInventoryConsistency() {
-            // Given: event with inventory areas A, B, C
-            // When : owner submits a map referencing area D (not in inventory)
-            // Then : map rejected, consistency error returned
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.defineEventMap")
-        @DisplayName("Invalid Hall Map — rejection")
-        void invalidHallMap() {
-            // Given: owner logged in, malformed map data (e.g., overlapping areas)
-            // When : owner submits the map
-            // Then : map rejected with error
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.defineEventMap")
-        @DisplayName("Event Not Found")
+        @DisplayName("Event not found — throws RuntimeException")
         void eventNotFound() {
-            // Given: owner logged in, event does NOT exist
-            // When : owner attempts to define map for that event
-            // Then : error 'event not found'
-            fail("Not implemented");
-        }
+            when(eventRepository.findById(any())).thenReturn(Optional.empty());
 
-        @Test
-        @Disabled("Requires Event_Service.defineEventMap + auth check")
-        @DisplayName("User Not Authorized")
-        void userNotAuthorized() {
-            // Given: event exists, user is not an owner of the company
-            // When : user attempts to define map
-            // Then : permission denied
-            fail("Not implemented");
+            assertThatThrownBy(() -> eventService.deleteEvent(UUID.randomUUID(), OWNER_ID))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Event not found");
         }
     }
 
-    // -----------------------------------------------------------------
-    // UC II.2.1: View Active Production Companies and Their Events
-    // (event-side coverage only)
-    // -----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // UC II.4.1 — Manager Assignment
+    // -------------------------------------------------------------------------
+    @Nested
+    @DisplayName("UC II.4.1 — Manager Assignment")
+    class ManagerAssignment {
+
+        @Test
+        @DisplayName("Owner assigns a new manager successfully")
+        void assignManagerSuccessfully() {
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            eventService.assignManager(eventId, MANAGER_ID, OWNER_ID);
+
+            assertThat(existingEvent.getManagerIds()).contains(MANAGER_ID);
+            verify(eventRepository).save(existingEvent);
+        }
+
+        @Test
+        @DisplayName("Non-owner cannot assign a manager — permission denied")
+        void assignManagerUnauthorized() {
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            assertThatThrownBy(() -> eventService.assignManager(eventId, MANAGER_ID, UNAUTHORIZED))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only the owner can add managers");
+
+            verify(eventRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Owner removes a manager successfully")
+        void removeManagerSuccessfully() {
+            existingEvent.addManager(MANAGER_ID, OWNER_ID);
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            eventService.removeManager(eventId, MANAGER_ID, OWNER_ID);
+
+            assertThat(existingEvent.getManagerIds()).doesNotContain(MANAGER_ID);
+            verify(eventRepository).save(existingEvent);
+        }
+
+        @Test
+        @DisplayName("Cannot remove a manager who is not assigned")
+        void removeNonExistentManager() {
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            assertThatThrownBy(() -> eventService.removeManager(eventId, MANAGER_ID, OWNER_ID))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("This manager is not assigned");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // UC II.4.1 — Show Management
+    // -------------------------------------------------------------------------
+    @Nested
+    @DisplayName("UC II.4.1 — Show Management")
+    class ShowManagement {
+
+        @Test
+        @DisplayName("Manager adds a show to an event successfully")
+        void addShowSuccessfully() {
+            existingEvent.addManager(MANAGER_ID, OWNER_ID);
+            show newShow = new show(eventId, "Night 1", "Opening show", "Artist A", new Date());
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            eventService.addShowToEvent(eventId, newShow, MANAGER_ID);
+
+            assertThat(existingEvent.getShows()).contains(newShow);
+            verify(eventRepository).save(existingEvent);
+        }
+
+        @Test
+        @DisplayName("Unauthorized user cannot add a show — permission denied")
+        void addShowUnauthorized() {
+            show newShow = new show(eventId, "Night 1", "Opening show", "Artist A", new Date());
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            assertThatThrownBy(() -> eventService.addShowToEvent(eventId, newShow, UNAUTHORIZED))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only managers can add shows");
+
+            verify(eventRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Manager removes a show from an event successfully")
+        void removeShowSuccessfully() {
+            existingEvent.addManager(MANAGER_ID, OWNER_ID);
+            show existingShow = new show(eventId, "Night 1", "Opening show", "Artist A", new Date());
+            existingEvent.addShow(existingShow, MANAGER_ID);
+            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+
+            eventService.removeShowFromEvent(eventId, existingShow, MANAGER_ID);
+
+            assertThat(existingEvent.getShows()).doesNotContain(existingShow);
+            verify(eventRepository).save(existingEvent);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // UC II.2.1 — View Events of a Production Company
+    // -------------------------------------------------------------------------
     @Nested
     @DisplayName("UC II.2.1 — View Events of a Production Company")
     class ViewCompanyEvents {
 
         @Test
-        @Disabled("Requires Event_Service.listEventsForCompany")
-        @DisplayName("View Events of Active Company Successfully")
+        @DisplayName("Returns all events for an active company")
         void viewEventsOfActiveCompany() {
-            // Given: active company with N published events
-            // When : guest requests events for the company
-            // Then : the N events are returned
-            fail("Not implemented");
+            List<Event> events = List.of(
+                    new Event("Event A", show_type.FESTIVAL, COMPANY_ID, OWNER_ID),
+                    new Event("Event B", show_type.CONFERENCE, COMPANY_ID, OWNER_ID)
+            );
+            when(eventRepository.findByCompanyId(COMPANY_ID)).thenReturn(events);
+
+            List<Event> result = eventService.getEventsByCompany(COMPANY_ID);
+
+            assertThat(result).hasSize(2);
+            verify(eventRepository).findByCompanyId(COMPANY_ID);
         }
 
         @Test
-        @Disabled("Requires Event_Service.listEventsForCompany")
-        @DisplayName("No Events For Active Production Company")
+        @DisplayName("Returns empty list when company has no events")
         void noEventsForActiveCompany() {
-            // Given: active company with zero events
-            // When : guest requests events
-            // Then : empty list returned + 'no events available' indication
-            fail("Not implemented");
-        }
+            when(eventRepository.findByCompanyId(COMPANY_ID)).thenReturn(Collections.emptyList());
 
-        @Test
-        @Disabled("Requires Event_Service.listEventsForCompany + company-status filter")
-        @DisplayName("Inactive Company Events Hidden — integrity rule")
-        void inactiveCompanyEventsHidden() {
-            // Given: company is suspended/closed (II.4.13)
-            // When : guest requests events
-            // Then : its events are NOT returned (hidden from search/listing)
-            fail("Not implemented");
+            List<Event> result = eventService.getEventsByCompany(COMPANY_ID);
+
+            assertThat(result).isEmpty();
         }
     }
 
-    // -----------------------------------------------------------------
-    // UC II.2.2: View Current Inventory Status and Event Map
-    // -----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // UC II.2.3 — Search Events
+    // -------------------------------------------------------------------------
     @Nested
-    @DisplayName("UC II.2.2 — View Inventory Status and Event Map")
-    class ViewInventoryAndMap {
-
-        @Test
-        @Disabled("Requires Event_Service.viewEvent")
-        @DisplayName("View Event Map And Inventory Successfully")
-        void viewEventMapAndInventory() {
-            // Given: event with map + mixed seating
-            // When : guest requests the event view
-            // Then : venue structure (stage/entrances/areas), map, inventory returned
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.viewEvent")
-        @DisplayName("View Marked Seating Status — per-seat free/taken")
-        void viewMarkedSeatingStatus() {
-            // Given: event with SeatedArea with blocks/rows/seats; some sold/locked
-            // When : guest views the event
-            // Then : each seat returns AVAILABLE / LOCKED_IN_CART / PURCHASED
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.viewEvent")
-        @DisplayName("View General Area Inventory — standing area count")
-        void viewStandingAreaInventory() {
-            // Given: event with StandingArea (capacity = 100, sold = 30)
-            // When : guest views the event
-            // Then : area shows 70 available
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.viewEvent")
-        @DisplayName("Event Does Not Exist")
-        void eventDoesNotExist() {
-            // Given: no event with id X
-            // When : guest requests view of event X
-            // Then : 'event not found' error
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.viewEvent")
-        @DisplayName("No Available Inventory — sold-out")
-        void noAvailableInventory() {
-            // Given: event with all tickets PURCHASED
-            // When : guest views the event
-            // Then : map returned, indication that no inventory is available
-            fail("Not implemented");
-        }
-    }
-
-    // -----------------------------------------------------------------
-    // UC II.2.3: Search Events and Tickets
-    // -----------------------------------------------------------------
-    @Nested
-    @DisplayName("UC II.2.3 — Search Events and Tickets")
+    @DisplayName("UC II.2.3 — Search Events")
     class SearchEvents {
 
         @Test
-        @Disabled("Requires Event_Service.search")
-        @DisplayName("Search Globally By Name / Artist / Category Successfully")
-        void searchGloballyByKeyword() {
-            // Given: events across multiple companies
-            // When : guest searches by keyword 'jazz'
-            // Then : matching events from any active company returned
-            fail("Not implemented");
+        @DisplayName("Search by name returns matching events")
+        void searchByNameSuccessfully() {
+            List<Event> matches = List.of(new Event("Jazz Night", show_type.PERFORMANCE, COMPANY_ID, OWNER_ID));
+            when(eventRepository.searchEventsByName("Jazz")).thenReturn(matches);
+
+            List<Event> result = eventService.searchEventsByName("Jazz");
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getName()).isEqualTo("Jazz Night");
         }
 
         @Test
-        @Disabled("Requires Event_Service.search with filters")
-        @DisplayName("Search With Filters — date range / price range / category")
+        @DisplayName("Search by type returns matching events")
+        void searchByTypeSuccessfully() {
+            List<Event> matches = List.of(new Event("Big Festival", show_type.FESTIVAL, COMPANY_ID, OWNER_ID));
+            when(eventRepository.searchEventsByType(show_type.FESTIVAL)).thenReturn(matches);
+
+            List<Event> result = eventService.searchEventsByType(show_type.FESTIVAL);
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getEventType()).isEqualTo(show_type.FESTIVAL);
+        }
+
+        @Test
+        @DisplayName("Search by singer name returns matching events")
+        void searchBySingerSuccessfully() {
+            List<Event> matches = List.of(new Event("Adele Live", show_type.PERFORMANCE, COMPANY_ID, OWNER_ID));
+            when(eventRepository.searchEventsBySingerName("Adele")).thenReturn(matches);
+
+            List<Event> result = eventService.searchEventsBySingerName("Adele");
+
+            assertThat(result).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("Search with filters returns matching events")
         void searchWithFilters() {
-            // Given: events with varied dates / prices / categories
-            // When : guest searches with filters (e.g., dateRange, priceRange, FESTIVAL)
-            // Then : only matching events returned
-            fail("Not implemented");
+            Date start = new Date();
+            Date end   = new Date(start.getTime() + 7 * 86_400_000L);
+            List<Event> matches = List.of(new Event("Conference 2026", show_type.CONFERENCE, COMPANY_ID, OWNER_ID));
+            when(eventRepository.getEventsByFilter("Conference", show_type.CONFERENCE, start, end))
+                    .thenReturn(matches);
+
+            List<Event> result = eventService.getEventsByFilter("Conference", show_type.CONFERENCE, start, end);
+
+            assertThat(result).hasSize(1);
         }
 
         @Test
-        @Disabled("Requires Event_Service.searchInCompany")
-        @DisplayName("Search Within Specific Production Company")
-        void searchWithinCompany() {
-            // Given: target company with subset of events
-            // When : guest searches within that company
-            // Then : only that company's matching events returned
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.search")
-        @DisplayName("No Search Results Found")
+        @DisplayName("Search returns empty list when no matches found")
         void noSearchResults() {
-            // Given: no events match the keyword
-            // When : guest searches
-            // Then : empty results returned
-            fail("Not implemented");
+            when(eventRepository.searchEventsByName("NonExistent")).thenReturn(Collections.emptyList());
+
+            List<Event> result = eventService.searchEventsByName("NonExistent");
+
+            assertThat(result).isEmpty();
         }
 
         @Test
-        @Disabled("Requires Event_Service.search")
-        @DisplayName("Empty Search Query — returns based on available criteria")
-        void emptySearchQuery() {
-            // Given: events exist
-            // When : guest searches with empty keyword (filters only / nothing)
-            // Then : results based on available criteria (or all active events)
-            fail("Not implemented");
+        @DisplayName("Search within a specific company returns only that company's events")
+        void searchWithinCompany() {
+            Long otherCompany = 999L;
+            List<Event> companyEvents = List.of(
+                    new Event("Company Event", show_type.FESTIVAL, COMPANY_ID, OWNER_ID)
+            );
+            when(eventRepository.findByCompanyId(COMPANY_ID)).thenReturn(companyEvents);
+
+            List<Event> result = eventService.getEventsByCompany(COMPANY_ID);
+
+            assertThat(result).allMatch(e -> e.getCompanyId().equals(COMPANY_ID));
+            assertThat(result).noneMatch(e -> e.getCompanyId().equals(otherCompany));
         }
     }
 
-    // -----------------------------------------------------------------
-    // UC II.2.5: Select Tickets for Event
-    // -----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // UC II.2.1 — Reviews
+    // -------------------------------------------------------------------------
     @Nested
-    @DisplayName("UC II.2.5 — Select Tickets for Event")
-    class SelectTickets {
+    @DisplayName("UC II.2.1 — Event Reviews")
+    class EventReviews {
 
         @Test
-        @Disabled("Requires Event_Service.selectSeats")
-        @DisplayName("Select Marked Seats Successfully")
-        void selectMarkedSeatsSuccessfully() {
-            // Given: event with available seats S1, S2
-            // When : guest selects [S1, S2]
-            // Then : selection accepted, seats prepared for active order
-            fail("Not implemented");
+        @DisplayName("User adds a review successfully")
+        void addReviewSuccessfully() {
+            existingEvent.addReview(UUID.randomUUID(), 4);
+
+            assertThat(existingEvent.getReviews()).hasSize(1);
+            assertThat(existingEvent.getReviews().values()).containsExactly(4);
         }
 
         @Test
-        @Disabled("Requires Event_Service.selectQuantity")
-        @DisplayName("Select General Area Quantity Successfully")
-        void selectStandingQuantitySuccessfully() {
-            // Given: standing area with 10 spots free
-            // When : guest selects quantity = 3
-            // Then : selection accepted, prepared for active order
-            fail("Not implemented");
+        @DisplayName("Review with rating out of range is rejected")
+        void reviewOutOfRange() {
+            assertThatThrownBy(() -> existingEvent.addReview(UUID.randomUUID(), 6))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Rating must be between 1 and 5");
+
+            assertThatThrownBy(() -> existingEvent.addReview(UUID.randomUUID(), 0))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Rating must be between 1 and 5");
         }
 
         @Test
-        @Disabled("Requires Event_Service.selectSeats")
-        @DisplayName("Selected Seats Unavailable — already locked/sold")
-        void selectedSeatsUnavailable() {
-            // Given: seat S1 is LOCKED_IN_CART by another buyer
-            // When : guest tries to select [S1]
-            // Then : selection rejected, 'unavailable' message
-            fail("Not implemented");
-        }
+        @DisplayName("Multiple users can review the same event")
+        void multipleReviews() {
+            UUID user1 = UUID.randomUUID();
+            UUID user2 = UUID.randomUUID();
 
-        @Test
-        @Disabled("Requires Event_Service.selectSeats with lottery check")
-        @DisplayName("Lottery-Only Ticket Cannot Be Selected Directly")
-        void lotteryTicketSelected() {
-            // Given: event seat is lottery-restricted
-            // When : guest tries to select directly
-            // Then : selection rejected, 'lottery only' message
-            fail("Not implemented");
-        }
+            existingEvent.addReview(user1, 5);
+            existingEvent.addReview(user2, 3);
 
-        @Test
-        @Disabled("Requires Event_Service.selectQuantity")
-        @DisplayName("Selected Quantity Exceeds Available")
-        void selectedQuantityUnavailable() {
-            // Given: standing area has 2 spots free
-            // When : guest selects quantity = 5
-            // Then : selection rejected, 'quantity unavailable'
-            fail("Not implemented");
+            assertThat(existingEvent.getReviews()).hasSize(2);
+            assertThat(existingEvent.getReviews().get(user1)).isEqualTo(5);
+            assertThat(existingEvent.getReviews().get(user2)).isEqualTo(3);
         }
     }
 
-    // -----------------------------------------------------------------
-    // UC II.2.4: Reserve Tickets in Active Order
-    // (ticket-locking lifecycle — Event module concern)
-    // -----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // UC II.2.4 — Reserve Tickets (ticket locking — Event module concern)
+    // -------------------------------------------------------------------------
     @Nested
-    @DisplayName("UC II.2.4 — Reserve (Lock) Tickets in Active Order")
+    @DisplayName("UC II.2.4 — Reserve (Lock) Tickets")
     class ReserveTickets {
 
         @Test
-        @Disabled("Requires Event_Service.reserveTickets — ticket.lock()")
-        @DisplayName("Reserve Tickets Successfully — status becomes LOCKED_IN_CART")
+        @Disabled("Requires active_order_service integration — bookSeat delegates to repo custom method not yet implemented")
+        @DisplayName("Reserve tickets successfully — status becomes LOCKED_IN_CART")
         void reserveTicketsSuccessfully() {
-            // Given: tickets T1, T2 are AVAILABLE
-            // When : guest reserves [T1, T2]
-            // Then : T1, T2 status = LOCKED_IN_CART; lockedUntil = now + lockWindow
-            //         other users see them as unavailable
-            fail("Not implemented");
+            // When active_order_service is integrated, it will call EventService.bookSeat()
+            // which locks the ticket via ticket.lockInCart(userId)
+            // Then: ticket status == LOCKED_IN_CART
         }
 
         @Test
-        @Disabled("Requires Event_Service.reserveTickets")
-        @DisplayName("Tickets Not Available — concurrent reservation rejected")
-        void ticketsNotAvailable() {
-            // Given: T1 already LOCKED_IN_CART by user A
-            // When : user B tries to reserve T1
-            // Then : reservation fails for B, message returned
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.reserveTickets + lock-expiry release")
-        @DisplayName("Reservation Expires — tickets released back to inventory")
+        @Disabled("Requires active_order_service integration")
+        @DisplayName("Reservation expires — tickets released back to AVAILABLE")
         void reservationExpires() {
-            // Given: user A holds T1 LOCKED_IN_CART; lockedUntil has passed
-            // When : the system processes expiry (or another guest queries inventory)
-            // Then : T1 status returns to AVAILABLE, inventory updated
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.reserveTickets")
-        @DisplayName("Add To Existing Active Order")
-        void addToExistingActiveOrder() {
-            // Given: user has an active order with T1
-            // When : user reserves T2 for the same event
-            // Then : T2 added to the same active order, both LOCKED_IN_CART
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.reserveTickets + purchase policy check")
-        @DisplayName("Purchase Policy Violation — e.g., max-per-buyer exceeded")
-        void purchasePolicyViolation() {
-            // Given: company policy: max 4 tickets per buyer for the event
-            // When : guest tries to reserve 5
-            // Then : reservation rejected with policy violation
-            fail("Not implemented");
+            // expir_order_service will call unlock on expired tickets
         }
     }
 
-    // -----------------------------------------------------------------
-    // UC II.2.8: Checkout Active Order
-    // (ticket lifecycle: LOCKED_IN_CART -> PURCHASED, all-or-nothing)
-    // -----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // UC II.2.8 — Checkout (ticket lifecycle)
+    // -------------------------------------------------------------------------
     @Nested
     @DisplayName("UC II.2.8 — Checkout (Ticket Lifecycle)")
     class CheckoutTickets {
 
         @Test
-        @Disabled("Requires Event_Service.checkout + ticket.purchase()")
-        @DisplayName("Checkout Successfully — tickets become PURCHASED, ownership assigned")
+        @Disabled("Requires Booking_service + IPaymentGateway + ITicketSupplierGateway")
+        @DisplayName("Checkout successfully — tickets become PURCHASED")
         void checkoutSuccessfully() {
-            // Given: active order with tickets LOCKED_IN_CART, payment + issuance OK
-            // When : guest checks out
-            // Then : tickets move to PURCHASED; ownerId assigned; inventory updated
-            fail("Not implemented");
+            // Booking_service orchestrates: policy check → payment → issuance → purchase()
         }
 
         @Test
-        @Disabled("Requires Event_Service.checkout + expiry handling")
-        @DisplayName("Active Order Expired — tickets released, no purchase")
-        void activeOrderExpired() {
-            // Given: active order whose lock window has elapsed
-            // When : guest attempts checkout
-            // Then : checkout rejected, tickets released back to AVAILABLE
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.checkout + payment proxy")
-        @DisplayName("Payment Rejected — tickets released")
+        @Disabled("Requires Booking_service + IPaymentGateway mock")
+        @DisplayName("Payment rejected — tickets released back to AVAILABLE")
         void paymentRejected() {
-            // Given: active order valid, payment service rejects charge
-            // When : guest checks out
-            // Then : no purchase, tickets returned to AVAILABLE
-            fail("Not implemented");
+            // IPaymentGateway mock returns failure → tickets unlocked
         }
 
         @Test
-        @Disabled("Requires Event_Service.checkout + issuance proxy + auto-refund")
-        @DisplayName("Ticket Issuance Rejected — auto refund, tickets released")
+        @Disabled("Requires Booking_service + ITicketSupplierGateway mock + auto-refund")
+        @DisplayName("Ticket issuance rejected — auto refund, tickets released")
         void issuanceRejected() {
-            // Given: payment OK, issuance service rejects
-            // When : guest checks out
-            // Then : automatic refund triggered; tickets back to AVAILABLE
-            fail("Not implemented");
+            // ITicketSupplierGateway mock returns failure → refund triggered → tickets unlocked
         }
 
         @Test
-        @Disabled("Requires Event_Service.checkout — atomicity")
-        @DisplayName("All-Or-Nothing — partial checkout never persists")
+        @Disabled("Requires Booking_service — all-or-nothing atomicity")
+        @DisplayName("All-or-nothing — partial checkout never persists")
         void noPartialPurchase() {
-            // Given: order has [T1, T2, T3]; T2 fails issuance
-            // When : guest checks out
-            // Then : T1 and T3 are NOT marked PURCHASED;
-            //         all three return to AVAILABLE
-            fail("Not implemented");
+            // If any ticket in order fails issuance, ALL are rolled back to AVAILABLE
         }
     }
-
-    // -----------------------------------------------------------------
-    // Service-Level: Concurrency over Event/Ticket resources
-    // (גרסה 1, §6.a — race-condition tests with Threads + CountDownLatch)
-    // -----------------------------------------------------------------
-    @Nested
-    @DisplayName("Service-Level — Concurrency on Tickets")
-    class ConcurrencyOnTickets {
-
-        @Test
-        @Disabled("Requires Event_Service.reserveTickets + locking strategy")
-        @DisplayName("Two buyers race for the same seat — exactly one succeeds")
-        void doubleReservationRace() {
-            // Given: T1 is AVAILABLE; two threads ready behind a CountDownLatch
-            // When : both call reserveTickets([T1]) simultaneously (ExecutorService)
-            // Then : exactly ONE thread succeeds; the other gets a clean failure;
-            //         T1 ends in LOCKED_IN_CART exactly once.
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires Event_Service.checkout + locking strategy")
-        @DisplayName("Two buyers race to purchase the same locked ticket — exactly one wins")
-        void doublePurchaseRace() {
-            // Given: T1 is locked by user A; B somehow attempts checkout on it too
-            // When : both submit checkout in parallel (latch-released)
-            // Then : exactly one PURCHASED; system state consistent
-            fail("Not implemented");
-        }
-
-        @Test
-        @Disabled("Requires StandingArea capacity enforcement")
-        @DisplayName("Standing area capacity respected under concurrent reservations")
-        void standingAreaCapacityRace() {
-            // Given: StandingArea capacity = 10
-            // When : 50 threads each try to reserve 1 spot simultaneously
-            // Then : exactly 10 succeed; 40 fail; currentCount == 10
-            fail("Not implemented");
-        }
-    }
-}
 }
