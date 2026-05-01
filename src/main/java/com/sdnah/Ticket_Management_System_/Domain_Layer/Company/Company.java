@@ -20,6 +20,7 @@ public class Company {
     //private final List<Integer> authorizedManagerIds; // II.4.7 - Manage Company Managers
     private final Map<Integer, Set<CompanyPermission>> managerPermissions;
     private final Map<Integer, Integer> managerAppointedByOwner;
+    private final Map<Integer, Integer> ownerAppointedByOwner;
 
     private double rating;
     private String logoURL; // for ui display purposes, not used in domain logic
@@ -43,6 +44,7 @@ public class Company {
 
         this.managerPermissions = new ConcurrentHashMap<>();
         this.managerAppointedByOwner = new ConcurrentHashMap<>();
+        this.ownerAppointedByOwner = new ConcurrentHashMap<>();
         //this.authorizedManagerIds = new CopyOnWriteArrayList<>();
         this.rating = 0.0;
     }
@@ -203,6 +205,7 @@ public class Company {
         }
 
         ownerIds.add(newOwnerId);
+        ownerAppointedByOwner.put(newOwnerId, actingOwnerId);
     }
 
     //II.4.9 - Remove Company Owner Appointment.
@@ -217,11 +220,17 @@ public class Company {
             throw new IllegalArgumentException("The founder cannot be removed from ownership.");
         }
 
+        Integer appointingOwner = ownerAppointedByOwner.get(targetOwnerId);
+        if (appointingOwner == null || appointingOwner != actingOwnerId) {
+            throw new SecurityException("Only the owner who appointed this owner can remove the appointment.");
+        }
+
         if (ownerIds.size() == 1) {
             throw new IllegalStateException("An active company must have at least one owner.");
         }
 
         ownerIds.remove(targetOwnerId);
+        ownerAppointedByOwner.remove(targetOwnerId);
     }
 
     //II.4.10 - Resign from Ownership.
