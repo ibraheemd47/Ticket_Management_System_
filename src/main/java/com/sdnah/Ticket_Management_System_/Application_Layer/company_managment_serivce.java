@@ -21,11 +21,12 @@ public class company_managment_serivce {
     }
 
     // --- II.2.1: View Active Production Companies ---
-    public List<Company> getActiveCompanies() {
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
-                .toList();
-    }
+    public List<CompanyDTO> getActiveCompanies() {
+    return companyRepository.findAll().stream()
+            .filter(Company::isOpen)
+            .map(this::toDTO)
+            .toList();
+}
 
     // II.2.1 - Get all upcoming events from active companies
     public List<Integer> getAllUpComingEventsForHomePage() {
@@ -337,17 +338,17 @@ public class company_managment_serivce {
         return company.getAssociatedEventIds();
     }
 
-    public List<Company> showCompaniesByRating0()       
+    public List<CompanyDTO> showCompaniesByRating0()       
     {
         throw new UnsupportedOperationException("Company rating is not implemented yet.");
     }
-
-    public List<Company> showCompaniesByRating() {
-            return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
-                .sorted(Comparator.comparingDouble(Company::getRating).reversed())
-                .toList();
-    }
+    public List<CompanyDTO> showCompaniesByRating() {
+        return companyRepository.findAll().stream()
+            .filter(Company::isOpen)
+            .sorted(Comparator.comparingDouble(Company::getRating).reversed())
+            .map(this::toDTO)
+            .toList();
+}
 
     public List<Company> searchByCompanyName(String companyName) 
     {
@@ -392,5 +393,17 @@ public class company_managment_serivce {
 
         companyRepository.deleteById(companyId);
     }
+
+
+    //helper for dtos
+    private CompanyDTO toDTO(Company company) {
+    return new CompanyDTO(
+            company.getCompanyId(),
+            company.getCompanyName(),
+            company.isOpen(),
+            company.getRating(),
+            company.getLogoURL()
+    );
+}
 
 }
