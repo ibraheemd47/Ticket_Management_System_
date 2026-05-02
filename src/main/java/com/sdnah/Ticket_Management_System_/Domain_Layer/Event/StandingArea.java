@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Event;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Transient;
 import java.util.LinkedList;
 import java.util.UUID;
 
@@ -9,11 +10,15 @@ import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Logger;
 @Entity
 public class StandingArea extends Area {
+    @Transient
     private Logger logger = (Logger) LoggerFactory.getLogger(StandingArea.class);
 
-    private int maxCapacity; // Added because standing areas usually need a limit
-    private LinkedList<ticket> areaMap ;
+    private int maxCapacity;
+    @Transient
+    private LinkedList<ticket> areaMap;
     
+    protected StandingArea() {}
+
     public StandingArea(String name, int maxCapacity) {
         super(name);
         this.maxCapacity = maxCapacity;

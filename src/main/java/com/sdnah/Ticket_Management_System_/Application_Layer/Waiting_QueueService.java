@@ -1,9 +1,11 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer;
+
 import java.util.List;
+
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.sdnah.Ticket_Management_System_.DTOs.Waiting_QueueDTO;
+
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Waiting_Queue.WaitingQueue;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.Waiting_QueueRepository;
 
@@ -13,68 +15,54 @@ import jakarta.transaction.Transactional;
 @Service
 @Transactional
 public class Waiting_QueueService {
+
     @Autowired
-    private Waiting_QueueRepository WaitingQueueRepository;
+    private Waiting_QueueRepository waitingQueueRepository;
     private final Logger logger = (Logger) LoggerFactory.getLogger(Waiting_QueueService.class);
-    
-    public Waiting_QueueService(Waiting_QueueRepository WaitingQueueRepository) {
-        this.WaitingQueueRepository = WaitingQueueRepository;
+
+    public Waiting_QueueService(Waiting_QueueRepository waitingQueueRepository) {
+        this.waitingQueueRepository = waitingQueueRepository;
     }
 
-   
-      public boolean JoinQueue(long userId,long showId) {
-        boolean result = false;
-        // Logic to add the user to the waiting queue for the specified show
-        logger.info("User {} joined the waiting queue for show {}", userId);
-        Waiting_QueueDTO waitingQueue =  WaitingQueueRepository.findByShowId(showId);
-        if (waitingQueue == null) {
-           WaitingQueue waitingQueue1 = new WaitingQueue(showId, 50);
-           
-        WaitingQueueRepository.joinQueue(userId);
-        result = waitingQueue1.joinQueue(userId);
-        }
-            return result;
+    public boolean joinQueue(long userId, long showId) {
+        logger.info("User {} joining waiting queue for show {}", userId, showId);
+        WaitingQueue queue = waitingQueueRepository.findById(showId)
+                .orElseGet(() -> new WaitingQueue(showId, 50));
+        boolean result = queue.joinQueue(userId);
+        waitingQueueRepository.save(queue);
+        return result;
     }
-    public int getPosition(long userId,long showId) {
-        // Logic to get the user's position in the waiting queue for the specified show
+
+    public int getPosition(long userId, long showId) {
         logger.info("Getting position for user {} in waiting queue for show {}", userId, showId);
-        Waiting_QueueDTO waitingQueue =  WaitingQueueRepository.findByShowId(showId);
-        WaitingQueue waitingQueue1 = new WaitingQueue(showId, 50);
-        if (waitingQueue == null) {
-            return -1; // or throw an exception
-        }
-        return waitingQueue1.getPosition(userId);
+        return waitingQueueRepository.findById(showId)
+                .map(q -> q.getPosition(userId))
+                .orElse(-1);
     }
-    public int calculateEstimatedWaitTimeInMinutes(long userId,long showId) {
-        // Logic to calculate the estimated wait time for the user based on their position in the queue and the checkout capacity
+
+    public int calculateEstimatedWaitTimeInMinutes(long userId, long showId) {
         logger.info("Calculating estimated wait time for user {} in waiting queue for show {}", userId, showId);
-        Waiting_QueueDTO waitingQueue =  WaitingQueueRepository.findByShowId(showId);
-        WaitingQueue waitingQueue1 = new WaitingQueue(showId, 50);
-        if (waitingQueue == null) {
-            return -1; // or throw an exception
-        }
-        return waitingQueue1.calculateEstimatedWaitTimeInMinutes(userId);
+        return waitingQueueRepository.findById(showId)
+                .map(q -> q.calculateEstimatedWaitTimeInMinutes(userId))
+                .orElse(-1);
     }
-    public List<Long> admitNextUsers(int amountToAdmit,long showId) {
-        // Logic to admit the next set of users from the waiting queue to the checkout system based on the defined capacity
+
+    public List<Long> admitNextUsers(int amountToAdmit, long showId) {
         logger.info("Admitting next {} users from waiting queue for show {}", amountToAdmit, showId);
-        Waiting_QueueDTO waitingQueue =  WaitingQueueRepository.findByShowId(showId);
-        WaitingQueue waitingQueue1 = new WaitingQueue(showId, 50);
-        if (waitingQueue == null) {
-            return null; // or throw an exception
-        }
-        return waitingQueue1.admitNextUsers(amountToAdmit);
+        return waitingQueueRepository.findById(showId)
+                .map(q -> {
+                    List<Long> admitted = q.admitNextUsers(amountToAdmit);
+                    waitingQueueRepository.save(q);
+                    return admitted;
+                })
+                .orElse(List.of());
     }
+
     public void clearQueue(long showId) {
-        // Logic to clear the waiting queue for a show, typically after tickets are released or the show is sold out
-        Waiting_QueueDTO waitingQueue =  WaitingQueueRepository.findByShowId(showId);
-        WaitingQueue waitingQueue1 = new WaitingQueue(showId, 50);
-        if (waitingQueue != null) {
-            logger.info("Clearing waiting queue for show {}", showId);
-            waitingQueue1.clearQueue();
-            WaitingQueueRepository.deleteByShowId(showId); // Clear the queue from the repository as well
-        }
+        logger.info("Clearing waiting queue for show {}", showId);
+        waitingQueueRepository.findById(showId).ifPresent(q -> {
+            q.clearQueue();
+            waitingQueueRepository.save(q);
+        });
     }
 }
-
-

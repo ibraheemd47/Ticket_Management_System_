@@ -12,6 +12,7 @@ import ch.qos.logback.classic.Logger;
 
 @Entity
 public class SeatedArea extends Area {
+    @Transient
     private Logger logger = (Logger) LoggerFactory.getLogger(SeatedArea.class);
 
     // Composition: A Seated Area contains 1 to many Blocks
@@ -19,6 +20,8 @@ public class SeatedArea extends Area {
     @JoinColumn(name = "seated_area_id")
     private List<Block> blocks;
     private int NumberofBlocks;
+
+    protected SeatedArea() {}
 
     public SeatedArea(String name,int NumberofBlocks) {
         super(name);

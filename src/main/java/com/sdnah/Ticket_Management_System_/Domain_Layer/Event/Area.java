@@ -16,9 +16,12 @@ public class Area {
     @GeneratedValue(strategy = GenerationType.UUID) // Specifically tells JPA to use a UUID
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
+    @Transient
     private Logger logger = (Logger) LoggerFactory.getLogger(Area.class);
 
     private String name;
+
+    protected Area() {}
 
     public Area(String name) {
         this.id = UUID.randomUUID(); // Generate a new UUID when an Area is created

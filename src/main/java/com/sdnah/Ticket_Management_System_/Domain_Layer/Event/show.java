@@ -8,20 +8,20 @@ import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Transient;
 
 @Entity
 public class show {
 
+    @Transient
     private Logger logger = (Logger) LoggerFactory.getLogger(show.class);
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID) // Specifically tells JPA to use a UUID
     private UUID showid;
 
     // Links back to the parent Event
@@ -34,6 +34,7 @@ public class show {
     @JoinColumn(name = "show_id") 
     private List<Area> areas;
 
+    @Column(name = "show_event_ref")
     private UUID EventId;
 
     private Date showDate;
@@ -99,5 +100,18 @@ public class show {
     }
     public void setSinger(String singer) {
         this.singer = singer;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof show)) return false;
+        show that = (show) o;
+        return showid != null && showid.equals(that.showid);
+    }
+
+    @Override
+    public int hashCode() {
+        return showid != null ? showid.hashCode() : 0;
     }
 }

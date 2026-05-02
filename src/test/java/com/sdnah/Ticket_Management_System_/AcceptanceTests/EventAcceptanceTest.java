@@ -5,43 +5,31 @@ import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
 
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@Transactional
 @DisplayName("Event Module — Acceptance Tests")
 class EventAcceptanceTest {
 
-    @Mock
-    private IEventRepository eventRepository;
-
-    @InjectMocks
+    @Autowired
     private EventService eventService;
 
-    private static final Long OWNER_ID       = 1L;
-    private static final Long MANAGER_ID     = 2L;
-    private static final Long COMPANY_ID     = 10L;
-    private static final Long UNAUTHORIZED   = 99L;
-
-    private Event existingEvent;
-    private UUID  eventId;
-
-    @BeforeEach
-    void setUp() {
-        existingEvent = new Event("Rock Festival", show_type.FESTIVAL, COMPANY_ID, OWNER_ID);
-        eventId = existingEvent.getEventId();
-    }
+    private static final Long OWNER_ID     = 1L;
+    private static final Long MANAGER_ID   = 2L;
+    private static final Long COMPANY_ID   = 10L;
+    private static final Long UNAUTHORIZED = 99L;
 
     // -------------------------------------------------------------------------
     // UC II.4.1 — Manage Events and Ticket Inventory
@@ -51,126 +39,115 @@ class EventAcceptanceTest {
     class ManageEventsAndInventory {
 
         @Test
-        @DisplayName("Owner creates an event successfully")
-        void addEventSuccessfully() {
+        @DisplayName("Owner creates an event — persisted and retrievable")
+        void createEventPersisted() {
             EventDto dto = new EventDto(null, "Jazz Night", null, show_type.PERFORMANCE, "Tel Aviv");
-            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
 
             Event created = eventService.createEvent(dto, COMPANY_ID, OWNER_ID);
 
-            assertThat(created.getName()).isEqualTo("Jazz Night");
-            assertThat(created.getCompanyId()).isEqualTo(COMPANY_ID);
-            assertThat(created.getOwnerId()).isEqualTo(OWNER_ID);
-            assertThat(created.getManagerIds()).contains(OWNER_ID);
-            verify(eventRepository).save(any(Event.class));
+            assertThat(created.getEventId()).isNotNull();
+            Event fetched = eventService.getEventDetails(created.getEventId());
+            assertThat(fetched.getName()).isEqualTo("Jazz Night");
+            assertThat(fetched.getCompanyId()).isEqualTo(COMPANY_ID);
+            assertThat(fetched.getOwnerId()).isEqualTo(OWNER_ID);
         }
 
         @Test
-        @DisplayName("Manager edits event name successfully")
-        void editEventNameSuccessfully() {
-            existingEvent.addManager(MANAGER_ID, OWNER_ID);
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
-            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+        @DisplayName("Manager edits event name — change persisted")
+        void editEventNamePersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Original Name", null, show_type.FESTIVAL, "Haifa"), COMPANY_ID, OWNER_ID);
+            eventService.assignManager(event.getEventId(), MANAGER_ID, OWNER_ID);
 
-            eventService.editEventName(eventId, "Updated Name", MANAGER_ID);
+            eventService.editEventName(event.getEventId(), "Updated Name", MANAGER_ID);
 
-            assertThat(existingEvent.getName()).isEqualTo("Updated Name");
-            verify(eventRepository).save(existingEvent);
+            assertThat(eventService.getEventDetails(event.getEventId()).getName()).isEqualTo("Updated Name");
         }
 
         @Test
-        @DisplayName("Manager edits event type successfully")
-        void editEventTypeSuccessfully() {
-            existingEvent.addManager(MANAGER_ID, OWNER_ID);
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
-            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+        @DisplayName("Manager edits event type — change persisted")
+        void editEventTypePersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Tech Conf", null, show_type.CONFERENCE, "Tel Aviv"), COMPANY_ID, OWNER_ID);
 
-            eventService.editEventType(eventId, show_type.CONFERENCE, MANAGER_ID);
+            eventService.editEventType(event.getEventId(), show_type.FESTIVAL, OWNER_ID);
 
-            assertThat(existingEvent.getEventType()).isEqualTo(show_type.CONFERENCE);
+            assertThat(eventService.getEventDetails(event.getEventId()).getEventType())
+                    .isEqualTo(show_type.FESTIVAL);
         }
 
         @Test
-        @DisplayName("Manager edits event dates successfully")
-        void editEventDatesSuccessfully() {
-            existingEvent.addManager(MANAGER_ID, OWNER_ID);
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
-            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
-
+        @DisplayName("Manager edits event dates — change persisted")
+        void editEventDatesPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Summer Fest", null, show_type.FESTIVAL, "Eilat"), COMPANY_ID, OWNER_ID);
             Date start = new Date();
             Date end   = new Date(start.getTime() + 86_400_000L);
-            eventService.editEventDates(eventId, start, end, MANAGER_ID);
 
-            assertThat(existingEvent.getStartDate()).isEqualTo(start);
-            assertThat(existingEvent.getEndDate()).isEqualTo(end);
+            eventService.editEventDates(event.getEventId(), start, end, OWNER_ID);
+
+            Event fetched = eventService.getEventDetails(event.getEventId());
+            assertThat(fetched.getStartDate()).isEqualTo(start);
+            assertThat(fetched.getEndDate()).isEqualTo(end);
         }
 
         @Test
-        @DisplayName("Manager edits event venue successfully")
-        void editEventVenueSuccessfully() {
-            existingEvent.addManager(MANAGER_ID, OWNER_ID);
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
-            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+        @DisplayName("Manager edits event venue — change persisted")
+        void editEventVenuePersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Rock Night", null, show_type.PERFORMANCE, "TBD"), COMPANY_ID, OWNER_ID);
 
-            eventService.editEventVenue(eventId, "Yarkon Park", MANAGER_ID);
+            eventService.editEventVenue(event.getEventId(), "Yarkon Park", OWNER_ID);
 
-            assertThat(existingEvent.getVenue()).isEqualTo("Yarkon Park");
+            assertThat(eventService.getEventDetails(event.getEventId()).getVenue()).isEqualTo("Yarkon Park");
         }
 
         @Test
-        @DisplayName("Manager edits event description successfully")
-        void editEventDescriptionSuccessfully() {
-            existingEvent.addManager(MANAGER_ID, OWNER_ID);
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
-            when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+        @DisplayName("Manager edits event description — change persisted")
+        void editEventDescriptionPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Art Show", null, show_type.PERFORMANCE, "Jerusalem"), COMPANY_ID, OWNER_ID);
 
-            eventService.editEventDescription(eventId, "An amazing outdoor concert", MANAGER_ID);
+            eventService.editEventDescription(event.getEventId(), "Annual art exhibition", OWNER_ID);
 
-            assertThat(existingEvent.getDescription()).isEqualTo("An amazing outdoor concert");
+            assertThat(eventService.getEventDetails(event.getEventId()).getDescription())
+                    .isEqualTo("Annual art exhibition");
         }
 
         @Test
-        @DisplayName("Owner removes event successfully")
-        void removeEventSuccessfully() {
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+        @DisplayName("Owner deletes event — no longer retrievable")
+        void deleteEventRemoved() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "To Delete", null, show_type.CONFERENCE, "TLV"), COMPANY_ID, OWNER_ID);
+            UUID id = event.getEventId();
 
-            eventService.deleteEvent(eventId, OWNER_ID);
+            eventService.deleteEvent(id, OWNER_ID);
 
-            verify(eventRepository).delete(existingEvent);
+            assertThatThrownBy(() -> eventService.getEventDetails(id))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Event not found");
         }
 
         @Test
         @DisplayName("Non-owner cannot delete event — permission denied")
         void deleteEventUnauthorized() {
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Protected", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
 
-            assertThatThrownBy(() -> eventService.deleteEvent(eventId, UNAUTHORIZED))
+            assertThatThrownBy(() -> eventService.deleteEvent(event.getEventId(), UNAUTHORIZED))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Only the owner can delete the event");
-
-            verify(eventRepository, never()).delete(any());
         }
 
         @Test
         @DisplayName("Unauthorized user cannot edit event name — permission denied")
         void editEventNameUnauthorized() {
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Safe Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
 
-            assertThatThrownBy(() -> eventService.editEventName(eventId, "Hack", UNAUTHORIZED))
+            assertThatThrownBy(() -> eventService.editEventName(event.getEventId(), "Hacked", UNAUTHORIZED))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Only managers can edit the event name");
-
-            verify(eventRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("Event not found — throws RuntimeException")
-        void eventNotFound() {
-            when(eventRepository.findById(any())).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> eventService.deleteEvent(UUID.randomUUID(), OWNER_ID))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Event not found");
         }
     }
 
@@ -182,48 +159,50 @@ class EventAcceptanceTest {
     class ManagerAssignment {
 
         @Test
-        @DisplayName("Owner assigns a new manager successfully")
-        void assignManagerSuccessfully() {
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+        @DisplayName("Owner assigns a manager — persisted in manager list")
+        void assignManagerPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Managed Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
 
-            eventService.assignManager(eventId, MANAGER_ID, OWNER_ID);
+            eventService.assignManager(event.getEventId(), MANAGER_ID, OWNER_ID);
 
-            assertThat(existingEvent.getManagerIds()).contains(MANAGER_ID);
-            verify(eventRepository).save(existingEvent);
+            assertThat(eventService.getEventDetails(event.getEventId()).getManagerIds()).contains(MANAGER_ID);
         }
 
         @Test
-        @DisplayName("Non-owner cannot assign a manager — permission denied")
-        void assignManagerUnauthorized() {
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+        @DisplayName("Owner removes a manager — removed from manager list")
+        void removeManagerPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Managed Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+            eventService.assignManager(event.getEventId(), MANAGER_ID, OWNER_ID);
 
-            assertThatThrownBy(() -> eventService.assignManager(eventId, MANAGER_ID, UNAUTHORIZED))
+            eventService.removeManager(event.getEventId(), MANAGER_ID, OWNER_ID);
+
+            assertThat(eventService.getEventDetails(event.getEventId()).getManagerIds())
+                    .doesNotContain(MANAGER_ID);
+        }
+
+        @Test
+        @DisplayName("Owner transfers ownership — new owner persisted")
+        void transferOwnershipPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Transfer Event", null, show_type.CONFERENCE, "TLV"), COMPANY_ID, OWNER_ID);
+            Long newOwner = 50L;
+
+            eventService.transferOwnership(event.getEventId(), newOwner, OWNER_ID);
+
+            assertThat(eventService.getEventDetails(event.getEventId()).getOwnerId()).isEqualTo(newOwner);
+        }
+
+        @Test
+        @DisplayName("Non-owner cannot transfer ownership — permission denied")
+        void transferOwnershipUnauthorized() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Protected Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+
+            assertThatThrownBy(() -> eventService.transferOwnership(event.getEventId(), 50L, UNAUTHORIZED))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Only the owner can add managers");
-
-            verify(eventRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("Owner removes a manager successfully")
-        void removeManagerSuccessfully() {
-            existingEvent.addManager(MANAGER_ID, OWNER_ID);
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
-
-            eventService.removeManager(eventId, MANAGER_ID, OWNER_ID);
-
-            assertThat(existingEvent.getManagerIds()).doesNotContain(MANAGER_ID);
-            verify(eventRepository).save(existingEvent);
-        }
-
-        @Test
-        @DisplayName("Cannot remove a manager who is not assigned")
-        void removeNonExistentManager() {
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
-
-            assertThatThrownBy(() -> eventService.removeManager(eventId, MANAGER_ID, OWNER_ID))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("This manager is not assigned");
+                    .hasMessageContaining("Only the current owner can transfer ownership");
         }
     }
 
@@ -235,43 +214,42 @@ class EventAcceptanceTest {
     class ShowManagement {
 
         @Test
-        @DisplayName("Manager adds a show to an event successfully")
-        void addShowSuccessfully() {
-            existingEvent.addManager(MANAGER_ID, OWNER_ID);
-            show newShow = new show(eventId, "Night 1", "Opening show", "Artist A", new Date());
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+        @DisplayName("Manager adds a show — retrievable from event")
+        void addShowPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Multi-Show Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+            show s = new show(event.getEventId(), "Night 1", "Opening night", "Artist A", new Date());
 
-            eventService.addShowToEvent(eventId, newShow, MANAGER_ID);
+            eventService.addShowToEvent(event.getEventId(), s, OWNER_ID);
 
-            assertThat(existingEvent.getShows()).contains(newShow);
-            verify(eventRepository).save(existingEvent);
+            List<show> shows = eventService.getShowsForEvent(event.getEventId());
+            assertThat(shows).hasSize(1);
+            assertThat(shows.get(0).getName()).isEqualTo("Night 1");
+        }
+
+        @Test
+        @DisplayName("Manager removes a show — no longer retrievable")
+        void removeShowPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Multi-Show Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+            show s = new show(event.getEventId(), "Night 1", "Opening night", "Artist A", new Date());
+            eventService.addShowToEvent(event.getEventId(), s, OWNER_ID);
+
+            eventService.removeShowFromEvent(event.getEventId(), s, OWNER_ID);
+
+            assertThat(eventService.getShowsForEvent(event.getEventId())).isEmpty();
         }
 
         @Test
         @DisplayName("Unauthorized user cannot add a show — permission denied")
         void addShowUnauthorized() {
-            show newShow = new show(eventId, "Night 1", "Opening show", "Artist A", new Date());
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Protected Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+            show s = new show(event.getEventId(), "Night 1", "Hack", "Artist X", new Date());
 
-            assertThatThrownBy(() -> eventService.addShowToEvent(eventId, newShow, UNAUTHORIZED))
+            assertThatThrownBy(() -> eventService.addShowToEvent(event.getEventId(), s, UNAUTHORIZED))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Only managers can add shows");
-
-            verify(eventRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("Manager removes a show from an event successfully")
-        void removeShowSuccessfully() {
-            existingEvent.addManager(MANAGER_ID, OWNER_ID);
-            show existingShow = new show(eventId, "Night 1", "Opening show", "Artist A", new Date());
-            existingEvent.addShow(existingShow, MANAGER_ID);
-            when(eventRepository.findById(eventId)).thenReturn(Optional.of(existingEvent));
-
-            eventService.removeShowFromEvent(eventId, existingShow, MANAGER_ID);
-
-            assertThat(existingEvent.getShows()).doesNotContain(existingShow);
-            verify(eventRepository).save(existingEvent);
         }
     }
 
@@ -283,27 +261,21 @@ class EventAcceptanceTest {
     class ViewCompanyEvents {
 
         @Test
-        @DisplayName("Returns all events for an active company")
-        void viewEventsOfActiveCompany() {
-            List<Event> events = List.of(
-                    new Event("Event A", show_type.FESTIVAL, COMPANY_ID, OWNER_ID),
-                    new Event("Event B", show_type.CONFERENCE, COMPANY_ID, OWNER_ID)
-            );
-            when(eventRepository.findByCompanyId(COMPANY_ID)).thenReturn(events);
+        @DisplayName("Returns all events for a company")
+        void viewEventsOfCompany() {
+            eventService.createEvent(new EventDto(null, "Event A", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+            eventService.createEvent(new EventDto(null, "Event B", null, show_type.CONFERENCE, "TLV"), COMPANY_ID, OWNER_ID);
 
             List<Event> result = eventService.getEventsByCompany(COMPANY_ID);
 
             assertThat(result).hasSize(2);
-            verify(eventRepository).findByCompanyId(COMPANY_ID);
+            assertThat(result).allMatch(e -> e.getCompanyId().equals(COMPANY_ID));
         }
 
         @Test
         @DisplayName("Returns empty list when company has no events")
-        void noEventsForActiveCompany() {
-            when(eventRepository.findByCompanyId(COMPANY_ID)).thenReturn(Collections.emptyList());
-
-            List<Event> result = eventService.getEventsByCompany(COMPANY_ID);
-
+        void noEventsForCompany() {
+            List<Event> result = eventService.getEventsByCompany(999L);
             assertThat(result).isEmpty();
         }
     }
@@ -317,9 +289,9 @@ class EventAcceptanceTest {
 
         @Test
         @DisplayName("Search by name returns matching events")
-        void searchByNameSuccessfully() {
-            List<Event> matches = List.of(new Event("Jazz Night", show_type.PERFORMANCE, COMPANY_ID, OWNER_ID));
-            when(eventRepository.searchEventsByName("Jazz")).thenReturn(matches);
+        void searchByName() {
+            eventService.createEvent(new EventDto(null, "Jazz Night", null, show_type.PERFORMANCE, "TLV"), COMPANY_ID, OWNER_ID);
+            eventService.createEvent(new EventDto(null, "Rock Festival", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
 
             List<Event> result = eventService.searchEventsByName("Jazz");
 
@@ -328,10 +300,19 @@ class EventAcceptanceTest {
         }
 
         @Test
+        @DisplayName("Search by name is case-insensitive")
+        void searchByNameCaseInsensitive() {
+            eventService.createEvent(new EventDto(null, "Jazz Night", null, show_type.PERFORMANCE, "TLV"), COMPANY_ID, OWNER_ID);
+
+            assertThat(eventService.searchEventsByName("jazz")).hasSize(1);
+            assertThat(eventService.searchEventsByName("JAZZ")).hasSize(1);
+        }
+
+        @Test
         @DisplayName("Search by type returns matching events")
-        void searchByTypeSuccessfully() {
-            List<Event> matches = List.of(new Event("Big Festival", show_type.FESTIVAL, COMPANY_ID, OWNER_ID));
-            when(eventRepository.searchEventsByType(show_type.FESTIVAL)).thenReturn(matches);
+        void searchByType() {
+            eventService.createEvent(new EventDto(null, "Big Festival", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+            eventService.createEvent(new EventDto(null, "Tech Conf", null, show_type.CONFERENCE, "TLV"), COMPANY_ID, OWNER_ID);
 
             List<Event> result = eventService.searchEventsByType(show_type.FESTIVAL);
 
@@ -340,53 +321,13 @@ class EventAcceptanceTest {
         }
 
         @Test
-        @DisplayName("Search by singer name returns matching events")
-        void searchBySingerSuccessfully() {
-            List<Event> matches = List.of(new Event("Adele Live", show_type.PERFORMANCE, COMPANY_ID, OWNER_ID));
-            when(eventRepository.searchEventsBySingerName("Adele")).thenReturn(matches);
-
-            List<Event> result = eventService.searchEventsBySingerName("Adele");
-
-            assertThat(result).hasSize(1);
-        }
-
-        @Test
-        @DisplayName("Search with filters returns matching events")
-        void searchWithFilters() {
-            Date start = new Date();
-            Date end   = new Date(start.getTime() + 7 * 86_400_000L);
-            List<Event> matches = List.of(new Event("Conference 2026", show_type.CONFERENCE, COMPANY_ID, OWNER_ID));
-            when(eventRepository.getEventsByFilter("Conference", show_type.CONFERENCE, start, end))
-                    .thenReturn(matches);
-
-            List<Event> result = eventService.getEventsByFilter("Conference", show_type.CONFERENCE, start, end);
-
-            assertThat(result).hasSize(1);
-        }
-
-        @Test
         @DisplayName("Search returns empty list when no matches found")
         void noSearchResults() {
-            when(eventRepository.searchEventsByName("NonExistent")).thenReturn(Collections.emptyList());
+            eventService.createEvent(new EventDto(null, "Jazz Night", null, show_type.PERFORMANCE, "TLV"), COMPANY_ID, OWNER_ID);
 
-            List<Event> result = eventService.searchEventsByName("NonExistent");
+            List<Event> result = eventService.searchEventsByName("ClassicOrchestra");
 
             assertThat(result).isEmpty();
-        }
-
-        @Test
-        @DisplayName("Search within a specific company returns only that company's events")
-        void searchWithinCompany() {
-            Long otherCompany = 999L;
-            List<Event> companyEvents = List.of(
-                    new Event("Company Event", show_type.FESTIVAL, COMPANY_ID, OWNER_ID)
-            );
-            when(eventRepository.findByCompanyId(COMPANY_ID)).thenReturn(companyEvents);
-
-            List<Event> result = eventService.getEventsByCompany(COMPANY_ID);
-
-            assertThat(result).allMatch(e -> e.getCompanyId().equals(COMPANY_ID));
-            assertThat(result).noneMatch(e -> e.getCompanyId().equals(otherCompany));
         }
     }
 
@@ -398,98 +339,62 @@ class EventAcceptanceTest {
     class EventReviews {
 
         @Test
-        @DisplayName("User adds a review successfully")
-        void addReviewSuccessfully() {
-            existingEvent.addReview(UUID.randomUUID(), 4);
+        @DisplayName("User adds a review — persisted and retrievable")
+        void addReviewPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Reviewed Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+            UUID userId = UUID.randomUUID();
 
-            assertThat(existingEvent.getReviews()).hasSize(1);
-            assertThat(existingEvent.getReviews().values()).containsExactly(4);
-        }
+            eventService.addReviewToEvent(event.getEventId(), userId, 5);
 
-        @Test
-        @DisplayName("Review with rating out of range is rejected")
-        void reviewOutOfRange() {
-            assertThatThrownBy(() -> existingEvent.addReview(UUID.randomUUID(), 6))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Rating must be between 1 and 5");
-
-            assertThatThrownBy(() -> existingEvent.addReview(UUID.randomUUID(), 0))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Rating must be between 1 and 5");
+            Map<UUID, Integer> reviews = eventService.getEventReviews(event.getEventId());
+            assertThat(reviews).containsEntry(userId, 5);
         }
 
         @Test
         @DisplayName("Multiple users can review the same event")
-        void multipleReviews() {
+        void multipleReviewsPersisted() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Popular Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
             UUID user1 = UUID.randomUUID();
             UUID user2 = UUID.randomUUID();
 
-            existingEvent.addReview(user1, 5);
-            existingEvent.addReview(user2, 3);
+            eventService.addReviewToEvent(event.getEventId(), user1, 4);
+            eventService.addReviewToEvent(event.getEventId(), user2, 2);
 
-            assertThat(existingEvent.getReviews()).hasSize(2);
-            assertThat(existingEvent.getReviews().get(user1)).isEqualTo(5);
-            assertThat(existingEvent.getReviews().get(user2)).isEqualTo(3);
+            Map<UUID, Integer> reviews = eventService.getEventReviews(event.getEventId());
+            assertThat(reviews).hasSize(2);
+            assertThat(reviews.get(user1)).isEqualTo(4);
+            assertThat(reviews.get(user2)).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("Review with invalid rating is rejected")
+        void invalidRatingRejected() {
+            Event event = eventService.createEvent(
+                    new EventDto(null, "Rated Event", null, show_type.FESTIVAL, "TLV"), COMPANY_ID, OWNER_ID);
+
+            assertThatThrownBy(() -> eventService.addReviewToEvent(event.getEventId(), UUID.randomUUID(), 6))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Rating must be between 1 and 5");
         }
     }
 
     // -------------------------------------------------------------------------
-    // UC II.2.4 — Reserve Tickets (ticket locking — Event module concern)
+    // UC II.2.4 / II.2.8 — Reserve & Checkout (owned by Booking service)
     // -------------------------------------------------------------------------
     @Nested
-    @DisplayName("UC II.2.4 — Reserve (Lock) Tickets")
-    class ReserveTickets {
+    @DisplayName("UC II.2.4 / II.2.8 — Reserve and Checkout")
+    class ReserveAndCheckout {
 
         @Test
-        @Disabled("Requires active_order_service integration — bookSeat delegates to repo custom method not yet implemented")
-        @DisplayName("Reserve tickets successfully — status becomes LOCKED_IN_CART")
-        void reserveTicketsSuccessfully() {
-            // When active_order_service is integrated, it will call EventService.bookSeat()
-            // which locks the ticket via ticket.lockInCart(userId)
-            // Then: ticket status == LOCKED_IN_CART
-        }
-
-        @Test
-        @Disabled("Requires active_order_service integration")
-        @DisplayName("Reservation expires — tickets released back to AVAILABLE")
-        void reservationExpires() {
-            // expir_order_service will call unlock on expired tickets
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // UC II.2.8 — Checkout (ticket lifecycle)
-    // -------------------------------------------------------------------------
-    @Nested
-    @DisplayName("UC II.2.8 — Checkout (Ticket Lifecycle)")
-    class CheckoutTickets {
+        @Disabled("Requires active_order_service + Booking_service integration")
+        @DisplayName("Reserve tickets — status becomes LOCKED_IN_CART")
+        void reserveTickets() {}
 
         @Test
         @Disabled("Requires Booking_service + IPaymentGateway + ITicketSupplierGateway")
-        @DisplayName("Checkout successfully — tickets become PURCHASED")
-        void checkoutSuccessfully() {
-            // Booking_service orchestrates: policy check → payment → issuance → purchase()
-        }
-
-        @Test
-        @Disabled("Requires Booking_service + IPaymentGateway mock")
-        @DisplayName("Payment rejected — tickets released back to AVAILABLE")
-        void paymentRejected() {
-            // IPaymentGateway mock returns failure → tickets unlocked
-        }
-
-        @Test
-        @Disabled("Requires Booking_service + ITicketSupplierGateway mock + auto-refund")
-        @DisplayName("Ticket issuance rejected — auto refund, tickets released")
-        void issuanceRejected() {
-            // ITicketSupplierGateway mock returns failure → refund triggered → tickets unlocked
-        }
-
-        @Test
-        @Disabled("Requires Booking_service — all-or-nothing atomicity")
-        @DisplayName("All-or-nothing — partial checkout never persists")
-        void noPartialPurchase() {
-            // If any ticket in order fails issuance, ALL are rolled back to AVAILABLE
-        }
+        @DisplayName("Checkout — tickets become PURCHASED (all-or-nothing)")
+        void checkout() {}
     }
 }

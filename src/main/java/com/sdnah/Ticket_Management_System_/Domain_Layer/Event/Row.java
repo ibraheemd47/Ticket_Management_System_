@@ -17,14 +17,15 @@ public class Row {
     private String rowNumber;
 
     // Composition: A Row contains 1 to many Seats
-    @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn(name = "row_id")
+    @OneToMany(mappedBy = "row", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Seat> seats;
 
     // Links back to the parent Block
     @ManyToOne
     @JoinColumn(name = "block_id")
     private Block block;
+
+    protected Row() {}
 
     public Row(long id, String rowNumber, int numberOfSeats, Block block) {
         this.id = id;

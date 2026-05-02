@@ -4,12 +4,14 @@ import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
 
 @Entity
 public class Block {
+    @Transient
     private Logger logger = (Logger) LoggerFactory.getLogger(Block.class);
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,11 +20,13 @@ public class Block {
     private String blockIdentifier; // e.g., "Section A"
 
     // Composition: A Block contains 1 to many Rows
-    @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn(name = "block_id")
+    @OneToMany(mappedBy = "block", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Row> rows;
 
+    @Transient
     private SeatedArea seatedArea;
+
+    protected Block() {}
 
     public Block(long id, String blockIdentifier, int numberofRows, SeatedArea seatedArea) {
         this.id = id;

@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 
 @Entity
 public class Seat {
+    @Transient
     private Logger logger = (Logger) LoggerFactory.getLogger(Seat.class);
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,6 +17,8 @@ public class Seat {
     private Row row; // Each seat belongs to one row
     private String seatNumber;
     private boolean isFilled; // To track if the seat is filled or not
+
+    protected Seat() {}
 
     public Seat(long id, String seatNumber, Row row) {
         this.id = id;

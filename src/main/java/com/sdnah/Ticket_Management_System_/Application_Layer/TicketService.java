@@ -83,7 +83,7 @@ public class TicketService {
     /**
      * Fetching all tickets owned by a specific user (for their Profile page).
      */
-    public List<ticket> getTicketsByOwner(UUID ownerId) {
+    public List<ticket> getTicketsByOwner(String ownerId) {
         logger.info("Fetching tickets for owner {}", ownerId);
         return ticketRepository.findByOwnerId(ownerId);
     }

@@ -9,23 +9,30 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import jakarta.transaction.Transactional;
+
 import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IShowRepository;
 
 import ch.qos.logback.classic.Logger;
 
 @Service
+@Transactional
 public class EventService {
 
     @Autowired
     private IEventRepository eventRepository;
+    @Autowired
+    private IShowRepository showRepository;
     private final Logger logger = (Logger) LoggerFactory.getLogger(EventService.class);
 
-    public EventService(IEventRepository eventRepository) {
+    public EventService(IEventRepository eventRepository, IShowRepository showRepository) {
         this.eventRepository = eventRepository;
+        this.showRepository = showRepository;
     }
 
     // ── Creation / Deletion ──────────────────────────────────────────────────
@@ -49,7 +56,7 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
         event.addShow(newShow, managerId);
-        eventRepository.save(event);
+        eventRepository.saveAndFlush(event);
         logger.info("Show added to event {}", eventId);
     }
 
@@ -58,7 +65,9 @@ public class EventService {
                 .orElseThrow(() -> new RuntimeException("Event not found"));
         logger.info("Removing show {} from event {}", showToRemove.getShowid(), eventId);
         event.removeShow(showToRemove, managerId);
-        eventRepository.save(event);
+        if (showToRemove.getShowid() != null) {
+            eventRepository.deleteShowById(showToRemove.getShowid());
+        }
     }
 
     public List<show> getShowsForEvent(UUID eventId) {
@@ -68,7 +77,8 @@ public class EventService {
 
     public show getShowDetails(UUID eventId, UUID showId) {
         logger.info("Retrieving show {} details for event {}", showId, eventId);
-        return eventRepository.getShowDetails(eventId, showId);
+        return eventRepository.getShowDetails(eventId, showId)
+                .orElseThrow(() -> new RuntimeException("Show not found"));
     }
 
     public boolean editShowInEvent(UUID eventId, UUID showId, String name, String description,
@@ -108,9 +118,12 @@ public class EventService {
         eventRepository.save(event);
     }
 
-    public boolean transferOwnership(UUID eventId, Long newOwnerId, Long currentOwnerId) {
+    public void transferOwnership(UUID eventId, Long newOwnerId, Long currentOwnerId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
         logger.info("Transferring ownership of event {} from {} to {}", eventId, currentOwnerId, newOwnerId);
-        return eventRepository.transferOwnership(eventId, newOwnerId, currentOwnerId);
+        event.transferOwnership(newOwnerId, currentOwnerId);
+        eventRepository.save(event);
     }
 
     // ── Edit Event Fields ────────────────────────────────────────────────────
@@ -152,9 +165,10 @@ public class EventService {
 
     // ── Queries ──────────────────────────────────────────────────────────────
 
-    public String getEventDetails(UUID eventId) {
+    public Event getEventDetails(UUID eventId) {
         logger.info("Retrieving details for event {}", eventId);
-        return eventRepository.getEventDetails(eventId);
+        return eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
     }
 
     public List<Event> getAllEvents() {
@@ -203,12 +217,17 @@ public class EventService {
 
     public Map<UUID, Integer> getEventReviews(UUID eventId) {
         logger.info("Retrieving reviews for event {}", eventId);
-        return eventRepository.getEventReviews(eventId);
+        return eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"))
+                .getReviews();
     }
 
-    public boolean addReviewToEvent(UUID eventId, UUID userId, int rating) {
+    public void addReviewToEvent(UUID eventId, UUID userId, int rating) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
         logger.info("Adding review to event {} by user {}", eventId, userId);
-        return eventRepository.addReviewToEvent(eventId, userId, rating);
+        event.addReview(userId, rating);
+        eventRepository.save(event);
     }
 
     // ── Tickets / Seats ──────────────────────────────────────────────────────
