@@ -8,7 +8,7 @@ public class PurchasePolicy extends Policy {
     private int minAge = 0;
     private boolean allowSingleSeatGap = true;
 
-    public PurchasePolicy(int policyId, String description, int eventId, int companyId) {
+    public PurchasePolicy(int policyId, String description, Integer eventId, int companyId) {
         super(policyId, description, eventId, companyId);
     }
 

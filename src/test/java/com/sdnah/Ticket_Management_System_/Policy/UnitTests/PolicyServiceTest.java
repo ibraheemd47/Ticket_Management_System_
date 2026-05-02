@@ -1,263 +1,380 @@
 package com.sdnah.Ticket_Management_System_.Policy.UnitTests;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.PolicyService;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.concurrent.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.util.List;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import com.sdnah.Ticket_Management_System_.Application_Layer.PolicyService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.*;
-
+@DisplayName("PolicyService — Application Layer Unit Tests")
 @ExtendWith(MockitoExtension.class)
-@DisplayName("PolicyService — Application Unit Tests")
 class PolicyServiceTest {
 
     @Mock
     private IPolicyRepo policyRepo;
 
+    private PolicyService policyService;
+
+    private static final int COMPANY_ID = 10;
+    private static final int EVENT_ID = 20;
+
+    @BeforeEach
+    void setUp() {
+        policyService = new PolicyService(policyRepo);
+    }
+
     // =========================================================================
-    // 1. checkSelectionPermission
+    // UC II.2.5 — Select Tickets for Event
     // =========================================================================
 
     @Test
-    @DisplayName("Given SellingPolicy and member, when checkSelectionPermission is called, then returns true")
-    void givenSellingPolicyAndMember_WhenCheckSelectionPermissionCalled_ThenReturnsTrue() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-        SellingPolicy policy = new SellingPolicy(1, "selling", SellingPolicy.SellingType.REGULAR, 100);
+    void GivenRegularSellingPolicy_WhenCheckSelectionPermission_ThenGuestAllowed() {
+        SellingPolicy policy = new SellingPolicy(
+                1,
+                "Regular selling",
+                SellingPolicy.SellingType.REGULAR,
+                EVENT_ID,
+                COMPANY_ID
+        );
 
         when(policyRepo.findAll()).thenReturn(List.of(policy));
 
-        // Act
-        boolean result = service.checkSelectionPermission(100, true);
+        boolean result = policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false);
 
-        // Assert
         assertTrue(result);
     }
 
     @Test
-    @DisplayName("Given Lottery policy and guest, when checkSelectionPermission is called, then returns false")
-    void givenLotteryPolicyAndGuest_WhenCheckSelectionPermissionCalled_ThenReturnsFalse() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-        SellingPolicy policy = new SellingPolicy(1, "lottery", SellingPolicy.SellingType.LOTTERY, 100);
+    void GivenLotterySellingPolicy_WhenGuestChecksSelectionPermission_ThenReturnFalse() {
+        SellingPolicy policy = new SellingPolicy(
+                1,
+                "Lottery selling",
+                SellingPolicy.SellingType.LOTTERY,
+                EVENT_ID,
+                COMPANY_ID
+        );
 
         when(policyRepo.findAll()).thenReturn(List.of(policy));
 
-        // Act
-        boolean result = service.checkSelectionPermission(100, false);
+        boolean result = policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false);
 
-        // Assert
         assertFalse(result);
     }
 
     @Test
-    @DisplayName("Given no SellingPolicy, when checkSelectionPermission is called, then returns true by default")
-    void givenNoSellingPolicy_WhenCheckSelectionPermissionCalled_ThenReturnsTrueByDefault() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
+    void GivenLotterySellingPolicy_WhenMemberChecksSelectionPermission_ThenReturnTrue() {
+        SellingPolicy policy = new SellingPolicy(
+                1,
+                "Lottery selling",
+                SellingPolicy.SellingType.LOTTERY,
+                EVENT_ID,
+                COMPANY_ID
+        );
 
+        when(policyRepo.findAll()).thenReturn(List.of(policy));
+
+        boolean result = policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, true);
+
+        assertTrue(result);
+    }
+
+    @Test
+    void GivenNoSellingPolicy_WhenCheckSelectionPermission_ThenDefaultAllow() {
         when(policyRepo.findAll()).thenReturn(List.of());
 
-        // Act
-        boolean result = service.checkSelectionPermission(100, false);
+        boolean result = policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false);
 
-        // Assert
         assertTrue(result);
     }
 
     // =========================================================================
-    // 2. validateReservationRequest
+    // UC II.2.4 — Reserve Tickets in Active Order
     // =========================================================================
 
     @Test
-    @DisplayName("Given PurchasePolicy and valid request, when validateReservationRequest is called, then returns true")
-    void givenPurchasePolicyAndValidRequest_WhenValidateReservationRequestCalled_ThenReturnsTrue() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-        PurchasePolicy policy = new PurchasePolicy(2, "purchase", 100);
+    void GivenNoPurchasePolicy_WhenValidateReservation_ThenDefaultAllow() {
+        when(policyRepo.findAll()).thenReturn(List.of());
 
-        when(policyRepo.findAll()).thenReturn(List.of(policy));
+        boolean result = policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 3, 18);
 
-        // Act
-        boolean result = service.validateReservationRequest(100, 1, 20);
-
-        // Assert
         assertTrue(result);
     }
 
     @Test
-    @DisplayName("Given PurchasePolicy and invalid request, when validateReservationRequest is called, then returns false")
-    void givenPurchasePolicyAndInvalidRequest_WhenValidateReservationRequestCalled_ThenReturnsFalse() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-        PurchasePolicy policy = new PurchasePolicy(2, "purchase", 100);
+    void GivenPurchasePolicy_WhenQuantityPositiveAndAgeValid_ThenReservationApproved() {
+        PurchasePolicy policy = new PurchasePolicy(
+                2,
+                "Default purchase",
+                EVENT_ID,
+                COMPANY_ID
+        );
 
         when(policyRepo.findAll()).thenReturn(List.of(policy));
 
-        // Act
-        boolean result = service.validateReservationRequest(100, 0, 20);
+        boolean result = policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 1, 18);
 
-        // Assert
+        assertTrue(result);
+    }
+
+    @Test
+    void GivenPurchasePolicy_WhenQuantityZero_ThenReservationRejected() {
+        PurchasePolicy policy = new PurchasePolicy(
+                2,
+                "Default purchase",
+                EVENT_ID,
+                COMPANY_ID
+        );
+
+        when(policyRepo.findAll()).thenReturn(List.of(policy));
+
+        boolean result = policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 0, 18);
+
+        assertFalse(result);
+    }
+
+    // =========================================================================
+    // UC II.2.8 — Checkout Active Order
+    // =========================================================================
+
+    @Test
+    void GivenNoPurchasePolicy_WhenValidateFinalPurchase_ThenDefaultAllow() {
+        when(policyRepo.findAll()).thenReturn(List.of());
+
+        boolean result = policyService.validateFinalPurchaseConditions(COMPANY_ID, EVENT_ID, 2, 18);
+
+        assertTrue(result);
+    }
+
+    @Test
+    void GivenPurchasePolicy_WhenFinalQuantityZero_ThenReturnFalse() {
+        PurchasePolicy policy = new PurchasePolicy(
+                3,
+                "Checkout purchase",
+                EVENT_ID,
+                COMPANY_ID
+        );
+
+        when(policyRepo.findAll()).thenReturn(List.of(policy));
+
+        boolean result = policyService.validateFinalPurchaseConditions(COMPANY_ID, EVENT_ID, 0, 18);
+
         assertFalse(result);
     }
 
     @Test
-    @DisplayName("Given no PurchasePolicy, when validateReservationRequest is called, then returns true")
-    void givenNoPurchasePolicy_WhenValidateReservationRequestCalled_ThenReturnsTrue() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
+    void GivenDiscountPolicyWithPercentage_WhenApplyGeneralDiscounts_ThenReturnDiscountedPrice() {
+        DiscountPolicy policy = new DiscountPolicy(
+                4,
+                "Discount policy",
+                EVENT_ID,
+                COMPANY_ID
+        );
+        policy.addDiscountRule(new DiscountPolicy.PercentageDiscount(20));
 
-        when(policyRepo.findAll()).thenReturn(List.of());
+        when(policyRepo.findAll()).thenReturn(List.of(policy));
 
-        // Act
-        boolean result = service.validateReservationRequest(100, 0, 20);
+        double result = policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 100.0, 2);
 
-        // Assert
-        assertTrue(result);
+        assertEquals(80.0, result, 0.001);
     }
 
-    // =========================================================================
-    // 3. calculateCouponDiscount
-    // =========================================================================
+    @Test
+    void GivenNoDiscountPolicy_WhenApplyGeneralDiscounts_ThenReturnBasePrice() {
+        when(policyRepo.findAll()).thenReturn(List.of());
+
+        double result = policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 100.0, 2);
+
+        assertEquals(100.0, result, 0.001);
+    }
 
     @Test
-    @DisplayName("Given valid coupon, when calculateCouponDiscount is called, then discount is applied")
-    void givenValidCoupon_WhenCalculateCouponDiscountCalled_ThenDiscountIsApplied() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-        DiscountPolicy policy = new DiscountPolicy(3, "discount", 100);
+    void GivenCouponDiscountAndCorrectCoupon_WhenCalculateCouponDiscount_ThenDiscountApplied() {
+        DiscountPolicy policy = new DiscountPolicy(
+                5,
+                "Coupon discount",
+                EVENT_ID,
+                COMPANY_ID
+        );
         policy.addDiscountRule(new DiscountPolicy.CouponDiscount("SAVE20", 20));
 
         when(policyRepo.findAll()).thenReturn(List.of(policy));
 
-        // Act
-        double result = service.calculateCouponDiscount(100, 100.0, 1, "SAVE20");
+        double result = policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, "SAVE20");
 
-        // Assert
-        assertEquals(80.0, result);
+        assertEquals(80.0, result, 0.001);
     }
 
     @Test
-    @DisplayName("Given null coupon, when calculateCouponDiscount is called, then original price is returned")
-    void givenNullCoupon_WhenCalculateCouponDiscountCalled_ThenOriginalPriceIsReturned() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-
-        // Act
-        double result = service.calculateCouponDiscount(100, 100.0, 1, null);
-
-        // Assert
-        assertEquals(100.0, result);
-    }
-
-    @Test
-    @DisplayName("Given no DiscountPolicy, when calculateCouponDiscount is called, then original price is returned")
-    void givenNoDiscountPolicy_WhenCalculateCouponDiscountCalled_ThenOriginalPriceIsReturned() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-
-        when(policyRepo.findAll()).thenReturn(List.of());
-
-        // Act
-        double result = service.calculateCouponDiscount(100, 100.0, 1, "SAVE20");
-
-        // Assert
-        assertEquals(100.0, result);
-    }
-
-    // =========================================================================
-    // 4. applyGeneralDiscounts
-    // =========================================================================
-
-    @Test
-    @DisplayName("Given DiscountPolicy, when applyGeneralDiscounts is called, then discount is applied")
-    void givenDiscountPolicy_WhenApplyGeneralDiscountsCalled_ThenDiscountIsApplied() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-        DiscountPolicy policy = new DiscountPolicy(4, "discount", 100);
-        policy.addDiscountRule(new DiscountPolicy.PercentageDiscount(10));
+    void GivenCouponDiscountAndWrongCoupon_WhenCalculateCouponDiscount_ThenOriginalPriceReturned() {
+        DiscountPolicy policy = new DiscountPolicy(
+                5,
+                "Coupon discount",
+                EVENT_ID,
+                COMPANY_ID
+        );
+        policy.addDiscountRule(new DiscountPolicy.CouponDiscount("SAVE20", 20));
 
         when(policyRepo.findAll()).thenReturn(List.of(policy));
 
-        // Act
-        double result = service.applyGeneralDiscounts(100, 100.0, 1);
+        double result = policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, "WRONG");
 
-        // Assert
-        assertEquals(90.0, result);
+        assertEquals(100.0, result, 0.001);
     }
 
     @Test
-    @DisplayName("Given no DiscountPolicy, when applyGeneralDiscounts is called, then original price is returned")
-    void givenNoDiscountPolicy_WhenApplyGeneralDiscountsCalled_ThenOriginalPriceIsReturned() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
+    void GivenEmptyCoupon_WhenCalculateCouponDiscount_ThenRepositoryNotUsedAndOriginalReturned() {
+        double result = policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, "");
 
-        when(policyRepo.findAll()).thenReturn(List.of());
-
-        // Act
-        double result = service.applyGeneralDiscounts(100, 100.0, 1);
-
-        // Assert
-        assertEquals(100.0, result);
+        assertEquals(100.0, result, 0.001);
+        verify(policyRepo, never()).findAll();
     }
 
-    // =========================================================================
-    // 5. isConditionalDiscountSatisfied
-    // =========================================================================
-
     @Test
-    @DisplayName("Given conditional discount satisfied, when isConditionalDiscountSatisfied is called, then returns true")
-    void givenConditionalDiscountSatisfied_WhenIsConditionalDiscountSatisfiedCalled_ThenReturnsTrue() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-        DiscountPolicy policy = new DiscountPolicy(5, "discount", 100);
-        policy.addDiscountRule(new DiscountPolicy.ConditionalDiscount(3, 20));
+    void GivenConditionalDiscountAndQuantityEnough_WhenCheckConditionalDiscount_ThenReturnTrue() {
+        DiscountPolicy policy = new DiscountPolicy(
+                6,
+                "Conditional discount",
+                EVENT_ID,
+                COMPANY_ID
+        );
+        policy.addDiscountRule(new DiscountPolicy.ConditionalDiscount(3, 10));
 
         when(policyRepo.findAll()).thenReturn(List.of(policy));
 
-        // Act
-        boolean result = service.isConditionalDiscountSatisfied(100, 3);
+        boolean result = policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 3);
 
-        // Assert
         assertTrue(result);
     }
 
     @Test
-    @DisplayName("Given conditional discount not satisfied, when isConditionalDiscountSatisfied is called, then returns false")
-    void givenConditionalDiscountNotSatisfied_WhenIsConditionalDiscountSatisfiedCalled_ThenReturnsFalse() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
-        DiscountPolicy policy = new DiscountPolicy(5, "discount", 100);
-        policy.addDiscountRule(new DiscountPolicy.ConditionalDiscount(3, 20));
+    void GivenConditionalDiscountAndQuantityTooLow_WhenCheckConditionalDiscount_ThenReturnFalse() {
+        DiscountPolicy policy = new DiscountPolicy(
+                6,
+                "Conditional discount",
+                EVENT_ID,
+                COMPANY_ID
+        );
+        policy.addDiscountRule(new DiscountPolicy.ConditionalDiscount(3, 10));
 
         when(policyRepo.findAll()).thenReturn(List.of(policy));
 
-        // Act
-        boolean result = service.isConditionalDiscountSatisfied(100, 1);
+        boolean result = policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 2);
 
-        // Assert
         assertFalse(result);
     }
 
+    // =========================================================================
+    // Fallback — Event Policy before Company Default Policy
+    // Requires constructors with Integer eventId.
+    // =========================================================================
+
     @Test
-    @DisplayName("Given no DiscountPolicy, when isConditionalDiscountSatisfied is called, then returns false")
-    void givenNoDiscountPolicy_WhenIsConditionalDiscountSatisfiedCalled_ThenReturnsFalse() {
-        // Arrange
-        PolicyService service = new PolicyService(policyRepo);
+    void GivenEventPolicyAndCompanyDefaultPolicy_WhenApplyDiscount_ThenEventPolicyHasPriority() {
+        DiscountPolicy companyPolicy = new DiscountPolicy(
+                7,
+                "Company default discount",
+                null,
+                COMPANY_ID
+        );
+        companyPolicy.addDiscountRule(new DiscountPolicy.PercentageDiscount(10));
 
-        when(policyRepo.findAll()).thenReturn(List.of());
+        DiscountPolicy eventPolicy = new DiscountPolicy(
+                8,
+                "Event specific discount",
+                EVENT_ID,
+                COMPANY_ID
+        );
+        eventPolicy.addDiscountRule(new DiscountPolicy.PercentageDiscount(30));
 
-        // Act
-        boolean result = service.isConditionalDiscountSatisfied(100, 3);
+        when(policyRepo.findAll()).thenReturn(List.of(companyPolicy, eventPolicy));
 
-        // Assert
-        assertFalse(result);
+        double result = policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 100.0, 1);
+
+        assertEquals(70.0, result, 0.001);
+    }
+
+    @Test
+    void GivenOnlyCompanyDefaultPolicy_WhenApplyDiscount_ThenCompanyPolicyUsed() {
+        DiscountPolicy companyPolicy = new DiscountPolicy(
+                7,
+                "Company default discount",
+                null,
+                COMPANY_ID
+        );
+        companyPolicy.addDiscountRule(new DiscountPolicy.PercentageDiscount(10));
+
+        when(policyRepo.findAll()).thenReturn(List.of(companyPolicy));
+
+        double result = policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 100.0, 1);
+
+        assertEquals(90.0, result, 0.001);
+    }
+
+    // =========================================================================
+    // UC II.4.3 — Not implemented in Version 1
+    // =========================================================================
+
+    @Test
+    void GivenVersionOne_WhenChangePurchasePolicy_ThenThrowUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> policyService.changePurchasePolicy());
+    }
+
+    @Test
+    void GivenVersionOne_WhenChangeDiscountPolicy_ThenThrowUnsupportedOperationException() {
+        assertThrows(UnsupportedOperationException.class, () -> policyService.changeDiscountPolicy());
+    }
+
+    // =========================================================================
+    // Concurrency Tests — ExecutorService + CountDownLatch
+    // =========================================================================
+
+    @Test
+    @Timeout(5)
+    void GivenManyThreads_WhenCheckSelectionPermissionConcurrently_ThenAllResultsConsistent() throws Exception {
+        SellingPolicy policy = new SellingPolicy(
+                9,
+                "Lottery policy",
+                SellingPolicy.SellingType.LOTTERY,
+                EVENT_ID,
+                COMPANY_ID
+        );
+
+        when(policyRepo.findAll()).thenReturn(List.of(policy));
+
+        int threads = 50;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch ready = new CountDownLatch(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+
+        ConcurrentLinkedQueue<Boolean> results = new ConcurrentLinkedQueue<>();
+
+        for (int i = 0; i < threads; i++) {
+            executor.submit(() -> {
+                ready.countDown();
+                start.await();
+
+                boolean result = policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false);
+                results.add(result);
+
+                done.countDown();
+                return null;
+            });
+        }
+
+        ready.await();
+        start.countDown();
+        done.await();
+        executor.shutdown();
+
+        assertEquals(threads, results.size());
+        assertTrue(results.stream().allMatch(result -> result == false));
     }
 }

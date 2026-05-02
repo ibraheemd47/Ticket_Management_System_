@@ -1,12 +1,15 @@
 package com.sdnah.Ticket_Management_System_.DTOs.Policy;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class DiscountPolicyDTO extends PolicyDTO {
     private List<DiscountRuleDTO> activeDiscounts;
     private boolean isAdditive;
 
-    public DiscountPolicyDTO() {}
+    public DiscountPolicyDTO() {
+    this.activeDiscounts = new ArrayList<>();
+}
 
     public DiscountPolicyDTO(int policyId, String description, Integer eventId, int companyId, 
                              List<DiscountRuleDTO> activeDiscounts, boolean isAdditive) {
