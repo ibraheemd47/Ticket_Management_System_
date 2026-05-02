@@ -1,43 +1,26 @@
 package com.sdnah.Ticket_Management_System_.DTOs.Policy;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class DiscountPolicyDTO extends PolicyDTO {
+    private List<DiscountRuleDTO> activeDiscounts;
+    private boolean isAdditive;
 
-    private boolean additive;
-    private List<DiscountRuleDTO> rules;
+    public DiscountPolicyDTO() {}
 
-    public DiscountPolicyDTO() {
-        setType("DISCOUNT");
-        this.rules = new ArrayList<>();
+    public DiscountPolicyDTO(int policyId, String description, Integer eventId, int companyId, 
+                             List<DiscountRuleDTO> activeDiscounts, boolean isAdditive) {
+        super(policyId, description, eventId, companyId);
+        this.activeDiscounts = activeDiscounts;
+        this.isAdditive = isAdditive;
     }
 
-    public DiscountPolicyDTO(
-            int policyId,
-            String description,
-            int eventId,
-            boolean additive,
-            List<DiscountRuleDTO> rules) {
+    // Getters and Setters
+    public List<DiscountRuleDTO> getActiveDiscounts() { return activeDiscounts; }
+    public void setActiveDiscounts(List<DiscountRuleDTO> activeDiscounts) { this.activeDiscounts = activeDiscounts; }
 
-        super(policyId, description, eventId, "DISCOUNT");
-        this.additive = additive;
-        this.rules = rules;
-    }
+    public boolean isAdditive() { return isAdditive; }
+    public void setAdditive(boolean additive) { isAdditive = additive; }
 
-    public boolean isAdditive() {
-        return additive;
-    }
-
-    public void setAdditive(boolean additive) {
-        this.additive = additive;
-    }
-
-    public List<DiscountRuleDTO> getRules() {
-        return rules;
-    }
-
-    public void setRules(List<DiscountRuleDTO> rules) {
-        this.rules = rules;
-    }
+   
 }
