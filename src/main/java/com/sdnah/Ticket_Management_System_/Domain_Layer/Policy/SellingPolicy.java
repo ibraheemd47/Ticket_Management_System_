@@ -9,8 +9,8 @@ public class SellingPolicy extends Policy {
     }
     private SellingType type;
 
-    public SellingPolicy(int policyId, String description, SellingType type, int eventId) {
-        super(policyId, description, eventId);
+    public SellingPolicy(int policyId, String description, SellingType type, int eventId, int companyId) {
+        super(policyId, description, eventId, companyId);
         this.type = type;
     }
 

@@ -41,8 +41,8 @@ public class DiscountPolicy extends Policy {
      */
     private boolean isAdditive = false; 
 
-    public DiscountPolicy(int policyId, String description, int eventId) {
-        super(policyId, description, eventId);
+    public DiscountPolicy(int policyId, String description, int eventId, int companyId) {
+        super(policyId, description, eventId, companyId);
     }
 
     public boolean isAnyConditionalDiscountSatisfied(int quantity) 

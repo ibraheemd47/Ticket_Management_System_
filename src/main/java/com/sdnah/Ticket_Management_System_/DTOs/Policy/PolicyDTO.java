@@ -8,15 +8,17 @@ public class PolicyDTO {
     private String description;
     private int eventId;
     private String type; // "PURCHASE", "DISCOUNT", "SELLING"
+    private int companyId;
 
     public PolicyDTO() {
     }
 
-    public PolicyDTO(int policyId, String description, int eventId, String type) {
+    public PolicyDTO(int policyId, String description, int eventId, String type, int companyId) {
         this.policyId = policyId;
         this.description = description;
         this.eventId = eventId;
         this.type = type;
+        this.companyId = companyId;
     }
 
     public int getPolicyId() {
@@ -49,5 +51,11 @@ public class PolicyDTO {
 
     public void setType(String type) {
         this.type = type;
+    }
+    public int getCompanyId() {
+        return companyId;
+    }
+    public void setCompanyId(int companyId) {
+        this.companyId = companyId;
     }
 }

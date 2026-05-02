@@ -28,17 +28,17 @@ public class PolicyService {
     // UC II.2.5 — Select Tickets for Event
     // =========================================================================
 
-    public boolean checkSelectionPermission(int eventId, boolean isMember) {
-        logger.info("Check selection permission request received, eventId={}, isMember={}", eventId, isMember);
+    public boolean checkSelectionPermission(int companyId, int eventId, boolean isMember) {
+        logger.info("Check selection permission request received, companyId={}, eventId={}, isMember={}", companyId, eventId, isMember);
 
-        boolean result = findSellingPolicyByEventId(eventId)
+        boolean result = findSellingPolicy(companyId, eventId)
                 .map(policy -> policy.isSelectionAllowed(isMember))
                 .orElse(true);
 
         if (!result) {
-            logger.warn("Selection rejected by selling policy, eventId={}, isMember={}", eventId, isMember);
+            logger.warn("Selection rejected by selling policy, companyId={}, eventId={}, isMember={}", companyId, eventId, isMember);
         } else {
-            logger.info("Selection permission approved, eventId={}, isMember={}", eventId, isMember);
+            logger.info("Selection permission approved, companyId={}, eventId={}, isMember={}", companyId, eventId, isMember);
         }
 
         return result;
@@ -48,28 +48,31 @@ public class PolicyService {
     // UC II.2.4 — Reserve Tickets in Active Order
     // =========================================================================
 
-    public boolean validateReservationRequest(int eventId, int quantity, int userAge) {
+    public boolean validateReservationRequest(int companyId, int eventId, int quantity, int userAge) {
         logger.info(
-                "Validate reservation request received, eventId={}, quantity={}, userAge={}",
+                "Validate reservation request received, companyId={}, eventId={}, quantity={}, userAge={}",
+                companyId,
                 eventId,
                 quantity,
                 userAge
         );
 
-        boolean result = findPurchasePolicyByEventId(eventId)
+        boolean result = findPurchasePolicy(companyId, eventId)
                 .map(policy -> policy.validatePurchase(quantity, userAge, false))
                 .orElse(true);
 
         if (!result) {
             logger.warn(
-                    "Reservation rejected by purchase policy, eventId={}, quantity={}, userAge={}",
+                    "Reservation rejected by purchase policy, companyId={}, eventId={}, quantity={}, userAge={}",
+                    companyId,
                     eventId,
                     quantity,
                     userAge
             );
         } else {
             logger.info(
-                    "Reservation approved by purchase policy, eventId={}, quantity={}, userAge={}",
+                    "Reservation approved by purchase policy, companyId={}, eventId={}, quantity={}, userAge={}",
+                    companyId,
                     eventId,
                     quantity,
                     userAge
@@ -83,28 +86,31 @@ public class PolicyService {
     // UC II.2.8 — Checkout Active Order
     // =========================================================================
 
-    public boolean validateFinalPurchaseConditions(int eventId, int quantity, int userAge) {
+    public boolean validateFinalPurchaseConditions(int companyId, int eventId, int quantity, int userAge) {
         logger.info(
-                "Validate final purchase conditions request received, eventId={}, quantity={}, userAge={}",
+                "Validate final purchase conditions request received, companyId={}, eventId={}, quantity={}, userAge={}",
+                companyId,
                 eventId,
                 quantity,
                 userAge
         );
 
-        boolean result = findPurchasePolicyByEventId(eventId)
+        boolean result = findPurchasePolicy(companyId, eventId)
                 .map(policy -> policy.validatePurchase(quantity, userAge, false))
                 .orElse(true);
 
         if (!result) {
             logger.warn(
-                    "Final purchase conditions rejected by purchase policy, eventId={}, quantity={}, userAge={}",
+                    "Final purchase conditions rejected by purchase policy, companyId={}, eventId={}, quantity={}, userAge={}",
+                    companyId,
                     eventId,
                     quantity,
                     userAge
             );
         } else {
             logger.info(
-                    "Final purchase conditions approved, eventId={}, quantity={}, userAge={}",
+                    "Final purchase conditions approved, companyId={}, eventId={}, quantity={}, userAge={}",
+                    companyId,
                     eventId,
                     quantity,
                     userAge
@@ -114,9 +120,10 @@ public class PolicyService {
         return result;
     }
 
-    public double calculateCouponDiscount(int eventId, double currentTotal, int totalItems, String couponCode) {
+    public double calculateCouponDiscount(int companyId, int eventId, double currentTotal, int totalItems, String couponCode) {
         logger.info(
-                "Calculate coupon discount request received, eventId={}, currentTotal={}, totalItems={}, couponProvided={}",
+                "Calculate coupon discount request received, companyId={}, eventId={}, currentTotal={}, totalItems={}, couponProvided={}",
+                companyId,
                 eventId,
                 currentTotal,
                 totalItems,
@@ -124,16 +131,17 @@ public class PolicyService {
         );
 
         if (couponCode == null || couponCode.isEmpty()) {
-            logger.info("No coupon provided, returning original total, eventId={}, total={}", eventId, currentTotal);
+            logger.info("No coupon provided, returning original total, companyId={}, eventId={}, total={}", companyId, eventId, currentTotal);
             return currentTotal;
         }
 
-        double result = findDiscountPolicyByEventId(eventId)
+        double result = findDiscountPolicy(companyId, eventId)
                 .map(policy -> policy.calculateFinalPrice(currentTotal, totalItems, couponCode))
                 .orElse(currentTotal);
 
         logger.info(
-                "Coupon discount calculation completed, eventId={}, originalTotal={}, finalTotal={}",
+                "Coupon discount calculation completed, companyId={}, eventId={}, originalTotal={}, finalTotal={}",
+                companyId,
                 eventId,
                 currentTotal,
                 result
@@ -142,20 +150,22 @@ public class PolicyService {
         return result;
     }
 
-    public double applyGeneralDiscounts(int eventId, double basePrice, int totalItems) {
+    public double applyGeneralDiscounts(int companyId, int eventId, double basePrice, int totalItems) {
         logger.info(
-                "Apply general discounts request received, eventId={}, basePrice={}, totalItems={}",
+                "Apply general discounts request received, companyId={}, eventId={}, basePrice={}, totalItems={}",
+                companyId,
                 eventId,
                 basePrice,
                 totalItems
         );
 
-        double result = findDiscountPolicyByEventId(eventId)
+        double result = findDiscountPolicy(companyId, eventId)
                 .map(policy -> policy.calculateFinalPrice(basePrice, totalItems, ""))
                 .orElse(basePrice);
 
         logger.info(
-                "General discount calculation completed, eventId={}, originalPrice={}, finalPrice={}",
+                "General discount calculation completed, companyId={}, eventId={}, originalPrice={}, finalPrice={}",
+                companyId,
                 eventId,
                 basePrice,
                 result
@@ -164,19 +174,21 @@ public class PolicyService {
         return result;
     }
 
-    public boolean isConditionalDiscountSatisfied(int eventId, int quantity) {
+    public boolean isConditionalDiscountSatisfied(int companyId, int eventId, int quantity) {
         logger.info(
-                "Check conditional discount request received, eventId={}, quantity={}",
+                "Check conditional discount request received, companyId={}, eventId={}, quantity={}",
+                companyId,
                 eventId,
                 quantity
         );
 
-        boolean result = findDiscountPolicyByEventId(eventId)
+        boolean result = findDiscountPolicy(companyId, eventId)
                 .map(policy -> policy.isAnyConditionalDiscountSatisfied(quantity))
                 .orElse(false);
 
         logger.info(
-                "Conditional discount check completed, eventId={}, quantity={}, result={}",
+                "Conditional discount check completed, companyId={}, eventId={}, quantity={}, result={}",
+                companyId,
                 eventId,
                 quantity,
                 result
@@ -201,106 +213,60 @@ public class PolicyService {
     }
 
     // =========================================================================
-    // Private helpers
+    // Private helpers 
     // =========================================================================
 
-    private Optional<SellingPolicy> findSellingPolicyByEventId(int eventId) {
+    private Optional<SellingPolicy> findSellingPolicy(int companyId, int eventId) {
+        Optional<SellingPolicy> eventPolicy = policyRepo.findAll().stream()
+                .filter(p -> p instanceof SellingPolicy)
+                .map(p -> (SellingPolicy) p)
+                .filter(p -> p.getCompanyId() == companyId)
+                .filter(p -> p.getEventId() != null && p.getEventId().equals(eventId))
+                .findFirst();
+
+        if (eventPolicy.isPresent()) return eventPolicy;
+
         return policyRepo.findAll().stream()
-                .filter(policy -> policy.getEventId() == eventId)
-                .filter(policy -> policy instanceof SellingPolicy)
-                .map(policy -> (SellingPolicy) policy)
+                .filter(p -> p instanceof SellingPolicy)
+                .map(p -> (SellingPolicy) p)
+                .filter(p -> p.getCompanyId() == companyId)
+                .filter(p -> p.getEventId() == null)
                 .findFirst();
     }
 
-    private Optional<PurchasePolicy> findPurchasePolicyByEventId(int eventId) {
+    private Optional<PurchasePolicy> findPurchasePolicy(int companyId, int eventId) {
+        Optional<PurchasePolicy> eventPolicy = policyRepo.findAll().stream()
+                .filter(p -> p instanceof PurchasePolicy)
+                .map(p -> (PurchasePolicy) p)
+                .filter(p -> p.getCompanyId() == companyId)
+                .filter(p -> p.getEventId() != null && p.getEventId().equals(eventId))
+                .findFirst();
+
+        if (eventPolicy.isPresent()) return eventPolicy;
+
         return policyRepo.findAll().stream()
-                .filter(policy -> policy.getEventId() == eventId)
-                .filter(policy -> policy instanceof PurchasePolicy)
-                .map(policy -> (PurchasePolicy) policy)
+                .filter(p -> p instanceof PurchasePolicy)
+                .map(p -> (PurchasePolicy) p)
+                .filter(p -> p.getCompanyId() == companyId)
+                .filter(p -> p.getEventId() == null)
                 .findFirst();
     }
 
-    private Optional<DiscountPolicy> findDiscountPolicyByEventId(int eventId) {
+    private Optional<DiscountPolicy> findDiscountPolicy(int companyId, int eventId) {
+        Optional<DiscountPolicy> eventPolicy = policyRepo.findAll().stream()
+                .filter(p -> p instanceof DiscountPolicy)
+                .map(p -> (DiscountPolicy) p)
+                .filter(p -> p.getCompanyId() == companyId)
+                .filter(p -> p.getEventId() != null && p.getEventId().equals(eventId))
+                .findFirst();
+
+        if (eventPolicy.isPresent()) return eventPolicy;
+
         return policyRepo.findAll().stream()
-                .filter(policy -> policy.getEventId() == eventId)
-                .filter(policy -> policy instanceof DiscountPolicy)
-                .map(policy -> (DiscountPolicy) policy)
+                .filter(p -> p instanceof DiscountPolicy)
+                .map(p -> (DiscountPolicy) p)
+                .filter(p -> p.getCompanyId() == companyId)
+                .filter(p -> p.getEventId() == null)
                 .findFirst();
     }
 }
-
-
-
-// public class PolicyService {
-//   private final IPolicyRepo policyRepo;
-
-//     @Autowired
-//     public PolicyService(IPolicyRepo policyRepo) {
-//         this.policyRepo = policyRepo;
-//     }
-
-
-//     // --- II.2.5: Select Tickets for Event ---
-//     public boolean checkSelectionPermission(int eventId, boolean isMember) {
-//         // Retrieve all policies for the event and filter for SellingPolicy
-//         return policyRepo.findAll().stream()
-//                 .filter(p -> p.getEventId() == eventId && p instanceof SellingPolicy)
-//                 .map(p -> ((SellingPolicy) p).isSelectionAllowed(isMember))
-//                 .findFirst()
-//                 .orElse(true); 
-//     }
-
-
-//     // --- II.2.4: Reserve Tickets in Active Order ---
-//     public boolean validateReservationRequest(int eventId, int quantity, int userAge) {
-//             return policyRepo.findAll().stream()
-//                     .filter(p -> p.getEventId() == eventId && p instanceof PurchasePolicy)
-//                     .map(p -> ((PurchasePolicy) p).validatePurchase(quantity, userAge, false))
-//                     .findFirst()
-//                     .orElse(true);
-//         }
-
-//     // --- II.2.8: Checkout Active Order ---
-
-//     //Validate Purchase Conditions.
-//     public boolean validateFinalPurchaseConditions(int eventId, int quantity, int userAge) {
-//         return policyRepo.findAll().stream()
-//                 .filter(p -> p.getEventId() == eventId && p instanceof PurchasePolicy)
-//                 .map(p -> ((PurchasePolicy) p).validatePurchase(quantity, userAge, false))
-//                 .findFirst()
-//                 .orElse(true); // Default to allowed if no policy exists
-//     }
-
-//     public double calculateCouponDiscount(int eventId, double currentTotal, int totalItems, String couponCode) {
-//         if (couponCode == null || couponCode.isEmpty()) {
-//             return currentTotal;
-//         }
-//         return policyRepo.findAll().stream()
-//                 .filter(p -> p.getEventId() == eventId && p instanceof DiscountPolicy)
-//                 .map(p -> ((DiscountPolicy) p).calculateFinalPrice(currentTotal, totalItems, couponCode))
-//                 .findFirst()
-//                 .orElse(currentTotal);
-//     }
-   
-
-//     public double applyGeneralDiscounts(int eventId, double basePrice, int totalItems) {
-//         return policyRepo.findAll().stream()
-//                 .filter(p -> p.getEventId() == eventId && p instanceof DiscountPolicy)
-//                 .map(p -> ((DiscountPolicy) p).calculateFinalPrice(basePrice, totalItems, "")) // No coupon code for general discounts
-//                 .findFirst()
-//                 .orElse(basePrice);
-//     }
-
-//     //new:
-//     public boolean isConditionalDiscountSatisfied(int eventId, int quantity) 
-//     {
-//         return policyRepo.findAll().stream()
-//                 .filter(p -> p.getEventId() == eventId && p instanceof DiscountPolicy)
-//                 .map(p -> ((DiscountPolicy) p).isAnyConditionalDiscountSatisfied(quantity))
-//                 .findFirst()
-//                 .orElse(false);
-//     }
-
-// }
-
-    
