@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_;
 
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.*;
 
@@ -56,16 +57,18 @@ class company_managment_serivceTest {
         );
     }
 
-    @Test
-    void GivenOpenAndClosedCompanies_WhenGetActiveCompanies_ThenOnlyOpenReturned() {
-        service.openCompany(2, "Closed Company", 500);
-        service.closeCompany(500, 2);
+   @Test
+   void GivenOpenAndClosedCompanies_WhenGetActiveCompanies_ThenOnlyOpenReturned() {
+    service.openCompany(2, "Closed Company", 500);
+    service.closeCompany(500, 2);
 
-        List<Company> active = service.getActiveCompanies();
+    List<CompanyDTO> active = service.getActiveCompanies();
 
-        assertEquals(1, active.size());
-        assertEquals(COMPANY_ID, active.get(0).getCompanyId());
-    }
+    assertEquals(1, active.size());
+    assertEquals(COMPANY_ID, active.get(0).getCompanyId());
+    assertEquals("Main Company", active.get(0).getCompanyName());
+    assertTrue(active.get(0).isOpen());
+}
 
     @Test
     void GivenFounder_WhenAddEvent_ThenEventAdded() {
