@@ -16,7 +16,6 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IShowRepository;
 
 import ch.qos.logback.classic.Logger;
 
@@ -26,13 +25,10 @@ public class EventService {
 
     @Autowired
     private IEventRepository eventRepository;
-    @Autowired
-    private IShowRepository showRepository;
     private final Logger logger = (Logger) LoggerFactory.getLogger(EventService.class);
 
-    public EventService(IEventRepository eventRepository, IShowRepository showRepository) {
+    public EventService(IEventRepository eventRepository) {
         this.eventRepository = eventRepository;
-        this.showRepository = showRepository;
     }
 
     // ── Creation / Deletion ──────────────────────────────────────────────────

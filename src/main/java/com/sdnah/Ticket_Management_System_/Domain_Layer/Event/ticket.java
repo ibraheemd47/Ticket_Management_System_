@@ -40,7 +40,7 @@ public class ticket {
     @Enumerated(EnumType.STRING)
     private TicketStatus status;
 
-    private Date showDate;
+    private Date showDate; 
 
     public enum TicketStatus {
         AVAILABLE,
