@@ -6,7 +6,6 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.company_managment_s
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.MemoryCompanyRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
@@ -15,28 +14,72 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.*;
+import java.util.*;
+
 public class CompanyAcceptanceTest {
 
-    private MemoryCompanyRepository companyRepository;
+    private CompanyRepository companyRepository;
+    private Map<Integer, Company> companies;
     private company_managment_serivce companyService;
 
     private UserRepository userRepository;
     private TokenRepository tokenRepository;
 
-    private String founderToken;
-    private String user200Token;
-    private String user300Token;
+    // private String founderToken;
+    // private String user200Token;
+    // private String user300Token;
+
+    private static final String FOUNDER_ID = "100";
+    private static final String USER_200_ID = "200";
+    private static final String USER_300_ID = "300";
+    private static final String USER_201_ID = "201";
+    private static final String USER_999_ID = "999";
+
+    private static final String FOUNDER_TOKEN = "token100";
+    private static final String USER_200_TOKEN = "token200";
+    private static final String USER_300_TOKEN = "token300";
+    private static final String USER_201_TOKEN = "token201";
+    private static final String USER_999_TOKEN = "token999";
 
     @BeforeEach
     void setUp() {
-        companyRepository = new MemoryCompanyRepository();
-        userRepository = new UserRepository();
-        tokenRepository = new TokenRepository();
+        companyRepository = mock(CompanyRepository.class);
+        userRepository = mock(UserRepository.class);
+        tokenRepository = mock(TokenRepository.class);
+
+        companies = new HashMap<>();
+
+        when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> {
+            Company company = invocation.getArgument(0);
+            companies.put(company.getCompanyId(), company);
+            return company;
+        });
+
+        when(companyRepository.findById(anyInt())).thenAnswer(invocation -> {
+            int companyId = invocation.getArgument(0);
+            return Optional.ofNullable(companies.get(companyId));
+        });
+
+        when(companyRepository.existsById(anyInt())).thenAnswer(invocation -> {
+            int companyId = invocation.getArgument(0);
+            return companies.containsKey(companyId);
+        });
+
+        when(companyRepository.findAll()).thenAnswer(invocation -> new ArrayList<>(companies.values()));
+
+        doAnswer(invocation -> {
+            int companyId = invocation.getArgument(0);
+            companies.remove(companyId);
+            return null;
+        }).when(companyRepository).deleteById(anyInt());
 
         companyService = new company_managment_serivce(
                 companyRepository,
@@ -44,161 +87,115 @@ public class CompanyAcceptanceTest {
                 tokenRepository
         );
 
-        // יצירת משתמשים
-        Member founder = new Member("100", "founder", "pass");
-        founder.setActive(true);
-        founder.setVerified(true);
-
-        Member user200 = new Member("200", "user200", "pass");
-        user200.setActive(true);
-        user200.setVerified(true);
-
-        Member user300 = new Member("300", "user300", "pass");
-        user300.setActive(true);
-        user300.setVerified(true);
-
-        userRepository.save(founder);
-        userRepository.save(user200);
-        userRepository.save(user300);
-
-        // יצירת tokens
-        founderToken = "token100";
-        user200Token = "token200";
-        user300Token = "token300";
-
-        tokenRepository.save(new AuthToken(founderToken, "100", LocalDateTime.now().plusDays(1)));
-        tokenRepository.save(new AuthToken(user200Token, "200", LocalDateTime.now().plusDays(1)));
-        tokenRepository.save(new AuthToken(user300Token, "300", LocalDateTime.now().plusDays(1)));
+        mockMemberAndToken(FOUNDER_ID, "founder", FOUNDER_TOKEN);
+        mockMemberAndToken(USER_200_ID, "user200", USER_200_TOKEN);
+        mockMemberAndToken(USER_300_ID, "user300", USER_300_TOKEN);
+        mockMemberAndToken(USER_201_ID, "user201", USER_201_TOKEN);
+        mockMemberAndToken(USER_999_ID, "user999", USER_999_TOKEN);
     }
+
+private void mockMemberAndToken(String memberId, String username, String tokenValue) {
+    Member member = new Member(memberId, username, "pass");
+    member.setActive(true);
+    member.setVerified(true);
+
+    AuthToken token = new AuthToken(tokenValue, memberId, LocalDateTime.now().plusDays(1));
+
+    when(userRepository.findById(memberId)).thenReturn(Optional.of(member));
+    when(userRepository.findByMemberId(memberId)).thenReturn(member);
+    when(tokenRepository.findById(tokenValue)).thenReturn(Optional.of(token));
+    when(tokenRepository.findByTokenValue(tokenValue)).thenReturn(token);
+}
 
    
     // II.3.2 Open Production Company
     @Test
     void openProductionCompanySuccessfully() {
-        companyService.openCompany(1, "LiveNation", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "LiveNation");
 
         Company company = companyRepository.findById(1).orElseThrow();
 
         assertEquals(1, company.getCompanyId());
         assertEquals("LiveNation", company.getCompanyName());
         assertTrue(company.isOpen());
-        assertEquals(100, company.getCompanyFounderId());
-        assertTrue(company.getOwnerIds().contains(100));
+        assertEquals(FOUNDER_ID, company.getCompanyFounderId());       
+        assertTrue(company.getOwnerIds().contains(FOUNDER_ID));
     }
 
     @Test
     void openProductionCompanyWithMissingDetails() {
-        assertThrows(IllegalArgumentException.class,
-                () -> companyService.openCompany(1, "", 100));
+        assertThrows(RuntimeException.class,
+                () -> companyService.openCompany(FOUNDER_TOKEN, 1, ""));
     }
 
     @Test
     void openProductionCompanyWithDuplicateIdentity() {
-        companyService.openCompany(1, "LiveNation", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "LiveNation");
 
         assertThrows(IllegalStateException.class,
-                () -> companyService.openCompany(1, "AnotherCompany", 200));
+                () -> companyService.openCompany(USER_200_TOKEN, 1, "AnotherCompany"));
     }
 
-    // // II.2.1 View Active Production Companies and Their Events
-    // @Test
-    // void viewActiveProductionCompaniesAndEventsSuccessfully() {
-    //     companyService.openCompany(1, "CompanyA", 100);
-    //     companyService.openCompany(2, "CompanyB", 200);
-
-    //     companyService.addEvent(100, 1, 1000);
-    //     companyService.addEvent(100, 1, 1001);
-
-    //     List<Company> activeCompanies = companyService.getActiveCompanies();
-
-    //     assertEquals(2, activeCompanies.size());
-
-    //     Company companyA = activeCompanies.stream()
-    //             .filter(c -> c.getCompanyId() == 1)
-    //             .findFirst()
-    //             .orElseThrow();
-
-    //     assertEquals(2, companyA.getAssociatedEventIds().size());
-    //     assertTrue(companyA.getAssociatedEventIds().contains(1000));
-    //     assertTrue(companyA.getAssociatedEventIds().contains(1001));
-    // }
-
-    // @Test
-    // void noActiveProductionCompanies() {
-    //     List<Company> activeCompanies = companyService.getActiveCompanies();
-
-    //     assertNotNull(activeCompanies);
-    //     assertTrue(activeCompanies.isEmpty());
-    // }
-
-    // @Test
-    // void noEventsForActiveProductionCompany() {
-    //     companyService.openCompany(1, "CompanyA", 100);
-
-    //     List<Company> activeCompanies = companyService.getActiveCompanies();
-
-    //     assertEquals(1, activeCompanies.size());
-    //     assertTrue(activeCompanies.get(0).getAssociatedEventIds().isEmpty());
-    // }
+    
 
     // II.2.1 View Active Production Companies and Their Events
-@Test
-void viewActiveProductionCompaniesAndEventsSuccessfully() {
-    companyService.openCompany(1, "CompanyA", 100);
-    companyService.openCompany(2, "CompanyB", 200);
+    @Test
+    void viewActiveProductionCompaniesAndEventsSuccessfully() {
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.openCompany(USER_200_TOKEN, 2, "CompanyB");
 
-    companyService.addEvent(100, 1, 1000);
-    companyService.addEvent(100, 1, 1001);
+        companyService.addEvent(FOUNDER_TOKEN, 1, 1000);
+        companyService.addEvent(FOUNDER_TOKEN, 1, 1001);
 
-    List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
+        List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
 
-    assertEquals(2, activeCompanies.size());
+        assertEquals(2, activeCompanies.size());
 
-    CompanyDTO companyA = activeCompanies.stream()
-            .filter(c -> c.getCompanyId() == 1)
-            .findFirst()
-            .orElseThrow();
+        CompanyDTO companyA = activeCompanies.stream()
+                .filter(c -> c.getCompanyId() == 1)
+                .findFirst()
+                .orElseThrow();
 
-    assertEquals("CompanyA", companyA.getCompanyName());
+        assertEquals("CompanyA", companyA.getCompanyName());
 
-    List<Integer> companyAEvents = companyService.getAllEventsByCompany(1);
+        List<Integer> companyAEvents = companyService.getAllEventsByCompany(1);
 
-    assertEquals(2, companyAEvents.size());
-    assertTrue(companyAEvents.contains(1000));
-    assertTrue(companyAEvents.contains(1001));
-}
+        assertEquals(2, companyAEvents.size());
+        assertTrue(companyAEvents.contains(1000));
+        assertTrue(companyAEvents.contains(1001));
+    }
 
-@Test
-void noActiveProductionCompanies() {
-    List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
+    @Test
+    void noActiveProductionCompanies() {
+        List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
 
-    assertNotNull(activeCompanies);
-    assertTrue(activeCompanies.isEmpty());
-}
+        assertNotNull(activeCompanies);
+        assertTrue(activeCompanies.isEmpty());
+    }
 
-@Test
-void noEventsForActiveProductionCompany() {
-    companyService.openCompany(1, "CompanyA", 100);
+    @Test
+    void noEventsForActiveProductionCompany() {
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-    List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
+        List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
 
-    assertEquals(1, activeCompanies.size());
-    assertEquals(1, activeCompanies.get(0).getCompanyId());
+        assertEquals(1, activeCompanies.size());
+        assertEquals(1, activeCompanies.get(0).getCompanyId());
 
-    List<Integer> events = companyService.getAllEventsByCompany(1);
+        List<Integer> events = companyService.getAllEventsByCompany(1);
 
-    assertNotNull(events);
-    assertTrue(events.isEmpty());
-}
+        assertNotNull(events);
+        assertTrue(events.isEmpty());
+    }
 
     //end of change for II.2.1
 
     // II.4.1 Manage Events and Ticket Inventory
     @Test
     void addEventSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        companyService.addEvent(100, 1, 500);
+        companyService.addEvent(FOUNDER_TOKEN, 1, 500);
 
         Company company = companyRepository.findById(1).orElseThrow();
         assertTrue(company.getAssociatedEventIds().contains(500));
@@ -206,10 +203,10 @@ void noEventsForActiveProductionCompany() {
 
     @Test
     void removeEventSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.addEvent(100, 1, 500);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.addEvent(FOUNDER_TOKEN, 1, 500);
 
-        companyService.removeEvent(100, 1, 500);
+        companyService.removeEvent(FOUNDER_TOKEN, 1, 500);
 
         Company company = companyRepository.findById(1).orElseThrow();
         assertFalse(company.getAssociatedEventIds().contains(500));
@@ -218,21 +215,21 @@ void noEventsForActiveProductionCompany() {
     @Test
     void companyNotFoundWhenManagingEvents() {
         assertThrows(RuntimeException.class,
-                () -> companyService.addEvent(100, 999, 500));
+                () -> companyService.addEvent(FOUNDER_TOKEN, 999, 500));
     }
 
     @Test
     void userNotOwnerWhenManagingEvents() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(SecurityException.class,
-                () -> companyService.addEvent(200, 1, 500));
+        assertThrows(RuntimeException.class,
+                () -> companyService.addEvent(USER_200_TOKEN, 1, 500));
     }
 
     // II.4.5 View Company Purchase and Order History
     @Test
     void purchaseHistoryDisplayedSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
         Company company = companyRepository.findById(1).orElseThrow();
         company.addPurchaseRecord(11);
@@ -240,8 +237,8 @@ void noEventsForActiveProductionCompany() {
         company.addOrderRecord(21);
         companyRepository.save(company);
 
-        List<Integer> purchaseHistory = companyService.getPurchaseHistory(100, 1);
-        List<Integer> orderHistory = companyService.getOrderHistory(100, 1);
+        List<Integer> purchaseHistory = companyService.getPurchaseHistory(FOUNDER_TOKEN, 1);
+        List<Integer> orderHistory = companyService.getOrderHistory(FOUNDER_TOKEN, 1);
 
         assertEquals(2, purchaseHistory.size());
         assertEquals(1, orderHistory.size());
@@ -251,10 +248,10 @@ void noEventsForActiveProductionCompany() {
 
     @Test
     void noHistoryFound() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        List<Integer> purchaseHistory = companyService.getPurchaseHistory(100, 1);
-        List<Integer> orderHistory = companyService.getOrderHistory(100, 1);
+        List<Integer> purchaseHistory = companyService.getPurchaseHistory(FOUNDER_TOKEN, 1);
+        List<Integer> orderHistory = companyService.getOrderHistory(FOUNDER_TOKEN, 1);
 
         assertTrue(purchaseHistory.isEmpty());
         assertTrue(orderHistory.isEmpty());
@@ -262,143 +259,142 @@ void noEventsForActiveProductionCompany() {
 
     @Test
     void userNotAuthorizedToViewHistory() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(SecurityException.class,
-                () -> companyService.getPurchaseHistory(200, 1));
-    }
+        assertThrows(RuntimeException.class,
+            () -> companyService.getPurchaseHistory(USER_200_TOKEN, 1));    }
 
     // II.4.7 Appoint Company Manager
     @Test
     void managerAppointedSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
         companyService.appointManager(
-                100,
+                FOUNDER_TOKEN,
                 1,
-                200,
+                USER_200_ID,
                 Set.of(CompanyPermission.MANAGE_EVENTS, CompanyPermission.VIEW_HISTORY)
         );
 
         Company company = companyRepository.findById(1).orElseThrow();
 
-        assertTrue(company.getManagers().contains(200));
-        assertTrue(company.getManagerPermissionsView().get(200).contains(CompanyPermission.MANAGE_EVENTS));
-        assertTrue(company.getManagerPermissionsView().get(200).contains(CompanyPermission.VIEW_HISTORY));
+        assertTrue(company.getManagers().contains(USER_200_ID));
+        assertTrue(company.getManagerPermissionsView().get(USER_200_ID).contains(CompanyPermission.MANAGE_EVENTS));
+        assertTrue(company.getManagerPermissionsView().get(USER_200_ID).contains(CompanyPermission.VIEW_HISTORY));
     }
 
     @Test
     void nomineeAlreadyManagerOrOwner() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointManager(100, 1, 200, Set.of(CompanyPermission.MANAGE_EVENTS));
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> companyService.appointManager(100, 1, 200, Set.of(CompanyPermission.VIEW_HISTORY)));
+        assertThrows(RuntimeException.class,
+                () -> companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.VIEW_HISTORY)));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> companyService.appointManager(100, 1, 100, Set.of(CompanyPermission.MANAGE_EVENTS)));
+        assertThrows(RuntimeException.class,
+                () -> companyService.appointManager(FOUNDER_TOKEN, 1, FOUNDER_ID, Set.of(CompanyPermission.MANAGE_EVENTS)));
     }
 
     @Test
     void userNotAuthorizedToAppointManager() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(SecurityException.class,
-                () -> companyService.appointManager(300, 1, 200, Set.of(CompanyPermission.MANAGE_EVENTS)));
+        assertThrows(RuntimeException.class,
+                () -> companyService.appointManager(USER_300_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS)));
     }
 
     // II.4.8 Appoint Additional Company Owner
     @Test
     void ownerAppointedSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        companyService.appointAdditionalOwner(100, 1, 201);
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
 
         Company company = companyRepository.findById(1).orElseThrow();
-        assertTrue(company.getOwnerIds().contains(201));
+        assertTrue(company.getOwnerIds().contains(USER_201_ID));
     }
 
     @Test
     void nomineeAlreadyOwner() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointAdditionalOwner(100, 1, 201);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> companyService.appointAdditionalOwner(100, 1, 201));
+        assertThrows(RuntimeException.class,
+                () -> companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID));
     }
 
     // II.4.9 Remove Company Owner Appointment
     @Test
     void ownerRemovedSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointAdditionalOwner(100, 1, 201);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
 
-        companyService.removeOwnerAppointment(100, 1, 201);
+        companyService.removeOwnerAppointment(FOUNDER_TOKEN, 1, USER_201_ID);
 
         Company company = companyRepository.findById(1).orElseThrow();
-        assertFalse(company.getOwnerIds().contains(201));
+        assertFalse(company.getOwnerIds().contains(USER_201_ID));
     }
 
     @Test
     void targetOwnerNotFound() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(IllegalArgumentException.class,
-                () -> companyService.removeOwnerAppointment(100, 1, 999));
+        assertThrows(RuntimeException.class,
+                () -> companyService.removeOwnerAppointment(FOUNDER_TOKEN, 1, USER_999_ID));
     }
 
     @Test
     void userNotAuthorizedToRemoveOwner() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointAdditionalOwner(100, 1, 201);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
 
-        assertThrows(SecurityException.class,
-                () -> companyService.removeOwnerAppointment(300, 1, 201));
+        assertThrows(RuntimeException.class,
+                () -> companyService.removeOwnerAppointment(USER_300_TOKEN, 1, USER_201_ID));
     }
 
     // II.4.10 Resign from Ownership
     @Test
     void ownershipResignedSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointAdditionalOwner(100, 1, 201);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
 
-        companyService.resignOwnership(201, 1);
+        companyService.resignOwnership(USER_201_TOKEN, 1);
 
         Company company = companyRepository.findById(1).orElseThrow();
-        assertFalse(company.getOwnerIds().contains(201));
+        assertFalse(company.getOwnerIds().contains(USER_201_ID));
     }
 
     @Test
     void founderAttemptsResignation() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(IllegalArgumentException.class,
-                () -> companyService.resignOwnership(100, 1));
+        assertThrows(RuntimeException.class,
+                () -> companyService.resignOwnership(FOUNDER_TOKEN, 1));
     }
 
     @Test
     void userNotOwnerResignationDenied() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(SecurityException.class,
-                () -> companyService.resignOwnership(999, 1));
+        assertThrows(RuntimeException.class,
+                () -> companyService.resignOwnership(USER_999_TOKEN, 1));
     }
 
     // II.4.11 Modify Manager Permissions
     @Test
     void successfulPermissionUpdate() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointManager(100, 1, 200, Set.of(CompanyPermission.MANAGE_EVENTS));
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
 
         companyService.modifyManagerPermissions(
-                100,
+                FOUNDER_TOKEN,
                 1,
-                200,
+                USER_200_ID,
                 Set.of(CompanyPermission.VIEW_HISTORY, CompanyPermission.RESPOND_TO_INQUIRIES)
         );
 
         Company company = companyRepository.findById(1).orElseThrow();
-        Set<CompanyPermission> updated = company.getManagerPermissionsView().get(200);
+        Set<CompanyPermission> updated = company.getManagerPermissionsView().get(USER_200_ID);
 
         assertTrue(updated.contains(CompanyPermission.VIEW_HISTORY));
         assertTrue(updated.contains(CompanyPermission.RESPOND_TO_INQUIRIES));
@@ -407,27 +403,27 @@ void noEventsForActiveProductionCompany() {
 
     @Test
     void unauthorizedUpdate() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointManager(100, 1, 200, Set.of(CompanyPermission.MANAGE_EVENTS));
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
 
-        assertThrows(SecurityException.class,
+        assertThrows(RuntimeException.class,
                 () -> companyService.modifyManagerPermissions(
-                        300,
+                        USER_300_TOKEN,
                         1,
-                        200,
+                        USER_200_ID,
                         Set.of(CompanyPermission.VIEW_HISTORY)
                 ));
     }
 
     @Test
     void wrongManagerPermissionUpdate() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(RuntimeException.class,
                 () -> companyService.modifyManagerPermissions(
-                        100,
+                        FOUNDER_TOKEN,
                         1,
-                        999,
+                        USER_999_ID,
                         Set.of(CompanyPermission.VIEW_HISTORY)
                 ));
     }
@@ -435,39 +431,39 @@ void noEventsForActiveProductionCompany() {
     // II.4.12 Remove Manager Appointment
     @Test
     void successfulManagerRemoval() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointManager(100, 1, 200, Set.of(CompanyPermission.MANAGE_EVENTS));
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
 
-        companyService.removeManagerAppointment(100, 1, 200);
+        companyService.removeManagerAppointment(FOUNDER_TOKEN, 1, USER_200_ID);
 
         Company company = companyRepository.findById(1).orElseThrow();
-        assertFalse(company.getManagers().contains(200));
-        assertFalse(company.getManagerPermissionsView().containsKey(200));
+        assertFalse(company.getManagers().contains(USER_200_ID));
+        assertFalse(company.getManagerPermissionsView().containsKey(USER_200_ID));
     }
 
     @Test
     void unauthorizedManagerRemoval() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointManager(100, 1, 200, Set.of(CompanyPermission.MANAGE_EVENTS));
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
 
-        assertThrows(SecurityException.class,
-                () -> companyService.removeManagerAppointment(300, 1, 200));
+        assertThrows(RuntimeException.class,
+                () -> companyService.removeManagerAppointment(USER_300_TOKEN, 1, USER_200_ID));
     }
 
     @Test
     void wrongManagerRemoval() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(IllegalArgumentException.class,
-                () -> companyService.removeManagerAppointment(100, 1, 999));
+        assertThrows(RuntimeException.class,
+                () -> companyService.removeManagerAppointment(FOUNDER_TOKEN, 1, USER_999_ID));
     }
 
     // II.4.13 Suspend / Close Production Company
     @Test
     void successfulClosure() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        boolean changed = companyService.closeCompany(100, 1);
+        boolean changed = companyService.closeCompany(FOUNDER_TOKEN, 1);
 
         Company company = companyRepository.findById(1).orElseThrow();
         assertTrue(changed);
@@ -476,18 +472,18 @@ void noEventsForActiveProductionCompany() {
 
     @Test
     void unauthorizedClosure() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(SecurityException.class,
-                () -> companyService.closeCompany(300, 1));
+        assertThrows(RuntimeException.class,
+                () -> companyService.closeCompany(USER_300_TOKEN, 1));
     }
 
     @Test
     void alreadyClosed() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.closeCompany(100, 1);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.closeCompany(FOUNDER_TOKEN, 1);
 
-        boolean changedAgain = companyService.closeCompany(100, 1);
+        boolean changedAgain = companyService.closeCompany(FOUNDER_TOKEN, 1);
 
         assertFalse(changedAgain);
     }
@@ -495,10 +491,10 @@ void noEventsForActiveProductionCompany() {
     // II.4.14 Reopen Production Company
     @Test
     void successfulReopen() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.closeCompany(100, 1);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.closeCompany(FOUNDER_TOKEN, 1);
 
-        boolean changed = companyService.reopenCompany(100, 1);
+        boolean changed = companyService.reopenCompany(FOUNDER_TOKEN, 1);
 
         Company company = companyRepository.findById(1).orElseThrow();
         assertTrue(changed);
@@ -507,18 +503,18 @@ void noEventsForActiveProductionCompany() {
 
     @Test
     void unauthorizedReopen() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.closeCompany(100, 1);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.closeCompany(FOUNDER_TOKEN, 1);
 
-        assertThrows(SecurityException.class,
-                () -> companyService.reopenCompany(300, 1));
+        assertThrows(RuntimeException.class,
+                () -> companyService.reopenCompany(USER_300_TOKEN, 1));
     }
 
     @Test
     void alreadyActive() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        boolean changed = companyService.reopenCompany(100, 1);
+        boolean changed = companyService.reopenCompany(FOUNDER_TOKEN, 1);
 
         assertFalse(changed);
     }
@@ -526,30 +522,30 @@ void noEventsForActiveProductionCompany() {
     // II.4.15 View Roles and Permissions
     @Test
     void viewRolesAndPermissionsSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.appointAdditionalOwner(100, 1, 201);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
         companyService.appointManager(
-                100,
+                FOUNDER_TOKEN,
                 1,
-                200,
+                USER_200_ID,
                 Set.of(CompanyPermission.MANAGE_EVENTS, CompanyPermission.VIEW_HISTORY)
         );
 
-        CompanyRolesViewDTO rolesView = companyService.viewRolesAndPermissions(100, 1);
+        CompanyRolesViewDTO rolesView = companyService.viewRolesAndPermissions(FOUNDER_TOKEN, 1);
 
         assertEquals(1, rolesView.getCompanyId());
-        assertEquals(100, rolesView.getFounderId());
-        assertTrue(rolesView.getOwnerIds().contains(100));
-        assertTrue(rolesView.getOwnerIds().contains(201));
-        assertTrue(rolesView.getManagerPermissions().containsKey(200));
-        assertTrue(rolesView.getManagerPermissions().get(200).contains(CompanyPermission.MANAGE_EVENTS));
+        assertEquals(FOUNDER_ID, rolesView.getFounderId());
+        assertTrue(rolesView.getOwnerIds().contains(FOUNDER_ID));
+        assertTrue(rolesView.getOwnerIds().contains(USER_201_ID));
+        assertTrue(rolesView.getManagerPermissions().containsKey(USER_200_ID));
+        assertTrue(rolesView.getManagerPermissions().get(USER_200_ID).contains(CompanyPermission.MANAGE_EVENTS));
     }
 
     @Test
     void emptyRolesDisplayed() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        CompanyRolesViewDTO rolesView = companyService.viewRolesAndPermissions(100, 1);
+        CompanyRolesViewDTO rolesView = companyService.viewRolesAndPermissions(FOUNDER_TOKEN, 1);
 
         assertNotNull(rolesView);
         assertTrue(rolesView.getManagerPermissions().isEmpty());
@@ -557,18 +553,18 @@ void noEventsForActiveProductionCompany() {
 
     @Test
     void unauthorizedAccessToRolesView() {
-        companyService.openCompany(1, "CompanyA", 100);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        assertThrows(SecurityException.class,
-                () -> companyService.viewRolesAndPermissions(300, 1));
+        assertThrows(RuntimeException.class,
+                () -> companyService.viewRolesAndPermissions(USER_300_TOKEN, 1));
     }
 
     @Test
     void crossCompanyAccessDenied() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.openCompany(2, "CompanyB", 200);
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.openCompany(USER_200_TOKEN, 2, "CompanyB");
 
-        assertThrows(SecurityException.class,
-                () -> companyService.viewRolesAndPermissions(100, 2));
+        assertThrows(RuntimeException.class,
+                () -> companyService.viewRolesAndPermissions(FOUNDER_TOKEN, 2));
     }
 }
