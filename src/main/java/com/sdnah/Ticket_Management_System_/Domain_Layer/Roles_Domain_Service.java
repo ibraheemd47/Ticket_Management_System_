@@ -8,9 +8,9 @@ public class Roles_Domain_Service {
     private Company company;
     private Member user;
 
-    public Roles_Domain_Service(Company company,Member user) {
+    public Roles_Domain_Service(Company company, Member user) {
         this.company = company;
         this.user = user;
     }
- 
+
 }
