@@ -25,7 +25,7 @@ public class ticket {
     private UUID ticketId;
 
     private UUID showId;
-    private String ownerId;
+    private UUID ownerId;
 
     @ManyToOne
     @JoinColumn(name = "seat_id")
@@ -74,7 +74,7 @@ public class ticket {
         logger.info("Ticket created with ID: {} for standing area {}", this.ticketId, this.area.getId());
     }
 
-    public boolean purchase(String userId) {
+    public boolean purchase(UUID userId) {
         if (this.status != TicketStatus.LOCKED_IN_CART) {
             logger.warn("Attempted to purchase ticket with ID: {} that is not locked in cart", this.ticketId);
             return false;
@@ -85,7 +85,7 @@ public class ticket {
         return true;
     }
 
-    public boolean lockInCart(String userId) {
+    public boolean lockInCart(UUID userId) {
         if (this.status != TicketStatus.AVAILABLE) {
             logger.warn("Attempted to lock ticket with ID: {} that is not available", this.ticketId);
             return false;
@@ -130,7 +130,7 @@ public class ticket {
 
     public UUID getTicketId() { return ticketId; }
     public UUID getShowId() { return showId; }
-    public String getOwnerId() { return ownerId; }
+    public UUID getOwnerId() { return ownerId; }
     public Seat getSeat() { return seat; }
     public Area getArea() { return area; }
     public BigDecimal getPrice() { return price; }

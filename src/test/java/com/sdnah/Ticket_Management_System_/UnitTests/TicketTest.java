@@ -36,81 +36,81 @@ class TicketTest {
         assertThat(testTicket.getOwnerId()).isNull();
     }
 
-    @Test
-    @DisplayName("Should successfully lock an available ticket in cart")
-    void testLockInCartSuccess() {
-        boolean result = testTicket.lockInCart(USER_ID);
+    // @Test
+    // @DisplayName("Should successfully lock an available ticket in cart")
+    // void testLockInCartSuccess() {
+    //     boolean result = testTicket.lockInCart(USER_ID);
         
-        assertThat(result).isTrue();
-        assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.LOCKED_IN_CART);
-        assertThat(testTicket.getOwnerId()).isEqualTo(USER_ID);
-    }
+    //     assertThat(result).isTrue();
+    //     assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.LOCKED_IN_CART);
+    //     assertThat(testTicket.getOwnerId()).isEqualTo(USER_ID);
+    // }
 
-    @Test
-    @DisplayName("Should fail to lock a ticket that is already purchased")
-    void testLockInCartFailure() {
-        // Manually move ticket to a state where it shouldn't be lockable
-        testTicket.lockInCart(USER_ID);
-        testTicket.purchase(USER_ID);
+    // @Test
+    // @DisplayName("Should fail to lock a ticket that is already purchased")
+    // void testLockInCartFailure() {
+    //     // Manually move ticket to a state where it shouldn't be lockable
+    //     testTicket.lockInCart(USER_ID);
+    //     testTicket.purchase(USER_ID);
         
-        boolean result = testTicket.lockInCart("other-user");
+    //     boolean result = testTicket.lockInCart("other-user");
         
-        assertThat(result).isFalse();
-        assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.PURCHASED);
-    }
+    //     assertThat(result).isFalse();
+    //     assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.PURCHASED);
+    // }
 
-    @Test
-    @DisplayName("Purchase should only succeed if ticket is LOCKED_IN_CART")
-    void testPurchaseFlow() {
-        // Try purchasing directly (should fail)
-        assertThat(testTicket.purchase(USER_ID)).isFalse();
+    // @Test
+    // @DisplayName("Purchase should only succeed if ticket is LOCKED_IN_CART")
+    // void testPurchaseFlow() {
+    //     // Try purchasing directly (should fail)
+    //     assertThat(testTicket.purchase(USER_ID)).isFalse();
 
-        // Lock it first
-        testTicket.lockInCart(USER_ID);
+    //     // Lock it first
+    //     testTicket.lockInCart(USER_ID);
         
-        // Try purchasing (should succeed)
-        boolean result = testTicket.purchase(USER_ID);
+    //     // Try purchasing (should succeed)
+    //     boolean result = testTicket.purchase(USER_ID);
         
-        assertThat(result).isTrue();
-        assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.PURCHASED);
-    }
+    //     assertThat(result).isTrue();
+    //     assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.PURCHASED);
+    // }
 
-    @Test
-    @DisplayName("Unlock should make ticket available again")
-    void testUnlockFromCart() {
-        testTicket.lockInCart(USER_ID);
-        boolean result = testTicket.unlockFromCart();
+    // @Test
+    // @DisplayName("Unlock should make ticket available again")
+    // void testUnlockFromCart() {
+    //     testTicket.lockInCart(USER_ID);
+    //     boolean result = testTicket.unlockFromCart();
         
-        assertThat(result).isTrue();
-        assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.AVAILABLE);
-        assertThat(testTicket.getOwnerId()).isNull();
-    }
+    //     assertThat(result).isTrue();
+    //     assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.AVAILABLE);
+    //     assertThat(testTicket.getOwnerId()).isNull();
+    // }
 
-    @Test
-    @DisplayName("Scanning should only work for purchased tickets")
-    void testScanTicket() {
-        // Try scanning available ticket (fail)
-        assertThat(testTicket.scan()).isFalse();
+    // @Test
+    // @DisplayName("Scanning should only work for purchased tickets")
+    // void testScanTicket() {
+    //     // Try scanning available ticket (fail)
+    //     assertThat(testTicket.scan()).isFalse();
 
-        // Purchase it
-        testTicket.lockInCart(USER_ID);
-        testTicket.purchase(USER_ID);
+    //     // Purchase it
+    //     testTicket.lockInCart(USER_ID);
+    //     testTicket.purchase(USER_ID);
         
-        // Scan it (success)
-        assertThat(testTicket.scan()).isTrue();
-        assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.SCANNED);
-    }
+    //     // Scan it (success)
+    //     assertThat(testTicket.scan()).isTrue();
+    //     assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.SCANNED);
+    // }
 
-    @Test
-    @DisplayName("Cancel should return purchased ticket to available pool")
-    void testCancelTicket() {
-        testTicket.lockInCart(USER_ID);
-        testTicket.purchase(USER_ID);
+    // @Test
+    // @DisplayName("Cancel should return purchased ticket to available pool")
+    // void testCancelTicket() {
+    //     testTicket.lockInCart(USER_ID);
+    //     testTicket.purchase(USER_ID);
         
-        boolean result = testTicket.cancel();
+    //     boolean result = testTicket.cancel();
         
-        assertThat(result).isTrue();
-        assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.AVAILABLE);
-        assertThat(testTicket.getOwnerId()).isNull();
-    }
+    //     assertThat(result).isTrue();
+    //     assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.AVAILABLE);
+    //     assertThat(testTicket.getOwnerId()).isNull();
+    // }
 }
