@@ -1,31 +1,37 @@
 package com.sdnah.Ticket_Management_System_.Infastructure_Layer;
 
-import java.util.List;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Policy;
 
 @Repository
-public interface PolicyRepository extends JpaRepository<Policy, Integer> {
+public class PolicyRepository implements IPolicyRepo {
 
-    // ── Basic queries ─────────────────────────────────────────────
+    private final Map<Integer, Policy> store = new HashMap<>();
 
-    Optional<Policy> findByPolicyId(int policyId);
+    @Override
+    public void save(Policy policy) {
+        store.put(policy.getPolicyId(), policy);
+    }
 
-    List<Policy> findByCompanyId(int companyId);
+    @Override
+    public Optional<Policy> findById(int policyId) {
+        return Optional.ofNullable(store.get(policyId));
+    }
 
-    List<Policy> findByEventId(Integer eventId);
+    @Override
+    public Collection<Policy> findAll() {
+        return store.values();
+    }
 
-
-    // ── Main query used in PolicyService ─────────────────────────
-
-    List<Policy> findByCompanyIdAndEventId(int companyId, Integer eventId);
-
-
-    // ── Delete ───────────────────────────────────────────────────
-
-    void deleteByPolicyId(int policyId);
+    @Override
+    public void deleteById(int policyId) {
+        store.remove(policyId);
+    }
 }

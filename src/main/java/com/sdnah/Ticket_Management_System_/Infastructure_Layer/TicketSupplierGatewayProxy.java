@@ -4,10 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.stereotype.Component;
+
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
 
+@Component
 public class TicketSupplierGatewayProxy implements ITicketSupplierGateway {
 
     @Override
