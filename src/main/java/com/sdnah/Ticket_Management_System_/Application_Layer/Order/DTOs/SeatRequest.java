@@ -20,7 +20,7 @@ public class SeatRequest {
         return ticketId;
     }
 
-    public long getSeatId() {
+    public Long getSeatId() {
         return seatId;
     }
 
