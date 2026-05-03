@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/HomePage")
+//
 
 public class HomePage {
     @GetMapping("/SearchBar")
@@ -18,6 +19,9 @@ public class HomePage {
         //Json returns id event name event date and time and venue 
         //return array of events in json format
         //return ResponseEntity.ok(new EventDto(1L, "Concert A", "2024-12-01T20:00:00", "Stadium X"));
+
+        //getAllUpComingEventsForHomePage() in company management service returns list of event ids for all upcoming events from active companies
+
     }
     //show only if guest not logged in
     @GetMapping("/LoginButton")
@@ -27,11 +31,15 @@ public class HomePage {
     
     @GetMapping("/EventDetails")
     public ResponseEntity<String> EventDetails(Long eventId) {
+        //hasEvent in event management service checks if event exists and is active
         return ResponseEntity.ok("event details endpoint!");
     }
+    
     @GetMapping("/FilterEvents")
     public ResponseEntity<String> FilterEvents(double minPrice, double maxPrice,String dateRange, String location, String rating ,String companyName) {
         return ResponseEntity.ok("filter events endpoint!");
+       //filterEventsByCompanyName in event management service returns list of event ids for events that match the company name
+
     }
 
     @GetMapping("/ShowOrders")
@@ -42,11 +50,13 @@ public class HomePage {
     @GetMapping("/ShowCompaniesByRating")
     public ResponseEntity<String> ShowCompaniesByRating() {
         return ResponseEntity.ok("show companies by rating endpoint!");
+        //showCompaniesByRating0 in company management service returns list of company ids sorted by rating
     }
 
     @GetMapping("/SearchByCompanyName")
     public ResponseEntity<String> SearchByCompanyName(String companyName) {
         return ResponseEntity.ok("search by company name endpoint!");
+        //searchByCompanyName in company management service returns list of company ids that match the company name
     }
     @GetMapping("/SearchByEventName")
     public ResponseEntity<String> SearchByEventName(String eventName) {

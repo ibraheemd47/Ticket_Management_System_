@@ -1,0 +1,19 @@
+package com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications;
+
+public enum NotificationType {
+    GENERIC,
+    SYSTEM_ANNOUNCEMENT,
+    PRODUCER_MESSAGE,
+    PURCHASE_SUCCESS,
+    EVENT_CANCELLED,
+    EVENT_RESCHEDULED,
+    ORDER_EXPIRY_WARNING,
+    COMPANY_CLOSED,
+    COMPANY_REOPENED,
+    ROLE_CHANGED,
+    MANAGER_APPOINTED,
+    MANAGER_REMOVED,
+    OWNER_APPOINTED,
+    OWNER_REMOVED,
+    PERMISSIONS_CHANGED
+}
