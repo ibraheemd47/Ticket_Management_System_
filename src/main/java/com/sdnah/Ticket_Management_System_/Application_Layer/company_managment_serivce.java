@@ -22,6 +22,7 @@ public class company_managment_serivce {
     private final CompanyAuthorizationDomainService companyAuthorizationDomainService;
     private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
 
+
     //Repositories
     private final ICompanyRepository companyRepository;
     private UserRepository userRepository;
@@ -54,7 +55,7 @@ public class company_managment_serivce {
     }
 
     // --- II.3.2: Open Production Company (Triggered by II.1.1) ---
-    public void openCompany( String actorToken, int companyId, String name, int founderId) {
+    public void openCompany( String actorToken, int companyId, String name, String founderId) {
         // Company company = getCompanyOrThrow(companyId);
         // validateManagerOrFounder(founderId, company);
         try {
@@ -62,7 +63,6 @@ public class company_managment_serivce {
             String actorMemberId = actorTokenObj.getMemberId();
             Member actor =userRepository.findByMemberId(actorMemberId);
             companyAuthorizationDomainService.assertCanOpenCompany(actor);
-
 
 
             logger.info("Opening company. companyId={}, founderId={}", companyId, founderId);
@@ -79,7 +79,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.1: Manage Events (Add/Remove) ---
-    public void addEvent(int actingUserId, int companyId, int eventId) {
+    public void addEvent(String actingUserId, int companyId, int eventId) {
         Company company = getCompanyOrThrow(companyId);
         validateManagerOrFounder(actingUserId, company);
         company.addEventId(actingUserId, eventId);
@@ -87,7 +87,7 @@ public class company_managment_serivce {
         logger.info("Event " + eventId + " added to company " + companyId);
     }
 
-    public void removeEvent(int actingUserId, int companyId, int eventId) {
+    public void removeEvent(String actingUserId, int companyId, int eventId) {
         Company company = getCompanyOrThrow(companyId);
         validateManagerOrFounder(actingUserId, company);
         company.removeEvent(eventId);
@@ -110,7 +110,7 @@ public class company_managment_serivce {
 
     // --- II.4.4: Communication ---
     /** Use Case II.4.4: Receive and respond to inquiries */
-    public void respondToInquiry(int actorId, int companyId, int inquiryId, String response) {
+    public void respondToInquiry(String actorId, int companyId, int inquiryId, String response) {
         // Company company = getCompanyOrThrow(companyId);
         // company.respondToInquiry(actorId, inquiryId, response);
         // companyRepository.save(company);
@@ -130,7 +130,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.5: View Company Purchase and Order History ---
-    public List<Integer> getPurchaseHistory(int actingUserId, int companyId) {
+    public List<Integer> getPurchaseHistory(String actingUserId, int companyId) {
         // Company company = getCompanyOrThrow(companyId);
         // validateManagerOrFounder(actingUserId, company);
         // return company.getPurchaseHistoryIds(actingUserId);
@@ -150,7 +150,7 @@ public class company_managment_serivce {
         }
     }
 
-    public List<Integer> getOrderHistory(int actingUserId, int companyId) {
+    public List<Integer> getOrderHistory(String actingUserId, int companyId) {
         // Company company = getCompanyOrThrow(companyId);
         // validateManagerOrFounder(actingUserId, company);
         // return company.getOrderHistoryIds(actingUserId);
@@ -172,7 +172,7 @@ public class company_managment_serivce {
 
     // --- II.4.6: Reporting ---
     /** Use Case II.4.6: Generate sales report including subtree data */
-    public void generateSalesReport(int actorId, int companyId) {
+    public void generateSalesReport(String actorId, int companyId) {
         // Company company = getCompanyOrThrow(companyId);
         // validateManagerOrFounder(actorId, company);
         // company.generateSalesReport(actorId);
@@ -191,7 +191,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.7: View and Appoint Company Managers ---
-    public void appointManager(int actingUserId, int companyId, int newManagerId, Set<CompanyPermission> permissions) {
+    public void appointManager(String actingUserId, int companyId, String newManagerId, Set<CompanyPermission> permissions) {
         // Company company = getCompanyOrThrow(companyId);
         // if (company.getCompanyFounderId() != actingUserId) {
         // throw new SecurityException("Only the founder can appoint managers.");
@@ -228,7 +228,7 @@ public class company_managment_serivce {
     // }
 
     // --- II.4.8: Appoint Additional Company Owner ---
-    public void appointAdditionalOwner(int actingOwnerId, int companyId, int newOwnerId) {
+    public void appointAdditionalOwner(String actingOwnerId, int companyId, String newOwnerId) {
         Company company = getCompanyOrThrow(companyId);
         company.appointAdditionalOwner(actingOwnerId, newOwnerId);
         companyRepository.save(company);
@@ -238,7 +238,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.9: Remove Company Owner Appointment ---
-    public void removeOwnerAppointment(int actingOwnerId, int companyId, int targetOwnerId) {
+    public void removeOwnerAppointment(String actingOwnerId, int companyId, String targetOwnerId) {
         Company company = getCompanyOrThrow(companyId);
         company.removeOwnerAppointment(actingOwnerId, targetOwnerId);
         companyRepository.save(company);
@@ -248,7 +248,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.10: Resign from Ownership ---
-    public void resignOwnership(int actingOwnerId, int companyId) {
+    public void resignOwnership(String actingOwnerId, int companyId) {
         Company company = getCompanyOrThrow(companyId);
         company.resignOwnership(actingOwnerId);
         companyRepository.save(company);
@@ -257,7 +257,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.11: Modify Manager Permissions ---
-    public void modifyManagerPermissions(int actingOwnerId, int companyId, int managerId,
+    public void modifyManagerPermissions(String actingOwnerId, int companyId, String managerId,
             Set<CompanyPermission> updatedPermissions) {
         Company company = getCompanyOrThrow(companyId);
         company.modifyManagerPermissions(actingOwnerId, managerId, updatedPermissions);
@@ -268,7 +268,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.12: Remove Manager Appointment ---
-    public void removeManagerAppointment(int actingOwnerId, int companyId, int managerId) {
+    public void removeManagerAppointment(String actingOwnerId, int companyId, String managerId) {
         Company company = getCompanyOrThrow(companyId);
         company.removeManagerAppointment(actingOwnerId, managerId);
         companyRepository.save(company);
@@ -278,7 +278,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.13: Suspend / Close Production Company ---
-    public boolean closeCompany(int actingFounderId, int companyId) {
+    public boolean closeCompany(String actingFounderId, int companyId) {
         Company company = getCompanyOrThrow(companyId);
         boolean changed = company.closeCompany(actingFounderId);
         companyRepository.save(company);
@@ -290,7 +290,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.14: Reopen Production Company ---
-    public boolean reopenCompany(int actingFounderId, int companyId) {
+    public boolean reopenCompany(String actingFounderId, int companyId) {
         Company company = getCompanyOrThrow(companyId);
         boolean changed = company.reopenCompany(actingFounderId);
         companyRepository.save(company);
@@ -301,7 +301,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.15: View Roles and Permissions ---
-    public CompanyRolesViewDTO viewRolesAndPermissions(int actingOwnerId, int companyId) {
+    public CompanyRolesViewDTO viewRolesAndPermissions(String actingOwnerId, int companyId) {
         Company company = getCompanyOrThrow(companyId);
         if (!company.isOwner(actingOwnerId)) {
             throw new SecurityException("Only a company owner can view roles and permissions.");
@@ -315,7 +315,7 @@ public class company_managment_serivce {
 
     // --- Internal Helpers ---
 
-    private void validateOwnerOrManagerWithPermission(int userId, Company company, CompanyPermission permission) {
+    private void validateOwnerOrManagerWithPermission(String userId, Company company, CompanyPermission permission) {
         if (company.isOwner(userId)) {
             return;
         }
@@ -330,7 +330,7 @@ public class company_managment_serivce {
                 .orElseThrow(() -> new NoSuchElementException("Company ID " + companyId + " not found."));
     }
 
-    private void validateManagerOrFounder(int userId, Company company) {
+    private void validateManagerOrFounder(String userId, Company company) {
         boolean isFounder = company.getCompanyFounderId() == userId;
         boolean isManager = company.getManagers().contains(userId);
         if (!isFounder && !isManager) {
@@ -394,7 +394,7 @@ public class company_managment_serivce {
         return company.getFullDetails();
     }
 
-    public void deleteCompany(int userId, int companyId) {
+    public void deleteCompany(String userId, int companyId) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new NoSuchElementException("Company not found"));
 

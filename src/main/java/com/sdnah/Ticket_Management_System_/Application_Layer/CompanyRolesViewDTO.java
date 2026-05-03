@@ -11,14 +11,14 @@ import java.util.Set;
 public class CompanyRolesViewDTO {
 
     private final int companyId;
-    private final int founderId;
-    private final List<Integer> ownerIds;
-    private final Map<Integer, Set<CompanyPermission>> managerPermissions;
+    private final String founderId;
+    private final List<String> ownerIds;
+    private final Map<String, Set<CompanyPermission>> managerPermissions;
 
     public CompanyRolesViewDTO(int companyId,
-                               int founderId,
-                               List<Integer> ownerIds,
-                               Map<Integer, Set<CompanyPermission>> managerPermissions) {
+                               String founderId,
+                               List<String> ownerIds,
+                               Map<String, Set<CompanyPermission>> managerPermissions) {
         this.companyId = companyId;
         this.founderId = founderId;
         this.ownerIds = ownerIds;
@@ -29,15 +29,15 @@ public class CompanyRolesViewDTO {
         return companyId;
     }
 
-    public int getFounderId() {
+    public String getFounderId() {
         return founderId;
     }
 
-    public List<Integer> getOwnerIds() {
+    public List<String> getOwnerIds() {
         return ownerIds;
     }
 
-    public Map<Integer, Set<CompanyPermission>> getManagerPermissions() {
+    public Map<String, Set<CompanyPermission>> getManagerPermissions() {
         return managerPermissions;
     }
 }
