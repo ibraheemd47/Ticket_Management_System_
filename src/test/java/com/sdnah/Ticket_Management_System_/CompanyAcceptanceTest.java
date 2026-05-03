@@ -5,10 +5,16 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyRolesViewDTO
 import com.sdnah.Ticket_Management_System_.Application_Layer.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.MemoryCompanyRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -19,10 +25,50 @@ public class CompanyAcceptanceTest {
     private MemoryCompanyRepository companyRepository;
     private company_managment_serivce companyService;
 
+    private UserRepository userRepository;
+    private TokenRepository tokenRepository;
+
+    private String founderToken;
+    private String user200Token;
+    private String user300Token;
+
     @BeforeEach
     void setUp() {
         companyRepository = new MemoryCompanyRepository();
-        companyService = new company_managment_serivce(companyRepository);
+        userRepository = new UserRepository();
+        tokenRepository = new TokenRepository();
+
+        companyService = new company_managment_serivce(
+                companyRepository,
+                userRepository,
+                tokenRepository
+        );
+
+        // יצירת משתמשים
+        Member founder = new Member("100", "founder", "pass");
+        founder.setActive(true);
+        founder.setVerified(true);
+
+        Member user200 = new Member("200", "user200", "pass");
+        user200.setActive(true);
+        user200.setVerified(true);
+
+        Member user300 = new Member("300", "user300", "pass");
+        user300.setActive(true);
+        user300.setVerified(true);
+
+        userRepository.save(founder);
+        userRepository.save(user200);
+        userRepository.save(user300);
+
+        // יצירת tokens
+        founderToken = "token100";
+        user200Token = "token200";
+        user300Token = "token300";
+
+        tokenRepository.save(new AuthToken(founderToken, "100", LocalDateTime.now().plusDays(1)));
+        tokenRepository.save(new AuthToken(user200Token, "200", LocalDateTime.now().plusDays(1)));
+        tokenRepository.save(new AuthToken(user300Token, "300", LocalDateTime.now().plusDays(1)));
     }
 
    

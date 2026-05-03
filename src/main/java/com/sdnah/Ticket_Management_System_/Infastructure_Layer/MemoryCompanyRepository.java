@@ -17,13 +17,13 @@ public class MemoryCompanyRepository implements ICompanyRepository {
     private final Map<Integer, Company> companies = new ConcurrentHashMap<>();
 
     @Override
-    public void save(Company company) {
+    public Company save(Company company) {
         if (company == null) {
             throw new IllegalArgumentException("Cannot save a null company.");
         }
-        // Atomic put operation
+
         companies.put(company.getCompanyId(), company);
-        
+        return company;
     }
 
     @Override
