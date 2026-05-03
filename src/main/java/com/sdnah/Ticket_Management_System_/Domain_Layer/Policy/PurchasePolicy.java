@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
 
+import java.util.UUID;
+
 // import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy.DiscountRule;
 
 public class PurchasePolicy extends Policy {
@@ -8,7 +10,7 @@ public class PurchasePolicy extends Policy {
     private int minAge = 0;
     private boolean allowSingleSeatGap = true;
 
-    public PurchasePolicy(int policyId, String description, Integer eventId) {
+    public PurchasePolicy(int policyId, String description, UUID eventId) {
         super(policyId, description, eventId);
     }
 

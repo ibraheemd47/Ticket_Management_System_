@@ -13,7 +13,7 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Checkout_Domain_Service;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.IOrderRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
@@ -21,6 +21,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 
 @Service
@@ -34,12 +35,12 @@ public class ActiveOrderService {
    // private final PolicyService policyService;
 
     //new:
-    private final Checkout_Domain_Service checkoutDomainService;
-    private final IPolicyRepo policyRepo;    
+    private final OrderPolicyDomainService orderPolicyDomainService;
+    private final IPolicyRepo policyRepository;
 
     public ActiveOrderService(IOrderRepository orderRepository,
             PaymentService paymentService,
-            ITicketSupplierGateway ticketGateway,IPolicyRepo policyRepo) {
+            ITicketSupplierGateway ticketGateway,IPolicyRepo policyRepo,OrderPolicyDomainService orderPolicyDomainService) {
         if (orderRepository == null)
             throw new IllegalArgumentException("orderRepository required");
         if (paymentService == null)
@@ -52,8 +53,8 @@ public class ActiveOrderService {
         this.paymentService = paymentService;
         this.ticketGateway = ticketGateway;
         //this.policyService = policyService;
-        this.checkoutDomainService = new Checkout_Domain_Service();
-        this.policyRepo = policyRepo;
+        this.orderPolicyDomainService = orderPolicyDomainService;
+        this.policyRepository = policyRepo;
     }
 
     public OrderDTO reserveTickets(String buyerId, UUID eventId, List<SeatRequest> seats) {
@@ -82,9 +83,15 @@ public class ActiveOrderService {
                 order.addTicket(seat.getTicketId(), seat.getSeatId(), seat.getAreaId(), seat.getPrice(), lock);
             }
             // PolicyService returns finalPrice — update directly
-            double finalPrice = policyService.applyGeneralDiscounts(eventId, order.getTotal().doubleValue(),
-                    order.getItems().size());
-            order.updateFinalPrice(finalPrice);
+            // double finalPrice = policyService.applyGeneralDiscounts(eventId, order.getTotal().doubleValue(),
+            //         order.getItems().size());
+            //           order.updateFinalPrice(finalPrice);
+
+            //new after domain service refactor:
+            DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+            orderPolicyDomainService.applyDiscountPolicy(order, policy, null);
+
+
             orderRepository.save(order);
 
             logger.info("Reservation completed successfully order {}", order.getId());
@@ -108,11 +115,21 @@ public class ActiveOrderService {
         orderRepository.releaseLock(item.getLockResourceId());
         // PolicyService returns finalPrice — update directly
         // if condition no longer met, PolicyService returns original total
-        double finalPrice = policyService.applyGeneralDiscounts(
-                order.getEventId(),
-                order.getTotal().doubleValue(),
-                order.getItems().size());
-        order.updateFinalPrice(finalPrice);
+
+
+        // double finalPrice = policyService.applyGeneralDiscounts(
+        //         order.getEventId(),
+        //         order.getTotal().doubleValue(),
+        //         order.getItems().size());
+        // order.updateFinalPrice(finalPrice);
+
+        //new after domain service refactor:
+        // שליפת המדיניות מחדש כדי לוודא שהנחות מותנות עדיין תקפות
+        DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+        orderPolicyDomainService.applyDiscountPolicy(order, policy, order.getAppliedCouponCode());
+        // ----------------------------------------
+
+
         orderRepository.save(order);
         logger.info("Item removed successfully from order {}", orderId);
         return OrderMapper.toDTO(order);
@@ -122,6 +139,12 @@ public class ActiveOrderService {
         logger.info("Starting checkout for order {} by user {}", orderId, buyerId);
 
         ActiveOrder order = findValidOrder(orderId, buyerId);
+
+        /// validate purchase policy before charging
+        
+        
+
+
         PaymentDetails details = new PaymentDetails(paymentDTO.getCardToken(), paymentDTO.getBillingName(),
                 paymentDTO.getPaymentMethod());
 
@@ -200,13 +223,20 @@ public class ActiveOrderService {
         ActiveOrder order = findValidOrder(orderId, buyerId);
         try {
             // PolicyService returns finalPrice — update directly
-            double finalPrice = policyService.calculateCouponDiscount(
-                    order.getEventId(),
-                    order.getFinalPrice().doubleValue(),
-                    order.getItems().size(),
-                    couponCode);
-            order.updateFinalPrice(finalPrice);
-            order.setAppliedCouponCode(couponCode);
+            // double finalPrice = policyService.calculateCouponDiscount(
+            //         order.getEventId(),
+            //         order.getFinalPrice().doubleValue(),
+            //         order.getItems().size(),
+            //         couponCode);
+            // order.updateFinalPrice(finalPrice);
+            // order.setAppliedCouponCode(couponCode);
+
+            //new after domain service refactor:
+            DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+            orderPolicyDomainService.applyDiscountPolicy(order, policy, couponCode);
+            // -------------------------------------------------------
+
+
             orderRepository.save(order);
             logger.info("Coupon applied successfully for user {} on order {}", buyerId, orderId);
             return OrderMapper.toDTO(order);

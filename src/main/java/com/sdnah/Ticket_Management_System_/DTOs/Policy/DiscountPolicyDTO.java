@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.DTOs.Policy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class DiscountPolicyDTO extends PolicyDTO {
     private List<DiscountRuleDTO> activeDiscounts;
@@ -11,7 +12,7 @@ public class DiscountPolicyDTO extends PolicyDTO {
     this.activeDiscounts = new ArrayList<>();
 }
 
-    public DiscountPolicyDTO(int policyId, String description, Integer eventId, 
+    public DiscountPolicyDTO(int policyId, String description, UUID eventId, 
                              List<DiscountRuleDTO> activeDiscounts, boolean isAdditive) {
         super(policyId, description, eventId);
         this.activeDiscounts = activeDiscounts;

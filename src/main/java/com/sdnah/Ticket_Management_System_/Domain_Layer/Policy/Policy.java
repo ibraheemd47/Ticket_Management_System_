@@ -1,13 +1,16 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
+
+import java.util.UUID;
+
 public abstract class Policy {
 
     private final int policyId;
     private final String description;
-    private final Integer  eventId; // New field to hold the Event ID - null if  not used
+    private final UUID  eventId; // New field to hold the Event ID - null if  not used
     //private final int companyId;
 
 
-    protected Policy(int policyId, String description, Integer  eventId) {
+    protected Policy(int policyId, String description, UUID  eventId) {
          if (policyId <= 0) {
             throw new IllegalArgumentException("Policy ID must be positive");
             
@@ -30,7 +33,7 @@ public abstract class Policy {
         return description;
     }
 
-    public Integer  getEventId() {
+    public UUID getEventId() {
         return eventId;
     }
     // public int getCompanyId() {

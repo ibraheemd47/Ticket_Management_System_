@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.DTOs.Policy;
 
+import java.util.UUID;
+
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.SellingPolicy.SellingType;
 
 public class SellingPolicyDTO extends PolicyDTO {
@@ -7,7 +9,7 @@ public class SellingPolicyDTO extends PolicyDTO {
 
     public SellingPolicyDTO() {}
 
-    public SellingPolicyDTO(int policyId, String description, Integer eventId, SellingType type) {
+    public SellingPolicyDTO(int policyId, String description, UUID eventId, SellingType type) {
         super(policyId, description, eventId);
         this.sellingType = type;
     }

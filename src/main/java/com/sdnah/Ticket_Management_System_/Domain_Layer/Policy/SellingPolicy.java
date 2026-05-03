@@ -1,6 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
 
-
+import java.util.UUID;
 
 public class SellingPolicy extends Policy {
     public enum SellingType { 
@@ -9,7 +9,7 @@ public class SellingPolicy extends Policy {
     }
     private SellingType type;
 
-    public SellingPolicy(int policyId, String description, SellingType type, Integer eventId) {
+    public SellingPolicy(int policyId, String description, SellingType type, UUID eventId) {
         super(policyId, description, eventId);
         this.type = type;
     }

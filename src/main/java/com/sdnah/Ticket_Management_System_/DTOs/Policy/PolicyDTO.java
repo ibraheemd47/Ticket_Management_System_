@@ -1,13 +1,15 @@
 package com.sdnah.Ticket_Management_System_.DTOs.Policy;
 
+import java.util.UUID;
+
 public abstract class PolicyDTO {
     private int policyId;
     private String description;
-    private Integer eventId;
+    private UUID eventId;
 
     public PolicyDTO() {}
 
-    public PolicyDTO(int policyId, String description, Integer eventId) {
+    public PolicyDTO(int policyId, String description, UUID eventId) {
         this.policyId = policyId;
         this.description = description;
         this.eventId = eventId;
@@ -21,8 +23,8 @@ public abstract class PolicyDTO {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public Integer getEventId() { return eventId; }
-    public void setEventId(Integer eventId) { this.eventId = eventId; }
+    public UUID getEventId() { return eventId; }
+    public void setEventId(UUID eventId) { this.eventId = eventId; }
 
     // public int getCompanyId() { return companyId; }
     // public void setCompanyId(int companyId) { this.companyId = companyId; }
