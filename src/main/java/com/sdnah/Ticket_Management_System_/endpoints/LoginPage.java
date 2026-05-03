@@ -1,35 +1,65 @@
 package com.sdnah.Ticket_Management_System_.endpoints;
+
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.DTOs.UserDTO;
 
 @RestController
 @RequestMapping("/api/LoginPage")
 public class LoginPage {
-    @PostMapping("/LoginbyEmail") // loginby email then check if the email is associated with a member or not if not then will be redirected to signup page 
-    public ResponseEntity<String> Login(String email) {
-        return ResponseEntity.ok("login endpoint!");
+
+    private final UserService userService;
+
+    public LoginPage(UserService userService) {
+        this.userService = userService;
     }
-    @GetMapping("/loginButton")
-    public ResponseEntity<String> loginButton() {
-        return ResponseEntity.ok("login button endpoint!");
+
+    @PostMapping("/login")
+    public ResponseEntity<String> login(@RequestBody UserDTO userDTO) {
+        try {
+            String token = userService.login(userDTO.getUsername(), userDTO.getPassword());
+            return ResponseEntity.ok(token);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
-    @PostMapping("/VerifyLoginByPhone") // verify login by phone then check if the phone is associated with a member or not if not then will be redirected to signup page
-    public ResponseEntity<String> VerifyLoginByPhone(String Code) {
-        return ResponseEntity.ok("verify login by phone endpoint!");
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(@RequestBody UserDTO userDTO) {
+        try {
+            userService.logout(userDTO.getToken());
+            return ResponseEntity.ok("Logged out successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
-    @GetMapping("/resendCodeButton")
-    public ResponseEntity<String> resendCodeButton() {
-        return ResponseEntity.ok("resend code button endpoint!");
+
+
+    
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestParam String email) {
+        try {
+            userService.forgotPassword(email);
+            return ResponseEntity.ok("Password reset code sent successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
-    @PostMapping("/VerifyLoginByEmail") // verify login by email then check if the email is associated with a member or not if not then will be redirected to signup page
-    public ResponseEntity<String> VerifyLoginByEmail(String Code) {
-        return ResponseEntity.ok("verify login by email endpoint!");
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody UserDTO userDTO) {
+        try {
+            userService.resetPassword(userDTO.getEmail(), userDTO.getCode(), userDTO.getNewPassword());
+            return ResponseEntity.ok("Password reset successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
-    @GetMapping("/resendCodeEmailButton")
-    public ResponseEntity<String> resendCodeEmailButton() {
-        return ResponseEntity.ok("resend code email button endpoint!");
-    }
+
 }
