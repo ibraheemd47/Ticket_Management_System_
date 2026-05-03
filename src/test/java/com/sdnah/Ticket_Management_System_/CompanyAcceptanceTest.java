@@ -1,5 +1,6 @@
 package com.sdnah.Ticket_Management_System_;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
@@ -53,46 +54,98 @@ public class CompanyAcceptanceTest {
                 () -> companyService.openCompany(1, "AnotherCompany", 200));
     }
 
+    // // II.2.1 View Active Production Companies and Their Events
+    // @Test
+    // void viewActiveProductionCompaniesAndEventsSuccessfully() {
+    //     companyService.openCompany(1, "CompanyA", 100);
+    //     companyService.openCompany(2, "CompanyB", 200);
+
+    //     companyService.addEvent(100, 1, 1000);
+    //     companyService.addEvent(100, 1, 1001);
+
+    //     List<Company> activeCompanies = companyService.getActiveCompanies();
+
+    //     assertEquals(2, activeCompanies.size());
+
+    //     Company companyA = activeCompanies.stream()
+    //             .filter(c -> c.getCompanyId() == 1)
+    //             .findFirst()
+    //             .orElseThrow();
+
+    //     assertEquals(2, companyA.getAssociatedEventIds().size());
+    //     assertTrue(companyA.getAssociatedEventIds().contains(1000));
+    //     assertTrue(companyA.getAssociatedEventIds().contains(1001));
+    // }
+
+    // @Test
+    // void noActiveProductionCompanies() {
+    //     List<Company> activeCompanies = companyService.getActiveCompanies();
+
+    //     assertNotNull(activeCompanies);
+    //     assertTrue(activeCompanies.isEmpty());
+    // }
+
+    // @Test
+    // void noEventsForActiveProductionCompany() {
+    //     companyService.openCompany(1, "CompanyA", 100);
+
+    //     List<Company> activeCompanies = companyService.getActiveCompanies();
+
+    //     assertEquals(1, activeCompanies.size());
+    //     assertTrue(activeCompanies.get(0).getAssociatedEventIds().isEmpty());
+    // }
+
     // II.2.1 View Active Production Companies and Their Events
-    @Test
-    void viewActiveProductionCompaniesAndEventsSuccessfully() {
-        companyService.openCompany(1, "CompanyA", 100);
-        companyService.openCompany(2, "CompanyB", 200);
+@Test
+void viewActiveProductionCompaniesAndEventsSuccessfully() {
+    companyService.openCompany(1, "CompanyA", 100);
+    companyService.openCompany(2, "CompanyB", 200);
 
-        companyService.addEvent(100, 1, 1000);
-        companyService.addEvent(100, 1, 1001);
+    companyService.addEvent(100, 1, 1000);
+    companyService.addEvent(100, 1, 1001);
 
-        List<Company> activeCompanies = companyService.getActiveCompanies();
+    List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
 
-        assertEquals(2, activeCompanies.size());
+    assertEquals(2, activeCompanies.size());
 
-        Company companyA = activeCompanies.stream()
-                .filter(c -> c.getCompanyId() == 1)
-                .findFirst()
-                .orElseThrow();
+    CompanyDTO companyA = activeCompanies.stream()
+            .filter(c -> c.getCompanyId() == 1)
+            .findFirst()
+            .orElseThrow();
 
-        assertEquals(2, companyA.getAssociatedEventIds().size());
-        assertTrue(companyA.getAssociatedEventIds().contains(1000));
-        assertTrue(companyA.getAssociatedEventIds().contains(1001));
-    }
+    assertEquals("CompanyA", companyA.getCompanyName());
 
-    @Test
-    void noActiveProductionCompanies() {
-        List<Company> activeCompanies = companyService.getActiveCompanies();
+    List<Integer> companyAEvents = companyService.getAllEventsByCompany(1);
 
-        assertNotNull(activeCompanies);
-        assertTrue(activeCompanies.isEmpty());
-    }
+    assertEquals(2, companyAEvents.size());
+    assertTrue(companyAEvents.contains(1000));
+    assertTrue(companyAEvents.contains(1001));
+}
 
-    @Test
-    void noEventsForActiveProductionCompany() {
-        companyService.openCompany(1, "CompanyA", 100);
+@Test
+void noActiveProductionCompanies() {
+    List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
 
-        List<Company> activeCompanies = companyService.getActiveCompanies();
+    assertNotNull(activeCompanies);
+    assertTrue(activeCompanies.isEmpty());
+}
 
-        assertEquals(1, activeCompanies.size());
-        assertTrue(activeCompanies.get(0).getAssociatedEventIds().isEmpty());
-    }
+@Test
+void noEventsForActiveProductionCompany() {
+    companyService.openCompany(1, "CompanyA", 100);
+
+    List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
+
+    assertEquals(1, activeCompanies.size());
+    assertEquals(1, activeCompanies.get(0).getCompanyId());
+
+    List<Integer> events = companyService.getAllEventsByCompany(1);
+
+    assertNotNull(events);
+    assertTrue(events.isEmpty());
+}
+
+    //end of change for II.2.1
 
     // II.4.1 Manage Events and Ticket Inventory
     @Test
