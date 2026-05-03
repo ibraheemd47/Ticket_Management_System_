@@ -3,32 +3,37 @@ package com.sdnah.Ticket_Management_System_.Application_Layer;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.CompanyAuthorizationDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.ICompanyRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
-import ch.qos.logback.core.subst.Token;
+import org.springframework.stereotype.Service;
+
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
 
+@Service
 public class company_managment_serivce {
     private final CompanyAuthorizationDomainService companyAuthorizationDomainService;
     private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
 
 
     //Repositories
-    private final ICompanyRepository companyRepository;
+    private final CompanyRepository companyRepository;
     private UserRepository userRepository;
     private TokenRepository tokenRepository;
     @Autowired
-    public company_managment_serivce(ICompanyRepository companyRepository, UserRepository userRepository, TokenRepository tokenRepository) {
+    public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository, TokenRepository tokenRepository) {
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
@@ -55,6 +60,7 @@ public class company_managment_serivce {
     }
 
     // --- II.3.2: Open Production Company (Triggered by II.1.1) ---
+    @Transactional
     public void openCompany(String actorToken, int companyId, String name) {
         try {
             Member actor = getActorFromToken(actorToken);
@@ -69,12 +75,19 @@ public class company_managment_serivce {
 
             Company newCompany = new Company(companyId, name, actor.getMemberId());
             companyRepository.save(newCompany);
+            actor.addCompanyRole(new CompanyRoleAssignment(
+                    companyId,
+                    actor.getMemberId(),
+                    CompanyRoleType.OWNER,
+                    Set.of()
+            ));
+            userRepository.save(actor);
 
             logger.info("Company opened successfully. companyId={}", companyId);
-        } catch (Exception e) {
-            logger.error("Failed to open company. companyId={}, error={}", companyId, e.getMessage());
-            throw e;
-        }
+            } catch (Exception e) {
+                logger.error("Failed to open company. companyId={}, error={}", companyId, e.getMessage());
+                throw e;
+            }
     }
 
     // --- II.4.1: Manage Events (Add/Remove) ---
@@ -195,6 +208,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.7: View and Appoint Company Managers ---
+    @Transactional
     public void appointManager(String actorToken, int companyId, String newManagerId,
                            Set<CompanyPermission> permissions) {
         Company company = getCompanyOrThrow(companyId);
@@ -204,6 +218,16 @@ public class company_managment_serivce {
 
         company.appointManager(actor.getMemberId(), newManagerId, permissions);
         companyRepository.save(company);
+        Member newManager = userRepository.findById(newManagerId)
+        .orElseThrow(() -> new NoSuchElementException("New manager member not found"));
+
+        newManager.addCompanyRole(new CompanyRoleAssignment(
+                companyId,
+                actor.getMemberId(),
+                CompanyRoleType.MANAGER,
+                Set.of()
+        ));
+        userRepository.save(newManager);
 
         logger.info("Manager appointed successfully. companyId={}, newManagerId={}, actingOwnerId={}",
                 companyId, newManagerId, actor.getMemberId());
@@ -221,6 +245,7 @@ public class company_managment_serivce {
     // }
 
     // --- II.4.8: Appoint Additional Company Owner ---
+    @Transactional
     public void appointAdditionalOwner(String actorToken, int companyId, String newOwnerId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -229,6 +254,16 @@ public class company_managment_serivce {
 
         company.appointAdditionalOwner(actor.getMemberId(), newOwnerId);
         companyRepository.save(company);
+        Member newOwner = userRepository.findById(newOwnerId)
+        .orElseThrow(() -> new NoSuchElementException("New owner member not found"));
+
+        newOwner.addCompanyRole(new CompanyRoleAssignment(
+                companyId,
+                actor.getMemberId(),
+                CompanyRoleType.OWNER,
+                Set.of()
+        ));
+        userRepository.save(newOwner);
 
         logger.info("Additional owner appointed. companyId={}, newOwnerId={}, actingOwnerId={}",
                 companyId, newOwnerId, actor.getMemberId());
@@ -437,19 +472,20 @@ public class company_managment_serivce {
 
     //helper function
     private Member getActorFromToken(String actorToken) {
-        AuthToken token = tokenRepository.findByTokenValue(actorToken);
-
-        if (token == null) {
+        if (actorToken == null || actorToken.isBlank()) {
             throw new SecurityException("Invalid token");
         }
 
-        Member actor = userRepository.findByMemberId(token.getMemberId());
+        AuthToken token = tokenRepository.findById(actorToken)
+                .orElseThrow(() -> new SecurityException("Invalid token"));
 
-        if (actor == null) {
-            throw new NoSuchElementException("Actor member not found");
+        if (token.isExpired(java.time.LocalDateTime.now())) {
+            tokenRepository.deleteByTokenValue(actorToken);
+            throw new SecurityException("Token expired");
         }
 
-        return actor;
+        return userRepository.findById(token.getMemberId())
+                .orElseThrow(() -> new NoSuchElementException("Actor member not found"));
     }
 
 }
