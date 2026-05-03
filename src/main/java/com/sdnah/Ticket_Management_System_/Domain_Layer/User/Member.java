@@ -26,7 +26,7 @@ import jakarta.persistence.Table;
 public class Member {
 
     @Id
-    private String memberId;
+    private int memberId;
 
     @Column(unique = true, nullable = false)
     private String username;
@@ -65,10 +65,10 @@ public class Member {
         // Required by JPA
     }
 
-    public Member(String memberId, String username, String passwordHash) {
+    public Member(int memberId, String username, String passwordHash) {
 
-        if (memberId == null || memberId.isEmpty()) {
-            throw new NullPointerException("memberId cannot be null or empty");
+        if (memberId <= 0) {
+            throw new IllegalArgumentException("memberId must be a positive integer");
         }
         if (username == null || username.isEmpty()) {
             throw new NullPointerException("username cannot be null or empty");
@@ -87,11 +87,11 @@ public class Member {
         this.companyRoles = new HashSet<>();
     }
 
-    public String getMemberId() {
+    public int getMemberId() {
         return memberId;
     }
 
-    public void setMemberId(String memberId) {
+    public void setMemberId(int memberId) {
         this.memberId = memberId;
     }
 
@@ -155,19 +155,19 @@ public class Member {
         companyRoles.add(assignment);
     }
 
-    public Optional<CompanyRoleAssignment> getRoleInCompany(String companyId) {
+    public Optional<CompanyRoleAssignment> getRoleInCompany(int companyId) {
         return companyRoles.stream()
-                .filter(r -> r.getCompanyId().equals(companyId))
+                .filter(r -> r.getCompanyId() == companyId)
                 .findFirst();
     }
 
-    public boolean isOwnerInCompany(String companyId) {
+    public boolean isOwnerInCompany(int companyId) {
         return getRoleInCompany(companyId)
                 .map(CompanyRoleAssignment::isOwner)
                 .orElse(false);
     }
 
-    public boolean isManagerInCompany(String companyId) {
+    public boolean isManagerInCompany(int companyId) {
         return getRoleInCompany(companyId)
                 .map(CompanyRoleAssignment::isManager)
                 .orElse(false);

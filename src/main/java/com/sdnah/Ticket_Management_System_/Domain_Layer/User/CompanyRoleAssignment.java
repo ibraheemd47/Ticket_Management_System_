@@ -15,7 +15,7 @@ import jakarta.persistence.Enumerated;
 public class CompanyRoleAssignment {
 
     @Column(name = "company_id", nullable = false)
-    private String companyId;
+    private int companyId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role_type", nullable = false)
@@ -32,7 +32,7 @@ public class CompanyRoleAssignment {
         this.permissions = new HashSet<>();
     }
 
-    public CompanyRoleAssignment(String companyId, String appointedByMemberId, CompanyRoleType roleType,
+    public CompanyRoleAssignment(int companyId, String appointedByMemberId, CompanyRoleType roleType,
             Set<ManagerPermission> permissions) {
         this.companyId = Objects.requireNonNull(companyId);
         this.appointedByMemberId = appointedByMemberId;
@@ -59,7 +59,7 @@ public class CompanyRoleAssignment {
         return roleType == CompanyRoleType.MANAGER;
     }
 
-    public String getCompanyId() {
+    public int getCompanyId() {
         return companyId;
     }
 
