@@ -112,11 +112,11 @@ public class Company {
         associatedEventIds.add(eventId);
     }
 
-    public synchronized void removeEvent(int eventId) {
-        validatePositiveId(eventId, "event id");
+    public synchronized void removeEvent(String actorId, int eventId) {
+        validateActionPermission(actorId, CompanyPermission.MANAGE_EVENTS);
 
         if (!associatedEventIds.contains(eventId)) {
-            throw new IllegalArgumentException("event does not exist in company catalog");
+            throw new IllegalArgumentException("event does not exist");
         }
 
         associatedEventIds.remove(Integer.valueOf(eventId));

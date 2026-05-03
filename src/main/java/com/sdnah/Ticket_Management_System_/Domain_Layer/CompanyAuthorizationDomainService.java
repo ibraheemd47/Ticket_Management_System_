@@ -34,13 +34,10 @@ public class CompanyAuthorizationDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (actor.getRoleInCompany(company.getCompanyId()).equals(CompanyRoleType.OWNER)) {
-            throw new RuntimeException("Only company owner can assign ownership");
-        }
         if (!company.isOwner(actor.getMemberId())) {
             throw new RuntimeException("Only company owner can assign ownership");
         }
-    }
+    }   
 
     public void assertCanAssignManager(Member actor, Company company) {
         assertActiveMember(actor);
@@ -89,7 +86,7 @@ public class CompanyAuthorizationDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (!company.isFounder(actor.getMemberId()) && !(actor.isSystemAdmin())) {
+        if (!company.isFounder(actor.getMemberId())) {
             throw new RuntimeException("Only the founder can close the company");
         }
     }
