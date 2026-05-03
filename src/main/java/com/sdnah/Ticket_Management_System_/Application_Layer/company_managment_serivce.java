@@ -9,20 +9,29 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.CompanyAuthorizationDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.ICompanyRepository;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+
+import ch.qos.logback.core.subst.Token;
+
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
 
 public class company_managment_serivce {
     private final CompanyAuthorizationDomainService companyAuthorizationDomainService;
     private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
-    private final ICompanyRepository companyRepository;
-    private UserService userService;
 
+    //Repositories
+    private final ICompanyRepository companyRepository;
+    private UserRepository userRepository;
+    private TokenRepository tokenRepository;
     @Autowired
-    public company_managment_serivce(ICompanyRepository companyRepository, UserService userService) {
+    public company_managment_serivce(ICompanyRepository companyRepository, UserRepository userRepository, TokenRepository tokenRepository) {
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
-        this.userService = userService;
+        this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
     }
 
     // --- II.2.1: View Active Production Companies ---
@@ -49,9 +58,13 @@ public class company_managment_serivce {
         // Company company = getCompanyOrThrow(companyId);
         // validateManagerOrFounder(founderId, company);
         try {
-            Member actor = userService.getMemberByToken(actorToken);
-
+            AuthToken actorTokenObj = tokenRepository.findByTokenValue(actorToken);
+            String actorMemberId = actorTokenObj.getMemberId();
+            Member actor =userRepository.findByMemberId(actorMemberId);
             companyAuthorizationDomainService.assertCanOpenCompany(actor);
+
+
+
             logger.info("Opening company. companyId={}, founderId={}", companyId, founderId);
             if (companyRepository.existsById(companyId)) {
                 throw new IllegalStateException("Company ID already exists.");

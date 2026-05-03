@@ -130,7 +130,7 @@ public class UserService {
 
     public void validateCompanyRoleRequest(CompanyRoleAssignment assignment) {
         logger.debug("Validating company role request for companyId={}", assignment.getCompanyId());
-        if (assignment.getCompanyId() == null || assignment.getCompanyId().isBlank()) {
+        if (assignment.getCompanyId() <=0) {
             logger.warn("Company role validation failed: missing company id");
             throw new RuntimeException("Company id cannot be empty");
         }

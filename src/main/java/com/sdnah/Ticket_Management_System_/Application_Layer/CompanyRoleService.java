@@ -31,7 +31,7 @@ public class CompanyRoleService {
         this.keyedLock = keyedLock;
     }
 
-    public void assignOwner(String actorToken, String companyId, String newOwnerId) {
+    public void assignOwner(String actorToken, int companyId, String newOwnerId) {
         logger.info("Assign owner request received, companyId={}, newOwnerId={}", companyId, newOwnerId);
 
         Member actor = userService.getMemberByToken(actorToken);
@@ -66,7 +66,7 @@ public class CompanyRoleService {
         });
     }
 
-    public void assignManager(String actorToken, String companyId, String managerId) {
+    public void assignManager(String actorToken, int companyId, String managerId) {
         logger.info("Assign manager request received, companyId={}, managerId={}", companyId, managerId);
 
         Member actor = userService.getMemberByToken(actorToken);
@@ -101,7 +101,7 @@ public class CompanyRoleService {
         });
     }
 
-    public void removeOwner(String actorToken, String companyId, String ownerId) {
+    public void removeOwner(String actorToken, int companyId, String ownerId) {
         logger.info("Remove owner request received, companyId={}, ownerId={}", companyId, ownerId);
 
         Member actor = userService.getMemberByToken(actorToken);
@@ -127,7 +127,7 @@ public class CompanyRoleService {
             }
 
             Set<CompanyRoleAssignment> updatedRoles = new HashSet<>(target.getCompanyRoles());
-            updatedRoles.removeIf(role -> role.getCompanyId().equals(companyId) && role.isOwner());
+            updatedRoles.removeIf(role -> role.getCompanyId() == companyId && role.isOwner());
 
             target.setCompanyRoles(updatedRoles);
             userRepository.save(target);
@@ -136,7 +136,7 @@ public class CompanyRoleService {
         });
     }
 
-    public void addManagerPermission(String actorToken, String companyId, String managerId,
+    public void addManagerPermission(String actorToken, int companyId, String managerId,
             ManagerPermission permission) {
         logger.info("Add manager permission request received, companyId={}, managerId={}, permission={}",
                 companyId, managerId, permission);
@@ -177,7 +177,7 @@ public class CompanyRoleService {
         });
     }
 
-    public void removeManagerPermission(String actorToken, String companyId, String managerId,
+    public void removeManagerPermission(String actorToken, int companyId, String managerId,
             ManagerPermission permission) {
         logger.info("Remove manager permission request received, companyId={}, managerId={}, permission={}",
                 companyId, managerId, permission);
@@ -248,7 +248,7 @@ public class CompanyRoleService {
         return result;
     }
 
-    public Optional<CompanyRoleAssignment> getRoleInCompany(String memberId, String companyId) {
+    public Optional<CompanyRoleAssignment> getRoleInCompany(String memberId, int companyId) {
         logger.debug("Get role in company, memberId={}, companyId={}", memberId, companyId);
 
         Member target = userRepository.findById(memberId)
@@ -263,7 +263,7 @@ public class CompanyRoleService {
         return role;
     }
 
-    public boolean isOwnerInCompany(String memberId, String companyId) {
+    public boolean isOwnerInCompany(String memberId, int companyId) {
         logger.debug("Check isOwner, memberId={}, companyId={}", memberId, companyId);
 
         Member target = userRepository.findById(memberId)
@@ -277,7 +277,7 @@ public class CompanyRoleService {
         return result;
     }
 
-    public boolean isManagerInCompany(String memberId, String companyId) {
+    public boolean isManagerInCompany(String memberId, int companyId) {
         logger.debug("Check isManager, memberId={}, companyId={}", memberId, companyId);
 
         Member target = userRepository.findById(memberId)

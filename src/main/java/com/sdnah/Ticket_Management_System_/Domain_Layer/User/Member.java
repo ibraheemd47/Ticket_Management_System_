@@ -26,7 +26,7 @@ import jakarta.persistence.Table;
 public class Member {
 
     @Id
-    private int memberId;
+    private String memberId;
 
     @Column(unique = true, nullable = false)
     private String username;
@@ -65,10 +65,10 @@ public class Member {
         // Required by JPA
     }
 
-    public Member(int memberId, String username, String passwordHash) {
+    public Member(String memberId, String username, String passwordHash) {
 
-        if (memberId <= 0) {
-            throw new IllegalArgumentException("memberId must be a positive integer");
+        if (memberId == null || memberId.isEmpty()) {
+            throw new IllegalArgumentException("memberId cannot be null or empty");
         }
         if (username == null || username.isEmpty()) {
             throw new NullPointerException("username cannot be null or empty");
@@ -87,11 +87,11 @@ public class Member {
         this.companyRoles = new HashSet<>();
     }
 
-    public int getMemberId() {
+    public String getMemberId() {
         return memberId;
     }
 
-    public void setMemberId(int memberId) {
+    public void setMemberId(String memberId) {
         this.memberId = memberId;
     }
 
