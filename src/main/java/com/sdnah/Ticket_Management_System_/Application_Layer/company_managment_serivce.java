@@ -14,6 +14,7 @@ public class company_managment_serivce {
 
    private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
     private final ICompanyRepository companyRepository;
+    
 
     @Autowired
     public company_managment_serivce(ICompanyRepository companyRepository) {

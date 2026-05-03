@@ -369,10 +369,6 @@ public class Company {
         return List.copyOf(managerPermissions.keySet());
     }
 
-    public void setOpen(boolean isOpen2) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setOpen'");
-    }
 
     public boolean isFounder(int userId) {
         return companyFounderId == userId;
