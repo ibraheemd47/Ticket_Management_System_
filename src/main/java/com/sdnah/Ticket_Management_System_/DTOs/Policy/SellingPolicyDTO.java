@@ -7,8 +7,8 @@ public class SellingPolicyDTO extends PolicyDTO {
 
     public SellingPolicyDTO() {}
 
-    public SellingPolicyDTO(int policyId, String description, Integer eventId, int companyId, SellingType type) {
-        super(policyId, description, eventId, companyId);
+    public SellingPolicyDTO(int policyId, String description, Integer eventId, SellingType type) {
+        super(policyId, description, eventId);
         this.sellingType = type;
     }
 

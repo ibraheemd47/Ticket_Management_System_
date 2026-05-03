@@ -8,9 +8,9 @@ public class PurchasePolicyDTO extends PolicyDTO {
 
     public PurchasePolicyDTO() {}
 
-    public PurchasePolicyDTO(int policyId, String description, Integer eventId, int companyId,
+    public PurchasePolicyDTO(int policyId, String description, Integer eventId, 
                              int minTickets, int maxTickets, int minAge, boolean allowSingleSeatGap) {
-        super(policyId, description, eventId, companyId);
+        super(policyId, description, eventId );
         this.minTickets = minTickets;
         this.maxTickets = maxTickets;
         this.minAge = minAge;

@@ -4,15 +4,14 @@ public abstract class PolicyDTO {
     private int policyId;
     private String description;
     private Integer eventId;
-    private int companyId;
 
     public PolicyDTO() {}
 
-    public PolicyDTO(int policyId, String description, Integer eventId, int companyId) {
+    public PolicyDTO(int policyId, String description, Integer eventId) {
         this.policyId = policyId;
         this.description = description;
         this.eventId = eventId;
-        this.companyId = companyId;
+        //this.companyId = companyId;
     }
 
     // Getters and Setters
@@ -25,6 +24,6 @@ public abstract class PolicyDTO {
     public Integer getEventId() { return eventId; }
     public void setEventId(Integer eventId) { this.eventId = eventId; }
 
-    public int getCompanyId() { return companyId; }
-    public void setCompanyId(int companyId) { this.companyId = companyId; }
+    // public int getCompanyId() { return companyId; }
+    // public void setCompanyId(int companyId) { this.companyId = companyId; }
 }

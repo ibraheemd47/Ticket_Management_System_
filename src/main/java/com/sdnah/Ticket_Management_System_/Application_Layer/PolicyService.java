@@ -31,7 +31,7 @@ public class PolicyService {
     public boolean checkSelectionPermission(int companyId, int eventId, boolean isMember) {
         logger.info("Check selection permission request received, companyId={}, eventId={}, isMember={}", companyId, eventId, isMember);
 
-        boolean result = findSellingPolicy(companyId, eventId)
+        boolean result = findSellingPolicy( eventId)
                 .map(policy -> policy.isSelectionAllowed(isMember))
                 .orElse(true);
 
@@ -57,7 +57,7 @@ public class PolicyService {
                 userAge
         );
 
-        boolean result = findPurchasePolicy(companyId, eventId)
+        boolean result = findPurchasePolicy( eventId)
                 .map(policy -> policy.validatePurchase(quantity, userAge, false))
                 .orElse(true);
 
@@ -95,7 +95,7 @@ public class PolicyService {
                 userAge
         );
 
-        boolean result = findPurchasePolicy(companyId, eventId)
+        boolean result = findPurchasePolicy( eventId)
                 .map(policy -> policy.validatePurchase(quantity, userAge, false))
                 .orElse(true);
 
@@ -135,7 +135,7 @@ public class PolicyService {
             return currentTotal;
         }
 
-        double result = findDiscountPolicy(companyId, eventId)
+        double result = findDiscountPolicy( eventId)
                 .map(policy -> policy.calculateFinalPrice(currentTotal, totalItems, couponCode))
                 .orElse(currentTotal);
 
@@ -159,7 +159,7 @@ public class PolicyService {
                 totalItems
         );
 
-        double result = findDiscountPolicy(companyId, eventId)
+        double result = findDiscountPolicy( eventId)
                 .map(policy -> policy.calculateFinalPrice(basePrice, totalItems, ""))
                 .orElse(basePrice);
 
@@ -182,7 +182,7 @@ public class PolicyService {
                 quantity
         );
 
-        boolean result = findDiscountPolicy(companyId, eventId)
+        boolean result = findDiscountPolicy( eventId)
                 .map(policy -> policy.isAnyConditionalDiscountSatisfied(quantity))
                 .orElse(false);
 
@@ -216,11 +216,10 @@ public class PolicyService {
     // Private helpers 
     // =========================================================================
 
-    private Optional<SellingPolicy> findSellingPolicy(int companyId, int eventId) {
+    private Optional<SellingPolicy> findSellingPolicy(int eventId) {
         Optional<SellingPolicy> eventPolicy = policyRepo.findAll().stream()
                 .filter(p -> p instanceof SellingPolicy)
                 .map(p -> (SellingPolicy) p)
-                .filter(p -> p.getCompanyId() == companyId)
                 .filter(p -> p.getEventId() != null && p.getEventId().equals(eventId))
                 .findFirst();
 
@@ -229,16 +228,14 @@ public class PolicyService {
         return policyRepo.findAll().stream()
                 .filter(p -> p instanceof SellingPolicy)
                 .map(p -> (SellingPolicy) p)
-                .filter(p -> p.getCompanyId() == companyId)
                 .filter(p -> p.getEventId() == null)
                 .findFirst();
     }
 
-    private Optional<PurchasePolicy> findPurchasePolicy(int companyId, int eventId) {
+    private Optional<PurchasePolicy> findPurchasePolicy( int eventId) {
         Optional<PurchasePolicy> eventPolicy = policyRepo.findAll().stream()
                 .filter(p -> p instanceof PurchasePolicy)
                 .map(p -> (PurchasePolicy) p)
-                .filter(p -> p.getCompanyId() == companyId)
                 .filter(p -> p.getEventId() != null && p.getEventId().equals(eventId))
                 .findFirst();
 
@@ -247,16 +244,14 @@ public class PolicyService {
         return policyRepo.findAll().stream()
                 .filter(p -> p instanceof PurchasePolicy)
                 .map(p -> (PurchasePolicy) p)
-                .filter(p -> p.getCompanyId() == companyId)
                 .filter(p -> p.getEventId() == null)
                 .findFirst();
     }
 
-    private Optional<DiscountPolicy> findDiscountPolicy(int companyId, int eventId) {
+    private Optional<DiscountPolicy> findDiscountPolicy( int eventId) {
         Optional<DiscountPolicy> eventPolicy = policyRepo.findAll().stream()
                 .filter(p -> p instanceof DiscountPolicy)
                 .map(p -> (DiscountPolicy) p)
-                .filter(p -> p.getCompanyId() == companyId)
                 .filter(p -> p.getEventId() != null && p.getEventId().equals(eventId))
                 .findFirst();
 
@@ -265,7 +260,6 @@ public class PolicyService {
         return policyRepo.findAll().stream()
                 .filter(p -> p instanceof DiscountPolicy)
                 .map(p -> (DiscountPolicy) p)
-                .filter(p -> p.getCompanyId() == companyId)
                 .filter(p -> p.getEventId() == null)
                 .findFirst();
     }

@@ -11,9 +11,9 @@ public class DiscountPolicyDTO extends PolicyDTO {
     this.activeDiscounts = new ArrayList<>();
 }
 
-    public DiscountPolicyDTO(int policyId, String description, Integer eventId, int companyId, 
+    public DiscountPolicyDTO(int policyId, String description, Integer eventId, 
                              List<DiscountRuleDTO> activeDiscounts, boolean isAdditive) {
-        super(policyId, description, eventId, companyId);
+        super(policyId, description, eventId);
         this.activeDiscounts = activeDiscounts;
         this.isAdditive = isAdditive;
     }
