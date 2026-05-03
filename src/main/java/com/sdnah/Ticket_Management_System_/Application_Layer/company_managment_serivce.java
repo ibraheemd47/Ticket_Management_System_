@@ -55,7 +55,6 @@ public class company_managment_serivce {
     }
 }
 
-
     // --- II.4.1: Manage Events (Add/Remove) ---
     public void addEvent(int actingUserId, int companyId, int eventId) {
         Company company = getCompanyOrThrow(companyId);

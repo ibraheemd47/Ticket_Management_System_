@@ -13,6 +13,7 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Checkout_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.IOrderRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
@@ -20,31 +21,39 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 
 @Service
 public class ActiveOrderService {
+   
     private static final Logger logger = LoggerFactory.getLogger(ActiveOrderService.class);
     private static final int TTL_MINUTES = 10;
     private final IOrderRepository orderRepository;
     private final PaymentService paymentService;
     private final ITicketSupplierGateway ticketGateway;
-    private final PolicyService policyService;
+   // private final PolicyService policyService;
+
+    //new:
+    private final Checkout_Domain_Service checkoutDomainService;
+    private final IPolicyRepo policyRepo;    
 
     public ActiveOrderService(IOrderRepository orderRepository,
             PaymentService paymentService,
-            ITicketSupplierGateway ticketGateway, PolicyService policyService) {
+            ITicketSupplierGateway ticketGateway,IPolicyRepo policyRepo) {
         if (orderRepository == null)
             throw new IllegalArgumentException("orderRepository required");
         if (paymentService == null)
             throw new IllegalArgumentException("paymentService required");
         if (ticketGateway == null)
             throw new IllegalArgumentException("ticketGateway required");
-        if (policyService == null)
-            throw new IllegalArgumentException("policyService required");
+        // if (policyService == null)
+        //     throw new IllegalArgumentException("policyService required");
         this.orderRepository = orderRepository;
         this.paymentService = paymentService;
         this.ticketGateway = ticketGateway;
-        this.policyService = policyService;
+        //this.policyService = policyService;
+        this.checkoutDomainService = new Checkout_Domain_Service();
+        this.policyRepo = policyRepo;
     }
 
     public OrderDTO reserveTickets(String buyerId, UUID eventId, List<SeatRequest> seats) {
