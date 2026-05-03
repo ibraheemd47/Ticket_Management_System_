@@ -219,7 +219,7 @@ public class CompanyRoleService {
         });
     }
 
-    public boolean hasManagerPermission(String managerId, String companyId, ManagerPermission permission) {
+    public boolean hasManagerPermission(String managerId, int companyId, ManagerPermission permission) {
         logger.debug("Check manager permission, managerId={}, companyId={}, permission={}",
                 managerId, companyId, permission);
 

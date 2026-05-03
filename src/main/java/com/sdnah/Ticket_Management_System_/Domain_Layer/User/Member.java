@@ -139,6 +139,9 @@ public class Member {
         return role;
     }
 
+    public boolean isSystemAdmin() {
+        return role == UserRole.SYSTEM_ADMIN;
+    }
     public void setRole(UserRole role) {
         this.role = role;
     }
