@@ -37,7 +37,7 @@ public class CompanyAuthorizationDomainService {
         if (actor.getRoleInCompany(company.getCompanyId()).equals(CompanyRoleType.OWNER)) {
             throw new RuntimeException("Only company owner can assign ownership");
         }
-        if (!company.isOwner(memberIdAsInt(actor))) {
+        if (!company.isOwner(actor.getMemberId())) {
             throw new RuntimeException("Only company owner can assign ownership");
         }
     }
@@ -46,18 +46,18 @@ public class CompanyAuthorizationDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (!company.isOwner(memberIdAsInt(actor))) {
+        if (!company.isOwner(actor.getMemberId())) {
             throw new RuntimeException("Only company owner can assign manager");
         }
     }
 
-    public void assertCanRemoveOwner(Member actor, Company company, int targetOwnerId) {
+    public void assertCanRemoveOwner(Member actor, Company company, String targetOwnerId) {
         assertActiveMember(actor);
         requireCompany(company);
 
-        int actorId = memberIdAsInt(actor);
+       // int actorId = memberIdAsInt(actor);
 
-        if (!company.isOwner(actorId)) {
+        if (!company.isOwner(actor.getMemberId())) {
             throw new RuntimeException("Only company owner can remove ownership");
         }
 
@@ -70,13 +70,13 @@ public class CompanyAuthorizationDomainService {
         }
     }
 
-    public void assertCanRemoveManager(Member actor, Company company, int managerId) {
+    public void assertCanRemoveManager(Member actor, Company company, String managerId) {
         assertActiveMember(actor);
         requireCompany(company);
 
-        int actorId = memberIdAsInt(actor);
+       // int actorId = memberIdAsInt(actor);
 
-        if (!company.isOwner(actorId)) {
+        if (!company.isOwner(actor.getMemberId())) {
             throw new RuntimeException("Only company owner can remove manager appointment");
         }
 
@@ -89,7 +89,7 @@ public class CompanyAuthorizationDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (!company.isFounder(memberIdAsInt(actor)) && !(actor.isSystemAdmin())) {
+        if (!company.isFounder(actor.getMemberId()) && !(actor.isSystemAdmin())) {
             throw new RuntimeException("Only the founder can close the company");
         }
     }
@@ -98,7 +98,7 @@ public class CompanyAuthorizationDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (!company.isFounder(memberIdAsInt(actor))) {
+        if (!company.isFounder(actor.getMemberId())) {
             throw new RuntimeException("Only the founder can reopen the company");
         }
     }
@@ -107,18 +107,18 @@ public class CompanyAuthorizationDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (!company.isOwner(memberIdAsInt(actor))) {
+        if (!company.isOwner(actor.getMemberId())) {
             throw new RuntimeException("Only a company owner can view roles and permissions");
         }
     }
 
-    public void assertCanModifyManagerPermissions(Member actor, Company company, int managerId) {
+    public void assertCanModifyManagerPermissions(Member actor, Company company, String managerId) {
         assertActiveMember(actor);
         requireCompany(company);
 
-        int actorId = memberIdAsInt(actor);
+        //int actorId = memberIdAsInt(actor);
 
-        if (!company.isOwner(actorId)) {
+        if (!company.isOwner(actor.getMemberId())) {
             throw new RuntimeException("Only company owner can modify manager permissions");
         }
 
