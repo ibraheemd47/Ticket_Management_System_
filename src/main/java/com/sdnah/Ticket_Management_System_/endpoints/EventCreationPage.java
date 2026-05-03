@@ -7,9 +7,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/EventCreationPage")
 public class EventCreationPage {
+    //Company:
+    //authorizeOwnerOrManager(actingUserId, companyId, permission) - checks that the user is allowed to manage this company/event.  
+    //validateEventBelongsToCompany(companyId, eventId) - makes sure the event being edited/updated is really owned by this company.
+    //validateCompanyExists(companyId) - makes sure the company exists before doing company-related event work.
+    //attachEventToCompany(companyId, eventId) - after EventService creates a new event company stores the new eventId in its event list.
     @PostMapping("/CreateEvent")
     public ResponseEntity<String> CreateEvent(String eventName, String eventDescription, String eventLocation, String eventDate, Long companyId) {
-        return ResponseEntity.ok("create event endpoint!");
+        return ResponseEntity.ok("create event endpoint!"); 
     }
     @PostMapping("/AddDiscountPolicyToEvent")
     public ResponseEntity<String> AddDiscountPolicyToEvent(Long eventId,String discountName, Double discountPercentage) {
