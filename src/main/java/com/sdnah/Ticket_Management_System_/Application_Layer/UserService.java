@@ -432,7 +432,7 @@ public class UserService {
                 member.isVerified());
     }
 
-    public Member requireOwner(String tokenValue, String companyId) {
+    public Member requireOwner(String tokenValue, int companyId) {
         Member member = getMemberByToken(tokenValue);
 
         if (!member.isOwnerInCompany(companyId)) {
@@ -442,7 +442,7 @@ public class UserService {
         return member;
     }
 
-    public Member requireManager(String tokenValue, String companyId) {
+    public Member requireManager(String tokenValue, int companyId) {
         Member member = getMemberByToken(tokenValue);
 
         if (!member.isManagerInCompany(companyId) && !member.isOwnerInCompany(companyId)) {
