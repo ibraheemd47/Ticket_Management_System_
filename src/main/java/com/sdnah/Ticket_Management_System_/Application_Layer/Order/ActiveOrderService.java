@@ -13,6 +13,7 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.IOrderRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
@@ -20,6 +21,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
 
 @Service
 public class ActiveOrderService {
@@ -29,10 +31,15 @@ public class ActiveOrderService {
     private final PaymentService paymentService;
     private final ITicketSupplierGateway ticketGateway;
     private final PolicyService policyService;
+    private final Ticket_Domain_Service ticketDomainService;// ++
+    private final TicketRepository ticketRepository;// ++
 
     public ActiveOrderService(IOrderRepository orderRepository,
             PaymentService paymentService,
-            ITicketSupplierGateway ticketGateway, PolicyService policyService) {
+            ITicketSupplierGateway ticketGateway,
+            PolicyService policyService,
+            Ticket_Domain_Service ticketDomainService,
+            TicketRepository ticketRepository) {
         if (orderRepository == null)
             throw new IllegalArgumentException("orderRepository required");
         if (paymentService == null)
@@ -41,10 +48,16 @@ public class ActiveOrderService {
             throw new IllegalArgumentException("ticketGateway required");
         if (policyService == null)
             throw new IllegalArgumentException("policyService required");
+        if (ticketDomainService == null)
+            throw new IllegalArgumentException("ticketDomainService required");
+        if (ticketRepository == null)
+            throw new IllegalArgumentException("ticketRepository required");
         this.orderRepository = orderRepository;
         this.paymentService = paymentService;
         this.ticketGateway = ticketGateway;
         this.policyService = policyService;
+        this.ticketDomainService = ticketDomainService;
+        this.ticketRepository = ticketRepository;
     }
 
     public OrderDTO reserveTickets(String buyerId, UUID eventId, List<SeatRequest> seats) {
@@ -135,10 +148,14 @@ public class ActiveOrderService {
         // 4. שמור Purchase
         Purchase purchase = new Purchase(order);
         orderRepository.savePurchase(purchase);
+        orderRepository.saveTransaction(tx);
         // 5. שחרר locks + סמן הזמנה כ-COMPLETED
         // domain clears locks and returns IDs — service releases them in repository
-        for (String lockId : order.releaseAllLocks())
+        for (String lockId : order.releaseAllLocks()) {
             orderRepository.releaseLock(lockId);
+            ticketRepository.findById(UUID.fromString(lockId))
+                    .ifPresent(t -> ticketDomainService.ticketSold(t));
+        }
         order.markCompleted();
         orderRepository.save(order);
         // 6. בנה רשימת קודי כרטיסים לתשובה
