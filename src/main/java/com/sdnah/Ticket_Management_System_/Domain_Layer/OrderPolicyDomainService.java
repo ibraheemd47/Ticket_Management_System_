@@ -17,7 +17,6 @@ public class OrderPolicyDomainService {
     // =========================================================================
     public void applyDiscountPolicy(ActiveOrder order, DiscountPolicy policy, String couponCode) {
         validateOrder(order);
-
         double originalTotal = order.getTotal().doubleValue();
         int quantity = order.getItems().size();
 
