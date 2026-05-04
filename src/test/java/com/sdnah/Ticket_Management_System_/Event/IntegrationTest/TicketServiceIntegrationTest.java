@@ -34,8 +34,8 @@ import jakarta.persistence.PersistenceContext;
 @EnableJpaRepositories(basePackages = "com.sdnah.Ticket_Management_System_.Infastructure_Layer", excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository.class))
 class TicketServiceIntegrationTest {
 
-    private static final String USER_ID = "user-1";
-    private static final String OTHER_USER_ID = "user-2";
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID OTHER_USER_ID = UUID.randomUUID();
 
     @Autowired
     private TicketService ticketService;
@@ -165,7 +165,7 @@ class TicketServiceIntegrationTest {
     @Test
     @DisplayName("Given owner with no tickets, when fetching by owner, then empty list is returned")
     void givenOwnerWithNoTickets_WhenFetchingByOwner_ThenEmptyListIsReturned() {
-        List<ticket> result = ticketService.getTicketsByOwner("nobody");
+        List<ticket> result = ticketService.getTicketsByOwner(UUID.randomUUID());
 
         assertTrue(result.isEmpty());
     }

@@ -128,7 +128,7 @@ class TicketConcurrencyTest {
         });
     }
 
-    private UUID createPurchasedTicket(String ownerId) {
+    private UUID createPurchasedTicket(UUID ownerId) {
         return txTemplate.execute(status -> {
             Area area = entityManager.merge(new Area("General Admission"));
             entityManager.flush();
@@ -155,7 +155,7 @@ class TicketConcurrencyTest {
 
         int threads = 20;
         Outcome outcome = runConcurrently(threads,
-                () -> ticketService.lockTicketForUser(ticketId, "user-" + Thread.currentThread().getId()));
+                () -> ticketService.lockTicketForUser(ticketId, UUID.randomUUID()));
 
         assertEquals(1, outcome.successes.get(), "exactly one lock should succeed");
         assertEquals(threads - 1, outcome.failures.get(), "all other locks should fail");
@@ -184,7 +184,7 @@ class TicketConcurrencyTest {
 
         for (int i = 0; i < n; i++) {
             final UUID id = ids[i];
-            final String userId = "user-" + i;
+            final UUID userId = UUID.randomUUID();
             pool.submit(() -> {
                 try {
                     start.await();
@@ -214,7 +214,7 @@ class TicketConcurrencyTest {
     @Test
     @DisplayName("Concurrent confirmPurchase on locked ticket: only the locker succeeds")
     void concurrentConfirmPurchase_OnlyLockerSucceeds() throws Exception {
-        String locker = "locker-" + UUID.randomUUID();
+        UUID locker = UUID.randomUUID();
         UUID ticketId = createAvailableTicket();
         assertTrue(ticketService.lockTicketForUser(ticketId, locker));
 
@@ -222,7 +222,7 @@ class TicketConcurrencyTest {
         Outcome outcome = runConcurrently(threads, () -> {
             // Half the threads use the legitimate locker id, half use a stranger.
             // Even with the legit id, only one purchase should ever flip the row.
-            String who = Math.random() < 0.5 ? locker : "intruder-" + Thread.currentThread().getId();
+            UUID who = Math.random() < 0.5 ? locker : UUID.randomUUID();
             return ticketService.confirmPurchase(ticketId, who);
         });
 
@@ -242,7 +242,7 @@ class TicketConcurrencyTest {
     @Test
     @DisplayName("Concurrent scanTicketAtDoor on purchased ticket: scans exactly once")
     void concurrentScan_PurchasedTicket_ScansExactlyOnce() throws Exception {
-        String owner = "owner-" + UUID.randomUUID();
+        UUID owner = UUID.randomUUID();
         UUID ticketId = createPurchasedTicket(owner);
 
         int threads = 15;
@@ -263,7 +263,7 @@ class TicketConcurrencyTest {
     @DisplayName("Concurrent lock and release on same ticket: row never ends up corrupted")
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NEVER)
     void concurrentLockAndRelease_RowStaysConsistent() throws Exception {
-        String locker = "locker-" + UUID.randomUUID();
+        UUID locker = UUID.randomUUID();
         UUID ticketId = createAvailableTicket();
         assertTrue(ticketService.lockTicketForUser(ticketId, locker));
 
@@ -283,7 +283,7 @@ class TicketConcurrencyTest {
         pool.submit(() -> {
             try {
                 start.await();
-                ticketService.lockTicketForUser(ticketId, "second-" + UUID.randomUUID());
+                ticketService.lockTicketForUser(ticketId, UUID.randomUUID());
             } catch (Throwable ignored) {
             } finally {
                 done.countDown();

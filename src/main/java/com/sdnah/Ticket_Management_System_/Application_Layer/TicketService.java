@@ -27,24 +27,24 @@ public class TicketService {
     /**
      * When a user selects a ticket in React, we lock it so others can't buy it.
      */
-    // public boolean lockTicketForUser(UUID ticketId, String userId) {
-    //     return ticketRepository.findById(ticketId)
-    //         .map(ticket -> {
-    //             boolean success = ticket.lockInCart(userId);
-    //             if (success) ticketRepository.save(ticket);
-    //             logger.info("Ticket {} locked in cart for user {}", ticketId, userId);
-    //             return success;
-    //         })
-    //         .orElse(false);
-    // }
+    public boolean lockTicketForUser(UUID ticketId, UUID userId) {
+        return ticketRepository.findById(ticketId)
+            .map(ticket -> {
+                boolean success = ticket.lockInCart(userId);
+                if (success) ticketRepository.save(ticket);
+                logger.info("Ticket {} locked in cart for user {}", ticketId, userId);
+                return success;
+            })
+            .orElse(false);
+    }
 
     /**
      * Finalizing the purchase after payment is successful.
      */
-    public boolean confirmPurchase(UUID ticketId, String userId) {
+    public boolean confirmPurchase(UUID ticketId, UUID userId) {
         return ticketRepository.findById(ticketId)
             .map(ticket -> {
-                boolean success = ticket.purchase(UUID.fromString(userId));
+                boolean success = ticket.purchase(userId);
                 if (success) {
                     // Logic for generating QR code or sending email could go here
                     ticketRepository.save(ticket);
@@ -83,7 +83,7 @@ public class TicketService {
     /**
      * Fetching all tickets owned by a specific user (for their Profile page).
      */
-    public List<ticket> getTicketsByOwner(String ownerId) {
+    public List<ticket> getTicketsByOwner(UUID ownerId) {
         logger.info("Fetching tickets for owner {}", ownerId);
         return ticketRepository.findByOwnerId(ownerId);
     }

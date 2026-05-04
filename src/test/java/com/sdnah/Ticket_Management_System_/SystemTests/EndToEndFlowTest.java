@@ -97,7 +97,7 @@ class EndToEndFlowTest {
      * Walk a member through register → verify so they end up active and
      * verified. Returns the persisted memberId.
      */
-    private String registerAndVerify(String username, String password, String email) {
+    private UUID registerAndVerify(String username, String password, String email) {
         String memberId = userService.register(
                 username, password, email, "0501234567", VerificationMethod.EMAIL);
 
@@ -106,7 +106,7 @@ class EndToEndFlowTest {
         // code passes verifyCode, so reusing the stored value also works.
         userService.verifyAccount(username, persisted.getVerificationCode());
 
-        return memberId;
+        return UUID.fromString(memberId);
     }
 
     /**
@@ -139,8 +139,8 @@ class EndToEndFlowTest {
         String buyerUsername = "buyer_" + UUID.randomUUID();
         String ownerUsername = "owner_" + UUID.randomUUID();
 
-        String buyerId = registerAndVerify(buyerUsername, "secret123", buyerUsername + "@example.com");
-        String ownerId = registerAndVerify(ownerUsername, "secret123", ownerUsername + "@example.com");
+        UUID buyerId = registerAndVerify(buyerUsername, "secret123", buyerUsername + "@example.com");
+        UUID ownerId = registerAndVerify(ownerUsername, "secret123", ownerUsername + "@example.com");
 
         assertNotNull(buyerId);
         assertNotNull(ownerId);
@@ -227,9 +227,9 @@ class EndToEndFlowTest {
     @Test
     @DisplayName("Two buyers race for the same ticket — only the first lock wins")
     void twoBuyersRaceForOneTicket_OnlyFirstLockWins() {
-        String buyerA = registerAndVerify("buyerA_" + UUID.randomUUID(), "secret123",
+        UUID buyerA = registerAndVerify("buyerA_" + UUID.randomUUID(), "secret123",
                 "a_" + UUID.randomUUID() + "@example.com");
-        String buyerB = registerAndVerify("buyerB_" + UUID.randomUUID(), "secret123",
+        UUID buyerB = registerAndVerify("buyerB_" + UUID.randomUUID(), "secret123",
                 "b_" + UUID.randomUUID() + "@example.com");
 
         UUID ticketId = createAvailableTicket(UUID.randomUUID());
@@ -247,9 +247,9 @@ class EndToEndFlowTest {
     @Test
     @DisplayName("Releasing a locked ticket puts it back as AVAILABLE so another buyer can grab it")
     void releasingLockedTicket_MakesItAvailableAgain() {
-        String buyerA = registerAndVerify("releaseA_" + UUID.randomUUID(), "secret123",
+        UUID buyerA = registerAndVerify("releaseA_" + UUID.randomUUID(), "secret123",
                 "ra_" + UUID.randomUUID() + "@example.com");
-        String buyerB = registerAndVerify("releaseB_" + UUID.randomUUID(), "secret123",
+        UUID buyerB = registerAndVerify("releaseB_" + UUID.randomUUID(), "secret123",
                 "rb_" + UUID.randomUUID() + "@example.com");
 
         UUID ticketId = createAvailableTicket(UUID.randomUUID());
@@ -281,7 +281,7 @@ class EndToEndFlowTest {
     @Test
     @DisplayName("Buyer who purchased multiple tickets sees them all in their owner-list")
     void buyerWithMultipleTickets_SeesAllOwnedTickets() {
-        String buyerId = registerAndVerify("multi_" + UUID.randomUUID(), "secret123",
+        UUID buyerId = registerAndVerify("multi_" + UUID.randomUUID(), "secret123",
                 "m_" + UUID.randomUUID() + "@example.com");
 
         UUID showId = UUID.randomUUID();

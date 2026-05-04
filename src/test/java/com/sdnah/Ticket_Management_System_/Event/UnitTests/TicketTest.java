@@ -17,7 +17,8 @@ class TicketTest {
     private ticket testTicket;
     private final UUID TICKET_ID = UUID.randomUUID();
     private final UUID SHOW_ID = UUID.randomUUID();
-    private final String USER_ID = "user-123";
+    private final UUID USER_ID = UUID.randomUUID();
+    private final UUID OTHER_USER_ID = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -53,7 +54,7 @@ class TicketTest {
         testTicket.lockInCart(USER_ID);
         testTicket.purchase(USER_ID);
 
-        boolean result = testTicket.lockInCart("other-user");
+        boolean result = testTicket.lockInCart(OTHER_USER_ID);
 
         assertThat(result).isFalse();
         assertThat(testTicket.getStatus()).isEqualTo(ticket.TicketStatus.PURCHASED);
