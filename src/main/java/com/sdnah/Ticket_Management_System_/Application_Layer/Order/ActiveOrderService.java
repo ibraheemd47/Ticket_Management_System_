@@ -32,19 +32,19 @@ public class ActiveOrderService {
 
     public ActiveOrderService(IOrderRepository orderRepository,
             PaymentService paymentService,
-            ITicketSupplierGateway ticketGateway, PolicyService policyService) {
+            ITicketSupplierGateway ticketGateway, PolicyService policyService2) {
         if (orderRepository == null)
             throw new IllegalArgumentException("orderRepository required");
         if (paymentService == null)
             throw new IllegalArgumentException("paymentService required");
         if (ticketGateway == null)
             throw new IllegalArgumentException("ticketGateway required");
-        if (policyService == null)
+        if (policyService2 == null)
             throw new IllegalArgumentException("policyService required");
         this.orderRepository = orderRepository;
         this.paymentService = paymentService;
         this.ticketGateway = ticketGateway;
-        this.policyService = policyService;
+        this.policyService = policyService2;
     }
 
     public OrderDTO reserveTickets(String buyerId, UUID eventId, List<SeatRequest> seats) {
