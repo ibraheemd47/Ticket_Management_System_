@@ -15,11 +15,11 @@ public class Ticket_Domain_Service {
         // Additional logic like sending confirmation email, updating inventory, etc.
     
     }
-    // public void TicketCancelled(ActiveOrder order, ticket ticket) {
+    public void TicketCancelled(ActiveOrder order, ticket ticket) {
         // Mark the ticket as available again
-      //  ticket.cancel();
+        ticket.cancel();
         // Additional logic like sending cancellation email, updating inventory, etc.
-    //}
+    }
 
 
 }
