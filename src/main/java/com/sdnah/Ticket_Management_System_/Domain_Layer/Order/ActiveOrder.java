@@ -6,20 +6,59 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+
+@Entity
+@Table(name = "active_orders")
 public class ActiveOrder {
-    private final UUID id;
-    private final String buyerId;
-    private final UUID eventId;
-    private final List<OrderItem> items;
-    private final LocalDateTime expiresAt;
+
+    @Id
+    @Column(name = "id")
+    private UUID id;
+
+    @Column(name = "buyer_id")
+    private String buyerId;
+
+    @Column(name = "event_id")
+    private UUID eventId;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> items = new ArrayList<>();
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
     private Status status;
-    private long version; // optimistic locking
+
+    @Version
+    @Column(name = "version")
+    private long version;
+
+    @Column(name = "discount")
     private BigDecimal discount = BigDecimal.ZERO;
+
+    @Column(name = "applied_coupon_code")
     private String appliedCouponCode;
-    private BigDecimal finalPrice = null; // updated every time PolicyService returns a result
+
+    @Column(name = "final_price")
+    private BigDecimal finalPrice = null;
 
     public enum Status {
         ACTIVE, EXPIRED, COMPLETED, CANCELLED
+    }
+
+    // JPA required
+    protected ActiveOrder() {
     }
 
     public ActiveOrder(String buyerId, UUID eventId, int ttlMinutes) {
@@ -36,15 +75,6 @@ public class ActiveOrder {
         this.version = 0;
     }
 
-    // public void addItem(OrderItem item) {
-    // if (item == null)
-    // throw new IllegalArgumentException("item required");
-    // if (status != Status.ACTIVE)
-    // throw new IllegalStateException("Order is not active");
-    // if (isExpired())
-    // throw new IllegalStateException("Order has expired");
-    // items.add(item);
-    // }
     public OrderItem addTicket(String ticketId, Long seatId, UUID areaId,
             BigDecimal price, Lock lock) {
         if (status != Status.ACTIVE)
@@ -55,16 +85,6 @@ public class ActiveOrder {
         item.setLock(lock);
         items.add(item);
         return item;
-    }
-
-    public void removeItem(UUID itemId) {
-        if (status != Status.ACTIVE)
-            throw new IllegalStateException("Order is not active");
-        if (isExpired())
-            throw new IllegalStateException("Order has expired");
-        boolean removed = items.removeIf(i -> i.getItemId().equals(itemId));
-        if (!removed)
-            throw new IllegalArgumentException("Item not found: " + itemId);
     }
 
     public OrderItem removeTicket(UUID itemId) {
@@ -176,7 +196,7 @@ public class ActiveOrder {
         return id;
     }
 
-    public String getBuyerId() {
+    public String getbuyerId() {
         return buyerId;
     }
 

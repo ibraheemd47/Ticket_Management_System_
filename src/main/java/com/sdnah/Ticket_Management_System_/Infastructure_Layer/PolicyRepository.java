@@ -1,37 +1,40 @@
 package com.sdnah.Ticket_Management_System_.Infastructure_Layer;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Policy;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
 
 @Repository
-public class PolicyRepository implements IPolicyRepo {
+public interface PolicyRepository extends JpaRepository<Policy, Integer> , IPolicyRepo {
 
-    private final Map<Integer, Policy> store = new HashMap<>();
+    // ── Basic queries ─────────────────────────────────────────────
 
-    @Override
-    public void save(Policy policy) {
-        store.put(policy.getPolicyId(), policy);
-    }
+    Optional<Policy> findByPolicyId(int policyId);
 
-    @Override
-    public Optional<Policy> findById(int policyId) {
-        return Optional.ofNullable(store.get(policyId));
-    }
+    List<Policy> findByCompanyId(int companyId);
 
-    @Override
-    public Collection<Policy> findAll() {
-        return store.values();
-    }
+    //List<Policy> findByEventId(UUID eventId);
+    // 1. השאילתה המקורית שמחזירה את כל סוגי המדיניות של האירוע (רשימה)
+    List<Policy> findByEventId(UUID eventId);
+    // 2. שאילתה ספציפית ששולפת רק את מדיניות ההנחות
+    // Spring Data JPA יבצע סינון אוטומטי לפי הטיפוס DiscountPolicy
+    DiscountPolicy findDiscountPolicyByEventId(UUID eventId);
+    PurchasePolicy findPurchasePolicyByEventId(UUID eventId);
 
-    @Override
-    public void deleteById(int policyId) {
-        store.remove(policyId);
-    }
+    // ── Main query used in PolicyService ─────────────────────────
+
+    List<Policy> findByCompanyIdAndEventId(int companyId, UUID eventId);
+
+
+    // ── Delete ───────────────────────────────────────────────────
+
+    void deleteByPolicyId(int policyId);
 }

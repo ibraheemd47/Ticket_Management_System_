@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy.DiscountRule;
 
@@ -41,8 +42,8 @@ public class DiscountPolicy extends Policy {
      */
     private boolean isAdditive = false; 
 
-    public DiscountPolicy(int policyId, String description, Integer eventId, int companyId) {
-        super(policyId, description, eventId, companyId);
+    public DiscountPolicy(int policyId, String description, UUID eventId) {
+        super(policyId, description, eventId);
     }
 
     public boolean isAnyConditionalDiscountSatisfied(int quantity) 
@@ -71,7 +72,6 @@ public class DiscountPolicy extends Policy {
                 currentPrice = rule.apply(currentPrice, quantity, coupon);
             }
             return currentPrice;
-
         } else {
             // Logic for "Best Value": Select the single best discount for the customer.
             double minPrice = originalPrice;
@@ -123,6 +123,7 @@ public class DiscountPolicy extends Policy {
     // IMPLEMENTATION OF DISCOUNT TYPES (Section 3) 
     // ==========================================================
 
+    
     /**
      * 3.a: Percentage Discount (הנחה גלויה).
      * Applied as a percentage of the original price

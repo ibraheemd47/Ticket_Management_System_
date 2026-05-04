@@ -6,25 +6,53 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "purchases")
 public class Purchase {
-    private final UUID purchaseId;
-    private final UUID orderId;
-    private final String buyerId;
-    private final List<OrderItem> items;
-    private final BigDecimal totalPrice;
-    private final LocalDateTime purchasedAt;
-    private final UUID eventId;
+
+    @Id
+    @Column(name = "purchase_id")
+    private UUID purchaseId;
+
+    @Column(name = "order_id")
+    private UUID orderId;
+
+    @Column(name = "buyer_id")
+    private String buyerId;
+
+    @Column(name = "event_id")
+    private UUID eventId;
+
+    @OneToMany(cascade = CascadeType.ALL)
+    private List<OrderItem> items = new ArrayList<>();
+
+    @Column(name = "total_price")
+    private BigDecimal totalPrice;
+
+    @Column(name = "purchased_at")
+    private LocalDateTime purchasedAt;
+
+    // JPA required
+    protected Purchase() {
+    }
 
     public Purchase(ActiveOrder order) {
         if (order == null)
             throw new IllegalArgumentException("order required");
         this.purchaseId = UUID.randomUUID();
         this.orderId = order.getId();
-        this.buyerId = order.getBuyerId();
+        this.buyerId = order.getbuyerId();
+        this.eventId = order.getEventId();
         this.items = new ArrayList<>(order.getItems());
-        this.totalPrice = order.getTotal();
+        this.totalPrice = order.getFinalPrice();
         this.purchasedAt = LocalDateTime.now();
-        this.eventId= order.getEventId();
     }
 
     public UUID getPurchaseId() {
@@ -34,12 +62,13 @@ public class Purchase {
     public UUID getOrderId() {
         return orderId;
     }
-    public UUID getEventId() {
-        return eventId;
+
+    public String getbuyerId() {
+        return buyerId;
     }
 
-    public String getBuyerId() {
-        return buyerId;
+    public UUID getEventId() {
+        return eventId;
     }
 
     public List<OrderItem> getItems() {
@@ -53,5 +82,4 @@ public class Purchase {
     public LocalDateTime getPurchasedAt() {
         return purchasedAt;
     }
-
 }

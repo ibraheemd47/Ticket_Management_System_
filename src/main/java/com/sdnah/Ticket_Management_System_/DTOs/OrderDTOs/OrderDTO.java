@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs;
+package com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -44,7 +44,7 @@ public class OrderDTO {
         return orderId;
     }
 
-    public String getBuyerId() {
+    public String getbuyerId() {
         return buyerId;
     }
 

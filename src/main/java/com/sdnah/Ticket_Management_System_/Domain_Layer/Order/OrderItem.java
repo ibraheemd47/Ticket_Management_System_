@@ -3,13 +3,38 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Order;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "order_items")
 public class OrderItem {
-    private final UUID itemId;
-    private final String ticketId; // pre-existing ticket from EVENT aggregate
-    private final Long seatId; // null if standing area — display only
-    private final UUID areaId;
-    private final BigDecimal price;
-    private Lock lock; // null after checkout or expiry
+
+    @Id
+    @Column(name = "item_id")
+    private UUID itemId;
+
+    @Column(name = "ticket_id")
+    private String ticketId;
+
+    @Column(name = "seat_id")
+    private Long seatId;
+
+    @Column(name = "area_id")
+    private UUID areaId;
+
+    @Column(name = "price")
+    private BigDecimal price;
+
+    @Embedded
+    private Lock lock;
+
+    // JPA required
+    protected OrderItem() {
+    }
 
     public OrderItem(String ticketId, Long seatId, UUID areaId, BigDecimal price) {
         if (price == null || price.compareTo(BigDecimal.ZERO) < 0)
@@ -46,7 +71,7 @@ public class OrderItem {
         return ticketId;
     }
 
-    public long getSeatId() {
+    public Long getSeatId() {
         return seatId;
     }
 
@@ -61,5 +86,4 @@ public class OrderItem {
     public Lock getLock() {
         return lock;
     }
-
 }

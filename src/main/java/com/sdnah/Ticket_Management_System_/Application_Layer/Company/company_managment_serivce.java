@@ -32,14 +32,15 @@ public class company_managment_serivce {
     private final CompanyAuthorizationDomainService companyAuthorizationDomainService;
     private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
 
-
-    //Repositories
+    // Repositories
     private final CompanyRepository companyRepository;
     private UserRepository userRepository;
     private TokenRepository tokenRepository;
     private IEventRepository eventRepository;
+
     @Autowired
-    public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository, TokenRepository tokenRepository, IEventRepository eventRepository) {
+    public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository,
+            TokenRepository tokenRepository, IEventRepository eventRepository) {
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
@@ -86,15 +87,14 @@ public class company_managment_serivce {
                     companyId,
                     actor.getMemberId(),
                     CompanyRoleType.OWNER,
-                    Set.of()
-            ));
+                    Set.of()));
             userRepository.save(actor);
 
             logger.info("Company opened successfully. companyId={}", companyId);
-            } catch (Exception e) {
-                logger.error("Failed to open company. companyId={}, error={}", companyId, e.getMessage());
-                throw e;
-            }
+        } catch (Exception e) {
+            logger.error("Failed to open company. companyId={}, error={}", companyId, e.getMessage());
+            throw e;
+        }
     }
 
     // --- II.4.1: Manage Events (Add/Remove) ---
@@ -116,10 +116,8 @@ public class company_managment_serivce {
                 savedEvent.getName(),
                 savedEvent.getStartDate() == null ? null : savedEvent.getStartDate().toString(),
                 savedEvent.getEventType(),
-                savedEvent.getVenue()
-        );
+                savedEvent.getVenue());
     }
-
 
     @Transactional
     public void removeEvent(String actorToken, int companyId, UUID eventId) {
@@ -151,7 +149,6 @@ public class company_managment_serivce {
     // // policyService.updateCompanyPolicy(companyId, newPolicyId);
     // }
 
-    
     // --- II.4.4: Communication ---
     /** Use Case II.4.4: Receive and respond to inquiries */
     public void respondToInquiry(String actorToken, int companyId, int inquiryId, String response) {
@@ -230,7 +227,7 @@ public class company_managment_serivce {
     // --- II.4.7: View and Appoint Company Managers ---
     @Transactional
     public void appointManager(String actorToken, int companyId, String newManagerId,
-                           Set<CompanyPermission> permissions) {
+            Set<CompanyPermission> permissions) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -239,14 +236,13 @@ public class company_managment_serivce {
         company.appointManager(actor.getMemberId(), newManagerId, permissions);
         companyRepository.save(company);
         Member newManager = userRepository.findById(newManagerId)
-        .orElseThrow(() -> new NoSuchElementException("New manager member not found"));
+                .orElseThrow(() -> new NoSuchElementException("New manager member not found"));
 
         newManager.addCompanyRole(new CompanyRoleAssignment(
                 companyId,
                 actor.getMemberId(),
                 CompanyRoleType.MANAGER,
-                Set.of()
-        ));
+                Set.of()));
         userRepository.save(newManager);
 
         logger.info("Manager appointed successfully. companyId={}, newManagerId={}, actingOwnerId={}",
@@ -275,14 +271,13 @@ public class company_managment_serivce {
         company.appointAdditionalOwner(actor.getMemberId(), newOwnerId);
         companyRepository.save(company);
         Member newOwner = userRepository.findById(newOwnerId)
-        .orElseThrow(() -> new NoSuchElementException("New owner member not found"));
+                .orElseThrow(() -> new NoSuchElementException("New owner member not found"));
 
         newOwner.addCompanyRole(new CompanyRoleAssignment(
                 companyId,
                 actor.getMemberId(),
                 CompanyRoleType.OWNER,
-                Set.of()
-        ));
+                Set.of()));
         userRepository.save(newOwner);
 
         logger.info("Additional owner appointed. companyId={}, newOwnerId={}, actingOwnerId={}",
@@ -314,7 +309,7 @@ public class company_managment_serivce {
 
     // --- II.4.11: Modify Manager Permissions ---
     public void modifyManagerPermissions(String actorToken, int companyId, String managerId,
-                                     Set<CompanyPermission> updatedPermissions) {
+            Set<CompanyPermission> updatedPermissions) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -384,20 +379,21 @@ public class company_managment_serivce {
                 company.getCompanyId(),
                 company.getCompanyFounderId(),
                 company.getOwnerIds(),
-                company.getManagerPermissionsView()
-        );
+                company.getManagerPermissionsView());
     }
 
     // --- Internal Helpers ---
 
-    // private void validateOwnerOrManagerWithPermission(String userId, Company company, CompanyPermission permission) {
-    //     if (company.isOwner(userId)) {
-    //         return;
-    //     }
-    //     if (company.isManager(userId) && company.managerHasPermission(userId, permission)) {
-    //         return;
-    //     }
-    //     throw new SecurityException("Unauthorized action for user " + userId + ".");
+    // private void validateOwnerOrManagerWithPermission(String userId, Company
+    // company, CompanyPermission permission) {
+    // if (company.isOwner(userId)) {
+    // return;
+    // }
+    // if (company.isManager(userId) && company.managerHasPermission(userId,
+    // permission)) {
+    // return;
+    // }
+    // throw new SecurityException("Unauthorized action for user " + userId + ".");
     // }
 
     private Company getCompanyOrThrow(int companyId) {
@@ -406,11 +402,12 @@ public class company_managment_serivce {
     }
 
     // private void validateManagerOrFounder(String userId, Company company) {
-    //     boolean isFounder = company.getCompanyFounderId().equals(userId);
-    //     boolean isManager = company.getManagers().contains(userId);
-    //     if (!isFounder && !isManager) {
-    //         throw new SecurityException("Unauthorized: User " + userId + " is not a manager/owner of this company.");
-    //     }
+    // boolean isFounder = company.getCompanyFounderId().equals(userId);
+    // boolean isManager = company.getManagers().contains(userId);
+    // if (!isFounder && !isManager) {
+    // throw new SecurityException("Unauthorized: User " + userId + " is not a
+    // manager/owner of this company.");
+    // }
     // }
 
     // for endpoints:
@@ -457,8 +454,7 @@ public class company_managment_serivce {
                 event.getName(),
                 event.getStartDate().toString(),
                 event.getEventType(),
-                event.getVenue()
-        );
+                event.getVenue());
     }
 
     public String getCompanyLogoURL(int companyId) {
@@ -494,7 +490,7 @@ public class company_managment_serivce {
                 company.getLogoURL());
     }
 
-    //helper function
+    // helper function
     private Member getActorFromToken(String actorToken) {
         if (actorToken == null || actorToken.isBlank()) {
             throw new SecurityException("Invalid token");

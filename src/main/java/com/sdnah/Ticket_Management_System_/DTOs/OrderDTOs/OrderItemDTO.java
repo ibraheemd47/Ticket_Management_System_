@@ -1,19 +1,25 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs;
+package com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public class SeatRequest {
+public class OrderItemDTO {
+    private final UUID itemId;
     private final String ticketId;
     private final Long seatId;
     private final UUID areaId;
     private final BigDecimal price;
 
-    public SeatRequest(String ticketId, Long seatId, UUID areaId, BigDecimal price) {
+    public OrderItemDTO(UUID itemId, String ticketId, Long seatId, UUID areaId, BigDecimal price) {
+        this.itemId = itemId;
         this.ticketId = ticketId;
         this.seatId = seatId;
         this.areaId = areaId;
         this.price = price;
+    }
+
+    public UUID getItemId() {
+        return itemId;
     }
 
     public String getTicketId() {

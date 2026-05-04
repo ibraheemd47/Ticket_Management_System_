@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
 
 @RestController
 @RequestMapping("/api/OrdersPagerForManager")
