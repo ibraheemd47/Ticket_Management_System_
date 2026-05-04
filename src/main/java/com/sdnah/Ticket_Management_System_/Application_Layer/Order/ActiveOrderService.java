@@ -15,6 +15,7 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
@@ -23,6 +24,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
@@ -40,18 +42,20 @@ public class ActiveOrderService {
     private final PaymentTransactionRepository transactionRepo;
     private final PaymentService paymentService;
     private final ITicketSupplierGateway ticketGateway;
-    private final PolicyService policyService;
     private final Ticket_Domain_Service ticketDomainService;// ++
     private final TicketRepository ticketRepository;// ++
+
+    //new:
+    private final OrderPolicyDomainService orderPolicyDomainService;
+    private final IPolicyRepo policyRepository;
 
     public ActiveOrderService(ActiveOrderRepository orderRepo,
             PurchaseRepository purchaseRepo,
             PaymentTransactionRepository transactionRepo,
             PaymentService paymentService,
             ITicketSupplierGateway ticketGateway,
-            PolicyService policyService,
             TicketRepository ticketRepository,
-            Ticket_Domain_Service ticketDomainService) {
+            Ticket_Domain_Service ticketDomainService,IPolicyRepo policyRepo,OrderPolicyDomainService orderPolicyDomainService) {
         if (orderRepo == null)
             throw new IllegalArgumentException("orderRepo required");
         if (purchaseRepo == null)
@@ -62,8 +66,6 @@ public class ActiveOrderService {
             throw new IllegalArgumentException("paymentService required");
         if (ticketGateway == null)
             throw new IllegalArgumentException("ticketGateway required");
-        if (policyService == null)
-            throw new IllegalArgumentException("policyService required");
         if (ticketRepository == null)
             throw new IllegalArgumentException("ticketRepository required");
         if (ticketDomainService == null)
@@ -73,9 +75,13 @@ public class ActiveOrderService {
         this.transactionRepo = transactionRepo;
         this.paymentService = paymentService;
         this.ticketGateway = ticketGateway;
-        this.policyService = policyService;
         this.ticketRepository = ticketRepository;
         this.ticketDomainService = ticketDomainService;
+
+        //new:
+        this.orderPolicyDomainService = orderPolicyDomainService;
+        this.policyRepository = policyRepo;
+
     }
 
     public OrderDTO reserveTickets(String buyerId, UUID eventId, List<SeatRequest> seats) {
@@ -114,7 +120,7 @@ public class ActiveOrderService {
             //           order.updateFinalPrice(finalPrice);
 
             //new after domain service refactor:
-            PurchasePolicy purchasePolicy = policyRepo.findPurchasePolicyByEventId(order.getEventId());
+            PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
             orderPolicyDomainService.validatePurchasePolicy(order, purchasePolicy);
             DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
             orderPolicyDomainService.applyDiscountPolicy(order, policy, null);
