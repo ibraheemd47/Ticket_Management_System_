@@ -23,7 +23,7 @@ public class OrderMapper {
 
         return new OrderDTO(
                 order.getId(),
-                order.getuserToken(),
+                order.getbuyerId(),
                 order.getEventId(),
                 items,
                 order.getExpiresAt(),

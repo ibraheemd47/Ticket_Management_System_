@@ -25,7 +25,7 @@ public class ActiveOrder {
     private UUID id;
 
     @Column(name = "buyer_id")
-    private String userToken;
+    private String buyerId;
 
     @Column(name = "event_id")
     private UUID eventId;
@@ -61,13 +61,13 @@ public class ActiveOrder {
     protected ActiveOrder() {
     }
 
-    public ActiveOrder(String userToken, UUID eventId, int ttlMinutes) {
-        if (userToken == null || userToken.isBlank())
-            throw new IllegalArgumentException("userToken required");
+    public ActiveOrder(String buyerId, UUID eventId, int ttlMinutes) {
+        if (buyerId == null || buyerId.isBlank())
+            throw new IllegalArgumentException("buyerId required");
         if (ttlMinutes <= 0)
             throw new IllegalArgumentException("ttlMinutes must be positive");
         this.id = UUID.randomUUID();
-        this.userToken = userToken;
+        this.buyerId = buyerId;
         this.eventId = eventId;
         this.items = new ArrayList<>();
         this.expiresAt = LocalDateTime.now().plusMinutes(ttlMinutes);
@@ -110,8 +110,8 @@ public class ActiveOrder {
                 || status == Status.CANCELLED;
     }
 
-    public boolean isOwnedBy(String userToken) {
-        return this.userToken.equals(userToken);
+    public boolean isOwnedBy(String buyerId) {
+        return this.buyerId.equals(buyerId);
     }
 
     public BigDecimal getTotal() {
@@ -196,8 +196,8 @@ public class ActiveOrder {
         return id;
     }
 
-    public String getuserToken() {
-        return userToken;
+    public String getbuyerId() {
+        return buyerId;
     }
 
     public UUID getEventId() {
