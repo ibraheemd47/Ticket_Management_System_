@@ -1,106 +1,172 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.IntegrationTests;
 
-import org.junit.jupiter.api.Disabled;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
+
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.OrderRepositoryImpl;
 
 class OrderRepositoryTest {
 
     @Test
-    @Disabled("TODO: implement OrderRepositoryImpl")
     void saveAndFindById_shouldReturnSavedOrder() {
-        // Based on OrderRepositoryImpl.save(...) and findById(...)
-        // Arrange: create repository and order
-        // Act: save order, then find by id
-        // Assert: saved order is returned correctly
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        ActiveOrder order = new ActiveOrder("buyer-1", UUID.randomUUID(), 10);
+        repository.save(order);
+
+        Optional<ActiveOrder> result = repository.findById(order.getId());
+
+        assertTrue(result.isPresent());
+        assertEquals(order.getId(), result.get().getId());
     }
 
     @Test
-    @Disabled("TODO: implement OrderRepositoryImpl")
     void delete_shouldRemoveOrder() {
-        // Based on OrderRepositoryImpl.delete(...)
-        // Arrange: save an order
-        // Act: delete it
-        // Assert: findById returns empty
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        ActiveOrder order = new ActiveOrder("buyer-1", UUID.randomUUID(), 10);
+        repository.save(order);
+
+        repository.delete(order.getId());
+
+        assertTrue(repository.findById(order.getId()).isEmpty());
     }
 
     @Test
-    @Disabled("TODO: implement OrderRepositoryImpl")
     void findActiveOrder_shouldReturnMatchingActiveOrder() {
-        // Based on OrderRepositoryImpl.findActiveOrder(...)
-        // Arrange: save active order for buyer + event
-        // Act: search by buyerId and eventId
-        // Assert: correct active order is returned
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        String buyerId = "buyer-1";
+        UUID eventId = UUID.randomUUID();
+
+        ActiveOrder order = new ActiveOrder(buyerId, eventId, 10);
+        repository.save(order);
+
+        Optional<ActiveOrder> result = repository.findActiveOrder(buyerId, eventId);
+
+        assertTrue(result.isPresent());
+        assertEquals(order.getId(), result.get().getId());
     }
 
     @Test
-    @Disabled("TODO: implement OrderRepositoryImpl")
     void savePurchaseAndFindPurchasesByBuyer_shouldReturnBuyerHistory() {
-        // Based on savePurchase(...) and findPurchasesByBuyer(...)
-        // Arrange: create purchase and save it
-        // Act: query purchases by buyer
-        // Assert: saved purchase appears in results
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        ActiveOrder order = new ActiveOrder("buyer-1", UUID.randomUUID(), 10);
+        Purchase purchase = new Purchase(order);
+
+        repository.savePurchase(purchase);
+
+        List<Purchase> result = repository.findPurchasesByBuyer("buyer-1");
+
+        assertEquals(1, result.size());
+        assertEquals(purchase.getPurchaseId(), result.get(0).getPurchaseId());
     }
 
     @Test
-    @Disabled("TODO: implement OrderRepositoryImpl")
     void saveTransaction_shouldPersistTransaction() {
-        // Based on saveTransaction(...)
-        // Arrange: create transaction
-        // Act: save transaction
-        // Assert: transaction is stored correctly
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        PaymentTransaction tx = new PaymentTransaction(
+                "tx-1",
+                UUID.randomUUID(),
+                BigDecimal.valueOf(100),
+                PaymentTransaction.Status.SUCCESS
+        );
+
+        assertDoesNotThrow(() -> repository.saveTransaction(tx));
     }
 
     @Test
-    @Disabled("TODO: implement OrderRepositoryImpl with locking")
     void acquireLock_shouldSucceedWhenResourceIsFree() {
-        // Based on acquireLock(...)
-        // Arrange: create lock for free resource
-        // Act: acquire lock
-        // Assert: returns true
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        Lock lock = new Lock("ticket-1", "buyer-1", LocalDateTime.now().plusMinutes(10));
+
+        assertTrue(repository.acquireLock(lock));
     }
 
     @Test
-    @Disabled("TODO: implement OrderRepositoryImpl with locking")
     void acquireLock_shouldFailWhenResourceAlreadyLocked() {
-        // Based on acquireLock(...)
-        // Arrange: acquire one lock first
-        // Act: try acquiring same resource again
-        // Assert: second acquire fails safely
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        Lock first = new Lock("ticket-1", "buyer-1", LocalDateTime.now().plusMinutes(10));
+        Lock second = new Lock("ticket-1", "buyer-2", LocalDateTime.now().plusMinutes(10));
+
+        assertTrue(repository.acquireLock(first));
+        assertFalse(repository.acquireLock(second));
     }
 
     @Test
-    @Disabled("TODO: implement OrderRepositoryImpl with locking")
     void releaseLock_shouldRemoveExistingLock() {
-        // Based on releaseLock(...)
-        // Arrange: acquire lock
-        // Act: release lock
-        // Assert: resource becomes available again
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        String ticketId = "ticket-1";
+
+        Lock lock = new Lock(ticketId, "buyer-1", LocalDateTime.now().plusMinutes(10));
+        repository.acquireLock(lock);
+
+        repository.releaseLock(ticketId);
+
+        Lock newLock = new Lock(ticketId, "buyer-2", LocalDateTime.now().plusMinutes(10));
+
+        assertTrue(repository.acquireLock(newLock));
     }
 
     @Test
-    @Disabled("TODO: implement expiry handling in repository")
     void findExpiredOrders_shouldReturnExpiredOrders() {
-        // Based on findExpiredOrders(...)
-        // Arrange: save expired and non-expired orders
-        // Act: query expired orders
-        // Assert: only expired orders are returned
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
+
+        ActiveOrder expired = new ActiveOrder("buyer-1", UUID.randomUUID(), 10);
+        expired.markExpired();
+
+        ActiveOrder active = new ActiveOrder("buyer-2", UUID.randomUUID(), 10);
+
+        repository.save(expired);
+        repository.save(active);
+
+        List<ActiveOrder> result = repository.findExpiredOrders();
+
+        assertTrue(result.stream().anyMatch(o -> o.getId().equals(expired.getId())));
+        assertFalse(result.stream().anyMatch(o -> o.getId().equals(active.getId())));
     }
 
     @Test
-    @Disabled("TODO: implement expiry handling in repository")
-    void findExpiredLocks_shouldReturnExpiredLocks() {
-        // Based on findExpiredLocks(...)
-        // Arrange: save expired and valid locks
-        // Act: query expired locks
-        // Assert: only expired locks are returned
-    }
+    void findExpiredLocks_shouldReturnExpiredOrOrphanLocks() {
+        OrderRepositoryImpl repository = new OrderRepositoryImpl();
 
-    @Test
-    @Disabled("TODO: implement releaseExpiredOrders()")
-    void releaseExpiredOrders_shouldReleaseExpiredOrdersAndTheirLocks() {
-        // Based on releaseExpiredOrders(...)
-        // Arrange: save expired order with locked items
-        // Act: releaseExpiredOrders()
-        // Assert: expired order is handled correctly and locks are released
+        Lock expiredLock = new Lock(
+                "ticket-expired",
+                "buyer-1",
+                LocalDateTime.now().minusMinutes(1)
+        );
+
+        Lock orphanValidLock = new Lock(
+                "ticket-orphan",
+                "buyer-2",
+                LocalDateTime.now().plusMinutes(10)
+        );
+
+        repository.acquireLock(expiredLock);
+        repository.acquireLock(orphanValidLock);
+
+        List<Lock> result = repository.findExpiredLocks();
+
+        assertTrue(result.stream()
+                .anyMatch(lock -> lock.getResourceId().equals("ticket-expired")));
+
+        assertTrue(result.stream()
+                .anyMatch(lock -> lock.getResourceId().equals("ticket-orphan")));
     }
 }
