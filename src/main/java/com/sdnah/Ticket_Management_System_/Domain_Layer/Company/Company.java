@@ -3,6 +3,8 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Company;
 import java.util.*;
 import jakarta.persistence.*;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "companies")
