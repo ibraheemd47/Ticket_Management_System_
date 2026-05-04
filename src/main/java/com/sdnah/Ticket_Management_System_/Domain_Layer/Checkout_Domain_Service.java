@@ -11,8 +11,7 @@ public class Checkout_Domain_Service {
             PurchasePolicy purchasePolicy,
             DiscountPolicy discountPolicy,
             int userAge,
-            String couponCode
-    ) {
+            String couponCode) {
         if (order == null) {
             throw new IllegalArgumentException("Order is required");
         }
@@ -32,7 +31,7 @@ public class Checkout_Domain_Service {
         int quantity = order.getItems().size();
 
         if (purchasePolicy != null &&
-                !purchasePolicy.validatePurchase(quantity, userAge, false)) {
+                !purchasePolicy.validatePurchase(quantity, false)) {
             throw new IllegalStateException("Checkout rejected by purchase policy");
         }
 

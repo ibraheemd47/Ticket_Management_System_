@@ -7,6 +7,7 @@ import java.util.UUID;
 public class PurchasePolicy extends Policy {
     private int minTickets = 1;
     private int maxTickets = Integer.MAX_VALUE;
+    private int minAge = 0;
     private boolean allowSingleSeatGap = true;
 
     public PurchasePolicy(int policyId, String description, UUID eventId) {

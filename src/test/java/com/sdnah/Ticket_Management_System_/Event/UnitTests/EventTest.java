@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.UnitTests;
+package com.sdnah.Ticket_Management_System_.Event.UnitTests;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -57,12 +57,12 @@ class EventTest {
     void testAddShowSuccess() {
         // First add a manager
         event.addManager(MANAGER_ID, OWNER_ID);
-        
+
         // Mock a show object (assuming show has a basic constructor)
-        show newShow = new show(); 
-        
+        show newShow = new show();
+
         event.addShow(newShow, MANAGER_ID);
-        
+
         assertThat(event.getShows()).hasSize(1);
         assertThat(event.getShows().get(0)).isEqualTo(newShow);
     }
@@ -72,17 +72,17 @@ class EventTest {
     void testAddShowUnauthorized() {
         show newShow = new show();
         assertThatThrownBy(() -> event.addShow(newShow, UNAUTHORIZED_USER))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Only managers can add shows");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only managers can add shows");
     }
 
     @Test
     @DisplayName("Owner should be able to delete event and clear lists")
     void testDeleteEvent() {
         event.addManager(MANAGER_ID, OWNER_ID);
-        
+
         event.delete(OWNER_ID);
-        
+
         assertThat(event.getShows()).isEmpty();
         assertThat(event.getManagerIds()).isEmpty();
     }
@@ -91,8 +91,8 @@ class EventTest {
     @DisplayName("Deleting event with wrong owner ID should fail")
     void testDeleteEventUnauthorized() {
         assertThatThrownBy(() -> event.delete(UNAUTHORIZED_USER))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Only the owner can delete the event");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only the owner can delete the event");
     }
 
     // ── Remove Show ──────────────────────────────────────────────────────────
@@ -117,8 +117,8 @@ class EventTest {
         event.addShow(s, MANAGER_ID);
 
         assertThatThrownBy(() -> event.removeShow(s, UNAUTHORIZED_USER))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Only managers can remove shows");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only managers can remove shows");
     }
 
     // ── Remove Manager ───────────────────────────────────────────────────────
@@ -140,8 +140,8 @@ class EventTest {
         event.addManager(MANAGER_ID, OWNER_ID);
 
         assertThatThrownBy(() -> event.removeManager(MANAGER_ID, UNAUTHORIZED_USER))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Only the owner can remove managers");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only the owner can remove managers");
     }
 
     @Test
@@ -150,16 +150,16 @@ class EventTest {
         event.addManager(MANAGER_ID, OWNER_ID);
 
         assertThatThrownBy(() -> event.addManager(MANAGER_ID, OWNER_ID))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("already assigned");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("already assigned");
     }
 
     @Test
     @DisplayName("Removing a manager not assigned should fail")
     void testRemoveNonExistentManager() {
         assertThatThrownBy(() -> event.removeManager(MANAGER_ID, OWNER_ID))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("not assigned to the event");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not assigned to the event");
     }
 
     // ── Edit Methods ─────────────────────────────────────────────────────────
@@ -180,8 +180,8 @@ class EventTest {
         @DisplayName("Unauthorized user cannot edit event name")
         void testEditNameUnauthorized() {
             assertThatThrownBy(() -> event.editName("Hack", UNAUTHORIZED_USER))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only managers can edit the event name");
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only managers can edit the event name");
         }
 
         @Test
@@ -196,8 +196,8 @@ class EventTest {
         @DisplayName("Unauthorized user cannot edit event type")
         void testEditTypeUnauthorized() {
             assertThatThrownBy(() -> event.editType(show_type.FESTIVAL, UNAUTHORIZED_USER))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only managers can edit the event type");
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only managers can edit the event type");
         }
 
         @Test
@@ -205,7 +205,7 @@ class EventTest {
         void testEditDatesSuccess() {
             event.addManager(MANAGER_ID, OWNER_ID);
             Date start = new Date();
-            Date end   = new Date(start.getTime() + 86_400_000L);
+            Date end = new Date(start.getTime() + 86_400_000L);
 
             event.editDates(start, end, MANAGER_ID);
 
@@ -217,8 +217,8 @@ class EventTest {
         @DisplayName("Unauthorized user cannot edit event dates")
         void testEditDatesUnauthorized() {
             assertThatThrownBy(() -> event.editDates(new Date(), new Date(), UNAUTHORIZED_USER))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only managers can edit the event dates");
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only managers can edit the event dates");
         }
 
         @Test
@@ -233,8 +233,8 @@ class EventTest {
         @DisplayName("Unauthorized user cannot edit event venue")
         void testEditVenueUnauthorized() {
             assertThatThrownBy(() -> event.editVenue("Yarkon Park", UNAUTHORIZED_USER))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only managers can edit the event venue");
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only managers can edit the event venue");
         }
 
         @Test
@@ -249,8 +249,8 @@ class EventTest {
         @DisplayName("Unauthorized user cannot edit event description")
         void testEditDescriptionUnauthorized() {
             assertThatThrownBy(() -> event.editDescription("hack", UNAUTHORIZED_USER))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only managers can edit the event description");
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Only managers can edit the event description");
         }
     }
 
@@ -272,16 +272,16 @@ class EventTest {
         @DisplayName("Review rating below 1 should be rejected")
         void testAddReviewTooLow() {
             assertThatThrownBy(() -> event.addReview(UUID.randomUUID(), 0))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Rating must be between 1 and 5");
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Rating must be between 1 and 5");
         }
 
         @Test
         @DisplayName("Review rating above 5 should be rejected")
         void testAddReviewTooHigh() {
             assertThatThrownBy(() -> event.addReview(UUID.randomUUID(), 6))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Rating must be between 1 and 5");
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Rating must be between 1 and 5");
         }
 
         @Test
