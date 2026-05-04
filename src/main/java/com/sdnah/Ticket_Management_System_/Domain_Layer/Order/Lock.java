@@ -1,14 +1,27 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Order;
 
 import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 
+@Embeddable
 public class Lock {
-    private final String resourceId; // ticketId
-    private final String buyerId;
-    private final LocalDateTime expiresAt;
+
+    @Column(name = "lock_resource_id")
+    private String resourceId;
+
+    @Column(name = "lock_buyer_id")
+    private String buyerId;
+
+    @Column(name = "lock_expires_at")
+    private LocalDateTime expiresAt;
+
+    // JPA required
+    protected Lock() {
+    }
 
     public Lock(String resourceId, String ownerId, LocalDateTime expiresAt) {
-        if (resourceId == null || ownerId.isBlank() )
+        if (resourceId == null || resourceId.isBlank())
             throw new IllegalArgumentException("resourceId required");
         if (ownerId == null || ownerId.isBlank())
             throw new IllegalArgumentException("ownerId required");
