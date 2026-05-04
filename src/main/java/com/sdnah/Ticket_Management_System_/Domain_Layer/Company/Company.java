@@ -1,32 +1,62 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Company;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import jakarta.persistence.*;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+
 @Entity
 @Table(name = "companies")
 public class Company {
 
-    private final int companyId;
-    private final String companyName;
+     @Id
+    private int companyId;
+
+    @Column(nullable = false, unique = true)
+    private String companyName;
+
     private boolean isOpen;
 
-    private final String companyFounderId;
-    private final Set<String> ownerIds;
+    @Column(nullable = false)
+    private String companyFounderId;
 
-    private final List<Integer> associatedEventIds;
-    private final List<Integer> purchaseHistoryIds;
-    private final List<Integer> orderHistoryIds;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "company_owners", joinColumns = @JoinColumn(name = "company_id"))
+    @Column(name = "owner_id")
+    private Set<String> ownerIds = new HashSet<>();
 
-    private final Map<String, Set<CompanyPermission>> managerPermissions;
-    private final Map<String, String> managerAppointedByOwner;
-    private final Map<String, String> ownerAppointedByOwner;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "company_events", joinColumns = @JoinColumn(name = "company_id"))
+    @Column(name = "event_id")
+    private List<Integer> associatedEventIds = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "company_purchase_history", joinColumns = @JoinColumn(name = "company_id"))
+    @Column(name = "purchase_id")
+    private List<Integer> purchaseHistoryIds = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "company_order_history", joinColumns = @JoinColumn(name = "company_id"))
+    @Column(name = "order_id")
+    private List<Integer> orderHistoryIds = new ArrayList<>();
 
     private double rating;
     private String logoURL;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "company_managers", joinColumns = @JoinColumn(name = "company_id"))
+    private Set<CompanyManagerAssignment> managers = new HashSet<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "company_owner_appointments", joinColumns = @JoinColumn(name = "company_id"))
+    @MapKeyColumn(name = "owner_id")
+    @Column(name = "appointed_by_owner_id")
+    private Map<String, String> ownerAppointedByOwner = new HashMap<>();
+
+    protected Company() {
+    // required by JPA
+    }
 
     public Company(int companyId, String companyName, String companyFounderId) {
         validatePositiveId(companyId, "company id");
@@ -37,18 +67,7 @@ public class Company {
         this.companyName = companyName.trim();
         this.companyFounderId = companyFounderId.trim();
         this.isOpen = true;
-
-        this.ownerIds = ConcurrentHashMap.newKeySet();
         this.ownerIds.add(this.companyFounderId);
-
-        this.associatedEventIds = new CopyOnWriteArrayList<>();
-        this.purchaseHistoryIds = new CopyOnWriteArrayList<>();
-        this.orderHistoryIds = new CopyOnWriteArrayList<>();
-
-        this.managerPermissions = new ConcurrentHashMap<>();
-        this.managerAppointedByOwner = new ConcurrentHashMap<>();
-        this.ownerAppointedByOwner = new ConcurrentHashMap<>();
-
         this.rating = 0.0;
     }
 
@@ -89,8 +108,8 @@ public class Company {
             return;
         }
 
-        Set<CompanyPermission> permissions = managerPermissions.get(normalizedActorId);
-        if (permissions != null && permissions.contains(requiredPermission)) {
+        Optional<CompanyManagerAssignment> assignment = findManagerAssignment(normalizedActorId);
+        if (assignment.isPresent() && assignment.get().hasPermission(requiredPermission)) {
             return;
         }
 
@@ -182,7 +201,9 @@ public class Company {
     }
 
     public List<String> getAuthorizedManagerIds() {
-        return List.copyOf(managerPermissions.keySet());
+        return managers.stream()
+                .map(CompanyManagerAssignment::getManagerId)
+                .toList();
     }
 
     public synchronized void appointAdditionalOwner(String actingOwnerId, String newOwnerId) {
@@ -195,7 +216,7 @@ public class Company {
             throw new IllegalArgumentException("User is already an owner of this company.");
         }
 
-        if (managerPermissions.containsKey(normalizedNewOwnerId)) {
+        if (findManagerAssignment(normalizedNewOwnerId).isPresent()) {
             throw new IllegalArgumentException(
                     "A manager cannot be promoted to owner without removing the manager role first.");
         }
@@ -254,8 +275,8 @@ public class Company {
     }
 
     public synchronized void appointManager(String appointingOwnerId,
-                                            String managerId,
-                                            Set<CompanyPermission> permissions) {
+                                        String managerId,
+                                        Set<CompanyPermission> permissions) {
         validateOwner(appointingOwnerId);
         validateNonBlank(managerId, "manager id");
 
@@ -265,7 +286,7 @@ public class Company {
             throw new IllegalArgumentException("An owner cannot be appointed as a manager.");
         }
 
-        if (managerPermissions.containsKey(normalizedManagerId)) {
+        if (findManagerAssignment(normalizedManagerId).isPresent()) {
             throw new IllegalArgumentException("Manager already exists.");
         }
 
@@ -273,31 +294,25 @@ public class Company {
             throw new IllegalArgumentException("Permissions set cannot be null.");
         }
 
-        managerPermissions.put(
+        managers.add(new CompanyManagerAssignment(
                 normalizedManagerId,
-                EnumSet.copyOf(permissions.isEmpty()
-                        ? EnumSet.noneOf(CompanyPermission.class)
-                        : permissions)
-        );
-
-        managerAppointedByOwner.put(normalizedManagerId, appointingOwnerId.trim());
+                appointingOwnerId.trim(),
+                permissions
+        ));
     }
 
     public synchronized void modifyManagerPermissions(String actingOwnerId,
-                                                      String managerId,
-                                                      Set<CompanyPermission> updatedPermissions) {
+                                                  String managerId,
+                                                  Set<CompanyPermission> updatedPermissions) {
         validateOwner(actingOwnerId);
         validateNonBlank(managerId, "manager id");
 
         String normalizedActingOwnerId = actingOwnerId.trim();
-        String normalizedManagerId = managerId.trim();
 
-        if (!managerPermissions.containsKey(normalizedManagerId)) {
-            throw new IllegalArgumentException("Manager does not exist.");
-        }
+        CompanyManagerAssignment assignment = findManagerAssignment(managerId)
+                .orElseThrow(() -> new IllegalArgumentException("Manager does not exist."));
 
-        String appointingOwner = managerAppointedByOwner.get(normalizedManagerId);
-        if (appointingOwner == null || !appointingOwner.equals(normalizedActingOwnerId)) {
+        if (!assignment.getAppointedByOwnerId().equals(normalizedActingOwnerId)) {
             throw new SecurityException("Only the appointing owner can modify this manager's permissions.");
         }
 
@@ -305,12 +320,7 @@ public class Company {
             throw new IllegalArgumentException("Updated permissions set cannot be null.");
         }
 
-        managerPermissions.put(
-                normalizedManagerId,
-                EnumSet.copyOf(updatedPermissions.isEmpty()
-                        ? EnumSet.noneOf(CompanyPermission.class)
-                        : updatedPermissions)
-        );
+        assignment.setPermissions(updatedPermissions);
     }
 
     public synchronized void removeManagerAppointment(String actingOwnerId, String managerId) {
@@ -318,19 +328,15 @@ public class Company {
         validateNonBlank(managerId, "manager id");
 
         String normalizedActingOwnerId = actingOwnerId.trim();
-        String normalizedManagerId = managerId.trim();
 
-        if (!managerPermissions.containsKey(normalizedManagerId)) {
-            throw new IllegalArgumentException("Manager does not exist.");
-        }
+        CompanyManagerAssignment assignment = findManagerAssignment(managerId)
+                .orElseThrow(() -> new IllegalArgumentException("Manager does not exist."));
 
-        String appointingOwner = managerAppointedByOwner.get(normalizedManagerId);
-        if (appointingOwner == null || !appointingOwner.equals(normalizedActingOwnerId)) {
+        if (!assignment.getAppointedByOwnerId().equals(normalizedActingOwnerId)) {
             throw new SecurityException("Only the appointing owner can remove this manager appointment.");
         }
 
-        managerPermissions.remove(normalizedManagerId);
-        managerAppointedByOwner.remove(normalizedManagerId);
+        managers.remove(assignment);
     }
 
     public boolean managerHasPermission(String managerId, CompanyPermission permission) {
@@ -340,23 +346,9 @@ public class Company {
             throw new IllegalArgumentException("Permission cannot be null.");
         }
 
-        Set<CompanyPermission> permissions = managerPermissions.get(managerId.trim());
-        return permissions != null && permissions.contains(permission);
-    }
-
-    public synchronized boolean closeCompany(String actingFounderId) {
-        validateNonBlank(actingFounderId, "founder id");
-
-        if (!isFounder(actingFounderId)) {
-            throw new SecurityException("Only the founder can close the company.");
-        }
-
-        if (!isOpen) {
-            return false;
-        }
-
-        this.isOpen = false;
-        return true;
+        return findManagerAssignment(managerId)
+                .map(m -> m.hasPermission(permission))
+                .orElse(false);
     }
 
     public synchronized boolean reopenCompany(String actingFounderId) {
@@ -371,6 +363,21 @@ public class Company {
         }
 
         this.isOpen = true;
+        return true;
+    }
+
+    public synchronized boolean closeCompany(String actingFounderId) {
+        validateNonBlank(actingFounderId, "founder id");
+
+        if (!isFounder(actingFounderId)) {
+            throw new SecurityException("Only the founder can close the company.");
+        }
+
+        if (!isOpen) {
+            return false;
+        }
+
+        this.isOpen = false;
         return true;
     }
 
@@ -391,7 +398,9 @@ public class Company {
     }
 
     public List<String> getManagers() {
-        return List.copyOf(managerPermissions.keySet());
+        return managers.stream()
+                .map(CompanyManagerAssignment::getManagerId)
+                .toList();
     }
 
     public boolean isFounder(String userId) {
@@ -406,7 +415,7 @@ public class Company {
 
     public boolean isManager(String userId) {
         validateNonBlank(userId, "user id");
-        return managerPermissions.containsKey(userId.trim());
+        return findManagerAssignment(userId).isPresent();
     }
 
     public List<String> getOwnerIds() {
@@ -416,8 +425,8 @@ public class Company {
     public Map<String, Set<CompanyPermission>> getManagerPermissionsView() {
         Map<String, Set<CompanyPermission>> copy = new HashMap<>();
 
-        for (Map.Entry<String, Set<CompanyPermission>> entry : managerPermissions.entrySet()) {
-            copy.put(entry.getKey(), Set.copyOf(entry.getValue()));
+        for (CompanyManagerAssignment manager : managers) {
+            copy.put(manager.getManagerId(), Set.copyOf(manager.getPermissions()));
         }
 
         return Collections.unmodifiableMap(copy);
@@ -475,7 +484,18 @@ public class Company {
                 "Rating: " + rating + "\n" +
                 "Logo URL: " + (logoURL != null ? logoURL : "No logo set") + "\n" +
                 "Owners: " + ownerIds + "\n" +
-                "Managers: " + managerPermissions.keySet() + "\n" +
+                "Managers: " + getManagers() + "\n" +
                 "Associated Events: " + associatedEventIds;
+    }
+
+    //helper function
+    private Optional<CompanyManagerAssignment> findManagerAssignment(String managerId) {
+        validateNonBlank(managerId, "manager id");
+
+        String normalizedManagerId = managerId.trim();
+
+        return managers.stream()
+                .filter(m -> m.getManagerId().equals(normalizedManagerId))
+                .findFirst();
     }
 }

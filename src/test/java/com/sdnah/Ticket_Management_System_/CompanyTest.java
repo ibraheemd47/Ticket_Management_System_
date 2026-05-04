@@ -14,10 +14,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class CompanyTest {
 
     private Company company;
-    private static final int FOUNDER = 1;
-    private static final int OWNER = 2;
-    private static final int MANAGER = 3;
-    private static final int USER = 4;
+    private static final String FOUNDER = "1";
+        private static final String OWNER = "2";
+        private static final String MANAGER = "3";
+        private static final String USER = "4";
 
     @BeforeEach
     void setUp() {
@@ -43,7 +43,7 @@ class CompanyTest {
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> new Company(1, null, FOUNDER)),
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> new Company(1, "A", 0))
+                        () -> new Company(1, "A", ""))
         );
     }
 
@@ -54,7 +54,7 @@ class CompanyTest {
         assertEquals(List.of(100), company.getAssociatedEventIds());
         assertDoesNotThrow(() -> company.validateEventBelongsToCompany(100));
 
-        company.removeEvent(100);
+        company.removeEvent(FOUNDER, 100);
 
         assertTrue(company.getAssociatedEventIds().isEmpty());
     }
@@ -67,7 +67,7 @@ class CompanyTest {
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> company.addEventId(FOUNDER, 100)),
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> company.removeEvent(999)),
+                        () -> company.removeEvent(FOUNDER, 999)),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> company.validateEventBelongsToCompany(999)),
                 () -> assertThrows(SecurityException.class,
@@ -136,7 +136,7 @@ class CompanyTest {
 
         assertAll(
                 () -> assertThrows(SecurityException.class,
-                        () -> company.appointAdditionalOwner(USER, 5)),
+                        () -> company.appointAdditionalOwner(USER, "5")),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> company.appointAdditionalOwner(FOUNDER, OWNER)),
                 () -> assertThrows(IllegalArgumentException.class,
@@ -183,13 +183,13 @@ class CompanyTest {
 
         assertAll(
                 () -> assertThrows(SecurityException.class,
-                        () -> company.appointManager(USER, 8, EnumSet.of(CompanyPermission.MANAGE_EVENTS))),
+                        () -> company.appointManager(USER, "8", EnumSet.of(CompanyPermission.MANAGE_EVENTS))),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> company.appointManager(FOUNDER, MANAGER, EnumSet.of(CompanyPermission.VIEW_HISTORY))),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> company.appointManager(FOUNDER, OWNER, null)),
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> company.modifyManagerPermissions(FOUNDER, 999, EnumSet.of(CompanyPermission.VIEW_HISTORY))),
+                        () -> company.modifyManagerPermissions(FOUNDER, "999", EnumSet.of(CompanyPermission.VIEW_HISTORY))),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> company.modifyManagerPermissions(FOUNDER, MANAGER, null))
         );
@@ -234,7 +234,7 @@ class CompanyTest {
 
         assertEquals(List.of(100), company.getAssociatedEventIds());
         assertThrows(UnsupportedOperationException.class,
-                () -> company.getOwnerIds().add(999));
+                () -> company.getOwnerIds().add("999"));
     }
 
     @Test
