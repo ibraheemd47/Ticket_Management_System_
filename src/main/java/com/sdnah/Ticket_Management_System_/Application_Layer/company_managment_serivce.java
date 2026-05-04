@@ -15,7 +15,6 @@ public class company_managment_serivce {
    private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
     private final ICompanyRepository companyRepository;
     
-
     @Autowired
     public company_managment_serivce(ICompanyRepository companyRepository) {
         this.companyRepository = companyRepository;
@@ -38,7 +37,6 @@ public class company_managment_serivce {
                 .toList();
     }
 
-
     // --- II.3.2: Open Production Company (Triggered by II.1.1) ---
     public void openCompany(int companyId, String name, int founderId) {
         //Company company = getCompanyOrThrow(companyId);
@@ -56,7 +54,6 @@ public class company_managment_serivce {
         throw e;
     }
 }
-
 
     // --- II.4.1: Manage Events (Add/Remove) ---
     public void addEvent(int actingUserId, int companyId, int eventId) {
