@@ -14,9 +14,9 @@ import org.mockito.MockitoAnnotations;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.IPaymentGateway;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.IOrderRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
 
 class PaymentServiceTest {
 
@@ -24,19 +24,18 @@ class PaymentServiceTest {
     private IPaymentGateway paymentGateway;
 
     @Mock
-    private IOrderRepository orderRepository;
+    private PaymentTransactionRepository transactionRepository;
 
     private PaymentService paymentService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        paymentService = new PaymentService(paymentGateway, orderRepository);
+        paymentService = new PaymentService(paymentGateway, transactionRepository);
     }
 
     @Test
     void charge_shouldCallGatewayAndSaveTransaction() {
-        // Arrange
         UUID orderId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100");
         PaymentDetails details = new PaymentDetails("token123", "buyer1", "VISA");
@@ -50,18 +49,15 @@ class PaymentServiceTest {
 
         when(paymentGateway.charge(orderId, amount, details)).thenReturn(tx);
 
-        // Act
         PaymentTransaction result = paymentService.charge(orderId, amount, details);
 
-        // Assert
         assertEquals(tx, result);
         verify(paymentGateway).charge(orderId, amount, details);
-        verify(orderRepository).saveTransaction(tx);
+        verify(transactionRepository).save(tx);
     }
 
     @Test
     void refund_shouldCallGatewayAndSaveTransaction() {
-        // Arrange
         UUID orderId = UUID.randomUUID();
         BigDecimal amount = new BigDecimal("100");
         String transactionId = "tx123";
@@ -75,20 +71,18 @@ class PaymentServiceTest {
 
         when(paymentGateway.refund(transactionId)).thenReturn(tx);
 
-        // Act
         PaymentTransaction result = paymentService.refund(transactionId);
 
-        // Assert
         assertEquals(tx, result);
         verify(paymentGateway).refund(transactionId);
-        verify(orderRepository).saveTransaction(tx);
+        verify(transactionRepository).save(tx);
     }
 
     @Test
     void constructor_shouldThrow_whenGatewayIsNull() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> new PaymentService(null, orderRepository)
+                () -> new PaymentService(null, transactionRepository)
         );
 
         assertEquals("paymentGateway required", ex.getMessage());
@@ -101,6 +95,6 @@ class PaymentServiceTest {
                 () -> new PaymentService(paymentGateway, null)
         );
 
-        assertEquals("orderRepository required", ex.getMessage());
+        assertEquals("transactionRepo required", ex.getMessage());
     }
 }

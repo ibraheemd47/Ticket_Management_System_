@@ -17,8 +17,8 @@ class PurchaseTest {
     void constructor_shouldCopyDataFromOrder() {
         ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
-        order.addTicket("1", 1L, UUID.randomUUID(), new BigDecimal("50"), null);
-        order.addTicket("2", 2L, UUID.randomUUID(), new BigDecimal("30"), null);
+        order.addTicket(UUID.randomUUID().toString(), 1L, UUID.randomUUID(), new BigDecimal("50"), null);
+        order.addTicket(UUID.randomUUID().toString(), 2L, UUID.randomUUID(), new BigDecimal("30"), null);
 
         Purchase purchase = new Purchase(order);
 

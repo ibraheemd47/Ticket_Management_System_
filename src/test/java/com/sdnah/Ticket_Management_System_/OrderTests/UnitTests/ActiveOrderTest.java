@@ -25,7 +25,7 @@ class ActiveOrderTest {
     void addTicket_shouldIncreaseSize() {
         ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
-        order.addTicket("1", 1L, UUID.randomUUID(), new BigDecimal("50"), null);
+        order.addTicket(UUID.randomUUID().toString(), 1L, UUID.randomUUID(), new BigDecimal("50"), null);
 
         assertEquals(1, order.getItems().size());
     }
@@ -34,8 +34,8 @@ class ActiveOrderTest {
     void getTotal_shouldSumPrices() {
         ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
-        order.addTicket("1", 1L, UUID.randomUUID(), new BigDecimal("50"), null);
-        order.addTicket("2", 2L, UUID.randomUUID(), new BigDecimal("30"), null);
+        order.addTicket(UUID.randomUUID().toString(), 1L, UUID.randomUUID(), new BigDecimal("50"), null);
+        order.addTicket(UUID.randomUUID().toString(), 2L, UUID.randomUUID(), new BigDecimal("30"), null);
 
         assertEquals(new BigDecimal("80"), order.getTotal());
     }
@@ -49,12 +49,12 @@ class ActiveOrderTest {
     }
 
     @Test
-    void removeItem_shouldRemoveCorrectItem() {
+    void removeTicket_shouldRemoveCorrectItem() {
         ActiveOrder order = new ActiveOrder("buyer1", UUID.randomUUID(), 10);
 
-        OrderItem item = order.addTicket("1", 1L, UUID.randomUUID(), new BigDecimal("50"), null);
+        OrderItem item = order.addTicket(UUID.randomUUID().toString(), 1L, UUID.randomUUID(), new BigDecimal("50"), null);
 
-        order.removeItem(item.getItemId());
+        order.removeTicket(item.getItemId());
 
         assertEquals(0, order.getItems().size());
     }

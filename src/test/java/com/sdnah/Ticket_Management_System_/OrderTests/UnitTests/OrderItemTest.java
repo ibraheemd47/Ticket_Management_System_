@@ -19,22 +19,23 @@ class OrderItemTest {
 
     @Test
     void isSeated_shouldReturnTrueWhenSeatIdExists() {
-        OrderItem item = new OrderItem("1", 10L, UUID.randomUUID(), new BigDecimal("50"));
+        OrderItem item = new OrderItem(UUID.randomUUID().toString(), 10L, UUID.randomUUID(), new BigDecimal("50"));
 
         assertTrue(item.isSeated());
     }
 
     @Test
     void isSeated_shouldReturnFalseWhenSeatIdIsNull() {
-        OrderItem item = new OrderItem("1", null, UUID.randomUUID(), new BigDecimal("50"));
+        OrderItem item = new OrderItem(UUID.randomUUID().toString(), null, UUID.randomUUID(), new BigDecimal("50"));
 
         assertFalse(item.isSeated());
     }
 
     @Test
     void setLock_shouldSaveLock() {
-        OrderItem item = new OrderItem("1", 10L, UUID.randomUUID(), new BigDecimal("50"));
-        Lock lock = new Lock("1", "buyer1", LocalDateTime.now().plusMinutes(5));
+        String ticketId = UUID.randomUUID().toString();
+        OrderItem item = new OrderItem(ticketId, 10L, UUID.randomUUID(), new BigDecimal("50"));
+        Lock lock = new Lock(ticketId, "buyer1", LocalDateTime.now().plusMinutes(5));
 
         item.setLock(lock);
 
@@ -43,8 +44,9 @@ class OrderItemTest {
 
     @Test
     void clearLock_shouldRemoveLock() {
-        OrderItem item = new OrderItem("1", 10L, UUID.randomUUID(), new BigDecimal("50"));
-        Lock lock = new Lock("1", "buyer1", LocalDateTime.now().plusMinutes(5));
+        String ticketId = UUID.randomUUID().toString();
+        OrderItem item = new OrderItem(ticketId, 10L, UUID.randomUUID(), new BigDecimal("50"));
+        Lock lock = new Lock(ticketId, "buyer1", LocalDateTime.now().plusMinutes(5));
 
         item.setLock(lock);
         item.clearLock();
@@ -56,7 +58,7 @@ class OrderItemTest {
     void constructor_shouldThrowExceptionWhenPriceIsNegative() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> new OrderItem("1", 10L, UUID.randomUUID(), new BigDecimal("-1"))
+                () -> new OrderItem(UUID.randomUUID().toString(), 10L, UUID.randomUUID(), new BigDecimal("-1"))
         );
 
         assertNotNull(ex);

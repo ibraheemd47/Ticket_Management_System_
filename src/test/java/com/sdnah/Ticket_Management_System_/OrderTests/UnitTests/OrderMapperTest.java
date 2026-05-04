@@ -23,7 +23,7 @@ class OrderMapperTest {
         ActiveOrder order = new ActiveOrder("buyer1", eventId, 10);
 
         order.addTicket(
-                "ticket1",
+                UUID.randomUUID().toString(),
                 1L,
                 UUID.randomUUID(),
                 new BigDecimal("50"),
@@ -45,7 +45,7 @@ class OrderMapperTest {
     @Test
     void toDTO_shouldMapOrderItemCorrectly() {
         OrderItem item = new OrderItem(
-                "ticket1",
+                UUID.randomUUID().toString(),
                 1L,
                 UUID.randomUUID(),
                 new BigDecimal("50")
@@ -66,7 +66,7 @@ class OrderMapperTest {
         ActiveOrder order = new ActiveOrder("buyer1", eventId, 10);
 
         order.addTicket(
-                "ticket1",
+                UUID.randomUUID().toString(),
                 1L,
                 UUID.randomUUID(),
                 new BigDecimal("50"),
@@ -74,7 +74,6 @@ class OrderMapperTest {
         );
 
         Purchase purchase = new Purchase(order);
-
         List<String> ticketCodes = List.of("code1", "code2");
 
         PurchaseDTO dto = OrderMapper.toDTO(purchase, ticketCodes);

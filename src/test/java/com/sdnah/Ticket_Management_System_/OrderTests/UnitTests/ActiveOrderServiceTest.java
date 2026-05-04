@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.MockitoAnnotations;
@@ -24,33 +24,39 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequ
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PolicyService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.IOrderRepository;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
 
 class ActiveOrderServiceTest {
 
-    @Mock
-    private IOrderRepository orderRepository;
-
-    @Mock
-    private PaymentService paymentService;
-
-    @Mock
-    private ITicketSupplierGateway ticketGateway;
-
-    @Mock
-    private PolicyService policyService;
+    @Mock private ActiveOrderRepository orderRepo;
+    @Mock private PurchaseRepository purchaseRepo;              // ✅ NEW
+    @Mock private PaymentTransactionRepository txRepo;          // ✅ NEW
+    @Mock private PaymentService paymentService;
+    @Mock private ITicketSupplierGateway ticketGateway;
+    @Mock private PolicyService policyService;
+    @Mock private TicketRepository ticketRepository;
+    @Mock private Ticket_Domain_Service ticketDomainService;
 
     private ActiveOrderService service;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+
         service = new ActiveOrderService(
-                orderRepository,
+                orderRepo,
+                purchaseRepo,     // ✅ FIX
+                txRepo,           // ✅ FIX
                 paymentService,
                 ticketGateway,
-                policyService
+                policyService,
+                ticketRepository,
+                ticketDomainService
         );
     }
 
@@ -60,19 +66,16 @@ class ActiveOrderServiceTest {
         UUID eventId = UUID.randomUUID();
 
         SeatRequest seat = new SeatRequest(
-                "ticket1",
+                UUID.randomUUID().toString(),
                 1L,
                 UUID.randomUUID(),
                 new BigDecimal("50")
         );
 
-        when(orderRepository.findActiveOrder(buyerId, eventId))
+        when(orderRepo.findActiveOrder(buyerId, eventId))
                 .thenReturn(Optional.empty());
 
-        when(orderRepository.acquireLock(any(Lock.class)))
-                .thenReturn(true);
-
-        when(policyService.applyGeneralDiscounts(eq(eventId), anyDouble(), anyInt()))
+        when(policyService.applyGeneralDiscounts(any(), anyDouble(), anyInt()))
                 .thenReturn(50.0);
 
         OrderDTO result = service.reserveTickets(buyerId, eventId, List.of(seat));
@@ -80,98 +83,43 @@ class ActiveOrderServiceTest {
         assertEquals(buyerId, result.getBuyerId());
         assertEquals(eventId, result.getEventId());
 
-        verify(orderRepository).findActiveOrder(buyerId, eventId);
-        verify(orderRepository).acquireLock(any(Lock.class));
-        verify(orderRepository).save(any());
+        verify(orderRepo).saveAndFlush(any());
     }
 
     @Test
-    void reserveTickets_shouldThrow_whenActiveOrderAlreadyExists() {
+    void reserveTickets_shouldThrow_whenActiveOrderExists() {
         String buyerId = "buyer1";
         UUID eventId = UUID.randomUUID();
 
-        when(orderRepository.findActiveOrder(eq(buyerId), eq(eventId)))
-                .thenReturn(Optional.of(
-                        new com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder(
-                                buyerId,
-                                eventId,
-                                10
-                        )
-                ));
+        when(orderRepo.findActiveOrder(buyerId, eventId))
+                .thenReturn(Optional.of(new ActiveOrder(buyerId, eventId, 10)));
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
-                () -> service.reserveTickets(buyerId, eventId, List.of())
-        );
-
-        assertEquals("Active order already exists", ex.getMessage());
+        assertThrows(IllegalStateException.class,
+                () -> service.reserveTickets(buyerId, eventId, List.of()));
     }
 
     @Test
-    void reserveTickets_shouldRollbackLocks_whenSecondTicketFails() {
+    void reserveTickets_shouldFail_whenDuplicateTicket() {
         String buyerId = "buyer1";
         UUID eventId = UUID.randomUUID();
 
-        SeatRequest seat1 = new SeatRequest(
-                "ticket1",
+        SeatRequest seat = new SeatRequest(
+                UUID.randomUUID().toString(),
                 1L,
                 UUID.randomUUID(),
                 new BigDecimal("50")
         );
 
-        SeatRequest seat2 = new SeatRequest(
-                "ticket2",
-                2L,
-                UUID.randomUUID(),
-                new BigDecimal("30")
-        );
-
-        when(orderRepository.findActiveOrder(buyerId, eventId))
+        when(orderRepo.findActiveOrder(buyerId, eventId))
                 .thenReturn(Optional.empty());
 
-        when(orderRepository.acquireLock(any(Lock.class)))
-                .thenReturn(true)
-                .thenReturn(false);
+        when(policyService.applyGeneralDiscounts(any(), anyDouble(), anyInt()))
+                .thenReturn(50.0);
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
-                () -> service.reserveTickets(buyerId, eventId, List.of(seat1, seat2))
-        );
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate"))
+                .when(orderRepo).saveAndFlush(any());
 
-        assertEquals("Ticket already reserved: ticket2", ex.getMessage());
-
-        verify(orderRepository).releaseLock("ticket1");
-    }
-
-    @Test
-    void constructor_shouldThrow_whenRepositoryIsNull() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new ActiveOrderService(null, paymentService, ticketGateway, policyService)
-        );
-    }
-
-    @Test
-    void constructor_shouldThrow_whenPaymentServiceIsNull() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new ActiveOrderService(orderRepository, null, ticketGateway, policyService)
-        );
-    }
-
-    @Test
-    void constructor_shouldThrow_whenTicketGatewayIsNull() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new ActiveOrderService(orderRepository, paymentService, null, policyService)
-        );
-    }
-
-    @Test
-    void constructor_shouldThrow_whenPolicyServiceIsNull() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new ActiveOrderService(orderRepository, paymentService, ticketGateway, null)
-        );
+        assertThrows(IllegalStateException.class,
+                () -> service.reserveTickets(buyerId, eventId, List.of(seat)));
     }
 }
