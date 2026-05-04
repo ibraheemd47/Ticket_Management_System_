@@ -3,9 +3,6 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Company;
 import java.util.*;
 import jakarta.persistence.*;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-
 @Entity
 @Table(name = "companies")
 public class Company {
@@ -28,8 +25,8 @@ public class Company {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "company_events", joinColumns = @JoinColumn(name = "company_id"))
-    @Column(name = "event_id")
-    private List<Integer> associatedEventIds = new ArrayList<>();
+    @Column(name = "event_id", columnDefinition = "BINARY(16)")
+    private List<UUID> associatedEventIds = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "company_purchase_history", joinColumns = @JoinColumn(name = "company_id"))
@@ -117,15 +114,17 @@ public class Company {
                 + " lacks permission: " + requiredPermission);
     }
 
-    public List<Integer> getAssociatedEventIds() {
+    public List<UUID> getAssociatedEventIds() {
         if (!isOpen) {
             return new ArrayList<>();
         }
         return new ArrayList<>(associatedEventIds);
     }
 
-    public synchronized void addEventId(String actorId, int eventId) {
-        validatePositiveId(eventId, "event id");
+    public synchronized void addEventId(String actorId, UUID eventId) {
+        if (eventId == null) {
+        throw new IllegalArgumentException("event id cannot be null.");
+    }
         validateActionPermission(actorId, CompanyPermission.MANAGE_EVENTS);
 
         if (associatedEventIds.contains(eventId)) {
@@ -135,27 +134,35 @@ public class Company {
         associatedEventIds.add(eventId);
     }
 
-    public synchronized void removeEvent(String actorId, int eventId) {
+    public synchronized void removeEvent(String actorId, UUID eventId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("event id cannot be null.");
+        }
+
         validateActionPermission(actorId, CompanyPermission.MANAGE_EVENTS);
 
         if (!associatedEventIds.contains(eventId)) {
             throw new IllegalArgumentException("event does not exist");
         }
 
-        associatedEventIds.remove(Integer.valueOf(eventId));
+        associatedEventIds.remove(eventId);
     }
 
-    public void validateEventBelongsToCompany(int eventId) {
-        validatePositiveId(eventId, "event id");
+    public void validateEventBelongsToCompany(UUID eventId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("event id cannot be null.");
+        }
 
         if (!associatedEventIds.contains(eventId)) {
             throw new IllegalArgumentException("event " + eventId + " does not belong to this company");
         }
     }
 
-    public void defineEventLayout(String actorId, int eventId, String mapData) {
+    public void defineEventLayout(String actorId, UUID eventId, String mapData) {
         validateActionPermission(actorId, CompanyPermission.MANAGE_EVENTS);
-        validatePositiveId(eventId, "event id");
+        if (eventId == null) {
+            throw new IllegalArgumentException("event id cannot be null.");
+        }
 
         if (!associatedEventIds.contains(eventId)) {
             throw new IllegalArgumentException("Event not found in this company.");
@@ -453,8 +460,10 @@ public class Company {
         this.rating = rating;
     }
 
-    public boolean hasEvent(int eventId) {
-        validatePositiveId(eventId, "event id");
+    public boolean hasEvent(UUID eventId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("event id cannot be null.");
+        }
 
         if (!isOpen) {
             throw new IllegalStateException("Company is inactive.");

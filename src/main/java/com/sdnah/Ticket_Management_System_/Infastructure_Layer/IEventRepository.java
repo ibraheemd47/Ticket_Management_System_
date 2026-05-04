@@ -29,6 +29,8 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
     @Query("SELECT e FROM Event e WHERE :managerId MEMBER OF e.managerIds")
     List<Event> findByManagerId(@Param("managerId") Long managerId);
 
+    // Boolean EventExists(@Param("eventId") UUID eventUuid);
+
     @Query("SELECT s FROM show s WHERE s.event.eventId = :eventId")
     List<show> getShowsForEvent(@Param("eventId") UUID eventId);
 

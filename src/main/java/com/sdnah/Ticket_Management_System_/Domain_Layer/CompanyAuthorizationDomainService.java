@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer;
 
+import javax.management.RuntimeErrorException;
+
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
@@ -130,5 +132,13 @@ public class CompanyAuthorizationDomainService {
         } catch (NumberFormatException e) {
             throw new RuntimeException("Member id must be numeric for company operations");
         }
+
+
+    }
+    public void AddEvent(Company company,String managerId,long eventId){
+        if(!company.isManager(managerId)){
+            throw new RuntimeException( "Invalid Manager");
+        }
+        
     }
 }

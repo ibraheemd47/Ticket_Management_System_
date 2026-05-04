@@ -7,10 +7,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+
 import com.sdnah.Ticket_Management_System_.DTOs.CompanyDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.CompanyAuthorizationDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
@@ -22,6 +25,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignme
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
 
 @Service
 public class company_managment_serivce {
@@ -33,12 +37,14 @@ public class company_managment_serivce {
     private final CompanyRepository companyRepository;
     private UserRepository userRepository;
     private TokenRepository tokenRepository;
+    private IEventRepository eventRepository;
     @Autowired
-    public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository, TokenRepository tokenRepository) {
+    public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository, TokenRepository tokenRepository, IEventRepository eventRepository) {
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
+        this.eventRepository = eventRepository;
     }
 
     // --- II.2.1: View Active Production Companies ---
@@ -50,7 +56,7 @@ public class company_managment_serivce {
     }
 
     // II.2.1 - Get all upcoming events from active companies
-    public List<Integer> getAllUpComingEventsForHomePage() {
+    public List<UUID> getAllUpComingEventsForHomePage() {
         // this return all of the events of all the companies, and the events service
         // should handle the date filtering and return only the upcoming events in the
         // response
@@ -92,32 +98,44 @@ public class company_managment_serivce {
     }
 
     // --- II.4.1: Manage Events (Add/Remove) ---
-    // public void addEvent(String actingUserId, int companyId, int eventId) {
-    //     Company company = getCompanyOrThrow(companyId);
-    //     validateManagerOrFounder(actingUserId, company);
-    //     company.addEventId(actingUserId, eventId);
-    //     companyRepository.save(company);
-    //     logger.info("Event " + eventId + " added to company " + companyId);
-    // }
-    public void addEvent(String actorToken, int companyId, int eventId) {
+    @Transactional
+    public EventDto addEvent(String actorToken, int companyId, EventDto dto) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
-        company.addEventId(actor.getMemberId(), eventId);
+        company.validateActionPermission(actor.getMemberId(), CompanyPermission.MANAGE_EVENTS);
+
+        Event event = new Event(dto.name, dto.eventType, Long.valueOf(companyId), Long.valueOf(actor.getMemberId()));
+        Event savedEvent = eventRepository.save(event);
+
+        company.addEventId(actor.getMemberId(), savedEvent.getEventId());
         companyRepository.save(company);
-        logger.info("Event {} added to company {} by user {}",
-        eventId, companyId, actor.getMemberId());
+
+        return new EventDto(
+                savedEvent.getEventId(),
+                savedEvent.getName(),
+                savedEvent.getStartDate() == null ? null : savedEvent.getStartDate().toString(),
+                savedEvent.getEventType(),
+                savedEvent.getVenue()
+        );
     }
 
-    public void removeEvent(String actorToken, int companyId, int eventId) {
+
+    @Transactional
+    public void removeEvent(String actorToken, int companyId, UUID eventId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
-        company.removeEvent(actor.getMemberId(), eventId);
-        companyRepository.save(company);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NoSuchElementException("Event ID " + eventId + " not found."));
 
-        logger.info("Event {} removed from company {} by user {}",
-                eventId, companyId, actor.getMemberId());
+        if (!Objects.equals(event.getCompanyId(), Long.valueOf(companyId))) {
+            throw new IllegalArgumentException("Event does not belong to this company.");
+        }
+
+        company.removeEvent(actor.getMemberId(), eventId);
+        eventRepository.delete(event);
+        companyRepository.save(company);
     }
 
     // --- II.4.3:not for this version
@@ -133,6 +151,7 @@ public class company_managment_serivce {
     // // policyService.updateCompanyPolicy(companyId, newPolicyId);
     // }
 
+    
     // --- II.4.4: Communication ---
     /** Use Case II.4.4: Receive and respond to inquiries */
     public void respondToInquiry(String actorToken, int companyId, int inquiryId, String response) {
@@ -397,7 +416,7 @@ public class company_managment_serivce {
     // for endpoints:
 
     // Filter events by company name
-    public List<Integer> filterEventsByCompanyName(String companyName) {
+    public List<UUID> filterEventsByCompanyName(String companyName) {
         return companyRepository.findAll().stream()
                 .filter(Company::isOpen)
                 .filter(company -> company.matchesName(companyName))
@@ -405,7 +424,7 @@ public class company_managment_serivce {
                 .toList();
     }
 
-    public List<Integer> getAllEventsByCompany(int companyId) {
+    public List<UUID> getAllEventsByCompany(int companyId) {
         Company company = getCompanyOrThrow(companyId);
         return company.getAssociatedEventIds();
     }
@@ -429,13 +448,17 @@ public class company_managment_serivce {
                 .toList();
     }
 
-    public int getEventDetails(int eventId) {
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
-                .filter(company -> company.hasEvent(eventId))
-                .findFirst()
-                .map(company -> eventId)
+    public EventDto getEventDetails(UUID eventId) {
+        Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NoSuchElementException("Event ID " + eventId + " not found."));
+
+        return new EventDto(
+                event.getEventId(),
+                event.getName(),
+                event.getStartDate().toString(),
+                event.getEventType(),
+                event.getVenue()
+        );
     }
 
     public String getCompanyLogoURL(int companyId) {
