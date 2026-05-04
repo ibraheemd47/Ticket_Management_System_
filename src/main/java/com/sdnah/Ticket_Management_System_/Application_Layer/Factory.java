@@ -3,6 +3,8 @@ package com.sdnah.Ticket_Management_System_.Application_Layer;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.Company.CompanyRoleService;
+import com.sdnah.Ticket_Management_System_.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.*;

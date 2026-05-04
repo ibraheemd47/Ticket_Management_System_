@@ -1,9 +1,9 @@
 package com.sdnah.Ticket_Management_System_;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyRolesViewDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.DTOs.CompanyDTO;
 
+import com.sdnah.Ticket_Management_System_.DTOs.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;

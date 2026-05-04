@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer;
+package com.sdnah.Ticket_Management_System_.DTOs;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
 

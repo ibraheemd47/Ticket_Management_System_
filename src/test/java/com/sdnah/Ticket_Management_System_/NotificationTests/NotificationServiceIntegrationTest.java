@@ -7,25 +7,33 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.Notifications.NotificationDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Notifications.NotificationService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.INotificationRepository;
+import com.sdnah.Ticket_Management_System_.DTOs.NotificationDTO;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.NotificationType;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.InMemoryNotificationRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.NotificationRepository;
 
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class NotificationServiceIntegrationTest {
 
     private static final String USER_A = "alice";
     private static final String USER_B = "bob";
 
+    @Autowired
     private NotificationService notificationService;
-    private INotificationRepository notificationRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     @BeforeEach
     void setUp() {
-        notificationRepository = new InMemoryNotificationRepository();
-        notificationService = new NotificationService(notificationRepository);
+        notificationRepository.deleteAll();
     }
 
     @Test
@@ -74,6 +82,7 @@ class NotificationServiceIntegrationTest {
 
         List<NotificationDTO> result = notificationService.getNotificationsForUser(USER_A);
 
+        assertEquals(3, result.size());
         assertEquals("Third", result.get(0).getMessage());
         assertEquals("Second", result.get(1).getMessage());
         assertEquals("First", result.get(2).getMessage());

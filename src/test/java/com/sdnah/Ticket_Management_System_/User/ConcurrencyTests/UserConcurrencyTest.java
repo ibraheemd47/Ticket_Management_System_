@@ -25,9 +25,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyRoleService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Application_Layer.Company.CompanyRoleService;
 import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
@@ -165,11 +165,18 @@ class UserConcurrencyTest {
             companyId = 1;
         }
 
-        String ownerId = "owner-" + UUID.randomUUID();
+        String ownerUsername = "ownerUser_" + UUID.randomUUID();
         String targetId = "target-" + UUID.randomUUID();
-        String ownerUsername = "ownerUser-" + UUID.randomUUID();
+        String targetUsername = "targetUser_" + UUID.randomUUID();
 
-        Member ownerMember = new Member(ownerId, ownerUsername, "hash");
+        String ownerId = userService.register(
+                ownerUsername,
+                "password123",
+                ownerUsername + "@example.com",
+                "0501234567",
+                VerificationMethod.EMAIL);
+
+        Member ownerMember = userRepository.findById(ownerId).orElseThrow();
         ownerMember.setVerified(true);
         ownerMember.addCompanyRole(new CompanyRoleAssignment(
                 companyId,
@@ -178,11 +185,12 @@ class UserConcurrencyTest {
                 new HashSet<>()));
         userRepository.saveAndFlush(ownerMember);
 
-        Member target = new Member(targetId, "targetUser-" + UUID.randomUUID(), "hash");
+        Member target = new Member(targetId, targetUsername, "hash");
         target.setVerified(true);
         userRepository.saveAndFlush(target);
 
-        String ownerToken = authTokenService.generateToken(ownerUsername);
+        String ownerToken = userService.login(ownerUsername, "password123");
+
         final int finalCompanyId = companyId;
 
         // Act

@@ -76,7 +76,7 @@ class EventConcurrencyTest {
     private Event createBasicEvent(String name, Long companyId, Long ownerId) {
         EventDto dto = new EventDto();
         dto.name = name;
-        dto.eventType = show_type.CONFERENCE; // change this if your enum has another value
+        dto.eventType = show_type.CONFERENCE;
 
         return eventService.createEvent(dto, companyId, ownerId);
     }
@@ -97,7 +97,7 @@ class EventConcurrencyTest {
                 () -> eventService.assignManager(eventId, managerId, ownerId));
 
         // Assert
-        List<UUID> managerIds = eventService.getEventsByManager(eventId);
+        List<Long> managerIds = eventService.getEventManagerIds(eventId);
 
         assertEquals(1, outcome.successes.get(), "exactly one manager assignment should succeed");
         assertEquals(9, outcome.failures.get(), "the rest should fail because manager already exists");
@@ -122,9 +122,6 @@ class EventConcurrencyTest {
         Event event = createBasicEvent("Ownership Race Event", companyId, currentOwnerId);
         UUID eventId = event.getEventId();
 
-        // new owner must be manager or transferOwnership will add him if missing
-        // according to your Event.transferOwnership implementation
-
         // Act
         Outcome outcome = runConcurrently(10,
                 () -> eventService.transferOwnership(eventId, newOwnerId, currentOwnerId));
@@ -134,7 +131,9 @@ class EventConcurrencyTest {
 
         assertEquals(newOwnerId, reloaded.getOwnerId());
         assertTrue(outcome.successes.get() >= 1, "at least one transfer should succeed");
-        assertTrue(reloaded.getManagerIds().contains(newOwnerId));
+
+        List<Long> managerIds = eventService.getEventManagerIds(eventId);
+        assertTrue(managerIds.contains(newOwnerId));
     }
 
     @Test
@@ -172,7 +171,7 @@ class EventConcurrencyTest {
         Outcome outcome = runConcurrently(threads, () -> {
             EventDto dto = new EventDto();
             dto.name = "Event-" + UUID.randomUUID();
-            dto.eventType = show_type.CONFERENCE; // change if needed
+            dto.eventType = show_type.CONFERENCE;
             eventService.createEvent(dto, companyId, ownerId);
         });
 

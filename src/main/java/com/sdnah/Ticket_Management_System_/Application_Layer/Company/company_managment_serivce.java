@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer;
+package com.sdnah.Ticket_Management_System_.Application_Layer.Company;
 
 import java.util.*;
 import org.slf4j.Logger;
@@ -7,8 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
-
 import com.sdnah.Ticket_Management_System_.DTOs.CompanyDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.CompanyAuthorizationDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;

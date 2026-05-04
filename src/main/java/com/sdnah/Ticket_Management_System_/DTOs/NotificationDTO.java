@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer.Notifications;
+package com.sdnah.Ticket_Management_System_.DTOs;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.Notification;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.NotificationType;

@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer;
+package com.sdnah.Ticket_Management_System_.Application_Layer.Company;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -8,11 +8,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock;
+import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.ManagerPermission;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 @Service
 public class CompanyRoleService {
@@ -174,7 +176,8 @@ public class CompanyRoleService {
             }
 
             managerRole.addPermission(permission);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Permission added successfully, actorId={}, targetId={}, companyId={}, permission={}",
                     actor.getMemberId(), managerId, companyId, permission);
         });
@@ -216,7 +219,8 @@ public class CompanyRoleService {
             }
 
             managerRole.removePermission(permission);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Permission removed successfully, actorId={}, targetId={}, companyId={}, permission={}",
                     actor.getMemberId(), managerId, companyId, permission);
         });
