@@ -10,6 +10,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.SystemAdminRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SystemAdminService {
@@ -30,6 +31,7 @@ public class SystemAdminService {
         this.keyedLock = keyedLock;
     }
 
+    @Transactional
     public void assign_system_admin(String token, String target_member_id) {
         logger.info("Assign system admin requested for targetMemberId={}", target_member_id);
         AuthToken user_token = requireAdminToken(token);

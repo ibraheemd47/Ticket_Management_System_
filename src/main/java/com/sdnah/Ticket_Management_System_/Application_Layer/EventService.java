@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.hibernate.Hibernate;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -161,10 +162,15 @@ public class EventService {
 
     // ── Queries ──────────────────────────────────────────────────────────────
 
-    public Event getEventDetails(UUID eventId) {
-        logger.info("Retrieving details for event {}", eventId);
-        return eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+    // public Event getEventDetails(UUID eventId) {
+    // logger.info("Retrieving details for event {}", eventId);
+    // return eventRepository.findById(eventId)
+    // .orElseThrow(() -> new RuntimeException("Event not found"));
+    // }
+    public Event getEventDetails(UUID id) {
+        Event e = eventRepository.findById(id).orElseThrow();
+        Hibernate.initialize(e.getManagerIds());
+        return e;
     }
 
     public List<Event> getAllEvents() {
@@ -233,4 +239,10 @@ public class EventService {
                 seatNumber, areaName, showId, eventId, userId);
         return eventRepository.bookSeat(eventId, showId, areaName, seatNumber, userId);
     }
+
+    public List<UUID> getEventsByManager(UUID eventId) {
+        logger.info("Retrieving manager IDs for event {}", eventId);
+        return eventRepository.getManagerIdsForEvent(eventId);
+    }
+
 }

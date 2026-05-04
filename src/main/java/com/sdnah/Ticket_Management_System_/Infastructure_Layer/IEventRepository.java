@@ -20,6 +20,7 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
 
     // ── Derived queries (Spring Data auto-implements) ────────────────────────
     List<Event> findByCompanyId(Long companyId);
+
     List<Event> findByOwnerId(Long ownerId);
 
     // ── Custom JPQL queries ──────────────────────────────────────────────────
@@ -47,14 +48,14 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
     List<Event> searchEventsBySingerName(@Param("singerName") String singerName);
 
     @Query("SELECT e FROM Event e WHERE " +
-           "(:name IS NULL OR LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-           "(:eventType IS NULL OR e.eventType = :eventType) AND " +
-           "(:startDate IS NULL OR e.startDate >= :startDate) AND " +
-           "(:endDate IS NULL OR e.endDate <= :endDate)")
+            "(:name IS NULL OR LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
+            "(:eventType IS NULL OR e.eventType = :eventType) AND " +
+            "(:startDate IS NULL OR e.startDate >= :startDate) AND " +
+            "(:endDate IS NULL OR e.endDate <= :endDate)")
     List<Event> getEventsByFilter(@Param("name") String name,
-                                  @Param("eventType") show_type eventType,
-                                  @Param("startDate") Date startDate,
-                                  @Param("endDate") Date endDate);
+            @Param("eventType") show_type eventType,
+            @Param("startDate") Date startDate,
+            @Param("endDate") Date endDate);
 
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM show s WHERE s.showid = :showId")
@@ -79,4 +80,7 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
             int seatNumber, Long userId) {
         throw new UnsupportedOperationException("Not yet implemented");
     }
+
+    @Query("SELECT m FROM Event e JOIN e.managerIds m WHERE e.eventId = :eventId")
+    List<UUID> getManagerIdsForEvent(@Param("eventId") UUID eventId);
 }

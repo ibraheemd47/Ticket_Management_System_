@@ -60,7 +60,8 @@ public class CompanyRoleService {
                     companyId, actor.getMemberId(), CompanyRoleType.OWNER, new HashSet<>());
 
             target.addCompanyRole(assignment);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Owner assigned successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), newOwnerId, companyId);
         });
@@ -95,7 +96,8 @@ public class CompanyRoleService {
                     companyId, actor.getMemberId(), CompanyRoleType.MANAGER, new HashSet<>());
 
             target.addCompanyRole(assignment);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Manager assigned successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), managerId, companyId);
         });
@@ -130,7 +132,8 @@ public class CompanyRoleService {
             updatedRoles.removeIf(role -> role.getCompanyId() == companyId && role.isOwner());
 
             target.setCompanyRoles(updatedRoles);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Owner removed successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), ownerId, companyId);
         });

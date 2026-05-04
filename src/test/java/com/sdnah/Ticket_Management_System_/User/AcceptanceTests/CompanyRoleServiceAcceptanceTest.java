@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_.User.AcceptanceTests;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import java.util.Optional;
@@ -28,7 +29,7 @@ import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 class CompanyRoleServiceAcceptanceTest {
 
     private static final String VALID_TOKEN = "valid-token";
-    private static final String COMPANY_ID = "company-1";
+    private static final int COMPANY_ID = 1;
     private static final String OWNER_ID = "owner-1";
     private static final String TARGET_ID = "target-1";
     private static final String MANAGER_ID = "manager-1";

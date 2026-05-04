@@ -97,7 +97,7 @@ class EventConcurrencyTest {
                 () -> eventService.assignManager(eventId, managerId, ownerId));
 
         // Assert
-        List<Long> managerIds = eventService.getEventManagerIds(eventId);
+        List<UUID> managerIds = eventService.getEventsByManager(eventId);
 
         assertEquals(1, outcome.successes.get(), "exactly one manager assignment should succeed");
         assertEquals(9, outcome.failures.get(), "the rest should fail because manager already exists");
