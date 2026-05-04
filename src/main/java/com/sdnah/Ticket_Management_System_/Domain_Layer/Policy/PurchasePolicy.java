@@ -2,65 +2,72 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
 
 import java.util.UUID;
 
-// import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy.DiscountRule;
+import jakarta.persistence.*;
 
+@Entity
+@DiscriminatorValue("PURCHASE")
 public class PurchasePolicy extends Policy {
+
+    @Column(name = "min_tickets")
     private int minTickets = 1;
+
+    @Column(name = "max_tickets")
     private int maxTickets = Integer.MAX_VALUE;
+
+    @Column(name = "allow_single_seat_gap")
     private boolean allowSingleSeatGap = true;
+
+    @Column(name = "min_age")
+    private int minAge = 0;
+
+    protected PurchasePolicy() {
+        // JPA
+    }
 
     public PurchasePolicy(int policyId, String description, UUID eventId) {
         super(policyId, description, eventId);
     }
 
-    // II.2.4 (Reserve) II.2.8 (Checkout)
-    public boolean validatePurchase(int quantity,  boolean createsSingleGap) {
-        if (quantity < minTickets || quantity > maxTickets)     
-            return false;
-        
-        if (!allowSingleSeatGap && createsSingleGap) 
-            return false;
+    public boolean validatePurchase(int quantity, boolean createsSingleGap) {
+        if (quantity < minTickets || quantity > maxTickets) return false;
+        if (!allowSingleSeatGap && createsSingleGap) return false;
         return true;
     }
-    
-   
-
-    // --- Specific Constraint Updates (Use Case II.4.3) --- for the next version
-
-    // /**
-    //  * Updates the minimum number of tickets required per purchase.
-    //  */
-    // public void setMinTickets(int minTickets) {
-    //     if (minTickets < 0) throw new IllegalArgumentException("Minimum tickets cannot be negative");
-    //     this.minTickets = minTickets;
-    // }
-
-    // /**
-    //  * Updates the maximum number of tickets allowed per purchase.
-    //  */
-    // public void setMaxTickets(int maxTickets) {
-    //     if (maxTickets < minTickets) throw new IllegalArgumentException("Maximum tickets cannot be less than minimum");
-    //     this.maxTickets = maxTickets;
-    // }
-
-    // /**
-    //  * Updates the minimum age requirement for the event.
-    //  */
-    // public void setMinAge(int minAge) {
-    //     if (minAge < 0) throw new IllegalArgumentException("Minimum age cannot be negative");
-    //     this.minAge = minAge;
-    // }
-
-    // /**
-    //  * Updates the policy regarding single seat gaps in the venue.
-    //  * @param allow true if leaving a single seat empty is permitted.
-    //  */
-    // public void setAllowSingleSeatGap(boolean allow) {
-    //     this.allowSingleSeatGap = allow;
-    // }
 
     @Override
-    public boolean isValid() { return minTickets <= maxTickets && minAge >= 0; }
-}
-    
+    public boolean isValid() {
+        return minTickets <= maxTickets && minAge >= 0;
+    }
 
+    public int getMinTickets() {
+        return minTickets;
+    }
+
+    public void setMinTickets(int minTickets) {
+        this.minTickets = minTickets;
+    }
+
+    public int getMaxTickets() {
+        return maxTickets;
+    }
+
+    public void setMaxTickets(int maxTickets) {
+        this.maxTickets = maxTickets;
+    }
+
+    public boolean isAllowSingleSeatGap() {
+        return allowSingleSeatGap;
+    }
+
+    public void setAllowSingleSeatGap(boolean allowSingleSeatGap) {
+        this.allowSingleSeatGap = allowSingleSeatGap;
+    }
+
+    public int getMinAge() {
+        return minAge;
+    }
+
+    public void setMinAge(int minAge) {
+        this.minAge = minAge;
+    }
+}
