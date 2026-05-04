@@ -7,7 +7,6 @@ import java.util.UUID;
 public class PurchasePolicy extends Policy {
     private int minTickets = 1;
     private int maxTickets = Integer.MAX_VALUE;
-    private int minAge = 0;
     private boolean allowSingleSeatGap = true;
 
     public PurchasePolicy(int policyId, String description, UUID eventId) {
@@ -15,11 +14,10 @@ public class PurchasePolicy extends Policy {
     }
 
     // II.2.4 (Reserve) II.2.8 (Checkout)
-    public boolean validatePurchase(int quantity, int userAge, boolean createsSingleGap) {
+    public boolean validatePurchase(int quantity,  boolean createsSingleGap) {
         if (quantity < minTickets || quantity > maxTickets)     
             return false;
-        if (userAge < minAge) 
-            return false;
+        
         if (!allowSingleSeatGap && createsSingleGap) 
             return false;
         return true;

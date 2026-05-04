@@ -52,7 +52,7 @@ public class PolicyService {
                 companyId, eventId, quantity, userAge);
 
         boolean result = findPurchasePolicy(eventId)
-                .map(policy -> policy.validatePurchase(quantity, userAge, false))
+                .map(policy -> policy.validatePurchase(quantity, false))
                 .orElse(true);
 
         if (!result) {
@@ -66,17 +66,17 @@ public class PolicyService {
     // =========================================================================
     // UC II.2.8 — Checkout Active Order
     // =========================================================================
-    public boolean validateFinalPurchaseConditions(int companyId, UUID eventId, int quantity, int userAge) {
-        logger.info("Validate final purchase conditions request received, companyId={}, eventId={}, quantity={}, userAge={}",
-                companyId, eventId, quantity, userAge);
+    public boolean validateFinalPurchaseConditions(int companyId, UUID eventId, int quantity) {
+        logger.info("Validate final purchase conditions request received, companyId={}, eventId={}, quantity={}",
+                companyId, eventId, quantity);
 
         boolean result = findPurchasePolicy(eventId)
-                .map(policy -> policy.validatePurchase(quantity, userAge, false))
+                .map(policy -> policy.validatePurchase(quantity, false))
                 .orElse(true);
 
         if (!result) {
-            logger.warn("Final purchase conditions rejected by purchase policy, companyId={}, eventId={}, quantity={}, userAge={}",
-                    companyId, eventId, quantity, userAge);
+            logger.warn("Final purchase conditions rejected by purchase policy, companyId={}, eventId={}, quantity={}",
+                    companyId, eventId, quantity);
         }
 
         return result;

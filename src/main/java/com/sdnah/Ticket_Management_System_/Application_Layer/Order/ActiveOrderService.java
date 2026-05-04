@@ -23,6 +23,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
 
 @Service
 public class ActiveOrderService {
@@ -34,7 +35,7 @@ public class ActiveOrderService {
     private final ITicketSupplierGateway ticketGateway;
    // private final PolicyService policyService;
 
-   
+
     //new:
     private final OrderPolicyDomainService orderPolicyDomainService;
     private final IPolicyRepo policyRepository;
@@ -89,6 +90,8 @@ public class ActiveOrderService {
             //           order.updateFinalPrice(finalPrice);
 
             //new after domain service refactor:
+            PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
+            orderPolicyDomainService.validatePurchasePolicy(order, purchasePolicy);
             DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
             orderPolicyDomainService.applyDiscountPolicy(order, policy, null);
 

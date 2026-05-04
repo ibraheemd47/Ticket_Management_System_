@@ -39,20 +39,16 @@ public class OrderPolicyDomainService {
 
     // =========================================================================
     // UC II.2.4 — Reserve Tickets in Active Order
-    // UC II.2.8 — Checkout Active Order
     // =========================================================================
-    public void validatePurchasePolicy(ActiveOrder order, PurchasePolicy policy, int userAge) {
+    public void validatePurchasePolicy(ActiveOrder order, PurchasePolicy policy) {
         validateOrder(order);
 
         // If no purchase policy exists → allow by default
         if (policy == null) {
             return;
         }
-
         int quantity = order.getItems().size();
-
-        boolean allowed = policy.validatePurchase(quantity, userAge, false);
-
+        boolean allowed = policy.validatePurchase(quantity, false);
         if (!allowed) {
             throw new IllegalStateException("Order rejected by purchase policy");
         }
