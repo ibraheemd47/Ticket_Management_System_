@@ -34,7 +34,7 @@ import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderReposi
 @Service
 @Transactional
 public class ActiveOrderService {
-   
+
     private static final Logger logger = LoggerFactory.getLogger(ActiveOrderService.class);
     private static final int TTL_MINUTES = 10;
     private final ActiveOrderRepository orderRepo;
@@ -45,7 +45,7 @@ public class ActiveOrderService {
     private final Ticket_Domain_Service ticketDomainService;// ++
     private final TicketRepository ticketRepository;// ++
 
-    //new:
+    // new:
     private final OrderPolicyDomainService orderPolicyDomainService;
     private final IPolicyRepo policyRepository;
 
@@ -55,7 +55,8 @@ public class ActiveOrderService {
             PaymentService paymentService,
             ITicketSupplierGateway ticketGateway,
             TicketRepository ticketRepository,
-            Ticket_Domain_Service ticketDomainService,IPolicyRepo policyRepo,OrderPolicyDomainService orderPolicyDomainService) {
+            Ticket_Domain_Service ticketDomainService, IPolicyRepo policyRepo,
+            OrderPolicyDomainService orderPolicyDomainService) {
         if (orderRepo == null)
             throw new IllegalArgumentException("orderRepo required");
         if (purchaseRepo == null)
@@ -78,13 +79,13 @@ public class ActiveOrderService {
         this.ticketRepository = ticketRepository;
         this.ticketDomainService = ticketDomainService;
 
-        //new:
+        // new:
         this.orderPolicyDomainService = orderPolicyDomainService;
         this.policyRepository = policyRepo;
 
     }
 
-    public OrderDTO reserveTickets(String buyerId, UUID eventId, List<SeatRequest> seats) {
+    public synchronized OrderDTO reserveTickets(String buyerId, UUID eventId, List<SeatRequest> seats) {
         logger.info("Starting ticket reservation for user {} event {}", buyerId, eventId);
 
         if (orderRepo.findActiveOrder(buyerId, eventId).isPresent()) {
@@ -115,16 +116,16 @@ public class ActiveOrderService {
                         .ifPresent(t -> ticketDomainService.TicketLocked(t));
             }
             // PolicyService returns finalPrice — update directly
-            // double finalPrice = policyService.applyGeneralDiscounts(eventId, order.getTotal().doubleValue(),
-            //         order.getItems().size());
-            //           order.updateFinalPrice(finalPrice);
+            // double finalPrice = policyService.applyGeneralDiscounts(eventId,
+            // order.getTotal().doubleValue(),
+            // order.getItems().size());
+            // order.updateFinalPrice(finalPrice);
 
-            //new after domain service refactor:
+            // new after domain service refactor:
             PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
             orderPolicyDomainService.validatePurchasePolicy(order, purchasePolicy);
             DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
             orderPolicyDomainService.applyDiscountPolicy(order, policy, null);
-
 
             orderRepo.save(order);
 
@@ -145,19 +146,17 @@ public class ActiveOrderService {
         // PolicyService returns finalPrice — update directly
         // if condition no longer met, PolicyService returns original total
 
-
         // double finalPrice = policyService.applyGeneralDiscounts(
-        //         order.getEventId(),
-        //         order.getTotal().doubleValue(),
-        //         order.getItems().size());
+        // order.getEventId(),
+        // order.getTotal().doubleValue(),
+        // order.getItems().size());
         // order.updateFinalPrice(finalPrice);
 
-        //new after domain service refactor:
+        // new after domain service refactor:
         // שליפת המדיניות מחדש כדי לוודא שהנחות מותנות עדיין תקפות
         DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
         orderPolicyDomainService.applyDiscountPolicy(order, policy, order.getAppliedCouponCode());
         // ----------------------------------------
-
 
         orderRepo.save(order);
         logger.info("Item removed successfully from order {}", orderId);
@@ -169,12 +168,10 @@ public class ActiveOrderService {
 
         ActiveOrder order = findValidOrder(orderId, buyerId);
 
-        //new after domain service refactor:
+        // new after domain service refactor:
         /// validate purchase policy before charging
         PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
         orderPolicyDomainService.validatePurchasePolicy(order, purchasePolicy);
-        
-
 
         PaymentDetails details = new PaymentDetails(paymentDTO.getCardToken(), paymentDTO.getBillingName(),
                 paymentDTO.getPaymentMethod());
@@ -259,18 +256,17 @@ public class ActiveOrderService {
         try {
             // PolicyService returns finalPrice — update directly
             // double finalPrice = policyService.calculateCouponDiscount(
-            //         order.getEventId(),
-            //         order.getFinalPrice().doubleValue(),
-            //         order.getItems().size(),
-            //         couponCode);
+            // order.getEventId(),
+            // order.getFinalPrice().doubleValue(),
+            // order.getItems().size(),
+            // couponCode);
             // order.updateFinalPrice(finalPrice);
             // order.setAppliedCouponCode(couponCode);
 
-            //new after domain service refactor:
+            // new after domain service refactor:
             DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
             orderPolicyDomainService.applyDiscountPolicy(order, policy, couponCode);
             // -------------------------------------------------------
-
 
             orderRepo.save(order);
             logger.info("Coupon applied successfully for user {} on order {}", buyerId, orderId);
