@@ -144,8 +144,10 @@ public class ActiveOrderService {
 
         ActiveOrder order = findValidOrder(orderId, buyerId);
 
+        //new after domain service refactor:
         /// validate purchase policy before charging
-        
+        PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
+        orderPolicyDomainService.validatePurchasePolicy(order, purchasePolicy);
         
 
 
