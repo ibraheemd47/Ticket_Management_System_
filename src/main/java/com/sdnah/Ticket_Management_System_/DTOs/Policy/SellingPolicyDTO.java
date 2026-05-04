@@ -15,6 +15,6 @@ public class SellingPolicyDTO extends PolicyDTO {
     }
 
     // Getters and Setters
-    public SellingType getType() { return sellingType; }
-    public void setType(SellingType type) { this.sellingType = type; }
+    public SellingType getSellingType() { return sellingType; }
+    public void setSellingType(SellingType sellingType) { this.sellingType = sellingType; }
 }

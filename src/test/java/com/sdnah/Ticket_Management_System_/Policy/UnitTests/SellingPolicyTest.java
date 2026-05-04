@@ -1,17 +1,17 @@
 package com.sdnah.Ticket_Management_System_.Policy.UnitTests;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.SellingPolicy;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
+import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("SellingPolicy — Domain Unit Tests")
 class SellingPolicyTest {
 
-    private static final int COMPANY_ID = 10;
-    private static final int EVENT_ID = 20;
+    private static final UUID EVENT_ID = UUID.randomUUID();
 
     @Test
     void GivenRegularSellingPolicy_WhenGuestSelectsTickets_ThenReturnTrue() {
@@ -19,8 +19,7 @@ class SellingPolicyTest {
                 1,
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
-                EVENT_ID,
-                COMPANY_ID
+                EVENT_ID
         );
 
         assertTrue(policy.isSelectionAllowed(false));
@@ -32,8 +31,7 @@ class SellingPolicyTest {
                 1,
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
-                EVENT_ID,
-                COMPANY_ID
+                EVENT_ID
         );
 
         assertTrue(policy.isSelectionAllowed(true));
@@ -45,8 +43,7 @@ class SellingPolicyTest {
                 1,
                 "Lottery",
                 SellingPolicy.SellingType.LOTTERY,
-                EVENT_ID,
-                COMPANY_ID
+                EVENT_ID
         );
 
         assertFalse(policy.isSelectionAllowed(false));
@@ -58,23 +55,23 @@ class SellingPolicyTest {
                 1,
                 "Lottery",
                 SellingPolicy.SellingType.LOTTERY,
-                EVENT_ID,
-                COMPANY_ID
+                EVENT_ID
         );
 
         assertTrue(policy.isSelectionAllowed(true));
     }
 
     @Test
-    void GivenSellingPolicy_WhenIsValid_ThenReturnTrue() {
+    void GivenSellingPolicy_WhenSetTypeToLottery_ThenGuestSelectionRejected() {
         SellingPolicy policy = new SellingPolicy(
                 1,
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
-                EVENT_ID,
-                COMPANY_ID
+                EVENT_ID
         );
 
-        assertTrue(policy.isValid());
+        policy.setType(SellingPolicy.SellingType.LOTTERY);
+
+        assertFalse(policy.isSelectionAllowed(false));
     }
 }
