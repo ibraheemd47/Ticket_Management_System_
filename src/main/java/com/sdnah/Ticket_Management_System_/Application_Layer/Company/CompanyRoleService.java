@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer;
+package com.sdnah.Ticket_Management_System_.Application_Layer.Company;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock;
+import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.ManagerPermission;

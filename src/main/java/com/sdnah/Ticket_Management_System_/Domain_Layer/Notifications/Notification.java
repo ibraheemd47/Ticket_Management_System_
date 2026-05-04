@@ -3,17 +3,34 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
+import jakarta.persistence.*;
 
+@Entity
+@Table(name = "notifications")
 public class Notification {
 
-    private final String id;
-    private final String recipientUsername;
-    private final String message;
-    private final NotificationType type;
-    private final LocalDateTime createdAt;
+    @Id
+    private String id;
+
+    @Column(nullable = false)
+    private String recipientUsername;
+
+    @Column(nullable = false, length = 2000)
+    private String message;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private NotificationType type;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
 
     public Notification(String recipientUsername, String message, NotificationType type) {
         this(UUID.randomUUID().toString(), recipientUsername, message, type, LocalDateTime.now());
+    }
+
+    protected Notification() {
+        // required by JPA
     }
 
     public Notification(String id, String recipientUsername, String message, NotificationType type, LocalDateTime createdAt) {

@@ -24,9 +24,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyRoleService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Application_Layer.Company.CompanyRoleService;
 import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
