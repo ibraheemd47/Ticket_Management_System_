@@ -14,7 +14,6 @@ public interface ICompanyRepository {
      * @param company The company entity to persist.
      */
     void save(Company company);
-
     /**
      * Finds a company by its unique numeric identifier.
      * @param companyId The ID of the company.

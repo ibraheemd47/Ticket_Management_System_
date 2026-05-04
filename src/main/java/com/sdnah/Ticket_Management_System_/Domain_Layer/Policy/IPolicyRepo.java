@@ -18,7 +18,6 @@ public interface IPolicyRepo {
     void deleteByPolicyId(int policyId);
 
     Policy save(Policy policy);
-
-    Optional<Policy> findAll();
+    // Optional<Policy> findAll();
 
 }
