@@ -24,6 +24,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
+import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
+
 class company_managment_serivceTest {
 
     private company_managment_serivce service;
@@ -32,6 +37,7 @@ class company_managment_serivceTest {
     private CompanyRepository repo;
     private UserRepository userRepository;
     private TokenRepository tokenRepository;
+    private IEventRepository eventRepository;
 
     private static final int COMPANY_ID = 1;
 
@@ -51,8 +57,14 @@ class company_managment_serivceTest {
         userRepository = mock(UserRepository.class);
         tokenRepository = mock(TokenRepository.class);
 
-        service = new company_managment_serivce(repo, userRepository, tokenRepository);
+        eventRepository = mock(IEventRepository.class);
 
+        service = new company_managment_serivce(
+                repo,
+                userRepository,
+                tokenRepository,
+                eventRepository
+        );
         Company company = new Company(COMPANY_ID, "Main Company", FOUNDER);
 
         when(repo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
@@ -116,52 +128,84 @@ class company_managment_serivceTest {
 
     @Test
     void GivenFounder_WhenAddEvent_ThenEventAdded() {
-        service.addEvent(FOUNDER_TOKEN, COMPANY_ID, 10);
+        EventDto dto = eventDto("Event10");
+        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(FOUNDER));
 
-        assertTrue(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(10));
+        when(eventRepository.save(any(Event.class))).thenReturn(event);
+
+        EventDto saved = service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
+
+        assertTrue(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(saved.id));
     }
 
     @Test
     void GivenUnauthorizedUser_WhenAddEvent_ThenFail() {
-        assertThrows(SecurityException.class,
-                () -> service.addEvent(USER, COMPANY_ID, 10));
+        EventDto dto = eventDto("Event10");
+
+        assertThrows(RuntimeException.class,
+                () -> service.addEvent(USER_TOKEN, COMPANY_ID, dto));
     }
 
     @Test
     void GivenMissingCompany_WhenAddEvent_ThenFail() {
+        EventDto dto = eventDto("Event10");
+
         assertThrows(NoSuchElementException.class,
-                () -> service.addEvent(FOUNDER, 999, 10));
+                () -> service.addEvent(FOUNDER_TOKEN, 999, dto));
     }
 
     @Test
     void GivenDuplicateEvent_WhenAddEvent_ThenFail() {
-        service.addEvent(FOUNDER_TOKEN, COMPANY_ID, 10);
+        EventDto dto = eventDto("Event10");
+        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(FOUNDER));
+
+        when(eventRepository.save(any(Event.class))).thenReturn(event);
+
+        service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.addEvent(FOUNDER_TOKEN, COMPANY_ID, 10));
+                () -> service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto));
     }
 
     @Test
     void GivenExistingEvent_WhenRemoveEvent_ThenEventRemoved() {
-        service.addEvent(FOUNDER_TOKEN, COMPANY_ID, 10);
+        EventDto dto = eventDto("Event10");
+        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(FOUNDER));
 
-        service.removeEvent(FOUNDER_TOKEN, COMPANY_ID, 10);
+        when(eventRepository.save(any(Event.class))).thenReturn(event);
 
-        assertFalse(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(10));
+        EventDto saved = service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
+
+        when(eventRepository.findById(saved.id)).thenReturn(Optional.of(event));
+
+        service.removeEvent(FOUNDER_TOKEN, COMPANY_ID, saved.id);
+
+        assertFalse(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(saved.id));
+        verify(eventRepository).delete(event);
     }
 
     @Test
     void GivenMissingEvent_WhenRemoveEvent_ThenFail() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.removeEvent(FOUNDER_TOKEN, COMPANY_ID, 999));
+        UUID missingEventId = UUID.randomUUID();
+
+        when(eventRepository.findById(missingEventId)).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class,
+                () -> service.removeEvent(FOUNDER_TOKEN, COMPANY_ID, missingEventId));
     }
 
     @Test
     void GivenUnauthorizedUser_WhenRemoveEvent_ThenFail() {
-        service.addEvent(FOUNDER_TOKEN, COMPANY_ID, 10);
+        EventDto dto = eventDto("Event10");
+        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(FOUNDER));
 
-        assertThrows(SecurityException.class,
-                () -> service.removeEvent(USER, COMPANY_ID, 10));
+        when(eventRepository.save(any(Event.class))).thenReturn(event);
+
+        EventDto saved = service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
+        when(eventRepository.findById(saved.id)).thenReturn(Optional.of(event));
+
+        assertThrows(RuntimeException.class,
+                () -> service.removeEvent(USER_TOKEN, COMPANY_ID, saved.id));
     }
 
     @Test
@@ -196,9 +240,14 @@ class company_managment_serivceTest {
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS)
         );
 
-        service.addEvent(MANAGER_TOKEN, COMPANY_ID, 20);
+        EventDto dto = eventDto("Event20");
+        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(MANAGER));
 
-        assertTrue(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(20));
+        when(eventRepository.save(any(Event.class))).thenReturn(event);
+
+        EventDto saved = service.addEvent(MANAGER_TOKEN, COMPANY_ID, dto);
+
+        assertTrue(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(saved.id));
     }
 
     @Test
@@ -210,8 +259,10 @@ class company_managment_serivceTest {
                 EnumSet.of(CompanyPermission.VIEW_HISTORY)
         );
 
-        assertThrows(SecurityException.class,
-                () -> service.addEvent(MANAGER, COMPANY_ID, 20));
+        EventDto dto = eventDto("Event20");
+
+        assertThrows(RuntimeException.class,
+                () -> service.addEvent(MANAGER_TOKEN, COMPANY_ID, dto));
     }
 
     @Test
@@ -329,10 +380,13 @@ class company_managment_serivceTest {
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS)
         );
+
         service.removeManagerAppointment(FOUNDER_TOKEN, COMPANY_ID, MANAGER);
 
-        assertThrows(SecurityException.class,
-                () -> service.addEvent(MANAGER, COMPANY_ID, 30));
+        EventDto dto = eventDto("Event30");
+
+        assertThrows(RuntimeException.class,
+                () -> service.addEvent(MANAGER_TOKEN, COMPANY_ID, dto));
     }
 
     @Test
@@ -400,5 +454,9 @@ class company_managment_serivceTest {
         when(tokenRepository.findById(tokenValue)).thenReturn(Optional.of(token));
         when(userRepository.findById(memberId)).thenReturn(Optional.of(member));
         when(userRepository.findByMemberId(memberId)).thenReturn(member);
+    }
+
+    private EventDto eventDto(String name) {
+        return new EventDto(null, name, null, show_type.CONFERENCE, "Venue");
     }
 }

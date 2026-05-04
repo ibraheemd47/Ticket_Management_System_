@@ -49,51 +49,63 @@ class CompanyTest {
 
     @Test
     void GivenOwner_WhenAddRemoveAndValidateEvent_ThenSuccess() {
-        company.addEventId(FOUNDER, 100);
+        UUID eventId = UUID.randomUUID();
 
-        assertEquals(List.of(100), company.getAssociatedEventIds());
-        assertDoesNotThrow(() -> company.validateEventBelongsToCompany(100));
+        company.addEventId(FOUNDER, eventId);
 
-        company.removeEvent(FOUNDER, 100);
+        assertEquals(List.of(eventId), company.getAssociatedEventIds());
+        assertDoesNotThrow(() -> company.validateEventBelongsToCompany(eventId));
+
+        company.removeEvent(FOUNDER, eventId);
 
         assertTrue(company.getAssociatedEventIds().isEmpty());
     }
 
     @Test
-    void GivenInvalidEventOperations_WhenCalled_ThenFail() {
-        company.addEventId(FOUNDER, 100);
+        void GivenInvalidEventOperations_WhenCalled_ThenFail() {
+        UUID eventId = UUID.randomUUID();
+        UUID otherEvent = UUID.randomUUID();
+
+        company.addEventId(FOUNDER, eventId);
 
         assertAll(
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> company.addEventId(FOUNDER, 100)),
+                        () -> company.addEventId(FOUNDER, eventId)),
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> company.removeEvent(FOUNDER, 999)),
+                        () -> company.removeEvent(FOUNDER, otherEvent)),
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> company.validateEventBelongsToCompany(999)),
+                        () -> company.validateEventBelongsToCompany(otherEvent)),
                 () -> assertThrows(SecurityException.class,
-                        () -> company.addEventId(USER, 200))
+                        () -> company.addEventId(USER, UUID.randomUUID()))
         );
-    }
+        }
 
     @Test
-    void GivenManagerWithPermission_WhenManageEvent_ThenSuccess() {
-        company.addEventId(FOUNDER, 100);
+        void GivenManagerWithPermission_WhenManageEvent_ThenSuccess() {
+        UUID eventId = UUID.randomUUID();
+        UUID event2 = UUID.randomUUID();
+
         company.appointManager(
                 FOUNDER,
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS)
         );
 
-        assertDoesNotThrow(() ->
-                company.defineEventLayout(MANAGER, 100, "map"));
-        company.addEventId(MANAGER, 101);
+        company.addEventId(FOUNDER, eventId);
 
-        assertTrue(company.getAssociatedEventIds().contains(101));
-    }
+        assertDoesNotThrow(() ->
+                company.defineEventLayout(MANAGER, eventId, "map"));
+
+        company.addEventId(MANAGER, event2);
+
+        assertTrue(company.getAssociatedEventIds().contains(event2));
+        }
 
     @Test
-    void GivenManagerWithoutPermission_WhenManageEvent_ThenFail() {
-        company.addEventId(FOUNDER, 100);
+        void GivenManagerWithoutPermission_WhenManageEvent_ThenFail() {
+        UUID eventId = UUID.randomUUID();
+
+        company.addEventId(FOUNDER, eventId);
         company.appointManager(
                 FOUNDER,
                 MANAGER,
@@ -101,8 +113,8 @@ class CompanyTest {
         );
 
         assertThrows(SecurityException.class,
-                () -> company.defineEventLayout(MANAGER, 100, "map"));
-    }
+                () -> company.defineEventLayout(MANAGER, eventId, "map"));
+        }
 
     @Test
     void GivenOwner_WhenAddAndViewHistory_ThenSuccess() {
@@ -216,30 +228,36 @@ class CompanyTest {
     }
 
     @Test
-    void GivenClosedCompany_WhenTryingManagementAction_ThenFail() {
+        void GivenClosedCompany_WhenTryingManagementAction_ThenFail() {
+        UUID eventId = UUID.randomUUID();
+
         company.closeCompany(FOUNDER);
 
         assertThrows(IllegalStateException.class,
-                () -> company.addEventId(FOUNDER, 100));
+                () -> company.addEventId(FOUNDER, eventId));
 
         assertTrue(company.getAssociatedEventIds().isEmpty());
-    }
+        }
 
     @Test
-    void GivenReturnedLists_WhenModifiedExternally_ThenCompanyStateNotChanged() {
-        company.addEventId(FOUNDER, 100);
+        void GivenReturnedLists_WhenModifiedExternally_ThenCompanyStateNotChanged() {
+        UUID eventId = UUID.randomUUID();
 
-        List<Integer> events = company.getAssociatedEventIds();
-        events.add(999);
+        company.addEventId(FOUNDER, eventId);
 
-        assertEquals(List.of(100), company.getAssociatedEventIds());
+        List<UUID> events = company.getAssociatedEventIds();
+        events.add(UUID.randomUUID());
+
+        assertEquals(List.of(eventId), company.getAssociatedEventIds());
         assertThrows(UnsupportedOperationException.class,
                 () -> company.getOwnerIds().add("999"));
-    }
+        }
 
     @Test
-    @Timeout(10)
-    void GivenConcurrentAddSameEvent_WhenRun_ThenOnlyOneSucceeds() throws Exception {
+        @Timeout(10)
+        void GivenConcurrentAddSameEvent_WhenRun_ThenOnlyOneSucceeds() throws Exception {
+        UUID eventId = UUID.randomUUID();
+
         int threads = 40;
         ExecutorService executor = Executors.newFixedThreadPool(threads);
         CountDownLatch start = new CountDownLatch(1);
@@ -247,16 +265,16 @@ class CompanyTest {
         AtomicInteger success = new AtomicInteger();
 
         for (int i = 0; i < threads; i++) {
-            executor.submit(() -> {
+                executor.submit(() -> {
                 try {
-                    start.await();
-                    company.addEventId(FOUNDER, 777);
-                    success.incrementAndGet();
+                        start.await();
+                        company.addEventId(FOUNDER, eventId);
+                        success.incrementAndGet();
                 } catch (Exception ignored) {
                 } finally {
-                    done.countDown();
+                        done.countDown();
                 }
-            });
+                });
         }
 
         start.countDown();
@@ -264,8 +282,8 @@ class CompanyTest {
         executor.shutdownNow();
 
         assertEquals(1, success.get());
-        assertEquals(List.of(777), company.getAssociatedEventIds());
-    }
+        assertEquals(List.of(eventId), company.getAssociatedEventIds());
+        }
 
     @Test
     @Timeout(10)

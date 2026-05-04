@@ -24,6 +24,11 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 import java.util.*;
 
+import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
+
 public class CompanyAcceptanceTest {
 
     private CompanyRepository companyRepository;
@@ -32,6 +37,7 @@ public class CompanyAcceptanceTest {
 
     private UserRepository userRepository;
     private TokenRepository tokenRepository;
+    private IEventRepository eventRepository;
 
     // private String founderToken;
     // private String user200Token;
@@ -54,6 +60,7 @@ public class CompanyAcceptanceTest {
         companyRepository = mock(CompanyRepository.class);
         userRepository = mock(UserRepository.class);
         tokenRepository = mock(TokenRepository.class);
+        eventRepository = mock(IEventRepository.class);
 
         companies = new HashMap<>();
 
@@ -84,7 +91,8 @@ public class CompanyAcceptanceTest {
         companyService = new company_managment_serivce(
                 companyRepository,
                 userRepository,
-                tokenRepository
+                tokenRepository,
+                eventRepository
         );
 
         mockMemberAndToken(FOUNDER_ID, "founder", FOUNDER_TOKEN);
@@ -144,8 +152,18 @@ private void mockMemberAndToken(String memberId, String username, String tokenVa
         companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
         companyService.openCompany(USER_200_TOKEN, 2, "CompanyB");
 
-        companyService.addEvent(FOUNDER_TOKEN, 1, 1000);
-        companyService.addEvent(FOUNDER_TOKEN, 1, 1001);
+        EventDto dto1 = new EventDto(null, "Event1", null, show_type.CONFERENCE, "Venue");
+        EventDto dto2 = new EventDto(null, "Event2", null, show_type.CONFERENCE, "Venue");
+
+        Event event1 = new Event(dto1.name, dto1.eventType, 1L, Long.valueOf(FOUNDER_ID));
+        Event event2 = new Event(dto2.name, dto2.eventType, 1L, Long.valueOf(FOUNDER_ID));
+
+        when(eventRepository.save(any(Event.class)))
+                .thenReturn(event1)
+                .thenReturn(event2);
+
+        EventDto saved1 = companyService.addEvent(FOUNDER_TOKEN, 1, dto1);
+        EventDto saved2 = companyService.addEvent(FOUNDER_TOKEN, 1, dto2);
 
         List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
 
@@ -158,11 +176,11 @@ private void mockMemberAndToken(String memberId, String username, String tokenVa
 
         assertEquals("CompanyA", companyA.getCompanyName());
 
-        List<Integer> companyAEvents = companyService.getAllEventsByCompany(1);
+        List<UUID> companyAEvents = companyService.getAllEventsByCompany(1);
 
         assertEquals(2, companyAEvents.size());
-        assertTrue(companyAEvents.contains(1000));
-        assertTrue(companyAEvents.contains(1001));
+        assertTrue(companyAEvents.contains(saved1.id));
+        assertTrue(companyAEvents.contains(saved2.id));
     }
 
     @Test
@@ -182,8 +200,7 @@ private void mockMemberAndToken(String memberId, String username, String tokenVa
         assertEquals(1, activeCompanies.size());
         assertEquals(1, activeCompanies.get(0).getCompanyId());
 
-        List<Integer> events = companyService.getAllEventsByCompany(1);
-
+        List<UUID> events = companyService.getAllEventsByCompany(1);
         assertNotNull(events);
         assertTrue(events.isEmpty());
     }
@@ -195,35 +212,52 @@ private void mockMemberAndToken(String memberId, String username, String tokenVa
     void addEventSuccessfully() {
         companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
-        companyService.addEvent(FOUNDER_TOKEN, 1, 500);
+        EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
+        Event event = new Event(dto.name, dto.eventType, 1L, Long.valueOf(FOUNDER_ID));
+
+        when(eventRepository.save(any(Event.class))).thenReturn(event);
+
+        EventDto saved = companyService.addEvent(FOUNDER_TOKEN, 1, dto);
 
         Company company = companyRepository.findById(1).orElseThrow();
-        assertTrue(company.getAssociatedEventIds().contains(500));
+        assertTrue(company.getAssociatedEventIds().contains(saved.id));
     }
 
     @Test
     void removeEventSuccessfully() {
         companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.addEvent(FOUNDER_TOKEN, 1, 500);
 
-        companyService.removeEvent(FOUNDER_TOKEN, 1, 500);
+        EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
+        Event event = new Event(dto.name, dto.eventType, 1L, Long.valueOf(FOUNDER_ID));
+
+        when(eventRepository.save(any(Event.class))).thenReturn(event);
+        EventDto saved = companyService.addEvent(FOUNDER_TOKEN, 1, dto);
+
+        when(eventRepository.findById(saved.id)).thenReturn(Optional.of(event));
+
+        companyService.removeEvent(FOUNDER_TOKEN, 1, saved.id);
 
         Company company = companyRepository.findById(1).orElseThrow();
-        assertFalse(company.getAssociatedEventIds().contains(500));
+        assertFalse(company.getAssociatedEventIds().contains(saved.id));
+        verify(eventRepository).delete(event);
     }
 
     @Test
     void companyNotFoundWhenManagingEvents() {
+        EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
+
         assertThrows(RuntimeException.class,
-                () -> companyService.addEvent(FOUNDER_TOKEN, 999, 500));
+                () -> companyService.addEvent(FOUNDER_TOKEN, 999, dto));
     }
 
     @Test
     void userNotOwnerWhenManagingEvents() {
         companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
+        EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
+
         assertThrows(RuntimeException.class,
-                () -> companyService.addEvent(USER_200_TOKEN, 1, 500));
+                () -> companyService.addEvent(USER_200_TOKEN, 1, dto));
     }
 
     // II.4.5 View Company Purchase and Order History
