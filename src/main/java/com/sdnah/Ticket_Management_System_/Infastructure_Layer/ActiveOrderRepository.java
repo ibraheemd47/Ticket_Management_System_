@@ -15,12 +15,12 @@ import jakarta.persistence.LockModeType;
 
 @Repository
 public interface ActiveOrderRepository extends JpaRepository<ActiveOrder, UUID> {
-    @Query("SELECT o FROM ActiveOrder o WHERE o.buyerId = :buyerId AND o.eventId = :eventId AND o.status = 'ACTIVE' AND o.expiresAt > CURRENT_TIMESTAMP")
-    Optional<ActiveOrder> findActiveOrder(@Param("buyerId") String buyerId,
+    @Query("SELECT o FROM ActiveOrder o WHERE o.userToken = :userToken AND o.eventId = :eventId AND o.status = 'ACTIVE' AND o.expiresAt > CURRENT_TIMESTAMP")
+    Optional<ActiveOrder> findActiveOrder(@Param("userToken") String userToken,
             @Param("eventId") UUID eventId);
 
-    @Query("SELECT o FROM ActiveOrder o WHERE o.buyerId = :buyerId AND o.status = 'ACTIVE' AND o.expiresAt > CURRENT_TIMESTAMP")
-    List<ActiveOrder> findPendingOrdersByBuyer(@Param("buyerId") String buyerId);
+    @Query("SELECT o FROM ActiveOrder o WHERE o.userToken = :userToken AND o.status = 'ACTIVE' AND o.expiresAt > CURRENT_TIMESTAMP")
+    List<ActiveOrder> findPendingOrdersByBuyer(@Param("userToken") String userToken);
 
     @Query("SELECT o FROM ActiveOrder o WHERE o.status = 'ACTIVE' AND o.expiresAt < CURRENT_TIMESTAMP")
     List<ActiveOrder> findExpiredOrders();

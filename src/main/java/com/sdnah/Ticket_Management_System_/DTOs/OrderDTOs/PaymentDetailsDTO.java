@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs;
+package com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs;
 
 public class PaymentDetailsDTO {
     private final String cardToken;

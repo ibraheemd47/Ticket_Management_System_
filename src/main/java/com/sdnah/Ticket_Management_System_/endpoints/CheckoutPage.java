@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PaymentDetailsDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
 
 @RestController
 @RequestMapping("/api/CheckoutPage")

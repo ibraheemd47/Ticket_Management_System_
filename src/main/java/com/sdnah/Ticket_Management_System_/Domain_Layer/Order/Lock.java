@@ -11,7 +11,7 @@ public class Lock {
     private String resourceId;
 
     @Column(name = "lock_buyer_id")
-    private String buyerId;
+    private String userToken;
 
     @Column(name = "lock_expires_at")
     private LocalDateTime expiresAt;
@@ -28,7 +28,7 @@ public class Lock {
         if (expiresAt == null)
             throw new IllegalArgumentException("expiresAt required");
         this.resourceId = resourceId;
-        this.buyerId = ownerId;
+        this.userToken = ownerId;
         this.expiresAt = expiresAt;
     }
 
@@ -36,8 +36,8 @@ public class Lock {
         return LocalDateTime.now().isAfter(expiresAt);
     }
 
-    public boolean isHeldBy(String buyerId) {
-        return this.buyerId.equals(buyerId);
+    public boolean isHeldBy(String userToken) {
+        return this.userToken.equals(userToken);
     }
 
     public String getResourceId() {
@@ -45,7 +45,7 @@ public class Lock {
     }
 
     public String getOwnerId() {
-        return buyerId;
+        return userToken;
     }
 
     public LocalDateTime getExpiresAt() {

@@ -1,8 +1,9 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer.Order;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.*;
 import java.util.List;
 import java.util.ArrayList;
+
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.*;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.*;
 
 public class OrderMapper {
@@ -22,7 +23,7 @@ public class OrderMapper {
 
         return new OrderDTO(
                 order.getId(),
-                order.getBuyerId(),
+                order.getuserToken(),
                 order.getEventId(),
                 items,
                 order.getExpiresAt(),

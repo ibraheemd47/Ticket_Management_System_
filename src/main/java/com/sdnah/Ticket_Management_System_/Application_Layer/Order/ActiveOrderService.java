@@ -11,10 +11,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PaymentDetailsDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
@@ -85,15 +85,15 @@ public class ActiveOrderService {
 
     }
 
-    public synchronized OrderDTO reserveTickets(String buyerId, UUID eventId, List<SeatRequest> seats) {
-        logger.info("Starting ticket reservation for user {} event {}", buyerId, eventId);
+    public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
+        logger.info("Starting ticket reservation for user {} event {}", userToken, eventId);
 
-        if (orderRepo.findActiveOrder(buyerId, eventId).isPresent()) {
-            logger.warn("User {} already has an active order for event {}", buyerId, eventId);
+        if (orderRepo.findActiveOrder(userToken, eventId).isPresent()) {
+            logger.warn("User {} already has an active order for event {}", userToken, eventId);
             throw new IllegalStateException("Active order already exists");
         }
 
-        ActiveOrder order = new ActiveOrder(buyerId, eventId, TTL_MINUTES);
+        ActiveOrder order = new ActiveOrder(userToken, eventId, TTL_MINUTES);
 
         try {
             for (SeatRequest seat : seats) {
@@ -103,7 +103,7 @@ public class ActiveOrderService {
                     throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
                 }
 
-                Lock lock = new Lock(seat.getTicketId(), buyerId,
+                Lock lock = new Lock(seat.getTicketId(), userToken,
                         LocalDateTime.now().plusMinutes(TTL_MINUTES));
                 order.addTicket(seat.getTicketId(), seat.getSeatId(),
                         seat.getAreaId(), seat.getPrice(), lock);
@@ -134,14 +134,14 @@ public class ActiveOrderService {
 
         } catch (Exception e) {
             // @Transactional rolls back all saves automatically — locks released
-            logger.error("reserveTickets FAILED rollback done buyerId={}", buyerId);
+            logger.error("reserveTickets FAILED rollback done userToken={}", userToken);
             throw e;
         }
     }
 
-    public OrderDTO removeFromOrder(UUID orderId, UUID itemId, String buyerId) {
-        logger.info("Removing item {} from order {} by user {}", itemId, orderId, buyerId);
-        ActiveOrder order = findValidOrder(orderId, buyerId);
+    public OrderDTO removeFromOrder(UUID orderId, UUID itemId, String userToken) {
+        logger.info("Removing item {} from order {} by user {}", itemId, orderId, userToken);
+        ActiveOrder order = findValidOrder(orderId, userToken);
         OrderItem item = order.removeTicket(itemId);
         // PolicyService returns finalPrice — update directly
         // if condition no longer met, PolicyService returns original total
@@ -163,10 +163,10 @@ public class ActiveOrderService {
         return OrderMapper.toDTO(order);
     }
 
-    public PurchaseDTO checkout(UUID orderId, String buyerId, PaymentDetailsDTO paymentDTO) {
-        logger.info("Starting checkout for order {} by user {}", orderId, buyerId);
+    public PurchaseDTO checkout(UUID orderId, String userToken, PaymentDetailsDTO paymentDTO) {
+        logger.info("Starting checkout for order {} by user {}", orderId, userToken);
 
-        ActiveOrder order = findValidOrder(orderId, buyerId);
+        ActiveOrder order = findValidOrder(orderId, userToken);
 
         // new after domain service refactor:
         /// validate purchase policy before charging
@@ -213,23 +213,23 @@ public class ActiveOrderService {
         return OrderMapper.toDTO(purchase, ticketCodes);
     }
 
-    public OrderDTO getActiveOrder(String buyerId, UUID eventId) {
-        logger.info("Fetching active order for user {}", buyerId);
+    public OrderDTO getActiveOrder(String userToken, UUID eventId) {
+        logger.info("Fetching active order for user {}", userToken);
 
-        return orderRepo.findActiveOrder(buyerId, eventId)
+        return orderRepo.findActiveOrder(userToken, eventId)
                 .map(order -> {
                     logger.info("Active order found {}", order.getId());
                     return OrderMapper.toDTO(order);
                 })
                 .orElseThrow(() -> {
-                    logger.warn("No active order found for user {}", buyerId);
+                    logger.warn("No active order found for user {}", userToken);
                     return new IllegalStateException("No active order");
                 });
     }
 
-    public void cancelOrder(UUID orderId, String buyerId) {
-        logger.info("Cancelling order {} for user {}", orderId, buyerId);
-        ActiveOrder order = findValidOrder(orderId, buyerId);
+    public void cancelOrder(UUID orderId, String userToken) {
+        logger.info("Cancelling order {} for user {}", orderId, userToken);
+        ActiveOrder order = findValidOrder(orderId, userToken);
         order.markCancelled();
         // domain clears locks and returns IDs — service releases them in repository
         for (String lockId : order.releaseAllLocks()) {
@@ -250,9 +250,9 @@ public class ActiveOrderService {
      * the user should re-enter the coupon code to reapply it.
      */
 
-    public OrderDTO applyCoupon(UUID orderId, String buyerId, String couponCode) {
-        logger.info("Applying coupon {} for user {} on order {}", couponCode, buyerId, orderId);
-        ActiveOrder order = findValidOrder(orderId, buyerId);
+    public OrderDTO applyCoupon(UUID orderId, String userToken, String couponCode) {
+        logger.info("Applying coupon {} for user {} on order {}", couponCode, userToken, orderId);
+        ActiveOrder order = findValidOrder(orderId, userToken);
         try {
             // PolicyService returns finalPrice — update directly
             // double finalPrice = policyService.calculateCouponDiscount(
@@ -269,11 +269,11 @@ public class ActiveOrderService {
             // -------------------------------------------------------
 
             orderRepo.save(order);
-            logger.info("Coupon applied successfully for user {} on order {}", buyerId, orderId);
+            logger.info("Coupon applied successfully for user {} on order {}", userToken, orderId);
             return OrderMapper.toDTO(order);
 
         } catch (IllegalArgumentException e) {
-            logger.warn("Invalid coupon {} for user {} on order {}", couponCode, buyerId, orderId);
+            logger.warn("Invalid coupon {} for user {} on order {}", couponCode, userToken, orderId);
             throw new IllegalStateException("Coupon is not valid");
         }
     }
@@ -293,31 +293,31 @@ public class ActiveOrderService {
      * Returns all ACTIVE (in-progress, not yet purchased) orders for a buyer.
      * Used for GetAllUpcomingOrdersByMemberId.
      */
-    public List<OrderDTO> getPendingOrdersByBuyer(String buyerId) {
-        logger.info("Fetching active orders for buyer {}", buyerId);
-        List<ActiveOrder> pending = orderRepo.findPendingOrdersByBuyer(buyerId);
+    public List<OrderDTO> getPendingOrdersByBuyer(String userToken) {
+        logger.info("Fetching active orders for buyer {}", userToken);
+        List<ActiveOrder> pending = orderRepo.findPendingOrdersByBuyer(userToken);
         List<OrderDTO> result = new ArrayList<>();
         for (ActiveOrder o : pending)
             result.add(OrderMapper.toDTO(o));
-        logger.info("Found {} active orders for buyer {}", result.size(), buyerId);
+        logger.info("Found {} active orders for buyer {}", result.size(), userToken);
         return result;
     }
 
-    public OrderDTO getOrderById(UUID orderId, String buyerId) {
-        logger.info("getOrderById | orderId={} buyerId={}", orderId, buyerId);
-        ActiveOrder order = findValidOrder(orderId, buyerId);
+    public OrderDTO getOrderById(UUID orderId, String userToken) {
+        logger.info("getOrderById | orderId={} userToken={}", orderId, userToken);
+        ActiveOrder order = findValidOrder(orderId, userToken);
         return OrderMapper.toDTO(order);
     }
 
     /** completed purchases — GetAllPassedOrdersByMemberId */
-    public List<PurchaseDTO> getPurchaseHistory(String buyerId) {
-        logger.info("Fetching purchase history for user {}", buyerId);
-        List<Purchase> purchases = purchaseRepo.findByBuyerId(buyerId);
+    public List<PurchaseDTO> getPurchaseHistory(String userToken) {
+        logger.info("Fetching purchase history for user {}", userToken);
+        List<Purchase> purchases = purchaseRepo.findByuserToken(userToken);
         List<PurchaseDTO> result = new ArrayList<>();
         for (Purchase p : purchases) {
             result.add(OrderMapper.toDTO(p, new ArrayList<>()));
         }
-        logger.info("Purchase history fetched successfully for user {}", buyerId);
+        logger.info("Purchase history fetched successfully for user {}", userToken);
         return result;
     }
 
@@ -343,15 +343,15 @@ public class ActiveOrderService {
         logger.info("Expired orders cleanup done. count={}", expiredOrders.size());
     }
 
-    private ActiveOrder findValidOrder(UUID orderId, String buyerId) {
-        logger.info("Checking order {} for user {}", orderId, buyerId);
+    private ActiveOrder findValidOrder(UUID orderId, String userToken) {
+        logger.info("Checking order {} for user {}", orderId, userToken);
         ActiveOrder order = orderRepo.findById(orderId)
                 .orElseThrow(() -> {
                     logger.warn("Order {} not found", orderId);
                     return new IllegalArgumentException("Order not found");
                 });
-        if (!order.isOwnedBy(buyerId)) {
-            logger.warn("User {} tried to access order {} which is not theirs", buyerId, orderId);
+        if (!order.isOwnedBy(userToken)) {
+            logger.warn("User {} tried to access order {} which is not theirs", userToken, orderId);
             throw new IllegalStateException("Order does not belong to user");
         }
 
@@ -359,7 +359,7 @@ public class ActiveOrderService {
             logger.warn("Order {} is expired", orderId);
             throw new IllegalStateException("Order expired");
         }
-        logger.info("Order {} is valid for user {}", orderId, buyerId);
+        logger.info("Order {} is valid for user {}", orderId, userToken);
         return order;
     }
 

@@ -10,7 +10,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 
 @Repository
 public interface PurchaseRepository extends JpaRepository<Purchase, UUID> {
-    List<Purchase> findByBuyerId(String buyerId);
+    List<Purchase> findByuserToken(String userToken);
 
     List<Purchase> findByEventId(UUID eventId);
 }

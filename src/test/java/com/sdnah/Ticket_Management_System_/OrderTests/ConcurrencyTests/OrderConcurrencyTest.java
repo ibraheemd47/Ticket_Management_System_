@@ -25,7 +25,7 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderSe
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PolicyService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.OrderRepositoryImpl;
 
