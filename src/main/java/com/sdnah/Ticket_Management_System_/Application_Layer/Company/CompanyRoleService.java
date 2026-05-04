@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer.Company;
 
 import java.util.HashSet;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 
@@ -15,6 +16,10 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.ManagerPermission;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
+import java.time.LocalDateTime;
+import java.util.NoSuchElementException;
 
 @Service
 public class CompanyRoleService {
@@ -22,21 +27,21 @@ public class CompanyRoleService {
     private static final Logger logger = LoggerFactory.getLogger(CompanyRoleService.class);
 
     private final UserRepository userRepository;
-    private final UserService userService;
+    private final TokenRepository tokenRepository;
     private final KeyedLock keyedLock;
 
     private static final String LOCK_NS = "company-role:member";
 
-    public CompanyRoleService(UserRepository userRepository, UserService userService, KeyedLock keyedLock) {
+    public CompanyRoleService(UserRepository userRepository, TokenRepository tokenRepository, KeyedLock keyedLock) {
         this.userRepository = userRepository;
-        this.userService = userService;
+        this.tokenRepository = tokenRepository;
         this.keyedLock = keyedLock;
     }
 
     public void assignOwner(String actorToken, int companyId, String newOwnerId) {
         logger.info("Assign owner request received, companyId={}, newOwnerId={}", companyId, newOwnerId);
 
-        Member actor = userService.getMemberByToken(actorToken);
+        Member actor = getActorFromToken(actorToken);
         logger.debug("Actor resolved, actorId={}", actor.getMemberId());
 
         if (!actor.isOwnerInCompany(companyId)) {
@@ -71,7 +76,7 @@ public class CompanyRoleService {
     public void assignManager(String actorToken, int companyId, String managerId) {
         logger.info("Assign manager request received, companyId={}, managerId={}", companyId, managerId);
 
-        Member actor = userService.getMemberByToken(actorToken);
+        Member actor = getActorFromToken(actorToken);
         logger.debug("Actor resolved, actorId={}", actor.getMemberId());
 
         if (!actor.isOwnerInCompany(companyId)) {
@@ -106,7 +111,7 @@ public class CompanyRoleService {
     public void removeOwner(String actorToken, int companyId, String ownerId) {
         logger.info("Remove owner request received, companyId={}, ownerId={}", companyId, ownerId);
 
-        Member actor = userService.getMemberByToken(actorToken);
+        Member actor = getActorFromToken(actorToken);
         logger.debug("Actor resolved, actorId={}", actor.getMemberId());
 
         if (!actor.isOwnerInCompany(companyId)) {
@@ -143,7 +148,7 @@ public class CompanyRoleService {
         logger.info("Add manager permission request received, companyId={}, managerId={}, permission={}",
                 companyId, managerId, permission);
 
-        Member actor = userService.getMemberByToken(actorToken);
+        Member actor = getActorFromToken(actorToken);
         logger.debug("Actor resolved, actorId={}", actor.getMemberId());
 
         if (!actor.isOwnerInCompany(companyId)) {
@@ -184,7 +189,7 @@ public class CompanyRoleService {
         logger.info("Remove manager permission request received, companyId={}, managerId={}, permission={}",
                 companyId, managerId, permission);
 
-        Member actor = userService.getMemberByToken(actorToken);
+        Member actor = getActorFromToken(actorToken);
         logger.debug("Actor resolved, actorId={}", actor.getMemberId());
 
         if (!actor.isOwnerInCompany(companyId)) {
@@ -291,5 +296,23 @@ public class CompanyRoleService {
         boolean result = target.isManagerInCompany(companyId);
         logger.debug("isManager result={}, memberId={}, companyId={}", result, memberId, companyId);
         return result;
+    }
+
+    //help function
+    private Member getActorFromToken(String actorToken) {
+        if (actorToken == null || actorToken.isBlank()) {
+            throw new SecurityException("Invalid token");
+        }
+
+        AuthToken token = tokenRepository.findById(actorToken)
+                .orElseThrow(() -> new SecurityException("Invalid token"));
+
+        if (token.isExpired(LocalDateTime.now())) {
+            tokenRepository.deleteByTokenValue(actorToken);
+            throw new SecurityException("Token expired");
+        }
+
+        return userRepository.findById(token.getMemberId())
+                .orElseThrow(() -> new NoSuchElementException("Actor member not found"));
     }
 }
