@@ -203,7 +203,7 @@ public class ActiveOrderService {
         // domain clears locks and returns IDs — service releases them in repository
         for (String lockId : order.releaseAllLocks()) {
             ticketRepository.findById(UUID.fromString(lockId))
-                    .ifPresent(t -> ticketDomainService.TicketAvailable(t));
+                    .ifPresent(t -> ticketDomainService.TicketAvailable(buyerId, t));
         }
         orderRepo.save(order);
         logger.info("Order {} cancelled successfully", orderId);

@@ -7,6 +7,8 @@ public class Checkout_Domain_Service {
     
 
     public Checkout_Domain_Service() {
+
+    
         
     }
 }
