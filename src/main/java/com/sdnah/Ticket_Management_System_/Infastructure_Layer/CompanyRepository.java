@@ -9,4 +9,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.ICompanyReposito
 @Repository
 public interface CompanyRepository 
         extends JpaRepository<Company, Integer>, ICompanyRepository {
+        
+                Company findByCompanyId(int companyId);
+
 }

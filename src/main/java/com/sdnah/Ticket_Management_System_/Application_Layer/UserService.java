@@ -75,48 +75,38 @@ public class UserService {
 
     public String login(String username, String password) {
         logger.info("Login attempt for username={}", username);
+
         Member member = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Invalid username or password"));
 
         if (!member.isActive()) {
-            logger.warn("Login rejected: inactive member, memberId={}, username={}", member.getMemberId(), username);
             throw new RuntimeException("Member is inactive");
         }
 
+        if (!member.isVerified()) {
+            throw new RuntimeException("Account is not verified");
+        }
+
         if (!passwordHasher.matches(password, member.getPasswordHash())) {
-            logger.warn("Login rejected: password mismatch for username={}", username);
             throw new RuntimeException("Invalid username or password");
         }
 
-        member.login(); // Mark the member as logged in
+        member.login();
         userRepository.save(member);
 
-        AuthToken token = authTokenService.issueToken(member.getMemberId());
-        tokenRepository.save(token);
-
-        logger.info("Login successful, memberId={}, username={}", member.getMemberId(), username);
-
-        return token.getTokenValue();
+        return authTokenService.generateToken(member.getUsername());
     }
 
     @Transactional
     public void logout(String tokenValue) {
-        logger.info("Logout request received");
         if (tokenValue == null || tokenValue.isBlank()) {
-            logger.warn("Logout rejected: token is empty");
             throw new RuntimeException("Token cannot be empty");
         }
 
-        AuthToken to_logout = tokenRepository.findById(tokenValue)
-                .orElseThrow(() -> new RuntimeException("Invalid token"));
-        Member member = userRepository.findById(to_logout.getMemberId())
-                .orElseThrow(() -> new RuntimeException("Member not found"));
-        if (getAllTokensForMember(member.getMemberId()).size() == 1) {
-            member.logout(); // Mark the member as logged out
-        }
+        Member member = getMemberByToken(tokenValue);
+        member.logout();
         userRepository.save(member);
-        tokenRepository.deleteByTokenValue(tokenValue);
-        logger.info("Logout successful, memberId={}", member.getMemberId());
+
     }
 
     // ===================================================================================================================================
@@ -130,7 +120,7 @@ public class UserService {
 
     public void validateCompanyRoleRequest(CompanyRoleAssignment assignment) {
         logger.debug("Validating company role request for companyId={}", assignment.getCompanyId());
-        if (assignment.getCompanyId() <=0) {
+        if (assignment.getCompanyId() <= 0) {
             logger.warn("Company role validation failed: missing company id");
             throw new RuntimeException("Company id cannot be empty");
         }
@@ -173,47 +163,22 @@ public class UserService {
     }
 
     public Member getMemberByToken(String tokenValue) {
-        logger.debug("Get member by token requested");
         if (tokenValue == null || tokenValue.isBlank()) {
-            logger.warn("Get member by token rejected: token is empty");
             throw new RuntimeException("Invalid token");
         }
 
-        AuthToken token = tokenRepository.findById(tokenValue)
-                .orElseThrow(() -> new RuntimeException("Invalid token"));
-
-        if (token.isExpired(java.time.LocalDateTime.now())) {
-            tokenRepository.deleteByTokenValue(tokenValue);
-            logger.warn("Token lookup failed: token expired for memberId={}", token.getMemberId());
-            throw new RuntimeException("Token expired");
+        if (!authTokenService.validateToken(tokenValue)) {
+            throw new RuntimeException("Invalid or expired token");
         }
 
-        logger.debug("Token resolved to memberId={}", token.getMemberId());
-        return userRepository.findById(token.getMemberId())
+        String username = authTokenService.extractUsername(tokenValue);
+
+        return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Member not found"));
     }
 
     public boolean isTokenValid(String tokenValue) {
-        logger.debug("Token validation requested");
-        if (tokenValue == null || tokenValue.isBlank()) {
-            logger.debug("Token validation result=false because token is empty");
-            return false;
-        }
-
-        AuthToken token = tokenRepository.findById(tokenValue).orElse(null);
-        if (token == null) {
-            logger.debug("Token validation result=false because token was not found");
-            return false;
-        }
-
-        if (token.isExpired(java.time.LocalDateTime.now())) {
-            tokenRepository.deleteByTokenValue(tokenValue);
-            logger.debug("Token validation result=false because token expired, memberId={}", token.getMemberId());
-            return false;
-        }
-
-        logger.debug("Token validation result=true for memberId={}", token.getMemberId());
-        return true;
+        return authTokenService.validateToken(tokenValue);
     }
 
     private String get_new_member_id() {
