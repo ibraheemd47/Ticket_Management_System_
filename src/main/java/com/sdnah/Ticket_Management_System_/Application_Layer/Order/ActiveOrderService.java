@@ -9,23 +9,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import jakarta.transaction.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
+
+import jakarta.transaction.Transactional;
 
 @Service
 @Transactional
@@ -87,36 +88,43 @@ public class ActiveOrderService {
 
         try {
             for (SeatRequest seat : seats) {
-                // check if ticket is already locked in DB
-                if (orderRepo.isTicketLocked(seat.getTicketId())) {
-                    logger.warn("Ticket already locked: {}", seat.getTicketId());
-                    throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
-                }
+                Lock lock = new Lock(
+                        seat.getTicketId(),
+                        buyerId,
+                        LocalDateTime.now().plusMinutes(TTL_MINUTES)
+                );
 
-                Lock lock = new Lock(seat.getTicketId(), buyerId,
-                        LocalDateTime.now().plusMinutes(TTL_MINUTES));
-                order.addTicket(seat.getTicketId(), seat.getSeatId(),
-                        seat.getAreaId(), seat.getPrice(), lock);
+                order.addTicket(
+                        seat.getTicketId(),
+                        seat.getSeatId(),
+                        seat.getAreaId(),
+                        seat.getPrice(),
+                        lock
+                );
+            }
 
-                // save immediately so lock is visible in DB to other transactions
-                orderRepo.save(order);
+            double finalPrice = policyService.applyGeneralDiscounts(
+                    eventId,
+                    order.getTotal().doubleValue(),
+                    order.getItems().size()
+            );
 
-                // notify EVENT aggregate — mark ticket as LOCKED
+            order.updateFinalPrice(finalPrice);
+
+            orderRepo.saveAndFlush(order);
+
+            for (SeatRequest seat : seats) {
                 ticketRepository.findById(UUID.fromString(seat.getTicketId()))
                         .ifPresent(t -> ticketDomainService.TicketLocked(buyerId, t));
             }
-            // PolicyService returns finalPrice — update directly
-            double finalPrice = policyService.applyGeneralDiscounts(eventId, order.getTotal().doubleValue(),
-                    order.getItems().size());
-            order.updateFinalPrice(finalPrice);
-            // lock is persisted with the order via JPA (@Embedded in OrderItem)
-            orderRepo.save(order);
 
             logger.info("Reservation completed successfully order {}", order.getId());
             return OrderMapper.toDTO(order);
 
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            logger.warn("Ticket already reserved for buyerId={}", buyerId);
+            throw new IllegalStateException("Ticket already reserved");
         } catch (Exception e) {
-            // @Transactional rolls back all saves automatically — locks released
             logger.error("reserveTickets FAILED rollback done buyerId={}", buyerId);
             throw e;
         }
@@ -198,14 +206,22 @@ public class ActiveOrderService {
 
     public void cancelOrder(UUID orderId, String buyerId) {
         logger.info("Cancelling order {} for user {}", orderId, buyerId);
+
         ActiveOrder order = findValidOrder(orderId, buyerId);
-        order.markCancelled();
-        // domain clears locks and returns IDs — service releases them in repository
+
         for (String lockId : order.releaseAllLocks()) {
             ticketRepository.findById(UUID.fromString(lockId))
-                    .ifPresent(t -> ticketDomainService.TicketAvailable( t));
+                    .ifPresent(t -> ticketDomainService.TicketAvailable(t));
         }
-        orderRepo.save(order);
+
+        order.markCancelled();
+
+        // IMPORTANT:
+        // Because ticket_id is UNIQUE in order_items,
+        // we must delete the cancelled order so its OrderItems are removed too.
+        orderRepo.delete(order);
+        orderRepo.flush();
+
         logger.info("Order {} cancelled successfully", orderId);
     }
 
