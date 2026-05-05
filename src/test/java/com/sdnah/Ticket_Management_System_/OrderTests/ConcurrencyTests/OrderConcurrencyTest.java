@@ -1,41 +1,47 @@
+
 package com.sdnah.Ticket_Management_System_.OrderTests.ConcurrencyTests;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PolicyService;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
 
-@SpringBootTest
+@DataJpaTest
+@ActiveProfiles("test")
+@Import(ActiveOrderService.class)
 class OrderConcurrencyTest {
 
     @Autowired
@@ -57,25 +63,35 @@ class OrderConcurrencyTest {
     private ITicketSupplierGateway ticketGateway;
 
     @MockBean
-    private PolicyService policyService;
-
-    @MockBean
     private TicketRepository ticketRepository;
 
     @MockBean
-    private Ticket_Domain_Service ticketDomainService;
+    private PolicyRepository policyRepository;
+
+    @MockBean
+    private OrderPolicyDomainService orderPolicyDomainService;
+
+    @MockBean
+    private IrepresnteUserService represnteUserService;
 
     private static class Outcome {
         final AtomicInteger successes = new AtomicInteger();
         final AtomicInteger failures = new AtomicInteger();
+        final AtomicReference<Throwable> firstError = new AtomicReference<>();
     }
 
     @BeforeEach
     void setup() {
         activeOrderRepository.deleteAll();
 
-        when(policyService.applyGeneralDiscounts(any(UUID.class), anyDouble(), anyInt()))
-                .thenAnswer(invocation -> invocation.getArgument(1));
+        // In these tests we use the token string itself as the buyerId.
+        when(represnteUserService.requireMemberId(any(String.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        when(policyRepository.findPurchasePolicyByEventId(any(UUID.class))).thenReturn(null);
+        when(policyRepository.findDiscountPolicyByEventId(any(UUID.class))).thenReturn(null);
+
+        when(ticketRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
     }
 
     private Outcome runConcurrently(int threads, Runnable action) throws InterruptedException {
@@ -91,6 +107,7 @@ class OrderConcurrencyTest {
                     action.run();
                     outcome.successes.incrementAndGet();
                 } catch (Throwable t) {
+                    outcome.firstError.compareAndSet(null, t);
                     outcome.failures.incrementAndGet();
                 } finally {
                     done.countDown();
@@ -105,6 +122,15 @@ class OrderConcurrencyTest {
 
         assertTrue(finished, "concurrent workload did not finish within timeout");
         return outcome;
+    }
+
+    private String firstErrorMessage(Outcome outcome) {
+        Throwable error = outcome.firstError.get();
+        if (error == null) {
+            return "none";
+        }
+
+        return error.getClass().getSimpleName() + ": " + error.getMessage();
     }
 
     @Test
@@ -123,12 +149,12 @@ class OrderConcurrencyTest {
         int users = 20;
 
         Outcome outcome = runConcurrently(users, () -> {
-            String buyerId = "buyer-" + UUID.randomUUID();
-            activeOrderService.reserveTickets(buyerId, eventId, seats);
+            String userToken = "buyer-" + UUID.randomUUID();
+            activeOrderService.reserveTickets(userToken, eventId, seats);
         });
 
         assertEquals(1, outcome.successes.get(),
-                "only one user should reserve the ticket through ActiveOrderService");
+                "only one user should reserve the ticket, first error: " + firstErrorMessage(outcome));
 
         assertEquals(users - 1, outcome.failures.get(),
                 "all other users should fail because the ticket is already reserved");
@@ -142,7 +168,7 @@ class OrderConcurrencyTest {
         int threads = 20;
 
         Outcome outcome = runConcurrently(threads, () -> {
-            String buyerId = "buyer-" + UUID.randomUUID();
+            String userToken = "buyer-" + UUID.randomUUID();
 
             SeatRequest seatRequest = new SeatRequest(
                     ticketId,
@@ -150,11 +176,14 @@ class OrderConcurrencyTest {
                     UUID.randomUUID(),
                     BigDecimal.valueOf(100));
 
-            activeOrderService.reserveTickets(buyerId, eventId, List.of(seatRequest));
+            activeOrderService.reserveTickets(userToken, eventId, List.of(seatRequest));
         });
 
-        assertEquals(1, outcome.successes.get(), "only one user should reserve the same ticket");
-        assertEquals(threads - 1, outcome.failures.get(), "all other users should fail safely");
+        assertEquals(1, outcome.successes.get(),
+                "only one user should reserve the same ticket, first error: " + firstErrorMessage(outcome));
+
+        assertEquals(threads - 1, outcome.failures.get(),
+                "all other users should fail safely");
     }
 
     @Test
@@ -165,7 +194,7 @@ class OrderConcurrencyTest {
         int threads = 2;
 
         Outcome outcome = runConcurrently(threads, () -> {
-            String buyerId = "buyer-" + UUID.randomUUID();
+            String userToken = "buyer-" + UUID.randomUUID();
 
             SeatRequest seatRequest = new SeatRequest(
                     ticketId,
@@ -173,11 +202,14 @@ class OrderConcurrencyTest {
                     UUID.randomUUID(),
                     BigDecimal.valueOf(100));
 
-            activeOrderService.reserveTickets(buyerId, eventId, List.of(seatRequest));
+            activeOrderService.reserveTickets(userToken, eventId, List.of(seatRequest));
         });
 
-        assertEquals(1, outcome.successes.get(), "only one checkout/reservation should succeed");
-        assertEquals(1, outcome.failures.get(), "second checkout/reservation should fail");
+        assertEquals(1, outcome.successes.get(),
+                "only one checkout/reservation should succeed, first error: " + firstErrorMessage(outcome));
+
+        assertEquals(1, outcome.failures.get(),
+                "second checkout/reservation should fail");
     }
 
     @Test
@@ -192,12 +224,14 @@ class OrderConcurrencyTest {
                 UUID.randomUUID(),
                 BigDecimal.valueOf(100));
 
+        String firstBuyerToken = "buyer-" + UUID.randomUUID();
+
         OrderDTO order = activeOrderService.reserveTickets(
-                "buyer-" + UUID.randomUUID(),
+                firstBuyerToken,
                 eventId,
                 List.of(seatRequest));
 
-        activeOrderService.cancelOrder(order.getOrderId(), order.getbuyerId());
+        activeOrderService.cancelOrder(order.getOrderId(), firstBuyerToken);
 
         activeOrderService.reserveTickets(
                 "another-buyer-" + UUID.randomUUID(),
@@ -232,7 +266,7 @@ class OrderConcurrencyTest {
         });
 
         assertTrue(outcome.successes.get() <= uniqueTickets,
-                "no more than one lock per ticket should succeed");
+                "no more than one lock per ticket should succeed, first error: " + firstErrorMessage(outcome));
 
         assertEquals(threads - outcome.successes.get(), outcome.failures.get(),
                 "every non-successful attempt should fail safely");
@@ -260,7 +294,10 @@ class OrderConcurrencyTest {
                     List.of(seatRequest));
         });
 
-        assertEquals(threads, outcome.successes.get(), "all different tickets should be locked");
-        assertEquals(0, outcome.failures.get(), "no buyer should fail for different tickets");
+        assertEquals(threads, outcome.successes.get(),
+                "all different tickets should be locked, first error: " + firstErrorMessage(outcome));
+
+        assertEquals(0, outcome.failures.get(),
+                "no buyer should fail for different tickets");
     }
 }
