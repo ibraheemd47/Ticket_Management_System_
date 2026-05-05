@@ -8,13 +8,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.ManagerPermission;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 @Service
 public class CompanyRoleService {
@@ -62,7 +62,8 @@ public class CompanyRoleService {
                     companyId, actor.getMemberId(), CompanyRoleType.OWNER, new HashSet<>());
 
             target.addCompanyRole(assignment);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Owner assigned successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), newOwnerId, companyId);
         });
@@ -97,7 +98,8 @@ public class CompanyRoleService {
                     companyId, actor.getMemberId(), CompanyRoleType.MANAGER, new HashSet<>());
 
             target.addCompanyRole(assignment);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Manager assigned successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), managerId, companyId);
         });
@@ -132,7 +134,8 @@ public class CompanyRoleService {
             updatedRoles.removeIf(role -> role.getCompanyId() == companyId && role.isOwner());
 
             target.setCompanyRoles(updatedRoles);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Owner removed successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), ownerId, companyId);
         });
@@ -173,7 +176,8 @@ public class CompanyRoleService {
             }
 
             managerRole.addPermission(permission);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Permission added successfully, actorId={}, targetId={}, companyId={}, permission={}",
                     actor.getMemberId(), managerId, companyId, permission);
         });
@@ -215,7 +219,8 @@ public class CompanyRoleService {
             }
 
             managerRole.removePermission(permission);
-            userRepository.save(target);
+            userRepository.saveAndFlush(target);
+
             logger.info("Permission removed successfully, actorId={}, targetId={}, companyId={}, permission={}",
                     actor.getMemberId(), managerId, companyId, permission);
         });

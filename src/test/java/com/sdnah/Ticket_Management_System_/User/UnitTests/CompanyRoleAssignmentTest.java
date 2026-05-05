@@ -12,19 +12,24 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.ManagerPermission;
 
 class CompanyRoleAssignmentTest {
 
+    private static final int COMPANY_ID = 1;
+    private static final String APPOINTED_BY = "m1";
+
     @Test
     void ownerRole_isRecognizedCorrectly() {
-        CompanyRoleAssignment assignment = new CompanyRoleAssignment("c1", "m1", CompanyRoleType.OWNER, Set.of());
+        CompanyRoleAssignment assignment = new CompanyRoleAssignment(COMPANY_ID, APPOINTED_BY, CompanyRoleType.OWNER,
+                Set.of());
 
         assertTrue(assignment.isOwner());
         assertFalse(assignment.isManager());
-        assertEquals("c1", assignment.getCompanyId());
+        assertEquals(COMPANY_ID, assignment.getCompanyId());
         assertEquals(CompanyRoleType.OWNER, assignment.getRoleType());
+        assertEquals(APPOINTED_BY, assignment.getAppointedByMemberId());
     }
 
     @Test
     void managerRole_isRecognizedCorrectly() {
-        CompanyRoleAssignment assignment = new CompanyRoleAssignment("c1", "m1", CompanyRoleType.MANAGER,
+        CompanyRoleAssignment assignment = new CompanyRoleAssignment(COMPANY_ID, APPOINTED_BY, CompanyRoleType.MANAGER,
                 Set.of(ManagerPermission.ADD_PRODUCT));
 
         assertFalse(assignment.isOwner());
@@ -34,7 +39,8 @@ class CompanyRoleAssignmentTest {
 
     @Test
     void addPermission_toManager_addsPermission() {
-        CompanyRoleAssignment assignment = new CompanyRoleAssignment("c1", "m1", CompanyRoleType.MANAGER, Set.of());
+        CompanyRoleAssignment assignment = new CompanyRoleAssignment(COMPANY_ID, APPOINTED_BY, CompanyRoleType.MANAGER,
+                Set.of());
 
         assignment.addPermission(ManagerPermission.REMOVE_PRODUCT);
 
@@ -43,7 +49,8 @@ class CompanyRoleAssignmentTest {
 
     @Test
     void addPermission_toNonManager_throwsException() {
-        CompanyRoleAssignment assignment = new CompanyRoleAssignment("c1", "m1", CompanyRoleType.OWNER, Set.of());
+        CompanyRoleAssignment assignment = new CompanyRoleAssignment(COMPANY_ID, APPOINTED_BY, CompanyRoleType.OWNER,
+                Set.of());
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> assignment.addPermission(ManagerPermission.ADD_PRODUCT));
@@ -53,7 +60,7 @@ class CompanyRoleAssignmentTest {
 
     @Test
     void removePermission_removesExistingPermission() {
-        CompanyRoleAssignment assignment = new CompanyRoleAssignment("c1", "m1", CompanyRoleType.MANAGER,
+        CompanyRoleAssignment assignment = new CompanyRoleAssignment(COMPANY_ID, APPOINTED_BY, CompanyRoleType.MANAGER,
                 Set.of(ManagerPermission.ADD_PRODUCT, ManagerPermission.REMOVE_PRODUCT));
 
         assignment.removePermission(ManagerPermission.ADD_PRODUCT);
@@ -64,10 +71,16 @@ class CompanyRoleAssignmentTest {
 
     @Test
     void getPermissions_returnsUnmodifiableSet() {
-        CompanyRoleAssignment assignment = new CompanyRoleAssignment("c1", "m1", CompanyRoleType.MANAGER, Set.of());
+        CompanyRoleAssignment assignment = new CompanyRoleAssignment(COMPANY_ID, APPOINTED_BY, CompanyRoleType.MANAGER,
+                Set.of());
 
         assertThrows(UnsupportedOperationException.class,
                 () -> assignment.getPermissions().add(ManagerPermission.ADD_POLICY));
     }
 
+    @Test
+    void constructor_withNullRoleType_throwsException() {
+        assertThrows(NullPointerException.class,
+                () -> new CompanyRoleAssignment(COMPANY_ID, APPOINTED_BY, null, Set.of()));
+    }
 }

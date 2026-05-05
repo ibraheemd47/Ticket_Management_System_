@@ -19,11 +19,11 @@ import static org.mockito.Mockito.when;
 import org.mockito.MockitoAnnotations;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PolicyService;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.IOrderRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
 

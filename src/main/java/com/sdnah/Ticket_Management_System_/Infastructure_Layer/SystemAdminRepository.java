@@ -7,6 +7,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.System_admin;
 public interface SystemAdminRepository extends JpaRepository<System_admin, String> {
 
 
+    public boolean existsByMemberId(String memberId);
     
 
 }

@@ -16,12 +16,12 @@ public class Ticket_Domain_Service {
 
     }
 
-    public void TicketLocked( ticket ticket) {
-        
+    public void TicketLocked(ticket ticket) {
+
     }
 
     public void TicketAvailable(ticket ticket) {
-       
+
     }
 
 }

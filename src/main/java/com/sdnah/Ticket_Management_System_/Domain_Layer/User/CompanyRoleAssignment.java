@@ -15,7 +15,7 @@ import jakarta.persistence.Enumerated;
 public class CompanyRoleAssignment {
 
     @Column(name = "company_id", nullable = false)
-    private String companyId;
+    private Integer companyId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role_type", nullable = false)
@@ -32,9 +32,14 @@ public class CompanyRoleAssignment {
         this.permissions = new HashSet<>();
     }
 
-    public CompanyRoleAssignment(String companyId, String appointedByMemberId, CompanyRoleType roleType,
+    public CompanyRoleAssignment(int companyId, String appointedByMemberId, CompanyRoleType roleType,
             Set<ManagerPermission> permissions) {
-        this.companyId = Objects.requireNonNull(companyId);
+
+        if (companyId <= 0) {
+            throw new IllegalArgumentException("companyId must be positive");
+        }
+
+        this.companyId = companyId;
         this.appointedByMemberId = appointedByMemberId;
         this.roleType = Objects.requireNonNull(roleType);
         this.permissions = permissions == null ? new HashSet<>() : new HashSet<>(permissions);
@@ -44,6 +49,7 @@ public class CompanyRoleAssignment {
         if (!isManager()) {
             throw new RuntimeException("Only managers can have manager permissions");
         }
+
         permissions.add(permission);
     }
 
@@ -59,7 +65,11 @@ public class CompanyRoleAssignment {
         return roleType == CompanyRoleType.MANAGER;
     }
 
-    public String getCompanyId() {
+    public int getCompanyId() {
+        if (companyId == null) {
+            throw new IllegalStateException("companyId is missing");
+        }
+
         return companyId;
     }
 
@@ -83,9 +93,12 @@ public class CompanyRoleAssignment {
     public boolean equals(Object o) {
         if (this == o)
             return true;
+
         if (!(o instanceof CompanyRoleAssignment))
             return false;
+
         CompanyRoleAssignment that = (CompanyRoleAssignment) o;
+
         return Objects.equals(companyId, that.companyId)
                 && roleType == that.roleType;
     }

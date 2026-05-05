@@ -196,7 +196,7 @@ public class ActiveOrder {
         return id;
     }
 
-    public String getBuyerId() {
+    public String getbuyerId() {
         return buyerId;
     }
 

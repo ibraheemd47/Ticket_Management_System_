@@ -4,70 +4,84 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import javax.crypto.SecretKey;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import java.security.Key;
+import java.util.Date;
 
 @Service
 public class AuthTokenService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthTokenService.class);
 
-    private static final Duration DEFAULT_TTL = Duration.ofHours(2);
+    private final SecretKey key;
+    private final long expirationMs;
 
-    /**
-     * Issues a token using the default expiration window.
-     */
-    public AuthToken issueToken(String memberId) {
-        logger.debug("Issue token requested with default TTL, memberId={}", memberId);
-        return issueToken(memberId, DEFAULT_TTL);
+    public AuthTokenService(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.expiration-ms}") long expirationMs) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+        this.expirationMs = expirationMs;
     }
 
-    /**
-     * Issues a token for a member with the provided time-to-live.
-     */
-    public AuthToken issueToken(String memberId, Duration ttl) {
-        logger.info("Issue token request received, memberId={}, ttl={}", memberId, ttl);
-
-        if (memberId == null || memberId.isBlank()) {
-            logger.warn("Issue token rejected: memberId is empty");
-            throw new RuntimeException("Member ID is required");
-        }
-        if (ttl == null || ttl.isNegative() || ttl.isZero()) {
-            logger.warn("Issue token rejected: invalid TTL, memberId={}, ttl={}", memberId, ttl);
-            throw new RuntimeException("TTL must be a positive duration");
+    public String generateToken(String username) {
+        if (username == null || username.isBlank()) {
+            throw new RuntimeException("Username is required");
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        String tokenValue = UUID.randomUUID().toString();
-        AuthToken token = new AuthToken(tokenValue, memberId, now.plus(ttl));
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + expirationMs);
 
-        logger.info("Token issued successfully, memberId={}, expiresAt={}", memberId, token.getExpiresAt());
+        String token = Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+
+        logger.info("JWT generated successfully for username={}, expiresAt={}", username, expiryDate);
         return token;
     }
 
-    /**
-     * Checks token validity against the current system time.
-     */
-    public boolean isTokenValid(AuthToken token) {
-        logger.debug("Token validity check requested against current time");
-        return isTokenValid(token, LocalDateTime.now());
-    }
-
-    /**
-     * Checks token validity against a specific time value.
-     */
-    private boolean isTokenValid(AuthToken token, LocalDateTime now) {
-        if (token == null || now == null) {
-            logger.warn("Token validity check result=false: token or now is null");
+    public boolean validateToken(String token) {
+        try {
+            extractAllClaims(token);
+            logger.debug("JWT validation success");
+            return true;
+        } catch (Exception e) {
+            logger.warn("JWT validation failed: {}", e.getMessage());
             return false;
         }
+    }
 
-        boolean valid = !token.isExpired(now);
-        logger.debug("Token validity check result={}, memberId={}, expiresAt={}",
-                valid, token.getMemberId(), token.getExpiresAt());
-        return valid;
+    public String extractUsername(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    public Date extractExpiration(String token) {
+        return extractAllClaims(token).getExpiration();
+    }
+
+    private Claims extractAllClaims(String token) {
+        if (token == null || token.isBlank()) {
+            throw new RuntimeException("Token is required");
+        }
+
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }

@@ -48,7 +48,7 @@ public class Purchase {
             throw new IllegalArgumentException("order required");
         this.purchaseId = UUID.randomUUID();
         this.orderId = order.getId();
-        this.buyerId = order.getBuyerId();
+        this.buyerId = order.getbuyerId();
         this.eventId = order.getEventId();
         this.items = new ArrayList<>(order.getItems());
         this.totalPrice = order.getFinalPrice();
@@ -63,7 +63,7 @@ public class Purchase {
         return orderId;
     }
 
-    public String getBuyerId() {
+    public String getbuyerId() {
         return buyerId;
     }
 

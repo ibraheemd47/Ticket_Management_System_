@@ -1,19 +1,18 @@
 package com.sdnah.Ticket_Management_System_.User.ConcurrencyTests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,28 +21,22 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.CompanyRoleService;
+import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Application_Layer.Company.CompanyRoleService;
 import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.SystemAdminRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig.TestConfig;
 
-/**
- * Concurrency tests for the User module. Each test fires N threads against the
- * same logical resource (same username / same target member) and asserts the
- * service serialises them correctly: exactly one winner, the rest get a
- * deterministic business error rather than a corrupted DB row.
- */
 @SpringBootTest
 @ActiveProfiles("test")
 @Import(TestConfig.class)
@@ -59,35 +52,36 @@ class UserConcurrencyTest {
     private SystemAdminService systemAdminService;
 
     @Autowired
-    private UserRepository userRepository;
+    private AuthTokenService authTokenService;
 
     @Autowired
-    private TokenRepository tokenRepository;
+    private UserRepository userRepository;
 
     @Autowired
     private SystemAdminRepository systemAdminRepository;
 
-    @BeforeEach
-    void cleanDb() {
-        tokenRepository.deleteAll();
-        systemAdminRepository.deleteAll();
-        userRepository.deleteAll();
-    }
-
-    @AfterEach
-    void afterCleanDb() {
-        tokenRepository.deleteAll();
-        systemAdminRepository.deleteAll();
-        userRepository.deleteAll();
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private static class Outcome {
         final AtomicInteger successes = new AtomicInteger();
         final AtomicInteger failures = new AtomicInteger();
+        final AtomicReference<Throwable> firstError = new AtomicReference<>();
+    }
+
+    @BeforeEach
+    void cleanDb() {
+        jdbcTemplate.update("DELETE FROM member_company_roles");
+        systemAdminRepository.deleteAll();
+        userRepository.deleteAll();
+        // JWTs are stateless — no token table to clean.
+    }
+
+    @AfterEach
+    void afterCleanDb() {
+        jdbcTemplate.update("DELETE FROM member_company_roles");
+        systemAdminRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     private Outcome runConcurrently(int threads, Runnable action) throws InterruptedException {
@@ -103,6 +97,7 @@ class UserConcurrencyTest {
                     action.run();
                     outcome.successes.incrementAndGet();
                 } catch (Throwable t) {
+                    outcome.firstError.compareAndSet(null, t);
                     outcome.failures.incrementAndGet();
                 } finally {
                     done.countDown();
@@ -111,26 +106,30 @@ class UserConcurrencyTest {
         }
 
         start.countDown();
+
         boolean finished = done.await(20, TimeUnit.SECONDS);
         pool.shutdownNow();
+
         assertTrue(finished, "concurrent workload did not finish within timeout");
         return outcome;
     }
 
-    private <T> List<Future<T>> submitAll(ExecutorService pool, int n, Callable<T> task) {
-        return java.util.stream.IntStream.range(0, n)
-                .mapToObj(i -> pool.submit(task))
-                .toList();
+    private String firstErrorMessage(Outcome outcome) {
+        Throwable first = outcome.firstError.get();
+        if (first == null) {
+            return "none";
+        }
+
+        return first.getClass().getSimpleName() + ": " + first.getMessage();
     }
 
-    // -------------------------------------------------------------------------
-    // Register: same username from N threads -> exactly one persisted row
-    // -------------------------------------------------------------------------
     @Test
     @DisplayName("Concurrent registration with same username: only one succeeds")
     void concurrentRegistration_SameUsername_OnlyOneSucceeds() throws Exception {
+        // Arrange
         String username = "race_user_" + UUID.randomUUID();
 
+        // Act
         Outcome outcome = runConcurrently(20, () -> userService.register(
                 username,
                 "password123",
@@ -138,109 +137,142 @@ class UserConcurrencyTest {
                 "0501234567",
                 VerificationMethod.EMAIL));
 
-        assertEquals(1, outcome.successes.get(), "expected exactly one successful registration");
+        // Assert
+        assertEquals(1, outcome.successes.get(),
+                "expected exactly one successful registration, first error: " + firstErrorMessage(outcome));
         assertEquals(19, outcome.failures.get(), "all other attempts should fail");
         assertTrue(userRepository.existsByUsername(username));
-        assertEquals(1, userRepository.findAll().stream()
+
+        long usernameRows = userRepository.findAll().stream()
                 .filter(m -> username.equals(m.getUsername()))
-                .count());
+                .count();
+
+        assertEquals(1, usernameRows);
     }
 
-    // -------------------------------------------------------------------------
-    // assignOwner: N threads racing to assign owner to same target -> exactly one wins
-    // -------------------------------------------------------------------------
     @Test
     @DisplayName("Concurrent assignOwner on same target: only one role is persisted")
     void concurrentAssignOwner_SameTarget_OnlyOneSucceeds() throws Exception {
-        String companyId = "co-" + UUID.randomUUID();
-        String ownerId = "owner-" + UUID.randomUUID();
+        // Arrange
+        int companyId = Math.abs(UUID.randomUUID().hashCode());
+        if (companyId == 0) {
+            companyId = 1;
+        }
+
+        String ownerUsername = "ownerUser_" + UUID.randomUUID();
         String targetId = "target-" + UUID.randomUUID();
-        String ownerToken = "tok-owner-" + UUID.randomUUID();
+        String targetUsername = "targetUser_" + UUID.randomUUID();
 
-        Member ownerMember = new Member(ownerId, "ownerUser", "hash");
+        String ownerId = userService.register(
+                ownerUsername,
+                "password123",
+                ownerUsername + "@example.com",
+                "0501234567",
+                VerificationMethod.EMAIL);
+
+        Member ownerMember = userRepository.findById(ownerId).orElseThrow();
+        ownerMember.setVerified(true);
         ownerMember.addCompanyRole(new CompanyRoleAssignment(
-                companyId, ownerId, CompanyRoleType.OWNER, new HashSet<>()));
-        userRepository.save(ownerMember);
+                companyId,
+                ownerId,
+                CompanyRoleType.OWNER,
+                new HashSet<>()));
+        userRepository.saveAndFlush(ownerMember);
 
-        userRepository.save(new Member(targetId, "targetUser", "hash"));
+        Member target = new Member(targetId, targetUsername, "hash");
+        target.setVerified(true);
+        userRepository.saveAndFlush(target);
 
-        tokenRepository.save(new AuthToken(ownerToken, ownerId, LocalDateTime.now().plusHours(1)));
+        String ownerToken = userService.login(ownerUsername, "password123");
 
+        final int finalCompanyId = companyId;
+
+        // Act
         Outcome outcome = runConcurrently(15,
-                () -> companyRoleService.assignOwner(ownerToken, companyId, targetId));
+                () -> companyRoleService.assignOwner(ownerToken, finalCompanyId, targetId));
 
-        assertEquals(1, outcome.successes.get(), "exactly one assignOwner should succeed");
+        // Assert
+        assertEquals(1, outcome.successes.get(),
+                "expected one success, first error: " + firstErrorMessage(outcome));
         assertEquals(14, outcome.failures.get(), "the rest should fail with already-assigned");
 
         Member reloaded = userRepository.findById(targetId).orElseThrow();
-        assertTrue(reloaded.isOwnerInCompany(companyId));
+
+        assertTrue(reloaded.isOwnerInCompany(finalCompanyId));
+
         long ownerRoles = reloaded.getCompanyRoles().stream()
-                .filter(r -> r.getCompanyId().equals(companyId) && r.isOwner())
+                .filter(r -> r.getCompanyId() == finalCompanyId && r.isOwner())
                 .count();
+
         assertEquals(1, ownerRoles, "must end with exactly one OWNER role for that company");
     }
 
-    // -------------------------------------------------------------------------
-    // assign_system_admin: N threads racing to promote same member -> exactly one wins
-    // -------------------------------------------------------------------------
     @Test
     @DisplayName("Concurrent assign_system_admin on same target: only one promotion succeeds")
     void concurrentAssignSystemAdmin_SameTarget_OnlyOneSucceeds() throws Exception {
+        // Arrange
         String adminId = "admin-" + UUID.randomUUID();
+        String adminUsername = "adminUser-" + UUID.randomUUID();
         String targetId = "target-" + UUID.randomUUID();
-        String adminToken = "admin-tok-" + UUID.randomUUID();
 
-        Member baseAdmin = new Member(adminId, "adminUser", "hash");
-        systemAdminRepository.save(new System_admin(baseAdmin, "System"));
+        Member baseAdmin = new Member(adminId, adminUsername, "hash");
+        baseAdmin.setVerified(true);
 
-        userRepository.save(new Member(targetId, "targetUser", "hash"));
+        systemAdminRepository.saveAndFlush(new System_admin(baseAdmin, "System"));
 
-        tokenRepository.save(new AuthToken(adminToken, adminId, LocalDateTime.now().plusHours(1)));
+        Member target = new Member(targetId, "targetUser-" + UUID.randomUUID(), "hash");
+        target.setVerified(true);
+        userRepository.saveAndFlush(target);
 
+        // Issue a real JWT for the admin — same logic as login, no DB row needed.
+        String adminToken = authTokenService.generateToken(adminUsername);
+
+        assertTrue(authTokenService.validateToken(adminToken),
+                "precondition failed: admin JWT did not validate");
+
+        assertTrue(systemAdminRepository.existsById(adminId),
+                "precondition failed: base admin was not saved");
+
+        // Act
         Outcome outcome = runConcurrently(10,
                 () -> systemAdminService.assign_system_admin(adminToken, targetId));
 
-        assertEquals(1, outcome.successes.get(), "exactly one promotion should succeed");
+        // Assert
+        assertEquals(1, outcome.successes.get(),
+                "exactly one promotion should succeed, first error: " + firstErrorMessage(outcome));
         assertEquals(9, outcome.failures.get(), "the rest should fail");
 
         assertTrue(systemAdminRepository.existsById(targetId), "target should be a system admin");
+
         long adminRows = systemAdminRepository.findAll().stream()
                 .filter(a -> a.getMemberId().equals(targetId))
                 .count();
+
         assertEquals(1, adminRows, "exactly one System_admin row for target");
     }
 
-    // -------------------------------------------------------------------------
-    // Different usernames in parallel: all should succeed (no false-sharing)
-    // -------------------------------------------------------------------------
     @Test
     @DisplayName("Concurrent registration with different usernames: all succeed")
     void concurrentRegistration_DifferentUsernames_AllSucceed() throws Exception {
+        // Arrange
         int n = 20;
         String prefix = "user_" + UUID.randomUUID() + "_";
-        ExecutorService pool = Executors.newFixedThreadPool(n);
-        CountDownLatch start = new CountDownLatch(1);
-        AtomicInteger successes = new AtomicInteger();
 
-        for (int i = 0; i < n; i++) {
-            final int idx = i;
-            pool.submit(() -> {
-                try {
-                    start.await();
-                    userService.register(
-                            prefix + idx,
-                            "password123",
-                            prefix + idx + "@example.com",
-                            "0501234567",
-                            VerificationMethod.EMAIL);
-                    successes.incrementAndGet();
-                } catch (Throwable ignored) {
-                }
-            });
-        }
-        start.countDown();
-        pool.shutdown();
-        assertTrue(pool.awaitTermination(20, TimeUnit.SECONDS));
-        assertEquals(n, successes.get(), "distinct usernames should not block each other");
+        // Act
+        Outcome outcome = runConcurrently(n, () -> {
+            String username = prefix + UUID.randomUUID();
+
+            userService.register(
+                    username,
+                    "password123",
+                    username + "@example.com",
+                    "0501234567",
+                    VerificationMethod.EMAIL);
+        });
+
+        // Assert
+        assertEquals(n, outcome.successes.get(),
+                "distinct usernames should all succeed, first error: " + firstErrorMessage(outcome));
+        assertEquals(0, outcome.failures.get(), "distinct usernames should not fail");
     }
 }

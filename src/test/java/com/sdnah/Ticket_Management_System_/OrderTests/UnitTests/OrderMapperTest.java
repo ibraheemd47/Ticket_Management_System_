@@ -7,10 +7,10 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderItemDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.OrderMapper;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderItemDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
