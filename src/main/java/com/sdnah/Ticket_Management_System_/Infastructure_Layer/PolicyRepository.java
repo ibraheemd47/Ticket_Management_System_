@@ -19,7 +19,6 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer>  {
 
     Optional<Policy> findByPolicyId(int policyId);
 
-    List<Policy> findByCompanyId(int companyId);
 
     //List<Policy> findByEventId(UUID eventId);
     // 1. השאילתה המקורית שמחזירה את כל סוגי המדיניות של האירוע (רשימה)
@@ -31,7 +30,7 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer>  {
     SellingPolicy findSellingPolicyByEventId(UUID eventId);
 
     // ── Main query used in PolicyService ─────────────────────────
-    List<Policy> findByCompanyIdAndEventId(int companyId, UUID eventId);
+    // List<Policy> findByCompanyIdAndEventId(int companyId, UUID eventId);
     // ── Delete ───────────────────────────────────────────────────
 
 
