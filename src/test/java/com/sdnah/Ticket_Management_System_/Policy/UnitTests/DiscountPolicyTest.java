@@ -1,21 +1,21 @@
 package com.sdnah.Ticket_Management_System_.Policy.UnitTests;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
+import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("DiscountPolicy — Domain Unit Tests")
 class DiscountPolicyTest {
 
-    private static final int COMPANY_ID = 10;
-    private static final int EVENT_ID = 20;
+    private static final UUID EVENT_ID = UUID.randomUUID();
 
     @Test
     void GivenNoDiscountRules_WhenCalculateFinalPrice_ThenReturnOriginalPrice() {
-        DiscountPolicy policy = new DiscountPolicy(1, "No discount", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy(1, "No discount", EVENT_ID);
 
         double result = policy.calculateFinalPrice(100.0, 2, "");
 
@@ -24,8 +24,8 @@ class DiscountPolicyTest {
 
     @Test
     void GivenPercentageDiscount_WhenCalculateFinalPrice_ThenReturnReducedPrice() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Percentage discount", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.PercentageDiscount(25));
+        DiscountPolicy policy = new DiscountPolicy(1, "Percentage discount", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.PercentageDiscount(25));
 
         double result = policy.calculateFinalPrice(200.0, 2, "");
 
@@ -34,9 +34,9 @@ class DiscountPolicyTest {
 
     @Test
     void GivenTwoDiscountRules_WhenNotAdditive_ThenBestDiscountChosen() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Best discount", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.PercentageDiscount(10));
-        policy.addDiscountRule(new DiscountPolicy.PercentageDiscount(30));
+        DiscountPolicy policy = new DiscountPolicy(1, "Best discount", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.PercentageDiscount(10));
+        policy.addDiscount(new DiscountPolicy.PercentageDiscount(30));
 
         double result = policy.calculateFinalPrice(100.0, 2, "");
 
@@ -44,9 +44,21 @@ class DiscountPolicyTest {
     }
 
     @Test
+    void GivenTwoDiscountRules_WhenAdditive_ThenApplySequentially() {
+        DiscountPolicy policy = new DiscountPolicy(1, "Additive discount", EVENT_ID);
+        policy.setAdditive(true);
+        policy.addDiscount(new DiscountPolicy.PercentageDiscount(10));
+        policy.addDiscount(new DiscountPolicy.PercentageDiscount(20));
+
+        double result = policy.calculateFinalPrice(100.0, 2, "");
+
+        assertEquals(72.0, result, 0.001);
+    }
+
+    @Test
     void GivenConditionalDiscountAndQuantityEnough_WhenCalculateFinalPrice_ThenDiscountApplied() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Conditional discount", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.ConditionalDiscount(3, 20));
+        DiscountPolicy policy = new DiscountPolicy(1, "Conditional discount", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.ConditionalDiscount(3, 20));
 
         double result = policy.calculateFinalPrice(100.0, 3, "");
 
@@ -55,8 +67,8 @@ class DiscountPolicyTest {
 
     @Test
     void GivenConditionalDiscountAndQuantityTooLow_WhenCalculateFinalPrice_ThenOriginalReturned() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Conditional discount", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.ConditionalDiscount(3, 20));
+        DiscountPolicy policy = new DiscountPolicy(1, "Conditional discount", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.ConditionalDiscount(3, 20));
 
         double result = policy.calculateFinalPrice(100.0, 2, "");
 
@@ -65,8 +77,8 @@ class DiscountPolicyTest {
 
     @Test
     void GivenCouponDiscountAndCorrectCoupon_WhenCalculateFinalPrice_ThenDiscountApplied() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Coupon discount", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.CouponDiscount("CODE", 15));
+        DiscountPolicy policy = new DiscountPolicy(1, "Coupon discount", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.CouponDiscount("CODE", 15));
 
         double result = policy.calculateFinalPrice(100.0, 1, "CODE");
 
@@ -75,8 +87,8 @@ class DiscountPolicyTest {
 
     @Test
     void GivenCouponDiscountAndWrongCoupon_WhenCalculateFinalPrice_ThenOriginalReturned() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Coupon discount", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.CouponDiscount("CODE", 15));
+        DiscountPolicy policy = new DiscountPolicy(1, "Coupon discount", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.CouponDiscount("CODE", 15));
 
         double result = policy.calculateFinalPrice(100.0, 1, "BAD");
 
@@ -85,8 +97,8 @@ class DiscountPolicyTest {
 
     @Test
     void GivenCouponDiscountGreaterThanPrice_WhenCalculateFinalPrice_ThenReturnZero() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Coupon discount", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.CouponDiscount("FREE", 150));
+        DiscountPolicy policy = new DiscountPolicy(1, "Coupon discount", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.CouponDiscount("FREE", 150));
 
         double result = policy.calculateFinalPrice(100.0, 1, "FREE");
 
@@ -94,44 +106,35 @@ class DiscountPolicyTest {
     }
 
     @Test
-    void GivenNegativeSubtotal_WhenCalculateFinalPrice_ThenThrowIllegalArgumentException() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Invalid subtotal", EVENT_ID, COMPANY_ID);
+    void GivenNullDiscountRule_WhenAddDiscount_ThenRuleIgnored() {
+        DiscountPolicy policy = new DiscountPolicy(1, "Null rule", EVENT_ID);
 
-        assertThrows(IllegalArgumentException.class, () ->
-                policy.calculateFinalPrice(-1.0, 1, "")
-        );
+        policy.addDiscount(null);
+
+        assertTrue(policy.getActiveDiscounts().isEmpty());
     }
 
     @Test
-    void GivenNullDiscountRule_WhenAddDiscountRule_ThenRuleIgnored() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Null rule", EVENT_ID, COMPANY_ID);
+    void GivenValidDiscountRule_WhenAddDiscount_ThenRuleAdded() {
+        DiscountPolicy policy = new DiscountPolicy(1, "Has discount", EVENT_ID);
 
-        policy.addDiscountRule(null);
+        policy.addDiscount(new DiscountPolicy.PercentageDiscount(10));
 
-        assertFalse(policy.hasDiscounts());
-    }
-
-    @Test
-    void GivenValidDiscountRule_WhenAddDiscountRule_ThenHasDiscountsTrue() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Has discount", EVENT_ID, COMPANY_ID);
-
-        policy.addDiscountRule(new DiscountPolicy.PercentageDiscount(10));
-
-        assertTrue(policy.hasDiscounts());
+        assertEquals(1, policy.getActiveDiscounts().size());
     }
 
     @Test
     void GivenConditionalDiscount_WhenQuantityEnough_ThenConditionalSatisfied() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Conditional", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.ConditionalDiscount(2, 10));
+        DiscountPolicy policy = new DiscountPolicy(1, "Conditional", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.ConditionalDiscount(2, 10));
 
         assertTrue(policy.isAnyConditionalDiscountSatisfied(2));
     }
 
     @Test
     void GivenOnlyPercentageDiscount_WhenCheckConditionalSatisfied_ThenReturnFalse() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Percentage", EVENT_ID, COMPANY_ID);
-        policy.addDiscountRule(new DiscountPolicy.PercentageDiscount(10));
+        DiscountPolicy policy = new DiscountPolicy(1, "Percentage", EVENT_ID);
+        policy.addDiscount(new DiscountPolicy.PercentageDiscount(10));
 
         assertFalse(policy.isAnyConditionalDiscountSatisfied(5));
     }
