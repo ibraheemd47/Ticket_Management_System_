@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import jakarta.transaction.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
@@ -27,10 +28,10 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
-
-import jakarta.transaction.Transactional;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
 
 @Service
 @Transactional
@@ -48,7 +49,7 @@ public class ActiveOrderService {
 
     // new:
     private final OrderPolicyDomainService orderPolicyDomainService;
-    private final IPolicyRepo policyRepository;
+    private final PolicyRepository policyRepository;
 
     //private final userOrderDomainService userOrderDomainService;
 
@@ -59,7 +60,7 @@ public class ActiveOrderService {
             PaymentService paymentService,
             ITicketSupplierGateway ticketGateway,
             TicketRepository ticketRepository,
-            IPolicyRepo policyRepo,
+            PolicyRepository policyRepository,
             OrderPolicyDomainService orderPolicyDomainService ,
             IrepresnteUserService represnteUserService) {
         if (orderRepo == null)
@@ -86,7 +87,7 @@ public class ActiveOrderService {
         this.represnteUserService = represnteUserService;
         // new:
         this.orderPolicyDomainService = orderPolicyDomainService;
-        this.policyRepository = policyRepo;
+        this.policyRepository = policyRepository;
 
     }
 
@@ -104,42 +105,13 @@ public class ActiveOrderService {
 
         try {
             for (SeatRequest seat : seats) {
-                Lock lock = new Lock(
-                        seat.getTicketId(),
-                        buyerId,
-                        LocalDateTime.now().plusMinutes(TTL_MINUTES)
-                );
+                // check if ticket is already locked in DB
+                if (orderRepo.isTicketLocked(seat.getTicketId())) {
+                    logger.warn("Ticket already locked: {}", seat.getTicketId());
+                    throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
+                }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-                order.addTicket(
-                        seat.getTicketId(),
-                        seat.getSeatId(),
-                        seat.getAreaId(),
-                        seat.getPrice(),
-                        lock
-                );
-            }
-
-            double finalPrice = policyService.applyGeneralDiscounts(
-                    eventId,
-                    order.getTotal().doubleValue(),
-                    order.getItems().size()
-            );
-
-            order.updateFinalPrice(finalPrice);
-
-            orderRepo.saveAndFlush(order);
-
-            for (SeatRequest seat : seats) {
-                ticketRepository.findById(UUID.fromString(seat.getTicketId()))
-                        .ifPresent(t -> ticketDomainService.TicketLocked(buyerId, t));
-            }
-=======
-                Lock lock = new Lock(seat.getTicketId(), userToken,
-=======
                 Lock lock = new Lock(seat.getTicketId(), buyerId,
->>>>>>> main
                         LocalDateTime.now().plusMinutes(TTL_MINUTES));
                 order.addTicket(seat.getTicketId(), seat.getSeatId(),
                         seat.getAreaId(), seat.getPrice(), lock);
@@ -164,21 +136,13 @@ public class ActiveOrderService {
             orderPolicyDomainService.applyDiscountPolicy(order, policy, null);
 
             orderRepo.save(order);
->>>>>>> main
 
             logger.info("Reservation completed successfully order {}", order.getId());
             return OrderMapper.toDTO(order);
 
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            logger.warn("Ticket already reserved for buyerId={}", buyerId);
-            throw new IllegalStateException("Ticket already reserved");
         } catch (Exception e) {
-<<<<<<< HEAD
-            logger.error("reserveTickets FAILED rollback done buyerId={}", buyerId);
-=======
             // @Transactional rolls back all saves automatically — locks released
             logger.error("reserveTickets FAILED rollback done userToken={}", userToken);
->>>>>>> main
             throw e;
         }
     }
@@ -274,36 +238,16 @@ public class ActiveOrderService {
                 });
     }
 
-<<<<<<< HEAD
-    public void cancelOrder(UUID orderId, String buyerId) {
-        logger.info("Cancelling order {} for user {}", orderId, buyerId);
-
-        ActiveOrder order = findValidOrder(orderId, buyerId);
-
-=======
     public void cancelOrder(UUID orderId, String userToken) {
         logger.info("Cancelling order {} for user {}", orderId, userToken);
         String buyerId = represnteUserService.requireMemberId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         order.markCancelled();
-<<<<<<< HEAD
-        // domain clears locks and returns IDs — service releases them in repository
->>>>>>> main
-=======
->>>>>>> main
         for (String lockId : order.releaseAllLocks()) {
             ticketRepository.findById(UUID.fromString(lockId))
                     .ifPresent(t -> ticketDomainService.TicketAvailable(t));
         }
-
-        order.markCancelled();
-
-        // IMPORTANT:
-        // Because ticket_id is UNIQUE in order_items,
-        // we must delete the cancelled order so its OrderItems are removed too.
-        orderRepo.delete(order);
-        orderRepo.flush();
-
+        orderRepo.save(order);
         logger.info("Order {} cancelled successfully", orderId);
     }
 
