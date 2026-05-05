@@ -10,33 +10,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-<<<<<<< HEAD
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
-=======
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
->>>>>>> main
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
-<<<<<<< HEAD
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
-=======
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
->>>>>>> main
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
