@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs;
+package com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -7,7 +7,7 @@ import java.util.List;
 
 public class OrderDTO {
     private final UUID orderId;
-    private final String buyerId;
+    private final String userToken;
     private final UUID eventId;
     private final List<OrderItemDTO> items;
     private final LocalDateTime expiresAt;
@@ -18,7 +18,7 @@ public class OrderDTO {
     private final String appliedCouponCode;
 
     public OrderDTO(UUID orderId,
-            String buyerId,
+            String userToken,
             UUID eventId,
             List<OrderItemDTO> items,
             LocalDateTime expiresAt,
@@ -29,7 +29,7 @@ public class OrderDTO {
             String appliedCouponCode) {
 
         this.orderId = orderId;
-        this.buyerId = buyerId;
+        this.userToken = userToken;
         this.eventId = eventId;
         this.items = items;
         this.expiresAt = expiresAt;
@@ -44,8 +44,8 @@ public class OrderDTO {
         return orderId;
     }
 
-    public String getBuyerId() {
-        return buyerId;
+    public String getuserToken() {
+        return userToken;
     }
 
     public UUID getEventId() {

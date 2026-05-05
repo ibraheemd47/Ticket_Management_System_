@@ -1,16 +1,23 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-/**
- * Interface for Policy repository in the Domain Layer.
- * Defines the necessary operations for managing policies like Purchase, Discount, and Selling.
- */
 public interface IPolicyRepo {
+    Optional<Policy> findByPolicyId(int policyId);
 
-    void save(Policy policy);
-    Optional<Policy> findById(int policyId);
-    Collection<Policy> findAll();
-    void deleteById(int policyId);
+    List<Policy> findByEventId(UUID eventId);
+
+    DiscountPolicy findDiscountPolicyByEventId(UUID eventId);
+
+    PurchasePolicy findPurchasePolicyByEventId(UUID eventId);
+    
+    SellingPolicy findSellingPolicyByEventId(UUID eventId);
+
+    void deleteByPolicyId(int policyId);
+
+    Policy save(Policy policy);
+    // Optional<Policy> findAll();
+
 }

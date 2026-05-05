@@ -19,14 +19,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PaymentDetailsDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.PurchaseDTO;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.IPaymentGateway;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PolicyService;
+<<<<<<< HEAD
+=======
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PaymentDetailsDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
+>>>>>>> main
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
