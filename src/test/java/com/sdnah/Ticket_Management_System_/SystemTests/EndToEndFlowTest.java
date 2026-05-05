@@ -33,7 +33,6 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket.TicketStatu
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 import jakarta.persistence.EntityManager;
@@ -67,9 +66,6 @@ class EndToEndFlowTest {
     private UserRepository userRepository;
 
     @Autowired
-    private TokenRepository tokenRepository;
-
-    @Autowired
     private IEventRepository eventRepository;
 
     @Autowired
@@ -85,8 +81,8 @@ class EndToEndFlowTest {
     void cleanDb() {
         ticketRepository.deleteAll();
         eventRepository.deleteAll();
-        tokenRepository.deleteAll();
         userRepository.deleteAll();
+        // JWTs are stateless — no token table to clean up.
     }
 
     // -------------------------------------------------------------------------

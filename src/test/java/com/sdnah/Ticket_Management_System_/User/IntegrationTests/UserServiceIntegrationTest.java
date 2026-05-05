@@ -14,7 +14,6 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig.TestConfig;
 
@@ -29,9 +28,6 @@ class UserServiceIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private TokenRepository tokenRepository;
 
     @Autowired
     private AuthTokenService authTokenService;
@@ -80,9 +76,7 @@ class UserServiceIntegrationTest {
 
         Member saved = userRepository.findById(memberId).orElseThrow();
         assertTrue(saved.isLoggedin());
-
-        // JWT is stateless, so it should not be saved in TokenRepository
-        assertFalse(tokenRepository.existsByTokenValue(token));
+        // JWTs are stateless — there is no DB-backed token table to assert against.
     }
 
     @Test
@@ -106,9 +100,7 @@ class UserServiceIntegrationTest {
         // Assert
         Member saved = userRepository.findById(memberId).orElseThrow();
         assertFalse(saved.isLoggedin());
-
-        // JWT is not deleted from DB because it was never stored there
-        assertFalse(tokenRepository.existsByTokenValue(token));
+        // JWT is stateless — no DB row to delete on logout.
     }
 
     @Test

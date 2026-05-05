@@ -29,13 +29,11 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Company.CompanyRoleService;
 import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.SystemAdminRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig.TestConfig;
 
@@ -60,9 +58,6 @@ class UserConcurrencyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private TokenRepository tokenRepository;
-
-    @Autowired
     private SystemAdminRepository systemAdminRepository;
 
     @Autowired
@@ -77,15 +72,14 @@ class UserConcurrencyTest {
     @BeforeEach
     void cleanDb() {
         jdbcTemplate.update("DELETE FROM member_company_roles");
-        tokenRepository.deleteAll();
         systemAdminRepository.deleteAll();
         userRepository.deleteAll();
+        // JWTs are stateless — no token table to clean.
     }
 
     @AfterEach
     void afterCleanDb() {
         jdbcTemplate.update("DELETE FROM member_company_roles");
-        tokenRepository.deleteAll();
         systemAdminRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -218,10 +212,10 @@ class UserConcurrencyTest {
     void concurrentAssignSystemAdmin_SameTarget_OnlyOneSucceeds() throws Exception {
         // Arrange
         String adminId = "admin-" + UUID.randomUUID();
+        String adminUsername = "adminUser-" + UUID.randomUUID();
         String targetId = "target-" + UUID.randomUUID();
-        String adminToken = "admin-token-" + UUID.randomUUID();
 
-        Member baseAdmin = new Member(adminId, "adminUser-" + UUID.randomUUID(), "hash");
+        Member baseAdmin = new Member(adminId, adminUsername, "hash");
         baseAdmin.setVerified(true);
 
         systemAdminRepository.saveAndFlush(new System_admin(baseAdmin, "System"));
@@ -230,13 +224,11 @@ class UserConcurrencyTest {
         target.setVerified(true);
         userRepository.saveAndFlush(target);
 
-        tokenRepository.saveAndFlush(new AuthToken(
-                adminToken,
-                adminId,
-                LocalDateTime.now().plusHours(1)));
+        // Issue a real JWT for the admin — same logic as login, no DB row needed.
+        String adminToken = authTokenService.generateToken(adminUsername);
 
-        assertNotNull(tokenRepository.findByTokenValue(adminToken),
-                "precondition failed: admin token was not saved");
+        assertTrue(authTokenService.validateToken(adminToken),
+                "precondition failed: admin JWT did not validate");
 
         assertTrue(systemAdminRepository.existsById(adminId),
                 "precondition failed: base admin was not saved");
