@@ -28,17 +28,9 @@ import com.sdnah.Ticket_Management_System_.Application_Layer.Order.DTOs.SeatRequ
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PolicyService;
-<<<<<<< HEAD
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
-=======
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.OrderRepositoryImpl;
->>>>>>> main
 
 @SpringBootTest
 class OrderConcurrencyTest {
