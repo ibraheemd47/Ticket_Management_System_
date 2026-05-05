@@ -51,9 +51,10 @@ public class ActiveOrderService {
     private final OrderPolicyDomainService orderPolicyDomainService;
     private final PolicyRepository policyRepository;
 
-    //private final userOrderDomainService userOrderDomainService;
+    // private final userOrderDomainService userOrderDomainService;
 
     private IrepresnteUserService represnteUserService;
+
     public ActiveOrderService(ActiveOrderRepository orderRepo,
             PurchaseRepository purchaseRepo,
             PaymentTransactionRepository transactionRepo,
@@ -61,7 +62,7 @@ public class ActiveOrderService {
             ITicketSupplierGateway ticketGateway,
             TicketRepository ticketRepository,
             PolicyRepository policyRepository,
-            OrderPolicyDomainService orderPolicyDomainService ,
+            OrderPolicyDomainService orderPolicyDomainService,
             IrepresnteUserService represnteUserService) {
         if (orderRepo == null)
             throw new IllegalArgumentException("orderRepo required");
@@ -83,7 +84,7 @@ public class ActiveOrderService {
         this.ticketGateway = ticketGateway;
         this.ticketRepository = ticketRepository;
         this.ticketDomainService = new Ticket_Domain_Service();
-        //this.userOrderDomainService = new userOrderDomainService();
+        // this.userOrderDomainService = new userOrderDomainService();
         this.represnteUserService = represnteUserService;
         // new:
         this.orderPolicyDomainService = orderPolicyDomainService;
@@ -121,7 +122,7 @@ public class ActiveOrderService {
 
                 // notify EVENT aggregate — mark ticket as LOCKED
                 ticketRepository.findById(UUID.fromString(seat.getTicketId()))
-                        .ifPresent(t -> ticketDomainService.TicketLocked(t));
+                        .ifPresent(t -> ticketDomainService.TicketLocked(buyerId, t));
             }
             // PolicyService returns finalPrice — update directly
             // double finalPrice = policyService.applyGeneralDiscounts(eventId,

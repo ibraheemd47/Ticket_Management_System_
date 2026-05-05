@@ -27,13 +27,12 @@ class OrderMapperTest {
                 1L,
                 UUID.randomUUID(),
                 new BigDecimal("50"),
-                null
-        );
+                null);
 
         OrderDTO dto = OrderMapper.toDTO(order);
 
         assertEquals(order.getId(), dto.getOrderId());
-        assertEquals(order.getBuyerId(), dto.getBuyerId());
+        assertEquals(order.getbuyerId(), dto.getbuyerId());
         assertEquals(order.getEventId(), dto.getEventId());
         assertEquals(1, dto.getItems().size());
         assertEquals(order.getTotal(), dto.getOriginalPrice());
@@ -48,8 +47,7 @@ class OrderMapperTest {
                 UUID.randomUUID().toString(),
                 1L,
                 UUID.randomUUID(),
-                new BigDecimal("50")
-        );
+                new BigDecimal("50"));
 
         OrderItemDTO dto = OrderMapper.toDTO(item);
 
@@ -70,8 +68,7 @@ class OrderMapperTest {
                 1L,
                 UUID.randomUUID(),
                 new BigDecimal("50"),
-                null
-        );
+                null);
 
         Purchase purchase = new Purchase(order);
         List<String> ticketCodes = List.of("code1", "code2");

@@ -23,7 +23,7 @@ class PurchaseTest {
         Purchase purchase = new Purchase(order);
 
         assertEquals(order.getId(), purchase.getOrderId());
-        assertEquals(order.getBuyerId(), purchase.getBuyerId());
+        assertEquals(order.getbuyerId(), purchase.getbuyerId());
         assertEquals(2, purchase.getItems().size());
         assertEquals(order.getTotal(), purchase.getTotalPrice());
     }
@@ -32,8 +32,7 @@ class PurchaseTest {
     void constructor_shouldThrow_whenOrderIsNull() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> new Purchase(null)
-        );
+                () -> new Purchase(null));
 
         assertNotNull(ex);
     }

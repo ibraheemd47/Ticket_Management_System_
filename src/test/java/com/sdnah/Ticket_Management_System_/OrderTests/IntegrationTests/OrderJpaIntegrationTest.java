@@ -1,36 +1,31 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.IntegrationTests;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@ActiveProfiles("test")
 class OrderJpaIntegrationTest {
-
-    @MockBean
-    private Ticket_Domain_Service ticketDomainService;
 
     @Autowired
     private ActiveOrderRepository activeOrderRepository;
@@ -40,6 +35,13 @@ class OrderJpaIntegrationTest {
 
     @Autowired
     private PaymentTransactionRepository paymentTransactionRepository;
+
+    @BeforeEach
+    void cleanDb() {
+        paymentTransactionRepository.deleteAll();
+        purchaseRepository.deleteAll();
+        activeOrderRepository.deleteAll();
+    }
 
     @Test
     void saveAndFindById_shouldReturnSavedOrder() {
@@ -101,8 +103,7 @@ class OrderJpaIntegrationTest {
         ReflectionTestUtils.setField(
                 expired,
                 "expiresAt",
-                LocalDateTime.now().minusMinutes(5)
-        );
+                LocalDateTime.now().minusMinutes(5));
 
         ActiveOrder active = new ActiveOrder("buyer-2", UUID.randomUUID(), 10);
 
@@ -119,7 +120,12 @@ class OrderJpaIntegrationTest {
     @Test
     void savePurchaseAndFindByBuyer_shouldReturnBuyerHistory() {
         ActiveOrder order = new ActiveOrder("buyer-1", UUID.randomUUID(), 10);
-        order.addTicket(UUID.randomUUID().toString(), 1L, UUID.randomUUID(), BigDecimal.valueOf(50), null);
+        order.addTicket(
+                UUID.randomUUID().toString(),
+                1L,
+                UUID.randomUUID(),
+                BigDecimal.valueOf(50),
+                null);
 
         activeOrderRepository.saveAndFlush(order);
 
@@ -138,7 +144,12 @@ class OrderJpaIntegrationTest {
         UUID eventId = UUID.randomUUID();
 
         ActiveOrder order = new ActiveOrder("buyer-1", eventId, 10);
-        order.addTicket(UUID.randomUUID().toString(), 1L, UUID.randomUUID(), BigDecimal.valueOf(50), null);
+        order.addTicket(
+                UUID.randomUUID().toString(),
+                1L,
+                UUID.randomUUID(),
+                BigDecimal.valueOf(50),
+                null);
 
         activeOrderRepository.saveAndFlush(order);
 
@@ -158,13 +169,11 @@ class OrderJpaIntegrationTest {
                 "tx-" + UUID.randomUUID(),
                 UUID.randomUUID(),
                 BigDecimal.valueOf(100),
-                PaymentTransaction.Status.SUCCESS
-        );
+                PaymentTransaction.Status.SUCCESS);
 
         paymentTransactionRepository.saveAndFlush(tx);
 
-        Optional<PaymentTransaction> result =
-                paymentTransactionRepository.findById(tx.getTransactionId());
+        Optional<PaymentTransaction> result = paymentTransactionRepository.findById(tx.getTransactionId());
 
         assertTrue(result.isPresent());
         assertEquals(tx.getTransactionId(), result.get().getTransactionId());
@@ -182,8 +191,7 @@ class OrderJpaIntegrationTest {
                 1L,
                 UUID.randomUUID(),
                 BigDecimal.valueOf(50),
-                new Lock(ticketId, "buyer-1", LocalDateTime.now().plusMinutes(10))
-        );
+                new Lock(ticketId, "buyer-1", LocalDateTime.now().plusMinutes(10)));
 
         activeOrderRepository.saveAndFlush(order);
 

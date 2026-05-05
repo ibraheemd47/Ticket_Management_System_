@@ -1,4 +1,5 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -19,7 +20,7 @@ public class TicketService {
     @Autowired
     private TicketRepository ticketRepository;
     private final Logger logger = (Logger) LoggerFactory.getLogger(TicketService.class);
-    
+
     public TicketService(TicketRepository ticketRepository) {
         this.ticketRepository = ticketRepository;
     }
@@ -29,13 +30,14 @@ public class TicketService {
      */
     public boolean lockTicketForUser(UUID ticketId, UUID userId) {
         return ticketRepository.findById(ticketId)
-            .map(ticket -> {
-                boolean success = ticket.lockInCart(userId);
-                if (success) ticketRepository.save(ticket);
-                logger.info("Ticket {} locked in cart for user {}", ticketId, userId);
-                return success;
-            })
-            .orElse(false);
+                .map(ticket -> {
+                    boolean success = ticket.lockInCart(userId);
+                    if (success)
+                        ticketRepository.save(ticket);
+                    logger.info("Ticket {} locked in cart for user {}", ticketId, userId);
+                    return success;
+                })
+                .orElse(false);
     }
 
     /**
@@ -43,16 +45,16 @@ public class TicketService {
      */
     public boolean confirmPurchase(UUID ticketId, UUID userId) {
         return ticketRepository.findById(ticketId)
-            .map(ticket -> {
-                boolean success = ticket.purchase(userId);
-                if (success) {
-                    // Logic for generating QR code or sending email could go here
-                    ticketRepository.save(ticket);
-                }
-                logger.info("Ticket {} confirmed for user {}", ticketId, userId);
-                return success;
-            })
-            .orElse(false);
+                .map(ticket -> {
+                    boolean success = ticket.purchase(userId);
+                    if (success) {
+                        // Logic for generating QR code or sending email could go here
+                        ticketRepository.save(ticket);
+                    }
+                    logger.info("Ticket {} confirmed for user {}", ticketId, userId);
+                    return success;
+                })
+                .orElse(false);
     }
 
     /**
@@ -71,13 +73,14 @@ public class TicketService {
      */
     public boolean scanTicketAtDoor(UUID ticketId) {
         return ticketRepository.findById(ticketId)
-            .map(ticket -> {
-                boolean success = ticket.scan();
-                if (success) ticketRepository.save(ticket);
-                logger.info("Ticket {} scanned at door", ticketId);
-                return success;
-            })
-            .orElse(false);
+                .map(ticket -> {
+                    boolean success = ticket.scan();
+                    if (success)
+                        ticketRepository.save(ticket);
+                    logger.info("Ticket {} scanned at door", ticketId);
+                    return success;
+                })
+                .orElse(false);
     }
 
     /**
@@ -86,6 +89,6 @@ public class TicketService {
     public List<ticket> getTicketsByOwner(UUID ownerId) {
         logger.info("Fetching tickets for owner {}", ownerId);
 
-        return ticketRepository.findByOwnerId(UUID.fromString(ownerId));
+        return ticketRepository.findByOwnerId(ownerId);
     }
 }

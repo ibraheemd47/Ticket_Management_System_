@@ -1,6 +1,5 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer;
 
-
 import java.util.UUID;
 
 import org.slf4j.LoggerFactory;
@@ -26,28 +25,20 @@ public class Ticket_Domain_Service {
 
     }
 
-<<<<<<< HEAD
     public void TicketLocked(String buyerId, ticket ticket) {
         // Lock the ticket to prevent it from being sold to someone else
-            logger.info("Locking ticket {} for buyer {}", ticket.getTicketId(), buyerId);
+        logger.info("Locking ticket {} for buyer {}", ticket.getTicketId(), buyerId);
         UUID buyerUUID = UUID.fromString(buyerId);
         ticket.lockInCart(buyerUUID);
-        // Additional logic like setting a timer to unlock the ticket after a certain period, etc.
-        
+        // Additional logic like setting a timer to unlock the ticket after a certain
+        // period, etc.
+
     }
 
-    public void TicketAvailable( ticket t) {
-            // Unlock the ticket to make it available for others
-         logger.info("Unlocking ticket {} and making it available again", t.getTicketId());
+    public void TicketAvailable(ticket t) {
+        // Unlock the ticket to make it available for others
+        logger.info("Unlocking ticket {} and making it available again", t.getTicketId());
         t.unlockFromCart();
-=======
-    public void TicketLocked(ticket ticket) {
-
-    }
-
-    public void TicketAvailable(ticket ticket) {
-
->>>>>>> main
     }
 
 }

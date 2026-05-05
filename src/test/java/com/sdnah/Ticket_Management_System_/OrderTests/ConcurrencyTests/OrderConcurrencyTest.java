@@ -35,7 +35,6 @@ import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactio
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
 
-
 @SpringBootTest
 class OrderConcurrencyTest {
 
@@ -118,8 +117,7 @@ class OrderConcurrencyTest {
                 ticketId,
                 1L,
                 UUID.randomUUID(),
-                BigDecimal.valueOf(100)
-        );
+                BigDecimal.valueOf(100));
 
         List<SeatRequest> seats = List.of(seatRequest);
         int users = 20;
@@ -150,8 +148,7 @@ class OrderConcurrencyTest {
                     ticketId,
                     1L,
                     UUID.randomUUID(),
-                    BigDecimal.valueOf(100)
-            );
+                    BigDecimal.valueOf(100));
 
             activeOrderService.reserveTickets(buyerId, eventId, List.of(seatRequest));
         });
@@ -174,8 +171,7 @@ class OrderConcurrencyTest {
                     ticketId,
                     1L,
                     UUID.randomUUID(),
-                    BigDecimal.valueOf(100)
-            );
+                    BigDecimal.valueOf(100));
 
             activeOrderService.reserveTickets(buyerId, eventId, List.of(seatRequest));
         });
@@ -194,22 +190,19 @@ class OrderConcurrencyTest {
                 ticketId,
                 1L,
                 UUID.randomUUID(),
-                BigDecimal.valueOf(100)
-        );
+                BigDecimal.valueOf(100));
 
         OrderDTO order = activeOrderService.reserveTickets(
                 "buyer-" + UUID.randomUUID(),
                 eventId,
-                List.of(seatRequest)
-        );
+                List.of(seatRequest));
 
-        activeOrderService.cancelOrder(order.getOrderId(), order.getBuyerId());
+        activeOrderService.cancelOrder(order.getOrderId(), order.getbuyerId());
 
         activeOrderService.reserveTickets(
                 "another-buyer-" + UUID.randomUUID(),
                 eventId,
-                List.of(seatRequest)
-        );
+                List.of(seatRequest));
 
         assertTrue(true, "ticket should be available again after cancellation");
     }
@@ -230,14 +223,12 @@ class OrderConcurrencyTest {
                     ticketId,
                     1L,
                     UUID.randomUUID(),
-                    BigDecimal.valueOf(100)
-            );
+                    BigDecimal.valueOf(100));
 
             activeOrderService.reserveTickets(
                     "buyer-" + UUID.randomUUID(),
                     eventId,
-                    List.of(seatRequest)
-            );
+                    List.of(seatRequest));
         });
 
         assertTrue(outcome.successes.get() <= uniqueTickets,
@@ -261,14 +252,12 @@ class OrderConcurrencyTest {
                     ticketId,
                     1L,
                     UUID.randomUUID(),
-                    BigDecimal.valueOf(100)
-            );
+                    BigDecimal.valueOf(100));
 
             activeOrderService.reserveTickets(
                     "buyer-" + UUID.randomUUID(),
                     eventId,
-                    List.of(seatRequest)
-            );
+                    List.of(seatRequest));
         });
 
         assertEquals(threads, outcome.successes.get(), "all different tickets should be locked");
