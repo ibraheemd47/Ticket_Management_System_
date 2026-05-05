@@ -2,6 +2,8 @@ package com.sdnah.Ticket_Management_System_.Policy.UnitTests;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.*;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
+
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -11,6 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @DisplayName("PolicyService — Application Layer Unit Tests")
@@ -18,7 +21,7 @@ import static org.mockito.Mockito.*;
 class PolicyServiceTest {
 
     @Mock
-    private IPolicyRepo policyRepo;
+    private PolicyRepository policyRepo;
 
     private PolicyService policyService;
 

@@ -2,6 +2,8 @@ package com.sdnah.Ticket_Management_System_.Policy.AcceptanceTests;
 
 import com.sdnah.Ticket_Management_System_.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.*;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
+
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -18,7 +20,7 @@ import static org.mockito.Mockito.*;
 class PolicyServiceAcceptanceTest {
 
     @Mock
-    private IPolicyRepo policyRepo;
+    private PolicyRepository policyRepo;
 
     private PolicyService policyService;
 

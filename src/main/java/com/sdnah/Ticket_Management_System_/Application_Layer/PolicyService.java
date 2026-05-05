@@ -12,16 +12,17 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
 
 @Service
 public class PolicyService {
 
     private static final Logger logger = LoggerFactory.getLogger(PolicyService.class);
 
-    private final IPolicyRepo policyRepo;
+    private final PolicyRepository policyRepo;
 
     @Autowired
-    public PolicyService(IPolicyRepo policyRepo) {
+    public PolicyService(PolicyRepository policyRepo) {
         this.policyRepo = policyRepo;
     }
 

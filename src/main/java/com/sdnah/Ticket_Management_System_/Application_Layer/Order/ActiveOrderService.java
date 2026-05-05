@@ -28,6 +28,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
@@ -48,7 +49,7 @@ public class ActiveOrderService {
 
     // new:
     private final OrderPolicyDomainService orderPolicyDomainService;
-    private final IPolicyRepo policyRepository;
+    private final PolicyRepository policyRepository;
 
     //private final userOrderDomainService userOrderDomainService;
 
@@ -59,7 +60,7 @@ public class ActiveOrderService {
             PaymentService paymentService,
             ITicketSupplierGateway ticketGateway,
             TicketRepository ticketRepository,
-            IPolicyRepo policyRepo,
+            PolicyRepository policyRepository,
             OrderPolicyDomainService orderPolicyDomainService ,
             IrepresnteUserService represnteUserService) {
         if (orderRepo == null)
@@ -86,7 +87,7 @@ public class ActiveOrderService {
         this.represnteUserService = represnteUserService;
         // new:
         this.orderPolicyDomainService = orderPolicyDomainService;
-        this.policyRepository = policyRepo;
+        this.policyRepository = policyRepository;
 
     }
 
