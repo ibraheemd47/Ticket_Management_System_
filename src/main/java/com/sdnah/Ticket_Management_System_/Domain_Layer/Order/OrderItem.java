@@ -17,7 +17,7 @@ public class OrderItem {
     @Column(name = "item_id")
     private UUID itemId;
 
-    @Column(name = "ticket_id")
+    @Column(name = "ticket_id", unique = true, nullable = false)
     private String ticketId;
 
     @Column(name = "seat_id")
