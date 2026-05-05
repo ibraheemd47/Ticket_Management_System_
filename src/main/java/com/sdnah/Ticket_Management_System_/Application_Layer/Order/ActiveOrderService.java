@@ -103,7 +103,7 @@ public class ActiveOrderService {
 
                 // notify EVENT aggregate — mark ticket as LOCKED
                 ticketRepository.findById(UUID.fromString(seat.getTicketId()))
-                        .ifPresent(t -> ticketDomainService.TicketLocked(t));
+                        .ifPresent(t -> ticketDomainService.TicketLocked(buyerId, t));
             }
             // PolicyService returns finalPrice — update directly
             double finalPrice = policyService.applyGeneralDiscounts(eventId, order.getTotal().doubleValue(),
@@ -203,7 +203,7 @@ public class ActiveOrderService {
         // domain clears locks and returns IDs — service releases them in repository
         for (String lockId : order.releaseAllLocks()) {
             ticketRepository.findById(UUID.fromString(lockId))
-                    .ifPresent(t -> ticketDomainService.TicketAvailable(buyerId, t));
+                    .ifPresent(t -> ticketDomainService.TicketAvailable( t));
         }
         orderRepo.save(order);
         logger.info("Order {} cancelled successfully", orderId);
