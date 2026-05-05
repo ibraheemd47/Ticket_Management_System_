@@ -5,36 +5,41 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.IPolicyRepo;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Policy;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.*;
 
 @Repository
-public interface PolicyRepository extends JpaRepository<Policy, Integer> , IPolicyRepo {
-
-    // ── Basic queries ─────────────────────────────────────────────
+public interface PolicyRepository extends JpaRepository<Policy, Integer>, IPolicyRepo {
 
     Optional<Policy> findByPolicyId(int policyId);
 
-    List<Policy> findByCompanyId(int companyId);
-
-    //List<Policy> findByEventId(UUID eventId);
-    // 1. השאילתה המקורית שמחזירה את כל סוגי המדיניות של האירוע (רשימה)
     List<Policy> findByEventId(UUID eventId);
-    // 2. שאילתה ספציפית ששולפת רק את מדיניות ההנחות
-    // Spring Data JPA יבצע סינון אוטומטי לפי הטיפוס DiscountPolicy
-    DiscountPolicy findDiscountPolicyByEventId(UUID eventId);
-    PurchasePolicy findPurchasePolicyByEventId(UUID eventId);
 
-    // ── Main query used in PolicyService ─────────────────────────
+    @Query("SELECT p FROM DiscountPolicy p WHERE p.eventId = :eventId")
+    DiscountPolicy findDiscountPolicyByEventId(@Param("eventId") UUID eventId);
 
-    List<Policy> findByCompanyIdAndEventId(int companyId, UUID eventId);
+    @Query("SELECT p FROM PurchasePolicy p WHERE p.eventId = :eventId")
+    PurchasePolicy findPurchasePolicyByEventId(@Param("eventId") UUID eventId);
 
+    @Query("SELECT p FROM SellingPolicy p WHERE p.eventId = :eventId")
+    SellingPolicy findSellingPolicyByEventId(@Param("eventId") UUID eventId);
 
-    // ── Delete ───────────────────────────────────────────────────
-
-    void deleteByPolicyId(int policyId);
+/**
+ * Marker type extending {@link IPolicyRepo}. Existing tests reference this
+ * type by name (for {@code excludeFilters} on JPA scanning) so we keep it
+ * around, but it no longer extends Spring Data's {@code JpaRepository} — the
+ * Policy domain classes are not yet annotated as JPA entities, which would
+ * make {@code JpaRepository<Policy, Integer>} fail at context-load time with
+ * "Not a managed type: Policy".
+ *
+ * The active bean implementing {@link IPolicyRepo} is
+ * {@link InMemoryPolicyRepo} — a no-op in-memory stub that lets the rest of
+ * the application context (User / Event / Ticket / Order wiring) come up.
+ * When the Policy team finishes annotating their entities, restore this file
+ * to its JPA form and remove {@link InMemoryPolicyRepo}.
+ */
+public interface PolicyRepository extends IPolicyRepo {
 }

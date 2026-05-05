@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 
 @Repository
-public interface TokenRepository extends JpaRepository<AuthToken, String> {
+public interface TokenRepository1 extends JpaRepository<AuthToken, String> {
 
     AuthToken findByTokenValue(String token);
 

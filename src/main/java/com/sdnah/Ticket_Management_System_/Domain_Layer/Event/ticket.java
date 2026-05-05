@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
 
 @Entity
 public class ticket {
@@ -23,6 +24,9 @@ public class ticket {
 
     @Id
     private UUID ticketId;
+
+    @Version
+    private Long version;
 
     private UUID showId;
     private UUID ownerId;
@@ -40,7 +44,7 @@ public class ticket {
     @Enumerated(EnumType.STRING)
     private TicketStatus status;
 
-    private Date showDate; 
+    private Date showDate;
 
     public enum TicketStatus {
         AVAILABLE,
@@ -49,7 +53,8 @@ public class ticket {
         SCANNED
     }
 
-    protected ticket() {}
+    protected ticket() {
+    }
 
     public ticket(UUID ticketId, UUID showId, Seat seat, Area area, Date showDate, BigDecimal price) {
         this.ticketId = ticketId;
@@ -128,14 +133,37 @@ public class ticket {
         return true;
     }
 
-    public UUID getTicketId() { return ticketId; }
-    public UUID getShowId() { return showId; }
-    public UUID getOwnerId() { return ownerId; }
-    public Seat getSeat() { return seat; }
-    public Area getArea() { return area; }
-    public BigDecimal getPrice() { return price; }
-    public TicketStatus getStatus() { return status; }
-    public Date getShowDate() { return showDate; }
+    public UUID getTicketId() {
+        return ticketId;
+    }
+
+    public UUID getShowId() {
+        return showId;
+    }
+
+    public UUID getOwnerId() {
+        return ownerId;
+    }
+
+    public Seat getSeat() {
+        return seat;
+    }
+
+    public Area getArea() {
+        return area;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public TicketStatus getStatus() {
+        return status;
+    }
+
+    public Date getShowDate() {
+        return showDate;
+    }
 
     public String getFullSeatLocation() {
         if (this.seat == null) {

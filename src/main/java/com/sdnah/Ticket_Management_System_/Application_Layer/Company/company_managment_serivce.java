@@ -7,14 +7,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.sdnah.Ticket_Management_System_.DTOs.Company.CompanyDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.DTOs.CompanyDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.CompanyAuthorizationDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 import org.springframework.stereotype.Service;
@@ -23,23 +25,27 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignme
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
 
 @Service
 public class company_managment_serivce {
     private final CompanyAuthorizationDomainService companyAuthorizationDomainService;
     private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
 
-
-    //Repositories
+    // Repositories
     private final CompanyRepository companyRepository;
     private UserRepository userRepository;
-    private TokenRepository tokenRepository;
+    private IEventRepository eventRepository;
+    private IrepresnteUserService representUserService;
+
     @Autowired
-    public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository, TokenRepository tokenRepository) {
+    public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository,
+             IEventRepository eventRepository, IrepresnteUserService representUserService) {
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
-        this.tokenRepository = tokenRepository;
+        this.eventRepository = eventRepository;
+        this.representUserService = representUserService;
     }
 
     // --- II.2.1: View Active Production Companies ---
@@ -51,7 +57,7 @@ public class company_managment_serivce {
     }
 
     // II.2.1 - Get all upcoming events from active companies
-    public List<Integer> getAllUpComingEventsForHomePage() {
+    public List<UUID> getAllUpComingEventsForHomePage() {
         // this return all of the events of all the companies, and the events service
         // should handle the date filtering and return only the upcoming events in the
         // response
@@ -81,44 +87,53 @@ public class company_managment_serivce {
                     companyId,
                     actor.getMemberId(),
                     CompanyRoleType.OWNER,
-                    Set.of()
-            ));
+                    Set.of()));
             userRepository.save(actor);
 
             logger.info("Company opened successfully. companyId={}", companyId);
-            } catch (Exception e) {
-                logger.error("Failed to open company. companyId={}, error={}", companyId, e.getMessage());
-                throw e;
-            }
+        } catch (Exception e) {
+            logger.error("Failed to open company. companyId={}, error={}", companyId, e.getMessage());
+            throw e;
+        }
     }
 
     // --- II.4.1: Manage Events (Add/Remove) ---
-    // public void addEvent(String actingUserId, int companyId, int eventId) {
-    //     Company company = getCompanyOrThrow(companyId);
-    //     validateManagerOrFounder(actingUserId, company);
-    //     company.addEventId(actingUserId, eventId);
-    //     companyRepository.save(company);
-    //     logger.info("Event " + eventId + " added to company " + companyId);
-    // }
-    public void addEvent(String actorToken, int companyId, int eventId) {
+    @Transactional
+    public EventDto addEvent(String actorToken, int companyId, EventDto dto) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
-        company.addEventId(actor.getMemberId(), eventId);
+        company.validateActionPermission(actor.getMemberId(), CompanyPermission.MANAGE_EVENTS);
+
+        Event event = new Event(dto.name, dto.eventType, Long.valueOf(companyId), Long.valueOf(actor.getMemberId()));
+        Event savedEvent = eventRepository.save(event);
+
+        company.addEventId(actor.getMemberId(), savedEvent.getEventId());
         companyRepository.save(company);
-        logger.info("Event {} added to company {} by user {}",
-        eventId, companyId, actor.getMemberId());
+
+        return new EventDto(
+                savedEvent.getEventId(),
+                savedEvent.getName(),
+                savedEvent.getStartDate() == null ? null : savedEvent.getStartDate().toString(),
+                savedEvent.getEventType(),
+                savedEvent.getVenue());
     }
 
-    public void removeEvent(String actorToken, int companyId, int eventId) {
+    @Transactional
+    public void removeEvent(String actorToken, int companyId, UUID eventId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
-        company.removeEvent(actor.getMemberId(), eventId);
-        companyRepository.save(company);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NoSuchElementException("Event ID " + eventId + " not found."));
 
-        logger.info("Event {} removed from company {} by user {}",
-                eventId, companyId, actor.getMemberId());
+        if (!Objects.equals(event.getCompanyId(), Long.valueOf(companyId))) {
+            throw new IllegalArgumentException("Event does not belong to this company.");
+        }
+
+        company.removeEvent(actor.getMemberId(), eventId);
+        eventRepository.delete(event);
+        companyRepository.save(company);
     }
 
     // --- II.4.3:not for this version
@@ -212,7 +227,7 @@ public class company_managment_serivce {
     // --- II.4.7: View and Appoint Company Managers ---
     @Transactional
     public void appointManager(String actorToken, int companyId, String newManagerId,
-                           Set<CompanyPermission> permissions) {
+            Set<CompanyPermission> permissions) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -221,14 +236,13 @@ public class company_managment_serivce {
         company.appointManager(actor.getMemberId(), newManagerId, permissions);
         companyRepository.save(company);
         Member newManager = userRepository.findById(newManagerId)
-        .orElseThrow(() -> new NoSuchElementException("New manager member not found"));
+                .orElseThrow(() -> new NoSuchElementException("New manager member not found"));
 
         newManager.addCompanyRole(new CompanyRoleAssignment(
                 companyId,
                 actor.getMemberId(),
                 CompanyRoleType.MANAGER,
-                Set.of()
-        ));
+                Set.of()));
         userRepository.save(newManager);
 
         logger.info("Manager appointed successfully. companyId={}, newManagerId={}, actingOwnerId={}",
@@ -257,14 +271,13 @@ public class company_managment_serivce {
         company.appointAdditionalOwner(actor.getMemberId(), newOwnerId);
         companyRepository.save(company);
         Member newOwner = userRepository.findById(newOwnerId)
-        .orElseThrow(() -> new NoSuchElementException("New owner member not found"));
+                .orElseThrow(() -> new NoSuchElementException("New owner member not found"));
 
         newOwner.addCompanyRole(new CompanyRoleAssignment(
                 companyId,
                 actor.getMemberId(),
                 CompanyRoleType.OWNER,
-                Set.of()
-        ));
+                Set.of()));
         userRepository.save(newOwner);
 
         logger.info("Additional owner appointed. companyId={}, newOwnerId={}, actingOwnerId={}",
@@ -296,7 +309,7 @@ public class company_managment_serivce {
 
     // --- II.4.11: Modify Manager Permissions ---
     public void modifyManagerPermissions(String actorToken, int companyId, String managerId,
-                                     Set<CompanyPermission> updatedPermissions) {
+            Set<CompanyPermission> updatedPermissions) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -366,20 +379,21 @@ public class company_managment_serivce {
                 company.getCompanyId(),
                 company.getCompanyFounderId(),
                 company.getOwnerIds(),
-                company.getManagerPermissionsView()
-        );
+                company.getManagerPermissionsView());
     }
 
     // --- Internal Helpers ---
 
-    // private void validateOwnerOrManagerWithPermission(String userId, Company company, CompanyPermission permission) {
-    //     if (company.isOwner(userId)) {
-    //         return;
-    //     }
-    //     if (company.isManager(userId) && company.managerHasPermission(userId, permission)) {
-    //         return;
-    //     }
-    //     throw new SecurityException("Unauthorized action for user " + userId + ".");
+    // private void validateOwnerOrManagerWithPermission(String userId, Company
+    // company, CompanyPermission permission) {
+    // if (company.isOwner(userId)) {
+    // return;
+    // }
+    // if (company.isManager(userId) && company.managerHasPermission(userId,
+    // permission)) {
+    // return;
+    // }
+    // throw new SecurityException("Unauthorized action for user " + userId + ".");
     // }
 
     private Company getCompanyOrThrow(int companyId) {
@@ -388,17 +402,18 @@ public class company_managment_serivce {
     }
 
     // private void validateManagerOrFounder(String userId, Company company) {
-    //     boolean isFounder = company.getCompanyFounderId().equals(userId);
-    //     boolean isManager = company.getManagers().contains(userId);
-    //     if (!isFounder && !isManager) {
-    //         throw new SecurityException("Unauthorized: User " + userId + " is not a manager/owner of this company.");
-    //     }
+    // boolean isFounder = company.getCompanyFounderId().equals(userId);
+    // boolean isManager = company.getManagers().contains(userId);
+    // if (!isFounder && !isManager) {
+    // throw new SecurityException("Unauthorized: User " + userId + " is not a
+    // manager/owner of this company.");
+    // }
     // }
 
     // for endpoints:
 
     // Filter events by company name
-    public List<Integer> filterEventsByCompanyName(String companyName) {
+    public List<UUID> filterEventsByCompanyName(String companyName) {
         return companyRepository.findAll().stream()
                 .filter(Company::isOpen)
                 .filter(company -> company.matchesName(companyName))
@@ -406,7 +421,7 @@ public class company_managment_serivce {
                 .toList();
     }
 
-    public List<Integer> getAllEventsByCompany(int companyId) {
+    public List<UUID> getAllEventsByCompany(int companyId) {
         Company company = getCompanyOrThrow(companyId);
         return company.getAssociatedEventIds();
     }
@@ -430,13 +445,16 @@ public class company_managment_serivce {
                 .toList();
     }
 
-    public int getEventDetails(int eventId) {
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
-                .filter(company -> company.hasEvent(eventId))
-                .findFirst()
-                .map(company -> eventId)
+    public EventDto getEventDetails(UUID eventId) {
+        Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NoSuchElementException("Event ID " + eventId + " not found."));
+
+        return new EventDto(
+                event.getEventId(),
+                event.getName(),
+                event.getStartDate().toString(),
+                event.getEventType(),
+                event.getVenue());
     }
 
     public String getCompanyLogoURL(int companyId) {
@@ -472,22 +490,12 @@ public class company_managment_serivce {
                 company.getLogoURL());
     }
 
-    //helper function
+    // helper function
     private Member getActorFromToken(String actorToken) {
         if (actorToken == null || actorToken.isBlank()) {
             throw new SecurityException("Invalid token");
         }
-
-        AuthToken token = tokenRepository.findById(actorToken)
-                .orElseThrow(() -> new SecurityException("Invalid token"));
-
-        if (token.isExpired(java.time.LocalDateTime.now())) {
-            tokenRepository.deleteByTokenValue(actorToken);
-            throw new SecurityException("Token expired");
-        }
-
-        return userRepository.findById(token.getMemberId())
-                .orElseThrow(() -> new NoSuchElementException("Actor member not found"));
+        return representUserService.requireMember(actorToken);
     }
 
 }

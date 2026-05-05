@@ -7,7 +7,7 @@ import java.util.List;
 
 public class OrderDTO {
     private final UUID orderId;
-    private final String userToken;
+    private final String buyerId;
     private final UUID eventId;
     private final List<OrderItemDTO> items;
     private final LocalDateTime expiresAt;
@@ -18,7 +18,7 @@ public class OrderDTO {
     private final String appliedCouponCode;
 
     public OrderDTO(UUID orderId,
-            String userToken,
+            String buyerId,
             UUID eventId,
             List<OrderItemDTO> items,
             LocalDateTime expiresAt,
@@ -29,7 +29,7 @@ public class OrderDTO {
             String appliedCouponCode) {
 
         this.orderId = orderId;
-        this.userToken = userToken;
+        this.buyerId = buyerId;
         this.eventId = eventId;
         this.items = items;
         this.expiresAt = expiresAt;
@@ -44,8 +44,8 @@ public class OrderDTO {
         return orderId;
     }
 
-    public String getuserToken() {
-        return userToken;
+    public String getbuyerId() {
+        return buyerId;
     }
 
     public UUID getEventId() {

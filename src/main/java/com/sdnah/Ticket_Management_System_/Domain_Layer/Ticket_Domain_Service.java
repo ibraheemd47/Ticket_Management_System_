@@ -26,6 +26,7 @@ public class Ticket_Domain_Service {
 
     }
 
+<<<<<<< HEAD
     public void TicketLocked(String buyerId, ticket ticket) {
         // Lock the ticket to prevent it from being sold to someone else
             logger.info("Locking ticket {} for buyer {}", ticket.getTicketId(), buyerId);
@@ -39,6 +40,14 @@ public class Ticket_Domain_Service {
             // Unlock the ticket to make it available for others
          logger.info("Unlocking ticket {} and making it available again", t.getTicketId());
         t.unlockFromCart();
+=======
+    public void TicketLocked(ticket ticket) {
+
+    }
+
+    public void TicketAvailable(ticket ticket) {
+
+>>>>>>> main
     }
 
 }

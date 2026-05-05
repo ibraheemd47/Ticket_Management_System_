@@ -68,7 +68,7 @@ public class Member {
     public Member(String memberId, String username, String passwordHash) {
 
         if (memberId == null || memberId.isEmpty()) {
-            throw new NullPointerException("memberId cannot be null or empty");
+            throw new IllegalArgumentException("memberId cannot be null or empty");
         }
         if (username == null || username.isEmpty()) {
             throw new NullPointerException("username cannot be null or empty");
@@ -139,6 +139,9 @@ public class Member {
         return role;
     }
 
+    public boolean isSystemAdmin() {
+        return role == UserRole.SYSTEM_ADMIN;
+    }
     public void setRole(UserRole role) {
         this.role = role;
     }
@@ -155,19 +158,19 @@ public class Member {
         companyRoles.add(assignment);
     }
 
-    public Optional<CompanyRoleAssignment> getRoleInCompany(String companyId) {
+    public Optional<CompanyRoleAssignment> getRoleInCompany(int companyId) {
         return companyRoles.stream()
-                .filter(r -> r.getCompanyId().equals(companyId))
+                .filter(r -> r.getCompanyId() == companyId)
                 .findFirst();
     }
 
-    public boolean isOwnerInCompany(String companyId) {
+    public boolean isOwnerInCompany(int companyId) {
         return getRoleInCompany(companyId)
                 .map(CompanyRoleAssignment::isOwner)
                 .orElse(false);
     }
 
-    public boolean isManagerInCompany(String companyId) {
+    public boolean isManagerInCompany(int companyId) {
         return getRoleInCompany(companyId)
                 .map(CompanyRoleAssignment::isManager)
                 .orElse(false);

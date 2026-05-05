@@ -25,7 +25,7 @@ public class Purchase {
     private UUID orderId;
 
     @Column(name = "buyer_id")
-    private String userToken;
+    private String buyerId;
 
     @Column(name = "event_id")
     private UUID eventId;
@@ -48,7 +48,7 @@ public class Purchase {
             throw new IllegalArgumentException("order required");
         this.purchaseId = UUID.randomUUID();
         this.orderId = order.getId();
-        this.userToken = order.getuserToken();
+        this.buyerId = order.getbuyerId();
         this.eventId = order.getEventId();
         this.items = new ArrayList<>(order.getItems());
         this.totalPrice = order.getFinalPrice();
@@ -63,8 +63,8 @@ public class Purchase {
         return orderId;
     }
 
-    public String getuserToken() {
-        return userToken;
+    public String getbuyerId() {
+        return buyerId;
     }
 
     public UUID getEventId() {

@@ -12,4 +12,8 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket;
 public interface TicketRepository extends JpaRepository<ticket, UUID> {
 
     List<ticket> findByOwnerId(UUID ownerId);
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> main

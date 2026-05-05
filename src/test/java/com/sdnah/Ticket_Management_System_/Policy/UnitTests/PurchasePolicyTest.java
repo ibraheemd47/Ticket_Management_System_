@@ -1,76 +1,81 @@
 package com.sdnah.Ticket_Management_System_.Policy.UnitTests;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
+import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("PurchasePolicy — Domain Unit Tests")
 class PurchasePolicyTest {
 
-    private static final int COMPANY_ID = 10;
-    private static final int EVENT_ID = 20;
+    private static final UUID EVENT_ID = UUID.randomUUID();
 
     @Test
     void GivenDefaultPurchasePolicy_WhenQuantityOne_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID);
 
-        boolean result = policy.validatePurchase(1, 18, false);
+        boolean result = policy.validatePurchase(1, false);
 
         assertTrue(result);
     }
 
     @Test
     void GivenDefaultPurchasePolicy_WhenQuantityZero_ThenReturnFalse() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID);
 
-        boolean result = policy.validatePurchase(0, 18, false);
+        boolean result = policy.validatePurchase(0, false);
 
         assertFalse(result);
     }
 
     @Test
     void GivenDefaultPurchasePolicy_WhenQuantityNegative_ThenReturnFalse() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID);
 
-        boolean result = policy.validatePurchase(-3, 18, false);
+        boolean result = policy.validatePurchase(-3, false);
 
         assertFalse(result);
     }
 
     @Test
-    void GivenDefaultPurchasePolicy_WhenVeryLargeQuantity_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+    void GivenMaxTicketsTwo_WhenQuantityThree_ThenReturnFalse() {
+        PurchasePolicy policy = new PurchasePolicy(1, "Max two", EVENT_ID);
+        policy.setMaxTickets(2);
 
-        boolean result = policy.validatePurchase(Integer.MAX_VALUE, 18, false);
+        boolean result = policy.validatePurchase(3, false);
 
-        assertTrue(result);
+        assertFalse(result);
     }
 
     @Test
-    void GivenDefaultPurchasePolicy_WhenUserAgeZero_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+    void GivenMinTicketsTwo_WhenQuantityOne_ThenReturnFalse() {
+        PurchasePolicy policy = new PurchasePolicy(1, "Min two", EVENT_ID);
+        policy.setMinTickets(2);
 
-        boolean result = policy.validatePurchase(1, 0, false);
+        boolean result = policy.validatePurchase(1, false);
 
-        assertTrue(result);
+        assertFalse(result);
     }
 
     @Test
-    void GivenDefaultPurchasePolicy_WhenCreatesSingleGap_ThenReturnTrueBecauseAllowedByDefault() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+    void GivenSingleSeatGapNotAllowed_WhenCreatesSingleGap_ThenReturnFalse() {
+        PurchasePolicy policy = new PurchasePolicy(1, "No single gap", EVENT_ID);
+        policy.setAllowSingleSeatGap(false);
 
-        boolean result = policy.validatePurchase(1, 18, true);
+        boolean result = policy.validatePurchase(1, true);
 
-        assertTrue(result);
+        assertFalse(result);
     }
 
     @Test
-    void GivenDefaultPurchasePolicy_WhenIsValid_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+    void GivenMinTicketsGreaterThanMaxTickets_WhenIsValid_ThenReturnFalse() {
+        PurchasePolicy policy = new PurchasePolicy(1, "Invalid range", EVENT_ID);
+        policy.setMinTickets(5);
+        policy.setMaxTickets(2);
 
-        assertTrue(policy.isValid());
+        assertFalse(policy.isValid());
     }
 }

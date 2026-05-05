@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.UnitTests;
+package com.sdnah.Ticket_Management_System_.Event.UnitTests;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +25,7 @@ class WaitingQueueTest {
     @DisplayName("Should add a user to the queue successfully")
     void testJoinQueueSuccess() {
         boolean joined = waitingQueue.joinQueue(101L);
-        
+
         assertThat(joined).isTrue();
         assertThat(waitingQueue.getTotalWaiting()).isEqualTo(1);
         assertThat(waitingQueue.getPosition(101L)).isEqualTo(0); // Front of the line
@@ -36,7 +36,7 @@ class WaitingQueueTest {
     void testJoinQueueDuplicate() {
         waitingQueue.joinQueue(101L);
         boolean joinedAgain = waitingQueue.joinQueue(101L);
-        
+
         assertThat(joinedAgain).isFalse();
         assertThat(waitingQueue.getTotalWaiting()).isEqualTo(1);
     }
@@ -47,7 +47,7 @@ class WaitingQueueTest {
         waitingQueue.joinQueue(101L); // Pos 0
         waitingQueue.joinQueue(102L); // Pos 1
         waitingQueue.joinQueue(103L); // Pos 2
-        
+
         assertThat(waitingQueue.getPosition(103L)).isEqualTo(2);
         assertThat(waitingQueue.getPosition(999L)).isEqualTo(-1); // Not in line
     }
@@ -86,9 +86,9 @@ class WaitingQueueTest {
     void testClearQueue() {
         waitingQueue.joinQueue(101L);
         waitingQueue.joinQueue(102L);
-        
+
         waitingQueue.clearQueue();
-        
+
         assertThat(waitingQueue.getTotalWaiting()).isEqualTo(0);
     }
 }

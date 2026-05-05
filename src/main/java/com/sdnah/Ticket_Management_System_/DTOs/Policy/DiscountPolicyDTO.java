@@ -9,13 +9,13 @@ public class DiscountPolicyDTO extends PolicyDTO {
     private boolean isAdditive;
 
     public DiscountPolicyDTO() {
-    this.activeDiscounts = new ArrayList<>();
-}
+        this.activeDiscounts = new ArrayList<>();
+    }
 
-    public DiscountPolicyDTO(int policyId, String description, UUID eventId, 
+    public DiscountPolicyDTO(int policyId, String description, UUID eventId,
                              List<DiscountRuleDTO> activeDiscounts, boolean isAdditive) {
         super(policyId, description, eventId);
-        this.activeDiscounts = activeDiscounts;
+        this.activeDiscounts = activeDiscounts != null ? activeDiscounts : new ArrayList<>();
         this.isAdditive = isAdditive;
     }
 
@@ -25,6 +25,4 @@ public class DiscountPolicyDTO extends PolicyDTO {
 
     public boolean isAdditive() { return isAdditive; }
     public void setAdditive(boolean additive) { isAdditive = additive; }
-
-   
 }

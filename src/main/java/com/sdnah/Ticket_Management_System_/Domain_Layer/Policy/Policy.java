@@ -2,27 +2,45 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
 
 import java.util.UUID;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "policies")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "policy_type")
 public abstract class Policy {
 
-    private final int policyId;
-    private final String description;
-    private final UUID  eventId; // New field to hold the Event ID - null if  not used
-    //private final int companyId;
+    @Id
+    @Column(name = "policy_id")
+    private int policyId;
 
+    @Column(name = "description")
+    private String description;
 
-    protected Policy(int policyId, String description, UUID  eventId) {
-         if (policyId <= 0) {
+    @Column(name = "event_id")
+    private UUID eventId;
+
+    protected Policy() {
+        // JPA required
+    }
+
+    protected Policy(int policyId, String description, UUID eventId) {
+        if (policyId <= 0) {
             throw new IllegalArgumentException("Policy ID must be positive");
-            
         }
-        
         if (description == null || description.trim().isEmpty()) {
             throw new IllegalArgumentException("Policy description cannot be empty");
         }
+
         this.policyId = policyId;
         this.description = description;
         this.eventId = eventId;
-        //this.companyId = companyId;
     }
 
     public int getPolicyId() {
@@ -36,11 +54,6 @@ public abstract class Policy {
     public UUID getEventId() {
         return eventId;
     }
-    // public int getCompanyId() {
-    //     return companyId;
-    // }
 
     public abstract boolean isValid();
-
-    
 }
