@@ -19,7 +19,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Application_Layer.PasswordHasher;
-import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.DTOs.ProfileResponse;
 import com.sdnah.Ticket_Management_System_.DTOs.UpdateProfileRequest;
@@ -28,7 +27,6 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignme
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.VerificationEmail;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,16 +40,10 @@ class UserServiceAcceptanceTest {
     private PasswordHasher passwordHasher;
 
     @Mock
-    private TokenRepository tokenRepository;
-
-    @Mock
     private AuthTokenService authTokenService;
 
     @Mock
     private VerificationEmail verificationService;
-
-    @Mock
-    private SystemAdminService systemAdminService;
 
     private UserService userService;
 
@@ -68,10 +60,8 @@ class UserServiceAcceptanceTest {
         userService = new UserService(
                 userRepository,
                 passwordHasher,
-                tokenRepository,
                 authTokenService,
                 verificationService,
-                systemAdminService,
                 new KeyedLock());
     }
 
@@ -151,7 +141,6 @@ class UserServiceAcceptanceTest {
         assertTrue(member.isLoggedin());
         verify(userRepository).save(member);
         verify(authTokenService).generateToken(VALID_USERNAME);
-        verify(tokenRepository, never()).save(any());
     }
 
     @Test
@@ -224,7 +213,6 @@ class UserServiceAcceptanceTest {
 
         assertFalse(member.isLoggedin());
         verify(userRepository).save(member);
-        verify(tokenRepository, never()).deleteByTokenValue(any());
     }
 
     @Test
@@ -298,7 +286,7 @@ class UserServiceAcceptanceTest {
         when(authTokenService.validateToken(TOKEN_VALUE)).thenReturn(true);
         when(authTokenService.extractUsername(TOKEN_VALUE)).thenReturn(VALID_USERNAME);
         when(userRepository.findByUsername(VALID_USERNAME)).thenReturn(Optional.of(member));
-        when(userRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(userRepository.findByMemberId(MEMBER_ID)).thenReturn(member);
 
         ProfileResponse response = userService.updateMyProfile(TOKEN_VALUE, request);
 

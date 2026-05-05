@@ -1,34 +1,28 @@
 package com.sdnah.Ticket_Management_System_;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.DTOs.CompanyDTO;
-
 import com.sdnah.Ticket_Management_System_.DTOs.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
-
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import java.util.*;
-
-import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
 
 public class CompanyAcceptanceTest {
 
@@ -37,12 +31,12 @@ public class CompanyAcceptanceTest {
     private company_managment_serivce companyService;
 
     private UserRepository userRepository;
-    private TokenRepository tokenRepository;
     private IEventRepository eventRepository;
+    private IrepresnteUserService representUserService;
 
-    // private String founderToken;
-    // private String user200Token;
-    // private String user300Token;
+    private final Map<String, Member> membersById = new HashMap<>();
+    private final Map<String, Member> membersByToken = new HashMap<>();
+    private final AtomicInteger eventSequence = new AtomicInteger(1);
 
     private static final String FOUNDER_ID = "100";
     private static final String USER_200_ID = "200";
@@ -60,8 +54,8 @@ public class CompanyAcceptanceTest {
     void setUp() {
         companyRepository = mock(CompanyRepository.class);
         userRepository = mock(UserRepository.class);
-        tokenRepository = mock(TokenRepository.class);
         eventRepository = mock(IEventRepository.class);
+        representUserService = mock(IrepresnteUserService.class);
 
         companies = new HashMap<>();
 
@@ -89,30 +83,54 @@ public class CompanyAcceptanceTest {
             return null;
         }).when(companyRepository).deleteById(anyInt());
 
+        when(userRepository.save(any(Member.class))).thenAnswer(invocation -> {
+            Member member = invocation.getArgument(0);
+            membersById.put(member.getMemberId(), member);
+            return member;
+        });
+
+        when(userRepository.findById(anyString())).thenAnswer(invocation -> {
+            String id = invocation.getArgument(0);
+            return Optional.ofNullable(membersById.get(id));
+        });
+
+        when(userRepository.findByMemberId(anyString())).thenAnswer(invocation -> {
+            String id = invocation.getArgument(0);
+            return membersById.get(id);
+        });
+
+        when(eventRepository.save(any(Event.class))).thenAnswer(invocation -> {
+            Event event = invocation.getArgument(0);
+            if (event.getEventId() == null) {
+                var field = Event.class.getDeclaredField("eventId");
+                field.setAccessible(true);
+                field.set(event, new UUID(0L, eventSequence.getAndIncrement()));
+            }
+            return event;
+        });
+
         companyService = new company_managment_serivce(
                 companyRepository,
                 userRepository,
-                tokenRepository,
-                eventRepository);
+                eventRepository,
+                representUserService);
 
-        mockMemberAndToken(FOUNDER_ID, "founder", FOUNDER_TOKEN);
-        mockMemberAndToken(USER_200_ID, "user200", USER_200_TOKEN);
-        mockMemberAndToken(USER_300_ID, "user300", USER_300_TOKEN);
-        mockMemberAndToken(USER_201_ID, "user201", USER_201_TOKEN);
-        mockMemberAndToken(USER_999_ID, "user999", USER_999_TOKEN);
+        mockMember(FOUNDER_ID, "founder", FOUNDER_TOKEN);
+        mockMember(USER_200_ID, "user200", USER_200_TOKEN);
+        mockMember(USER_300_ID, "user300", USER_300_TOKEN);
+        mockMember(USER_201_ID, "user201", USER_201_TOKEN);
+        mockMember(USER_999_ID, "user999", USER_999_TOKEN);
     }
 
-    private void mockMemberAndToken(String memberId, String username, String tokenValue) {
+    private void mockMember(String memberId, String username, String tokenValue) {
         Member member = new Member(memberId, username, "pass");
         member.setActive(true);
         member.setVerified(true);
 
-        AuthToken token = new AuthToken(tokenValue, memberId, LocalDateTime.now().plusDays(1));
+        membersById.put(memberId, member);
+        membersByToken.put(tokenValue, member);
 
-        when(userRepository.findById(memberId)).thenReturn(Optional.of(member));
-        when(userRepository.findByMemberId(memberId)).thenReturn(member);
-        when(tokenRepository.findById(tokenValue)).thenReturn(Optional.of(token));
-        when(tokenRepository.findByTokenValue(tokenValue)).thenReturn(token);
+        when(representUserService.requireMember(tokenValue)).thenReturn(member);
     }
 
     // II.3.2 Open Production Company
@@ -151,13 +169,6 @@ public class CompanyAcceptanceTest {
 
         EventDto dto1 = new EventDto(null, "Event1", null, show_type.CONFERENCE, "Venue");
         EventDto dto2 = new EventDto(null, "Event2", null, show_type.CONFERENCE, "Venue");
-
-        Event event1 = new Event(dto1.name, dto1.eventType, 1L, Long.valueOf(FOUNDER_ID));
-        Event event2 = new Event(dto2.name, dto2.eventType, 1L, Long.valueOf(FOUNDER_ID));
-
-        when(eventRepository.save(any(Event.class)))
-                .thenReturn(event1)
-                .thenReturn(event2);
 
         EventDto saved1 = companyService.addEvent(FOUNDER_TOKEN, 1, dto1);
         EventDto saved2 = companyService.addEvent(FOUNDER_TOKEN, 1, dto2);
@@ -202,18 +213,12 @@ public class CompanyAcceptanceTest {
         assertTrue(events.isEmpty());
     }
 
-    // end of change for II.2.1
-
     // II.4.1 Manage Events and Ticket Inventory
     @Test
     void addEventSuccessfully() {
         companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
         EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
-        Event event = new Event(dto.name, dto.eventType, 1L, Long.valueOf(FOUNDER_ID));
-
-        when(eventRepository.save(any(Event.class))).thenReturn(event);
-
         EventDto saved = companyService.addEvent(FOUNDER_TOKEN, 1, dto);
 
         Company company = companyRepository.findById(1).orElseThrow();
@@ -225,10 +230,16 @@ public class CompanyAcceptanceTest {
         companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
         EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
-        Event event = new Event(dto.name, dto.eventType, 1L, Long.valueOf(FOUNDER_ID));
-
-        when(eventRepository.save(any(Event.class))).thenReturn(event);
         EventDto saved = companyService.addEvent(FOUNDER_TOKEN, 1, dto);
+
+        Event event = new Event(dto.name, dto.eventType, 1L, Long.valueOf(FOUNDER_ID));
+        try {
+            var field = Event.class.getDeclaredField("eventId");
+            field.setAccessible(true);
+            field.set(event, saved.id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         when(eventRepository.findById(saved.id)).thenReturn(Optional.of(event));
 
@@ -310,8 +321,10 @@ public class CompanyAcceptanceTest {
         Company company = companyRepository.findById(1).orElseThrow();
 
         assertTrue(company.getManagers().contains(USER_200_ID));
-        assertTrue(company.getManagerPermissionsView().get(USER_200_ID).contains(CompanyPermission.MANAGE_EVENTS));
-        assertTrue(company.getManagerPermissionsView().get(USER_200_ID).contains(CompanyPermission.VIEW_HISTORY));
+        assertTrue(company.getManagerPermissionsView().get(USER_200_ID)
+                .contains(CompanyPermission.MANAGE_EVENTS));
+        assertTrue(company.getManagerPermissionsView().get(USER_200_ID)
+                .contains(CompanyPermission.VIEW_HISTORY));
     }
 
     @Test
@@ -320,12 +333,12 @@ public class CompanyAcceptanceTest {
         companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
 
         assertThrows(RuntimeException.class,
-                () -> companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID,
-                        Set.of(CompanyPermission.VIEW_HISTORY)));
+                () -> companyService.appointManager(
+                        FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.VIEW_HISTORY)));
 
         assertThrows(RuntimeException.class,
-                () -> companyService.appointManager(FOUNDER_TOKEN, 1, FOUNDER_ID,
-                        Set.of(CompanyPermission.MANAGE_EVENTS)));
+                () -> companyService.appointManager(
+                        FOUNDER_TOKEN, 1, FOUNDER_ID, Set.of(CompanyPermission.MANAGE_EVENTS)));
     }
 
     @Test
@@ -333,8 +346,8 @@ public class CompanyAcceptanceTest {
         companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.appointManager(USER_300_TOKEN, 1, USER_200_ID,
-                        Set.of(CompanyPermission.MANAGE_EVENTS)));
+                () -> companyService.appointManager(
+                        USER_300_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS)));
     }
 
     // II.4.8 Appoint Additional Company Owner
@@ -568,7 +581,8 @@ public class CompanyAcceptanceTest {
         assertTrue(rolesView.getOwnerIds().contains(FOUNDER_ID));
         assertTrue(rolesView.getOwnerIds().contains(USER_201_ID));
         assertTrue(rolesView.getManagerPermissions().containsKey(USER_200_ID));
-        assertTrue(rolesView.getManagerPermissions().get(USER_200_ID).contains(CompanyPermission.MANAGE_EVENTS));
+        assertTrue(rolesView.getManagerPermissions().get(USER_200_ID)   
+                .contains(CompanyPermission.MANAGE_EVENTS));
     }
 
     @Test

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +20,6 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignme
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.ManagerPermission;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig.TestConfig;
 
@@ -34,15 +34,19 @@ class CompanyRoleServiceIntegrationTest {
         private static final String TARGET_ID = "target-1";
         private static final String MANAGER_ID = "manager-1";
         private static final String OWNER_USERNAME = "ownerUser";
-
+        @MockBean
+        private com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService activeOrderService;
+@MockBean
+private com.sdnah.Ticket_Management_System_.Application_Layer.PolicyService policyService;
+@MockBean
+private com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository policyRepository;
+        @MockBean
+        private com.sdnah.Ticket_Management_System_.Application_Layer.Factory factory;
         @Autowired
         private CompanyRoleService companyRoleService;
 
         @Autowired
         private UserRepository userRepository;
-
-        @Autowired
-        private TokenRepository tokenRepository;
 
         @Autowired
         private AuthTokenService authTokenService;
@@ -51,7 +55,6 @@ class CompanyRoleServiceIntegrationTest {
 
         @BeforeEach
         void setUp() {
-                tokenRepository.deleteAll();
                 userRepository.deleteAll();
 
                 Member owner = new Member(OWNER_ID, OWNER_USERNAME, "hash");

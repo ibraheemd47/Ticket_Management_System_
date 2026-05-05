@@ -1,8 +1,17 @@
 package com.sdnah.Ticket_Management_System_;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.DTOs.CompanyDTO;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.*;
+import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,33 +19,18 @@ import org.junit.jupiter.api.Test;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
-
-import java.time.LocalDateTime;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
-import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
-
 class company_managment_serivceTest {
 
     private company_managment_serivce service;
-    // private FakeRepo repo;
 
     private CompanyRepository repo;
     private UserRepository userRepository;
-    private TokenRepository tokenRepository;
     private IEventRepository eventRepository;
+    private IrepresnteUserService representUserService;
 
     private static final int COMPANY_ID = 1;
 
@@ -50,19 +44,20 @@ class company_managment_serivceTest {
     private static final String MANAGER_TOKEN = "token-manager";
     private static final String USER_TOKEN = "token-user";
 
+    private final Map<String, Member> membersById = new HashMap<>();
+
     @BeforeEach
     void setUp() {
         repo = mock(CompanyRepository.class);
         userRepository = mock(UserRepository.class);
-        tokenRepository = mock(TokenRepository.class);
-
         eventRepository = mock(IEventRepository.class);
+        representUserService = mock(IrepresnteUserService.class);
 
         service = new company_managment_serivce(
                 repo,
                 userRepository,
-                tokenRepository,
-                eventRepository);
+                eventRepository,
+                representUserService);
 
         Company company = new Company(COMPANY_ID, "Main Company", FOUNDER);
 
@@ -71,10 +66,12 @@ class company_managment_serivceTest {
         when(repo.findAll()).thenReturn(List.of(company));
         when(repo.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        mockToken(FOUNDER_TOKEN, FOUNDER);
-        mockToken(OWNER_TOKEN, OWNER);
-        mockToken(MANAGER_TOKEN, MANAGER);
-        mockToken(USER_TOKEN, USER);
+        when(userRepository.save(any(Member.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mockMember(FOUNDER_TOKEN, FOUNDER);
+        mockMember(OWNER_TOKEN, OWNER);
+        mockMember(MANAGER_TOKEN, MANAGER);
+        mockMember(USER_TOKEN, USER);
     }
 
     @Test
@@ -83,9 +80,9 @@ class company_managment_serivceTest {
 
         service.openCompany(FOUNDER_TOKEN, 2, "New Company");
 
-        verify(repo).save(argThat(company -> company.getCompanyId() == 2 &&
-                company.getCompanyName().equals("New Company") &&
-                company.getCompanyFounderId().equals(FOUNDER)));
+        verify(repo).save(argThat(company -> company.getCompanyId() == 2
+                && company.getCompanyName().equals("New Company")
+                && company.getCompanyFounderId().equals(FOUNDER)));
     }
 
     @Test
@@ -131,7 +128,7 @@ class company_managment_serivceTest {
 
         EventDto saved = service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
 
-        assertTrue(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(saved.id));
+        assertTrue(repo.findById(COMPANY_ID).orElseThrow().getAssociatedEventIds().contains(saved.id));
     }
 
     @Test
@@ -176,7 +173,7 @@ class company_managment_serivceTest {
 
         service.removeEvent(FOUNDER_TOKEN, COMPANY_ID, saved.id);
 
-        assertFalse(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(saved.id));
+        assertFalse(repo.findById(COMPANY_ID).orElseThrow().getAssociatedEventIds().contains(saved.id));
         verify(eventRepository).delete(event);
     }
 
@@ -212,7 +209,7 @@ class company_managment_serivceTest {
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
-        assertTrue(repo.findById(COMPANY_ID).get().isManager(MANAGER));
+        assertTrue(repo.findById(COMPANY_ID).orElseThrow().isManager(MANAGER));
     }
 
     @Test
@@ -240,7 +237,7 @@ class company_managment_serivceTest {
 
         EventDto saved = service.addEvent(MANAGER_TOKEN, COMPANY_ID, dto);
 
-        assertTrue(repo.findById(COMPANY_ID).get().getAssociatedEventIds().contains(saved.id));
+        assertTrue(repo.findById(COMPANY_ID).orElseThrow().getAssociatedEventIds().contains(saved.id));
     }
 
     @Test
@@ -261,13 +258,13 @@ class company_managment_serivceTest {
     void GivenFounder_WhenAppointAdditionalOwner_ThenOwnerAdded() {
         service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
 
-        assertTrue(repo.findById(COMPANY_ID).get().isOwner(OWNER));
+        assertTrue(repo.findById(COMPANY_ID).orElseThrow().isOwner(OWNER));
     }
 
     @Test
     void GivenNonOwner_WhenAppointAdditionalOwner_ThenFail() {
-        assertThrows(SecurityException.class,
-                () -> service.appointAdditionalOwner(USER, COMPANY_ID, OWNER));
+        assertThrows(RuntimeException.class,
+                () -> service.appointAdditionalOwner(USER_TOKEN, COMPANY_ID, OWNER));
     }
 
     @Test
@@ -284,7 +281,7 @@ class company_managment_serivceTest {
 
         service.removeOwnerAppointment(FOUNDER_TOKEN, COMPANY_ID, OWNER);
 
-        assertFalse(repo.findById(COMPANY_ID).get().isOwner(OWNER));
+        assertFalse(repo.findById(COMPANY_ID).orElseThrow().isOwner(OWNER));
     }
 
     @Test
@@ -301,12 +298,12 @@ class company_managment_serivceTest {
 
         service.resignOwnership(OWNER_TOKEN, COMPANY_ID);
 
-        assertFalse(repo.findById(COMPANY_ID).get().isOwner(OWNER));
+        assertFalse(repo.findById(COMPANY_ID).orElseThrow().isOwner(OWNER));
     }
 
     @Test
     void GivenFounder_WhenResignOwnership_ThenFail() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(RuntimeException.class,
                 () -> service.resignOwnership(FOUNDER_TOKEN, COMPANY_ID));
     }
 
@@ -324,7 +321,7 @@ class company_managment_serivceTest {
                 MANAGER,
                 EnumSet.of(CompanyPermission.VIEW_HISTORY));
 
-        Company c = repo.findById(COMPANY_ID).get();
+        Company c = repo.findById(COMPANY_ID).orElseThrow();
         assertFalse(c.managerHasPermission(MANAGER, CompanyPermission.MANAGE_EVENTS));
         assertTrue(c.managerHasPermission(MANAGER, CompanyPermission.VIEW_HISTORY));
     }
@@ -338,7 +335,7 @@ class company_managment_serivceTest {
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
-        assertThrows(SecurityException.class,
+        assertThrows(RuntimeException.class,
                 () -> service.modifyManagerPermissions(
                         OWNER_TOKEN,
                         COMPANY_ID,
@@ -356,7 +353,7 @@ class company_managment_serivceTest {
 
         service.removeManagerAppointment(FOUNDER_TOKEN, COMPANY_ID, MANAGER);
 
-        assertFalse(repo.findById(COMPANY_ID).get().isManager(MANAGER));
+        assertFalse(repo.findById(COMPANY_ID).orElseThrow().isManager(MANAGER));
     }
 
     @Test
@@ -380,13 +377,13 @@ class company_managment_serivceTest {
         boolean result = service.closeCompany(FOUNDER_TOKEN, COMPANY_ID);
 
         assertTrue(result);
-        assertFalse(repo.findById(COMPANY_ID).get().isOpen());
+        assertFalse(repo.findById(COMPANY_ID).orElseThrow().isOpen());
     }
 
     @Test
     void GivenNonFounder_WhenCloseCompany_ThenFail() {
-        assertThrows(SecurityException.class,
-                () -> service.closeCompany(USER, COMPANY_ID));
+        assertThrows(RuntimeException.class,
+                () -> service.closeCompany(USER_TOKEN, COMPANY_ID));
     }
 
     @Test
@@ -405,35 +402,31 @@ class company_managment_serivceTest {
         boolean result = service.reopenCompany(FOUNDER_TOKEN, COMPANY_ID);
 
         assertTrue(result);
-        assertTrue(repo.findById(COMPANY_ID).get().isOpen());
+        assertTrue(repo.findById(COMPANY_ID).orElseThrow().isOpen());
     }
 
     @Test
     void GivenNonFounder_WhenReopenCompany_ThenFail() {
         service.closeCompany(FOUNDER_TOKEN, COMPANY_ID);
 
-        assertThrows(SecurityException.class,
-                () -> service.reopenCompany(USER, COMPANY_ID));
+        assertThrows(RuntimeException.class,
+                () -> service.reopenCompany(USER_TOKEN, COMPANY_ID));
     }
 
     @Test
     void GivenNonOwner_WhenViewRolesAndPermissions_ThenFail() {
-        assertThrows(SecurityException.class,
-                () -> service.viewRolesAndPermissions(USER, COMPANY_ID));
+        assertThrows(RuntimeException.class,
+                () -> service.viewRolesAndPermissions(USER_TOKEN, COMPANY_ID));
     }
 
-    // helper func
-    private void mockToken(String tokenValue, String memberId) {
-        AuthToken token = new AuthToken(
-                tokenValue,
-                memberId,
-                LocalDateTime.now().plusHours(1));
-
+    private void mockMember(String tokenValue, String memberId) {
         Member member = new Member(memberId, "user" + memberId, "hashedPassword");
         member.setVerified(true);
         member.setActive(true);
 
-        when(tokenRepository.findById(tokenValue)).thenReturn(Optional.of(token));
+        membersById.put(memberId, member);
+
+        when(representUserService.requireMember(tokenValue)).thenReturn(member);
         when(userRepository.findById(memberId)).thenReturn(Optional.of(member));
         when(userRepository.findByMemberId(memberId)).thenReturn(member);
     }

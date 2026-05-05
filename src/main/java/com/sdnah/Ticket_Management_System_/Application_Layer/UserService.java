@@ -1,8 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer;
 
-import java.util.List;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,40 +9,34 @@ import org.springframework.stereotype.Service;
 import com.sdnah.Ticket_Management_System_.DTOs.ProfileResponse;
 import com.sdnah.Ticket_Management_System_.DTOs.UpdateProfileRequest;
 import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.VerificationEmail;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class UserService {
+public class UserService implements IrepresnteUserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
-    VerificationEmail verificationService;// TODO: need to be inited
+    VerificationEmail verificationService;
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
-    private final TokenRepository tokenRepository;
     private final AuthTokenService authTokenService;
-    private final SystemAdminService systemAdminService;
     private final KeyedLock keyedLock;
 
     private static final String LOCK_NS_USERNAME = "user:username";
     private static final String LOCK_NS_MEMBER = "user:member";
 
-    public UserService(UserRepository userRepository, PasswordHasher passwordHasher, TokenRepository tokenRepository,
+    public UserService(UserRepository userRepository, PasswordHasher passwordHasher,
             AuthTokenService authTokenService, VerificationEmail verificationService,
-            SystemAdminService systemAdminService, KeyedLock keyedLock) {
+             KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
-        this.tokenRepository = tokenRepository;
         this.authTokenService = authTokenService;
         this.verificationService = verificationService;
-        this.systemAdminService = systemAdminService;
         this.keyedLock = keyedLock;
     }
 
@@ -114,8 +106,7 @@ public class UserService {
     // ===================================================================================================================================
     public Member getMemberById(String targetMemberId) {
         logger.debug("Fetching member by id={}", targetMemberId);
-        return userRepository.findById(targetMemberId)
-                .orElseThrow(() -> new RuntimeException("Member not found"));
+        return userRepository.findByMemberId(targetMemberId);
     }
 
     public void validateCompanyRoleRequest(CompanyRoleAssignment assignment) {
@@ -148,8 +139,12 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("No member found with this email"));
 
         verificationService.createAndSendPasswordResetCode(member);
-        userRepository.save(member);
-        logger.info("Password reset code generated and sent, memberId={}", member.getMemberId());
+        if (member != null) {
+            userRepository.save(member);
+            logger.info("Password reset code generated and sent, memberId={}", member.getMemberId());
+        } else {
+            logger.warn("Password reset failed: member not found for email={}", email);
+        }
     }
 
     public void resetPassword(String email, String code, String newPassword) {
@@ -158,8 +153,12 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("No member found with this email"));
 
         verificationService.resetPassword(member, code, newPassword, passwordHasher);
-        userRepository.save(member);
-        logger.info("Password reset completed successfully, memberId={}", member.getMemberId());
+        if (member != null) {
+            userRepository.save(member);
+            logger.info("Password reset completed successfully, memberId={}", member.getMemberId());
+        } else {
+            logger.warn("Password reset failed: member not found for email={}", email);
+        }
     }
 
     public Member getMemberByToken(String tokenValue) {
@@ -186,7 +185,7 @@ public class UserService {
         String newId;
         do {
             newId = UUID.randomUUID().toString();
-        } while (userRepository.findById(newId).isPresent());
+        } while (userRepository.findByMemberId(newId) != null);
         logger.debug("Generated member id={}", newId);
         return newId;
     }
@@ -214,7 +213,6 @@ public class UserService {
 
     }
 
-    // TODO: need to test
     public String register(String username,
             String password,
             String email,
@@ -311,34 +309,30 @@ public class UserService {
         return valid;
     }
 
-    private boolean validatePhone(String phone) {
-        // Simple regex for phone number validation (10 digits)
-        if (phone == null) {
-            logger.warn("Phone validation failed: phone is null");
-            return false;
-        }
-        Pattern ISRAEL_PHONE_PATTERN = Pattern.compile(
-                "^(?:0(?:2|3|4|8|9)\\d{7}|0(?:5\\d|7[2-9])\\d{7}|(?:\\+972|972)(?:2|3|4|8|9)\\d{7}|(?:\\+972|972)(?:5\\d|7[2-9])\\d{7})$");
+    // private boolean validatePhone(String phone) {
+    // // Simple regex for phone number validation (10 digits)
+    // if (phone == null) {
+    // logger.warn("Phone validation failed: phone is null");
+    // return false;
+    // }
+    // Pattern ISRAEL_PHONE_PATTERN = Pattern.compile(
+    // "^(?:0(?:2|3|4|8|9)\\d{7}|0(?:5\\d|7[2-9])\\d{7}|(?:\\+972|972)(?:2|3|4|8|9)\\d{7}|(?:\\+972|972)(?:5\\d|7[2-9])\\d{7})$");
 
-        String normalized = phone.replaceAll("[\\s-]", "");
-        boolean valid = ISRAEL_PHONE_PATTERN.matcher(normalized).matches();
-        if (!valid) {
-            logger.warn("Phone validation failed for value={}", normalized);
-        } else {
-            logger.debug("Phone validation passed");
-        }
+    // String normalized = phone.replaceAll("[\\s-]", "");
+    // boolean valid = ISRAEL_PHONE_PATTERN.matcher(normalized).matches();
+    // if (!valid) {
+    // logger.warn("Phone validation failed for value={}", normalized);
+    // } else {
+    // logger.debug("Phone validation passed");
+    // }
 
-        return valid;
-    }
+    // return valid;
+    // }
 
     public Member getMemberByUsername(String username) {
         logger.debug("Fetching member by username={}", username);
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Member not found"));
-    }
-
-    private List<AuthToken> getAllTokensForMember(String memberId) {
-        return tokenRepository.findAllByMemberId(memberId);
     }
 
     public ProfileResponse getMyProfile(String tokenValue) {
@@ -366,8 +360,7 @@ public class UserService {
 
         Member member = keyedLock.callLocked(LOCK_NS_MEMBER, resolved.getMemberId(), () -> {
             // Re-read inside the lock so concurrent updates don't overwrite each other
-            Member fresh = userRepository.findById(resolved.getMemberId())
-                    .orElseThrow(() -> new RuntimeException("Member not found"));
+            Member fresh = userRepository.findByMemberId(resolved.getMemberId());
             fresh.setFirstName(request.getFirstName());
             fresh.setLastName(request.getLastName());
             fresh.setEmail(request.getEmail());
@@ -418,6 +411,30 @@ public class UserService {
     }
 
     public Member requireAdmin(String tokenValue) {
-        return systemAdminService.requireAdmin(tokenValue);
+        Member member = getMemberByToken(tokenValue);
+
+        if (!member.isSystemAdmin()) {
+            throw new RuntimeException("Admin permission required");
+        }
+
+        return member;
+    }
+
+    public String getMemberIdByToken(String tokenValue) {
+        return getMemberByToken(tokenValue).getMemberId();
+    }
+
+
+    @Override
+    public Member requireMember(String token) {
+        return getMemberByToken(token);
+    }
+    @Override
+    public String requireMemberId(String token) {
+        return getMemberByToken(token).getMemberId();
+    }
+    @Override
+    public boolean validateToken(String token) {
+        return authTokenService.validateToken(token);
     }
 }

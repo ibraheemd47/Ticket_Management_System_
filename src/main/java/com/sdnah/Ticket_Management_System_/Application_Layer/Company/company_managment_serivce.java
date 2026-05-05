@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.DTOs.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
@@ -16,7 +17,6 @@ import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TokenRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
 
 import org.springframework.stereotype.Service;
@@ -35,17 +35,17 @@ public class company_managment_serivce {
     // Repositories
     private final CompanyRepository companyRepository;
     private UserRepository userRepository;
-    private TokenRepository tokenRepository;
     private IEventRepository eventRepository;
+    private IrepresnteUserService representUserService;
 
     @Autowired
     public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository,
-            TokenRepository tokenRepository, IEventRepository eventRepository) {
+             IEventRepository eventRepository, IrepresnteUserService representUserService) {
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
-        this.tokenRepository = tokenRepository;
         this.eventRepository = eventRepository;
+        this.representUserService = representUserService;
     }
 
     // --- II.2.1: View Active Production Companies ---
@@ -495,17 +495,7 @@ public class company_managment_serivce {
         if (actorToken == null || actorToken.isBlank()) {
             throw new SecurityException("Invalid token");
         }
-
-        AuthToken token = tokenRepository.findById(actorToken)
-                .orElseThrow(() -> new SecurityException("Invalid token"));
-
-        if (token.isExpired(java.time.LocalDateTime.now())) {
-            tokenRepository.deleteByTokenValue(actorToken);
-            throw new SecurityException("Token expired");
-        }
-
-        return userRepository.findById(token.getMemberId())
-                .orElseThrow(() -> new NoSuchElementException("Actor member not found"));
+        return representUserService.requireMember(actorToken);
     }
 
 }

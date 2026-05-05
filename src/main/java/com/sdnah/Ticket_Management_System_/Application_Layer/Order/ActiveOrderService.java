@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
+import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
@@ -30,7 +31,6 @@ import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactio
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.userOrderDomainService;
 
 @Service
 @Transactional
@@ -50,8 +50,9 @@ public class ActiveOrderService {
     private final OrderPolicyDomainService orderPolicyDomainService;
     private final IPolicyRepo policyRepository;
 
-    private final userOrderDomainService userOrderDomainService;
+    //private final userOrderDomainService userOrderDomainService;
 
+    private IrepresnteUserService represnteUserService;
     public ActiveOrderService(ActiveOrderRepository orderRepo,
             PurchaseRepository purchaseRepo,
             PaymentTransactionRepository transactionRepo,
@@ -59,7 +60,8 @@ public class ActiveOrderService {
             ITicketSupplierGateway ticketGateway,
             TicketRepository ticketRepository,
             IPolicyRepo policyRepo,
-            OrderPolicyDomainService orderPolicyDomainService) {
+            OrderPolicyDomainService orderPolicyDomainService ,
+            IrepresnteUserService represnteUserService) {
         if (orderRepo == null)
             throw new IllegalArgumentException("orderRepo required");
         if (purchaseRepo == null)
@@ -80,8 +82,8 @@ public class ActiveOrderService {
         this.ticketGateway = ticketGateway;
         this.ticketRepository = ticketRepository;
         this.ticketDomainService = new Ticket_Domain_Service();
-        this.userOrderDomainService = new userOrderDomainService();
-
+        //this.userOrderDomainService = new userOrderDomainService();
+        this.represnteUserService = represnteUserService;
         // new:
         this.orderPolicyDomainService = orderPolicyDomainService;
         this.policyRepository = policyRepo;
@@ -91,7 +93,7 @@ public class ActiveOrderService {
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
         logger.info("Starting ticket reservation for userToken {} event {}", userToken, eventId);
 
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
 
         if (orderRepo.findActiveOrder(buyerId, eventId).isPresent()) {
             logger.warn("User {} already has an active order for event {}", userToken, eventId);
@@ -146,7 +148,7 @@ public class ActiveOrderService {
 
     public OrderDTO removeFromOrder(UUID orderId, UUID itemId, String userToken) {
         logger.info("Removing item {} from order {} by user {}", itemId, orderId, userToken);
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         order.removeTicket(itemId);
         // PolicyService returns finalPrice — update directly
@@ -171,7 +173,7 @@ public class ActiveOrderService {
 
     public PurchaseDTO checkout(UUID orderId, String userToken, PaymentDetailsDTO paymentDTO) {
         logger.info("Starting checkout for order {} by user {}", orderId, userToken);
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
 
         ActiveOrder order = findValidOrder(orderId, buyerId);
 
@@ -222,7 +224,7 @@ public class ActiveOrderService {
 
     public OrderDTO getActiveOrder(String userToken, UUID eventId) {
         logger.info("Fetching active order for user {}", userToken);
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
 
         return orderRepo.findActiveOrder(buyerId, eventId)
                 .map(order -> {
@@ -237,7 +239,7 @@ public class ActiveOrderService {
 
     public void cancelOrder(UUID orderId, String userToken) {
         logger.info("Cancelling order {} for user {}", orderId, userToken);
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         order.markCancelled();
         for (String lockId : order.releaseAllLocks()) {
@@ -260,7 +262,7 @@ public class ActiveOrderService {
 
     public OrderDTO applyCoupon(UUID orderId, String userToken, String couponCode) {
         logger.info("Applying coupon {} for user {} on order {}", couponCode, userToken, orderId);
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         try {
             // PolicyService returns finalPrice — update directly
@@ -303,7 +305,7 @@ public class ActiveOrderService {
      * Used for GetAllUpcomingOrdersByMemberId.
      */
     public List<OrderDTO> getPendingOrdersByBuyer(String userToken) {
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
         logger.info("Fetching active orders for buyer {}", buyerId);
         List<ActiveOrder> pending = orderRepo.findPendingOrdersByBuyer(buyerId);
         List<OrderDTO> result = new ArrayList<>();
@@ -315,14 +317,14 @@ public class ActiveOrderService {
 
     public OrderDTO getOrderById(UUID orderId, String userToken) {
         logger.info("getOrderById | orderId={} userToken={}", orderId, userToken);
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         return OrderMapper.toDTO(order);
     }
 
     /** completed purchases — GetAllPassedOrdersByMemberId */
     public List<PurchaseDTO> getPurchaseHistory(String userToken) {
-        String buyerId = userOrderDomainService.getBuyerIdFromToken(userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
         logger.info("Fetching purchase history for user {}", buyerId);
         List<Purchase> purchases = purchaseRepo.findByBuyerId(buyerId);
         List<PurchaseDTO> result = new ArrayList<>();
