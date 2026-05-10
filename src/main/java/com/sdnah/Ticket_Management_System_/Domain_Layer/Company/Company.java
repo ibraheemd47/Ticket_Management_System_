@@ -497,6 +497,21 @@ public class Company {
                 "Associated Events: " + associatedEventIds;
     }
 
+
+    public synchronized boolean adminCloseCompany() {
+        if (!isOpen) {
+            return false;
+        }
+
+        this.isOpen = false;
+
+        ownerIds.clear();
+        ownerAppointedByOwner.clear();
+        managers.clear();
+
+        return true;
+    }
+
     //helper function
     private Optional<CompanyManagerAssignment> findManagerAssignment(String managerId) {
         validateNonBlank(managerId, "manager id");
