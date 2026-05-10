@@ -147,27 +147,14 @@ public class ActiveOrder {
         this.discount = discount;
     }
 
-    /**
-     * Final price — updated every time PolicyService is called.
-     * If PolicyService was not called yet, returns original total.
-     */
     public BigDecimal getFinalPrice() {
         return finalPrice != null ? finalPrice : getTotal();
     }
 
-    /** Discount = total - finalPrice */
     public BigDecimal getDiscount() {
         return getTotal().subtract(getFinalPrice());
     }
 
-    /**
-     * Updates finalPrice directly from PolicyService result.
-     * Called after every PolicyService call:
-     * - applyGeneralDiscounts (type b) in reserveTickets / removeFromOrder
-     * - calculateCouponDiscount (type c) in applyCoupon
-     * If no discount applies, PolicyService returns original total → finalPrice =
-     * total → discount = 0.
-     */
     public void updateFinalPrice(double priceFromPolicyService) {
         BigDecimal price = BigDecimal.valueOf(priceFromPolicyService);
         if (price.compareTo(BigDecimal.ZERO) < 0)
@@ -189,6 +176,16 @@ public class ActiveOrder {
             item.clearLock();
         }
         return lockIds;
+    }
+
+    public List<String> cancel() {
+        markCancelled();
+        return releaseAllLocks();
+    }
+    
+    public List<String> expireOrder() {
+        markExpired();
+        return releaseAllLocks();
     }
 
     public void setAppliedCouponCode(String code) {
