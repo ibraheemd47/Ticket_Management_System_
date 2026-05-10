@@ -131,12 +131,14 @@ public class PolicyService {
     // UC II.4.3 — Change Purchase and Discount Policies (Not implemented)
     // =========================================================================
     public void changePurchasePolicy() {
-        logger.warn("Change purchase policy requested but not implemented");
+        //logger.warn("Change purchase policy requested but not implemented");
+        logger.error("Not implemented");   
         throw new UnsupportedOperationException("Not implemented");
     }
 
     public void changeDiscountPolicy() {
-        logger.warn("Change discount policy requested but not implemented");
+        //logger.warn("Change discount policy requested but not implemented");
+        logger.error("Change discount policy requested but not implemented");
         throw new UnsupportedOperationException("Not implemented");
     }
 
