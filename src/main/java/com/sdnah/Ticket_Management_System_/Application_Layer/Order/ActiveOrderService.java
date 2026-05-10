@@ -1,4 +1,5 @@
 package com.sdnah.Ticket_Management_System_.Application_Layer.Order;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -67,6 +68,8 @@ public class ActiveOrderService {
             throw new IllegalArgumentException("policyRepository required");
         if (represnteUserService == null)
             throw new IllegalArgumentException("represnteUserService required");
+        if (paymentService == null)
+            throw new IllegalArgumentException("paymentService required");
 
         this.orderRepo = orderRepo;
         this.purchaseRepo = purchaseRepo;
@@ -249,8 +252,8 @@ public class ActiveOrderService {
         logger.info("Running expired orders cleanup");
         try {
             List<ActiveOrder> expiredOrders = orderRepo.findExpiredOrders();
-            ticketDomainService.expireOrders(expiredOrders); 
-            orderRepo.saveAll(expiredOrders);                // persist all at once
+            ticketDomainService.expireOrders(expiredOrders);
+            orderRepo.saveAll(expiredOrders); // persist all at once
             logger.info("Expired orders cleanup done. count={}", expiredOrders.size());
         } catch (Exception e) {
             logger.error("releaseExpiredOrders FAILED | error={}", e.getMessage());
