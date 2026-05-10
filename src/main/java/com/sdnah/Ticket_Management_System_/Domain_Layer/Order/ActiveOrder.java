@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -73,6 +75,19 @@ public class ActiveOrder {
         this.expiresAt = LocalDateTime.now().plusMinutes(ttlMinutes);
         this.status = Status.ACTIVE;
         this.version = 0;
+    }
+
+    public List<String> reserveTickets(List<SeatRequest> seats, String buyerId, List<Boolean> lockedStatuses) {
+        List<String> reservedTicketIds = new ArrayList<>();
+        for (int i = 0; i < seats.size(); i++) {
+            SeatRequest seat = seats.get(i);
+            if (lockedStatuses.get(i))
+                throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
+            Lock lock = new Lock(seat.getTicketId(), buyerId, this.expiresAt);
+            addTicket(seat.getTicketId(), seat.getSeatId(), seat.getAreaId(), seat.getPrice(), lock);
+            reservedTicketIds.add(seat.getTicketId());
+        }
+        return reservedTicketIds;
     }
 
     public OrderItem addTicket(String ticketId, Long seatId, UUID areaId,

@@ -84,7 +84,6 @@ public class ActiveOrderService {
         this.ticketGateway = ticketGateway;
         this.ticketRepository = ticketRepository;
         this.ticketDomainService = new Ticket_Domain_Service();
-        // this.userOrderDomainService = new userOrderDomainService();
         this.represnteUserService = represnteUserService;
         // new:
         this.orderPolicyDomainService = orderPolicyDomainService;
