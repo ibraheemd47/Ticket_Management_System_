@@ -101,6 +101,17 @@ public class ActiveOrder {
         items.add(item);
         return item;
     }
+    public String addTicketToOrder(SeatRequest seat, String buyerId, boolean isLocked) {
+        if (status != Status.ACTIVE)
+            throw new IllegalStateException("Order is not active");
+        if (isExpired())
+            throw new IllegalStateException("Order has expired");
+        if (isLocked)
+            throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
+        Lock lock = new Lock(seat.getTicketId(), buyerId, this.expiresAt);
+        addTicket(seat.getTicketId(), seat.getSeatId(), seat.getAreaId(), seat.getPrice(), lock);
+        return seat.getTicketId();
+    }
 
     public OrderItem removeTicket(UUID itemId) {
 
@@ -182,7 +193,7 @@ public class ActiveOrder {
         markCancelled();
         return releaseAllLocks();
     }
-    
+
     public List<String> expireOrder() {
         markExpired();
         return releaseAllLocks();

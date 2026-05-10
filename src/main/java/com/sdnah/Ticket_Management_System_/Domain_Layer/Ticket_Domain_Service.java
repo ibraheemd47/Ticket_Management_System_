@@ -55,6 +55,11 @@ public class Ticket_Domain_Service {
 
     }
 
+     public void expireOrders(List<ActiveOrder> expiredOrders) {
+        for (ActiveOrder order : expiredOrders)
+            releaseAllTickets(order.expireOrder());
+    }
+
     
 
 }
