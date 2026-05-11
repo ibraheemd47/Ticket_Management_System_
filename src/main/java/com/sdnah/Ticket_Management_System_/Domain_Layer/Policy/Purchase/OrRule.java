@@ -3,26 +3,16 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Composite rule – OR semantics.
- * Purchase is allowed when ANY child rule passes.
- * On full failure, combines all denial messages for the UI.
- *
- * Example: "qty ≤ 2 OR qty ≥ 100"
- */
-public class OrRule implements PurchaseRule {
+import jakarta.persistence.*;
 
-    private final List<PurchaseRule> rules;
+@Entity
+@DiscriminatorValue("OR")
+public class OrRule extends CompositePurchaseRule {
 
-    public OrRule(List<PurchaseRule> rules) {
-        if (rules == null || rules.isEmpty())
-            throw new IllegalArgumentException("OrRule requires at least one child rule");
-        this.rules = new ArrayList<>(rules);
-    }
+    protected OrRule() {}
 
-    public OrRule(PurchaseRule a, PurchaseRule b) {
-        this(List.of(a, b));
-    }
+    public OrRule(List<PurchaseRule> rules) { super(rules); }
+    public OrRule(PurchaseRule a, PurchaseRule b) { super(a, b); }
 
     @Override
     public RuleResult evaluate(PurchaseContext ctx) {
@@ -33,9 +23,15 @@ public class OrRule implements PurchaseRule {
             denials.add(result.getMessage());
         }
         return RuleResult.denied(
-            "אף אחד מהתנאים לא התקיים: [" +
-            String.join("] או [", denials) + "]");
+            "None of the required conditions were met: ["
+            + String.join("] OR [", denials) + "]");
     }
 
-    public List<PurchaseRule> getRules() { return List.copyOf(rules); }
+    @Override
+    public String describe() {
+        return "Any of: [" + rules.stream()
+                .map(PurchaseRule::describe)
+                .reduce((a, b) -> a + " OR " + b)
+                .orElse("") + "]";
+    }
 }

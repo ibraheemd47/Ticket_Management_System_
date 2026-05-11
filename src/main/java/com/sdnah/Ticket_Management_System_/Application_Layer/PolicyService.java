@@ -14,6 +14,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.Discount
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.PurchaseRule;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
 
@@ -35,15 +36,10 @@ public class PolicyService {
     public boolean checkSelectionPermission(int companyId, UUID eventId, boolean isMember) {
         logger.info("Check selection permission, companyId={}, eventId={}, isMember={}",
                 companyId, eventId, isMember);
-
         boolean result = findSellingPolicy(eventId)
                 .map(policy -> policy.isSelectionAllowed(isMember))
                 .orElse(true);
-
-        if (!result) {
-            logger.warn("Selection rejected by selling policy, eventId={}", eventId);
-        }
-
+        if (!result) logger.warn("Selection rejected, eventId={}", eventId);
         return result;
     }
 
@@ -54,52 +50,35 @@ public class PolicyService {
                                               int quantity, int userAge) {
         logger.info("Validate reservation, companyId={}, eventId={}, quantity={}, age={}",
                 companyId, eventId, quantity, userAge);
-
         boolean result = findPurchasePolicy(eventId)
-                .map(policy -> policy.validatePurchase(quantity, false))
+                .map(policy -> policy.validatePurchase(quantity, userAge, false))
                 .orElse(true);
-
-        if (!result) {
-            logger.warn("Reservation rejected by purchase policy, eventId={}", eventId);
-        }
-
+        if (!result) logger.warn("Reservation rejected, eventId={}", eventId);
         return result;
     }
 
     // =========================================================================
-    // UC II.2.8 — Checkout Active Order
+    // UC II.2.8 — Checkout Active Order (purchase validation)
     // =========================================================================
-    public boolean validateFinalPurchaseConditions(int companyId, UUID eventId, int quantity) {
+    public boolean validateFinalPurchaseConditions(int companyId, UUID eventId,
+                                                    int quantity, int userAge) {
         logger.info("Validate final purchase, companyId={}, eventId={}, quantity={}",
                 companyId, eventId, quantity);
-
         return findPurchasePolicy(eventId)
-                .map(policy -> policy.validatePurchase(quantity, false))
+                .map(policy -> policy.validatePurchase(quantity, userAge, false))
                 .orElse(true);
     }
 
     // =========================================================================
-    // UC II.2.8 — Checkout Active Order
-    // Calculates discount using the generic DiscountContext.
+    // UC II.2.8 — Checkout Active Order (coupon discount)
     // =========================================================================
     public double calculateCouponDiscount(int companyId, UUID eventId, double currentTotal,
                                           int totalItems, String couponCode) {
         logger.info("Calculate coupon discount, companyId={}, eventId={}", companyId, eventId);
+        if (couponCode == null || couponCode.isBlank()) return currentTotal;
 
-        if (couponCode == null || couponCode.isBlank()) {
-            return currentTotal;
-        }
-
-        DiscountContext context = buildDiscountContext(
-                companyId,
-                eventId,
-                currentTotal,
-                totalItems,
-                couponCode,
-                null,
-                null,
-                null
-        );
+        DiscountContext context = new DiscountContext(
+                totalItems, LocalDateTime.now(), couponCode, currentTotal, eventId);
 
         return findDiscountPolicy(eventId)
                 .map(policy -> policy.computeFinalPrice(currentTotal, context))
@@ -107,23 +86,14 @@ public class PolicyService {
     }
 
     // =========================================================================
-    // UC II.2.8 — Checkout Active Order
-    // Applies visible/general discounts without coupon.
+    // UC II.2.8 — Checkout Active Order (general discounts, no coupon)
     // =========================================================================
     public double applyGeneralDiscounts(int companyId, UUID eventId,
                                         double basePrice, int totalItems) {
         logger.info("Apply general discounts, companyId={}, eventId={}", companyId, eventId);
 
-        DiscountContext context = buildDiscountContext(
-                companyId,
-                eventId,
-                basePrice,
-                totalItems,
-                null,
-                null,
-                null,
-                null
-        );
+        DiscountContext context = new DiscountContext(
+                totalItems, LocalDateTime.now(), null, basePrice, eventId);
 
         return findDiscountPolicy(eventId)
                 .map(policy -> policy.computeFinalPrice(basePrice, context))
@@ -131,23 +101,14 @@ public class PolicyService {
     }
 
     // =========================================================================
-    // UC II.2.8 — Checkout Active Order
-    // Checks whether any conditional discount is active.
+    // UC II.2.8 — Checkout Active Order (conditional discount check)
     // =========================================================================
     public boolean isConditionalDiscountSatisfied(int companyId, UUID eventId, int quantity) {
         logger.info("Check conditional discount, companyId={}, eventId={}, quantity={}",
                 companyId, eventId, quantity);
 
-        DiscountContext context = buildDiscountContext(
-                companyId,
-                eventId,
-                0.0,
-                quantity,
-                null,
-                null,
-                null,
-                null
-        );
+        DiscountContext context = new DiscountContext(
+                quantity, LocalDateTime.now(), null, 0.0, eventId);
 
         return findDiscountPolicy(eventId)
                 .map(policy -> policy.computeDiscount(context) > 0.0)
@@ -155,88 +116,107 @@ public class PolicyService {
     }
 
     // =========================================================================
-    // UC II.4.3 — Change Purchase and Discount Policies
-    // Adds a discount rule to an event policy.
+    // UC II.4.3 — Add a discount rule to an event policy
     // =========================================================================
     public void addDiscountRule(UUID eventId, DiscountRule newRule) {
-        if (newRule == null) {
-            throw new IllegalArgumentException("newRule must not be null");
-        }
-
         logger.info("Add discount rule, eventId={}, rule={}", eventId, newRule.describe());
 
-        DiscountPolicy policy = findDiscountPolicy(eventId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No discount policy found for eventId=" + eventId));
+        DiscountPolicy policy = findDiscountPolicy(eventId).orElseThrow(() -> {
+            logger.error("No discount policy found for eventId={}", eventId);
+            return new IllegalArgumentException("No discount policy found for eventId=" + eventId);
+        });
 
         policy.addRule(newRule);
-        policyRepo.save(policy);
-
-        logger.info("Discount rule added successfully, eventId={}", eventId);
+        policyRepo.savePolicy(policy);
+        logger.info("Discount rule added, eventId={}", eventId);
     }
 
     // =========================================================================
-    // UC II.4.3 — Change Purchase and Discount Policies
-    // Replaces all discount rules for an event policy.
+    // UC II.4.3 — Replace all discount rules for an event policy
     // =========================================================================
     public void setDiscountRules(UUID eventId, List<DiscountRule> rules, boolean isAdditive) {
-        if (rules == null || rules.isEmpty()) {
-            throw new IllegalArgumentException("rules must not be empty");
-        }
-
-        logger.info("Set discount rules, eventId={}, rules={}, additive={}",
+        logger.info("Set discount rules, eventId={}, count={}, additive={}",
                 eventId, rules.size(), isAdditive);
 
-        DiscountPolicy policy = findDiscountPolicy(eventId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No discount policy found for eventId=" + eventId));
+        DiscountPolicy policy = findDiscountPolicy(eventId).orElseThrow(() -> {
+            logger.error("No discount policy found for eventId={}", eventId);
+            return new IllegalArgumentException("No discount policy found for eventId=" + eventId);
+        });
 
         policy.setRules(rules, isAdditive);
-        policyRepo.save(policy);
-
-        logger.info("Discount policy updated successfully, eventId={}", eventId);
+        policyRepo.savePolicy(policy);
+        logger.info("Discount rules set, eventId={}", eventId);
     }
 
     // =========================================================================
-    // UC II.4.3 — Change Purchase and Discount Policies
-    // Clears all discount rules for an event policy.
+    // UC II.4.3 — Clear all discount rules for an event policy
     // =========================================================================
     public void clearDiscountRules(UUID eventId) {
         logger.info("Clear discount rules, eventId={}", eventId);
 
-        DiscountPolicy policy = findDiscountPolicy(eventId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No discount policy found for eventId=" + eventId));
+        DiscountPolicy policy = findDiscountPolicy(eventId).orElseThrow(() -> {
+            logger.error("No discount policy found for eventId={}", eventId);
+            return new IllegalArgumentException("No discount policy found for eventId=" + eventId);
+        });
 
         policy.clearRules();
-        policyRepo.save(policy);
-
+        policyRepo.savePolicy(policy);
         logger.info("Discount rules cleared, eventId={}", eventId);
     }
 
     // =========================================================================
-    // Private helper: builds the generic context used by discount rules.
+    // UC II.4.3 — Add a purchase rule to an event policy
     // =========================================================================
-    private DiscountContext buildDiscountContext(int companyId,
-                                                 UUID eventId,
-                                                 double originalPrice,
-                                                 int quantity,
-                                                 String couponCode,
-                                                 String ticketType,
-                                                 Integer buyerId,
-                                                 Integer buyerAge) {
-        return new DiscountContext(
-                quantity,
-                LocalDateTime.now(),
-                couponCode,
-                eventId,
-                UUID.nameUUIDFromBytes(String.valueOf(companyId).getBytes()),
-                originalPrice,
-                ticketType,
-                buyerId,
-                buyerAge
-        );
+    public void addPurchaseRule(UUID eventId, PurchaseRule newRule) {
+        logger.info("Add purchase rule, eventId={}, rule={}", eventId, newRule.describe());
+
+        PurchasePolicy policy = findPurchasePolicy(eventId).orElseThrow(() -> {
+            logger.error("No purchase policy found for eventId={}", eventId);
+            return new IllegalArgumentException("No purchase policy found for eventId=" + eventId);
+        });
+
+        policy.addRule(newRule);
+        policyRepo.savePolicy(policy);
+        logger.info("Purchase rule added, eventId={}", eventId);
     }
+
+    // =========================================================================
+    // UC II.4.3 — Replace all purchase rules for an event policy
+    // =========================================================================
+    public void setPurchaseRules(UUID eventId, List<PurchaseRule> rules,
+                                  PurchasePolicy.Operator operator) {
+        logger.info("Set purchase rules, eventId={}, count={}, operator={}",
+                eventId, rules.size(), operator);
+
+        PurchasePolicy policy = findPurchasePolicy(eventId).orElseThrow(() -> {
+            logger.error("No purchase policy found for eventId={}", eventId);
+            return new IllegalArgumentException("No purchase policy found for eventId=" + eventId);
+        });
+
+        policy.setRules(rules, operator);
+        policyRepo.savePolicy(policy);
+        logger.info("Purchase rules set, eventId={}", eventId);
+    }
+
+    // =========================================================================
+    // UC II.4.3 — Clear all purchase rules for an event policy
+    // =========================================================================
+    public void clearPurchaseRules(UUID eventId) {
+        logger.info("Clear purchase rules, eventId={}", eventId);
+
+        PurchasePolicy policy = findPurchasePolicy(eventId).orElseThrow(() -> {
+            logger.error("No purchase policy found for eventId={}", eventId);
+            return new IllegalArgumentException("No purchase policy found for eventId=" + eventId);
+        });
+
+        policy.clearRules();
+        policyRepo.savePolicy(policy);
+        logger.info("Purchase rules cleared, eventId={}", eventId);
+    }
+
+    // =========================================================================
+    // Private helpers
+    // =========================================================================
 
     private Optional<SellingPolicy> findSellingPolicy(UUID eventId) {
         return policyRepo.findSellingPolicyByEventId2(eventId);

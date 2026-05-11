@@ -3,8 +3,8 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase;
 import java.time.LocalDateTime;
 
 /**
- * Immutable value object passed through the Composite rule tree.
- * Add new fields here when new rule types need additional context.
+ * Immutable value object passed through the purchase rule tree.
+ * Add new fields here when new rule types need extra data.
  */
 public final class PurchaseContext {
 
@@ -14,23 +14,21 @@ public final class PurchaseContext {
     private final boolean       isMember;
     private final LocalDateTime purchaseTime;
 
-    public PurchaseContext(int buyerAge,
-                           int ticketQuantity,
-                           boolean createsSingleSeatGap,
-                           boolean isMember,
+    public PurchaseContext(int buyerAge, int ticketQuantity,
+                           boolean createsSingleSeatGap, boolean isMember,
                            LocalDateTime purchaseTime) {
-        if (buyerAge      < 0)  throw new IllegalArgumentException("buyerAge cannot be negative");
+        if (buyerAge < 0)       throw new IllegalArgumentException("buyerAge cannot be negative");
         if (ticketQuantity <= 0) throw new IllegalArgumentException("ticketQuantity must be positive");
-        this.buyerAge            = buyerAge;
-        this.ticketQuantity      = ticketQuantity;
+        this.buyerAge             = buyerAge;
+        this.ticketQuantity       = ticketQuantity;
         this.createsSingleSeatGap = createsSingleSeatGap;
-        this.isMember            = isMember;
-        this.purchaseTime        = purchaseTime != null ? purchaseTime : LocalDateTime.now();
+        this.isMember             = isMember;
+        this.purchaseTime         = purchaseTime != null ? purchaseTime : LocalDateTime.now();
     }
 
-    public int           getBuyerAge()            { return buyerAge; }
-    public int           getTicketQuantity()       { return ticketQuantity; }
-    public boolean       isCreatesSingleSeatGap()  { return createsSingleSeatGap; }
-    public boolean       isMember()                { return isMember; }
-    public LocalDateTime getPurchaseTime()          { return purchaseTime; }
+    public int           getBuyerAge()           { return buyerAge; }
+    public int           getTicketQuantity()      { return ticketQuantity; }
+    public boolean       isCreatesSingleSeatGap() { return createsSingleSeatGap; }
+    public boolean       isMember()               { return isMember; }
+    public LocalDateTime getPurchaseTime()         { return purchaseTime; }
 }

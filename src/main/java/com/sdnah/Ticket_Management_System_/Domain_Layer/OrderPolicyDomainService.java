@@ -32,16 +32,14 @@ public class OrderPolicyDomainService {
         // Calculate final price according to discount policy rules
         //double finalPrice = policy.calculateFinalPrice(originalTotal, quantity, couponCode);
         DiscountContext context = new DiscountContext(
-        quantity,
-        LocalDateTime.now(),
-        couponCode,
-        order.getEventId(),  // NEW FIX: pass eventId for event-specific rules
-        null,
-        originalTotal,
-        null,
-        null,
-        null
+                quantity,
+                LocalDateTime.now(),
+                couponCode,
+                originalTotal,
+                order.getEventId()
+       
 );
+// we need only time cupon original price and quantity and event id
 
     double finalPrice = policy.computeFinalPrice(originalTotal, context);
         order.updateFinalPrice(finalPrice);

@@ -1,13 +1,34 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase;
 
+import jakarta.persistence.*;
+
 /**
- * Component interface for the Composite purchase-rule tree.
+ * Abstract base Entity for all purchase rules (leaf and composite).
+ * Stored in purchase_rules table using SINGLE_TABLE inheritance.
+ * JPA handles the entire tree automatically via parent_rule_id.
  *
- * Leaf nodes   – MinAgeRule, MinTicketsRule, MaxTicketsRule, NoSingleSeatGapRule
- * Composite nodes – AndRule, OrRule  (arbitrary nesting depth)
- *
- * Adding a new rule type = implement this interface. Zero changes elsewhere.
+ * Hierarchy:
+ *   PurchaseRule
+ *   ├── MinAgeRule
+ *   ├── MinTicketsRule
+ *   ├── MaxTicketsRule
+ *   └── CompositePurchaseRule (abstract)
+ *       ├── AndRule
+ *       └── OrRule
  */
-public interface PurchaseRule {
-    RuleResult evaluate(PurchaseContext context);
+@Entity
+@Table(name = "purchase_rules")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "rule_type")
+public abstract class PurchaseRule {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
+    public Long getId() { return id; }
+
+    public abstract RuleResult evaluate(PurchaseContext context);
+    public abstract String describe();
 }

@@ -1,8 +1,8 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase;
 
 /**
- * Immutable result returned by every {@link PurchaseRule#evaluate} call.
- * Carries a human-readable denial reason shown to the buyer in the UI.
+ * Immutable result of evaluating a PurchaseRule.
+ * Carries a human-readable denial message shown to the buyer in the UI.
  */
 public final class RuleResult {
 
@@ -25,7 +25,7 @@ public final class RuleResult {
     }
 
     public boolean isAllowed() { return allowed; }
-    public String  getMessage(){ return message;  }
+    public String  getMessage(){ return message; }
 
     @Override
     public String toString() {

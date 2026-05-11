@@ -70,9 +70,10 @@ public class DiscountPolicy extends Policy {
     }
 
     public double calculateFinalPrice(double originalPrice, int quantity, String couponCode) {
+        
         return computeFinalPrice(
                 originalPrice,
-                new DiscountContext(quantity, null, couponCode, getEventId(), null, originalPrice, null, null, null)
+                new DiscountContext(quantity, null, couponCode, originalPrice, getEventId())
         );
     }
 

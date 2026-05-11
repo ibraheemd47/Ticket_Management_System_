@@ -1,37 +1,32 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase;
 
-import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Composite rule – AND semantics.
- * Purchase is allowed only when ALL child rules pass.
- * Short-circuits on the first failure (returns that rule's denial message).
- *
- * Example: "age ≥ 18 AND (qty ≤ 2 OR qty ≥ 100)"
- */
-public class AndRule implements PurchaseRule {
+import jakarta.persistence.*;
 
-    private final List<PurchaseRule> rules;
+@Entity
+@DiscriminatorValue("AND")
+public class AndRule extends CompositePurchaseRule {
 
-    public AndRule(List<PurchaseRule> rules) {
-        if (rules == null || rules.isEmpty())
-            throw new IllegalArgumentException("AndRule requires at least one child rule");
-        this.rules = new ArrayList<>(rules);
-    }
+    protected AndRule() {}
 
-    public AndRule(PurchaseRule a, PurchaseRule b) {
-        this(List.of(a, b));
-    }
+    public AndRule(List<PurchaseRule> rules) { super(rules); }
+    public AndRule(PurchaseRule a, PurchaseRule b) { super(a, b); }
 
     @Override
     public RuleResult evaluate(PurchaseContext ctx) {
         for (PurchaseRule rule : rules) {
             RuleResult result = rule.evaluate(ctx);
-            if (!result.isAllowed()) return result; // short-circuit
+            if (!result.isAllowed()) return result; // short-circuit on first failure
         }
         return RuleResult.allowed();
     }
 
-    public List<PurchaseRule> getRules() { return List.copyOf(rules); }
+    @Override
+    public String describe() {
+        return "All of: [" + rules.stream()
+                .map(PurchaseRule::describe)
+                .reduce((a, b) -> a + " AND " + b)
+                .orElse("") + "]";
+    }
 }

@@ -3,86 +3,60 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-// =========================================================================
-// Generic context object passed to discount rules.
-// Designed for extensibility without changing rule APIs.
-// =========================================================================
+/**
+ * Immutable value object passed to every DiscountRule.
+ *
+ * Fields:
+ *   - ticketQuantity  → QuantityConditionalDiscountRule
+ *   - purchaseTime    → DateRangeDiscountRule
+ *   - couponCode      → CouponDiscountRule
+ *   - originalPrice   → price-based discount rules
+ *   - eventId         → event-scoped discount rules
+ */
 public final class DiscountContext {
 
-    private final int ticketQuantity;
+    private final int           ticketQuantity;
     private final LocalDateTime purchaseTime;
-    private final String couponCode;
+    private final String        couponCode;
+    private final double        originalPrice;
+    private final UUID          eventId;
 
-    // NEW FIX: additional generic fields for future requirements
-    private final UUID eventId;
-    private final UUID companyId;
-    private final double originalPrice;
-    private final String ticketType;
-    private final Integer buyerId;
-    private final Integer buyerAge;
+    // ── Full constructor ───────────────────────────────────────────────────────
 
     public DiscountContext(int ticketQuantity,
                            LocalDateTime purchaseTime,
                            String couponCode,
-                           UUID eventId,
-                           UUID companyId,
                            double originalPrice,
-                           String ticketType,
-                           Integer buyerId,
-                           Integer buyerAge) {
-
-        if (ticketQuantity <= 0) {
+                           UUID eventId) {
+        if (ticketQuantity <= 0)
             throw new IllegalArgumentException("ticketQuantity must be positive");
-        }
-
+        if (originalPrice < 0)
+            throw new IllegalArgumentException("originalPrice must be non-negative");
         this.ticketQuantity = ticketQuantity;
-        this.purchaseTime = purchaseTime != null ? purchaseTime : LocalDateTime.now();
-        this.couponCode = couponCode;
-        this.eventId = eventId;
-        this.companyId = companyId;
-        this.originalPrice = originalPrice;
-        this.ticketType = ticketType;
-        this.buyerId = buyerId;
-        this.buyerAge = buyerAge;
+        this.purchaseTime   = purchaseTime != null ? purchaseTime : LocalDateTime.now();
+        this.couponCode     = couponCode;
+        this.originalPrice  = originalPrice;
+        this.eventId        = eventId;
     }
 
-    public int getTicketQuantity() {
-        return ticketQuantity;
+    // ── Convenience: no coupon, no eventId ────────────────────────────────────
+
+    public DiscountContext(int ticketQuantity, LocalDateTime purchaseTime) {
+        this(ticketQuantity, purchaseTime, null, 0.0, null);
     }
 
-    public LocalDateTime getPurchaseTime() {
-        return purchaseTime;
+    // ── Convenience: with coupon, no eventId ──────────────────────────────────
+
+    public DiscountContext(int ticketQuantity, LocalDateTime purchaseTime, String couponCode) {
+        this(ticketQuantity, purchaseTime, couponCode, 0.0, null);
     }
 
-    public String getCouponCode() {
-        return couponCode;
-    }
+    // ── Getters ───────────────────────────────────────────────────────────────
 
-    public boolean hasCoupon() {
-        return couponCode != null && !couponCode.isBlank();
-    }
-
-    public UUID getEventId() {
-        return eventId;
-    }
-
-    public UUID getCompanyId() {
-        return companyId;
-    }
-
-    public double getOriginalPrice() {
-        return originalPrice;
-    }
-
-    public String getTicketType() {
-        return ticketType;
-    }
-
-    public Integer getBuyerId() {
-        return buyerId;
-    }
-
-    public Integer getBuyerAge() {
-        return buyerAge;
-    }
+    public int           getTicketQuantity() { return ticketQuantity; }
+    public LocalDateTime getPurchaseTime()   { return purchaseTime; }
+    public String        getCouponCode()     { return couponCode; }
+    public boolean       hasCoupon()         { return couponCode != null && !couponCode.isBlank(); }
+    public double        getOriginalPrice()  { return originalPrice; }
+    public UUID          getEventId()        { return eventId; }
 }
