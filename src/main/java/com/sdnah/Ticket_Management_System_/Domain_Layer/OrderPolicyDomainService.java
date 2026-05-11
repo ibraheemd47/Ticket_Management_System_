@@ -5,9 +5,41 @@ import org.springframework.stereotype.Component;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
 
 @Component
 public class OrderPolicyDomainService {
+
+    private final PolicyRepository policyRepository;
+
+    public OrderPolicyDomainService(PolicyRepository policyRepository) {
+        if (policyRepository == null)
+            throw new IllegalArgumentException("policyRepository required");
+        this.policyRepository = policyRepository;
+    }
+
+    public void validateAndApplyDiscounts(ActiveOrder order, String couponCode) {
+        validateOrder(order);
+        PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
+        validatePurchasePolicy(order, purchasePolicy);
+        DiscountPolicy discountPolicy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+        applyDiscountPolicy(order, discountPolicy, couponCode);
+    }
+
+    /**
+     * Applies discount policy only — used in applyCoupon and removeFromOrder.
+     */
+    public void applyDiscounts(ActiveOrder order, String couponCode) {
+        validateOrder(order);
+        DiscountPolicy discountPolicy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+        applyDiscountPolicy(order, discountPolicy, couponCode);
+    }
+
+    public void validatePurchasePolicy(ActiveOrder order) {
+        validateOrder(order);
+        PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
+        validatePurchasePolicy(order, purchasePolicy);
+    }
 
     // =========================================================================
     // UC II.2.8 — Checkout Active Order (Discount Calculation)

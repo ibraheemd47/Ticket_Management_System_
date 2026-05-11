@@ -55,4 +55,18 @@ public class OrderMapper {
                 purchase.getTotalPrice(),
                 purchase.getPurchasedAt());
     }
+
+    public static List<OrderDTO> toDTOList(List<ActiveOrder> orders) {
+        List<OrderDTO> result = new ArrayList<>();
+        for (ActiveOrder o : orders)
+            result.add(toDTO(o));
+        return result;
+    }
+
+    public static List<PurchaseDTO> purchaseToDTOList(List<Purchase> purchases) {
+        List<PurchaseDTO> result = new ArrayList<>();
+        for (Purchase p : purchases)
+            result.add(toDTO(p, new ArrayList<>()));
+        return result;
+    }
 }
