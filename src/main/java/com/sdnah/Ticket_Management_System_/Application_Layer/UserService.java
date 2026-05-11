@@ -32,7 +32,7 @@ public class UserService implements IrepresnteUserService {
 
     public UserService(UserRepository userRepository, PasswordHasher passwordHasher,
             AuthTokenService authTokenService, VerificationEmail verificationService,
-             KeyedLock keyedLock) {
+            KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.authTokenService = authTokenService;
@@ -424,15 +424,16 @@ public class UserService implements IrepresnteUserService {
         return getMemberByToken(tokenValue).getMemberId();
     }
 
-
     @Override
     public Member requireMember(String token) {
         return getMemberByToken(token);
     }
+
     @Override
     public String requireMemberId(String token) {
         return getMemberByToken(token).getMemberId();
     }
+
     @Override
     public boolean validateToken(String token) {
         return authTokenService.validateToken(token);

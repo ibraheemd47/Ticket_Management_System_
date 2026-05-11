@@ -525,23 +525,4 @@ class EventAcceptanceTest {
                 }
         }
 
-        // -------------------------------------------------------------------------
-        // UC II.2.4 / II.2.8 — Reserve & Checkout
-        // -------------------------------------------------------------------------
-        @Nested
-        @DisplayName("UC II.2.4 / II.2.8 — Reserve and Checkout")
-        class ReserveAndCheckout {
-
-                @Test
-                @Disabled("Requires active_order_service + Booking_service integration")
-                @DisplayName("Reserve tickets — status becomes LOCKED_IN_CART")
-                void reserveTickets() {
-                }
-
-                @Test
-                @Disabled("Requires Booking_service + IPaymentGateway + ITicketSupplierGateway")
-                @DisplayName("Checkout — tickets become PURCHASED all-or-nothing")
-                void checkout() {
-                }
-        }
 }
