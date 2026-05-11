@@ -52,7 +52,7 @@ class PolicyServiceAcceptanceTest {
         SellingPolicy sellingPolicy = new SellingPolicy(
                 1, "Regular selling policy", SellingPolicy.SellingType.REGULAR, EVENT_ID);
 
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(sellingPolicy));
 
         assertTrue(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
@@ -64,7 +64,7 @@ class PolicyServiceAcceptanceTest {
         SellingPolicy sellingPolicy = new SellingPolicy(
                 2, "Lottery selling policy", SellingPolicy.SellingType.LOTTERY, EVENT_ID);
 
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(sellingPolicy));
 
         assertFalse(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
@@ -76,7 +76,7 @@ class PolicyServiceAcceptanceTest {
         SellingPolicy sellingPolicy = new SellingPolicy(
                 3, "Lottery selling policy", SellingPolicy.SellingType.LOTTERY, EVENT_ID);
 
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(sellingPolicy));
 
         assertTrue(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, true));
@@ -91,7 +91,7 @@ class PolicyServiceAcceptanceTest {
     void GivenValidPurchasePolicy_WhenGuestReservesTickets_ThenReservationApproved() {
         PurchasePolicy policy = new PurchasePolicy(4, "Default purchase policy", EVENT_ID);
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertTrue(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 2, 18));
@@ -100,7 +100,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenNoPurchasePolicy_WhenGuestReservesTickets_ThenDefaultApproved")
     void GivenNoPurchasePolicy_WhenGuestReservesTickets_ThenDefaultApproved() {
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.empty());
 
         assertTrue(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 2, 18));
@@ -112,7 +112,7 @@ class PolicyServiceAcceptanceTest {
         PurchasePolicy policy = new PurchasePolicy(5, "18+ policy", EVENT_ID);
         policy.addRule(new MinAgeRule(18));
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertFalse(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 2, 16));
@@ -124,7 +124,7 @@ class PolicyServiceAcceptanceTest {
         PurchasePolicy policy = new PurchasePolicy(6, "18+ policy", EVENT_ID);
         policy.addRule(new MinAgeRule(18));
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertTrue(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 2, 18));
@@ -136,7 +136,7 @@ class PolicyServiceAcceptanceTest {
         PurchasePolicy policy = new PurchasePolicy(7, "Max 5 tickets", EVENT_ID);
         policy.addRule(new MaxTicketsRule(5));
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertFalse(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 6, 20));
@@ -148,7 +148,7 @@ class PolicyServiceAcceptanceTest {
         PurchasePolicy policy = new PurchasePolicy(8, "Min 2 tickets", EVENT_ID);
         policy.addRule(new MinTicketsRule(2));
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertFalse(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 1, 20));
@@ -161,7 +161,7 @@ class PolicyServiceAcceptanceTest {
         policy.setRules(List.of(new MinAgeRule(18), new MaxTicketsRule(5)),
                 PurchasePolicy.Operator.AND);
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertTrue(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 3, 20));
@@ -174,7 +174,7 @@ class PolicyServiceAcceptanceTest {
         policy.setRules(List.of(new MinAgeRule(18), new MaxTicketsRule(5)),
                 PurchasePolicy.Operator.AND);
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         // age ok but quantity too high
@@ -188,7 +188,7 @@ class PolicyServiceAcceptanceTest {
         policy.setRules(List.of(new MaxTicketsRule(2), new MinTicketsRule(100)),
                 PurchasePolicy.Operator.OR);
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         // qty=1 satisfies MaxTicketsRule(2)
@@ -202,7 +202,7 @@ class PolicyServiceAcceptanceTest {
         policy.setRules(List.of(new MaxTicketsRule(2), new MinTicketsRule(100)),
                 PurchasePolicy.Operator.OR);
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         // qty=5 fails both
@@ -218,7 +218,7 @@ class PolicyServiceAcceptanceTest {
     void GivenValidPurchasePolicy_WhenCheckoutActiveOrder_ThenFinalPurchaseApproved() {
         PurchasePolicy policy = new PurchasePolicy(13, "Checkout purchase policy", EVENT_ID);
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertTrue(policyService.validateFinalPurchaseConditions(COMPANY_ID, EVENT_ID, 2, 20));
@@ -234,7 +234,7 @@ class PolicyServiceAcceptanceTest {
         DiscountPolicy policy = new DiscountPolicy(14, "20% off", EVENT_ID);
         policy.addRule(new PercentageDiscountRule(20.0, "20% off"));
 
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertEquals(80.0,
@@ -245,7 +245,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenNoDiscountPolicy_WhenApplyGeneralDiscounts_ThenOriginalPriceReturned")
     void GivenNoDiscountPolicy_WhenApplyGeneralDiscounts_ThenOriginalPriceReturned() {
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.empty());
 
         assertEquals(100.0,
@@ -263,7 +263,7 @@ class PolicyServiceAcceptanceTest {
         DiscountPolicy policy = new DiscountPolicy(15, "Coupon discount", EVENT_ID);
         policy.addRule(new CouponDiscountRule(20.0, "SAVE20"));
 
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertEquals(80.0,
@@ -277,7 +277,7 @@ class PolicyServiceAcceptanceTest {
         DiscountPolicy policy = new DiscountPolicy(16, "Coupon discount", EVENT_ID);
         policy.addRule(new CouponDiscountRule(20.0, "SAVE20"));
 
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertEquals(100.0,
@@ -304,7 +304,7 @@ class PolicyServiceAcceptanceTest {
         DiscountPolicy policy = new DiscountPolicy(17, "Bulk discount", EVENT_ID);
         policy.addRule(new QuantityConditionalDiscountRule(3, 10.0));
 
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertTrue(policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 3));
@@ -316,7 +316,7 @@ class PolicyServiceAcceptanceTest {
         DiscountPolicy policy = new DiscountPolicy(18, "Bulk discount", EVENT_ID);
         policy.addRule(new QuantityConditionalDiscountRule(3, 10.0));
 
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
 
         assertFalse(policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 2));
@@ -331,7 +331,7 @@ class PolicyServiceAcceptanceTest {
     void GivenDiscountPolicy_WhenAddDiscountRule_ThenRuleSaved() {
         DiscountPolicy policy = new DiscountPolicy(19, "Empty policy", EVENT_ID);
 
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
 
@@ -346,7 +346,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenNoDiscountPolicy_WhenAddDiscountRule_ThenExceptionThrown")
     void GivenNoDiscountPolicy_WhenAddDiscountRule_ThenExceptionThrown() {
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -360,7 +360,7 @@ class PolicyServiceAcceptanceTest {
         DiscountPolicy policy = new DiscountPolicy(20, "Old policy", EVENT_ID);
         policy.addRule(new PercentageDiscountRule(5.0, "5% off"));
 
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
 
@@ -379,7 +379,7 @@ class PolicyServiceAcceptanceTest {
         DiscountPolicy policy = new DiscountPolicy(21, "Policy with rules", EVENT_ID);
         policy.addRule(new PercentageDiscountRule(20.0, "20% off"));
 
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
 
@@ -400,7 +400,7 @@ class PolicyServiceAcceptanceTest {
     void GivenPurchasePolicy_WhenAddPurchaseRule_ThenRuleSaved() {
         PurchasePolicy policy = new PurchasePolicy(22, "Empty policy", EVENT_ID);
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
 
@@ -414,7 +414,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenNoPurchasePolicy_WhenAddPurchaseRule_ThenExceptionThrown")
     void GivenNoPurchasePolicy_WhenAddPurchaseRule_ThenExceptionThrown() {
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -426,7 +426,7 @@ class PolicyServiceAcceptanceTest {
     void GivenPurchasePolicy_WhenSetPurchaseRulesAndOr_ThenRulesReplacedAndSaved() {
         PurchasePolicy policy = new PurchasePolicy(23, "Old policy", EVENT_ID);
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
 
@@ -447,7 +447,7 @@ class PolicyServiceAcceptanceTest {
         PurchasePolicy policy = new PurchasePolicy(24, "Policy with rules", EVENT_ID);
         policy.addRule(new MinAgeRule(18));
 
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID))
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
 
@@ -469,7 +469,7 @@ class PolicyServiceAcceptanceTest {
         SellingPolicy sellingPolicy = new SellingPolicy(
                 25, "Lottery selling policy", SellingPolicy.SellingType.LOTTERY, EVENT_ID);
 
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID))
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID))
                 .thenReturn(Optional.of(sellingPolicy));
 
         int numberOfUsers = 50;

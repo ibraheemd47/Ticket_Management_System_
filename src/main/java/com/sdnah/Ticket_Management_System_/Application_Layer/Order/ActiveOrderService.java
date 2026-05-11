@@ -130,9 +130,14 @@ public class ActiveOrderService {
             // order.updateFinalPrice(finalPrice);
 
             // new after domain service refactor:
-            PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
+            PurchasePolicy purchasePolicy = policyRepository
+            .findPurchasePolicyByEventId(order.getEventId())
+            .orElseThrow(() -> new RuntimeException("Purchase policy not found"));
             orderPolicyDomainService.validatePurchasePolicy(order, purchasePolicy);
-            DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+            //DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+            DiscountPolicy policy = policyRepository
+            .findDiscountPolicyByEventId(order.getEventId())
+            .orElseThrow(() -> new RuntimeException("Discount policy not found"));
             orderPolicyDomainService.applyDiscountPolicy(order, policy, null);
 
             orderRepo.save(order);
@@ -163,7 +168,10 @@ public class ActiveOrderService {
 
         // new after domain service refactor:
         // שליפת המדיניות מחדש כדי לוודא שהנחות מותנות עדיין תקפות
-        DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+        //DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+        DiscountPolicy policy = policyRepository
+        .findDiscountPolicyByEventId(order.getEventId())
+        .orElseThrow(() -> new RuntimeException("Discount policy not found"));
         orderPolicyDomainService.applyDiscountPolicy(order, policy, order.getAppliedCouponCode());
         // ----------------------------------------
 
@@ -180,7 +188,9 @@ public class ActiveOrderService {
 
         // new after domain service refactor:
         /// validate purchase policy before charging
-        PurchasePolicy purchasePolicy = policyRepository.findPurchasePolicyByEventId(order.getEventId());
+        PurchasePolicy purchasePolicy = policyRepository
+        .findPurchasePolicyByEventId(order.getEventId())
+        .orElseThrow(() -> new RuntimeException("Purchase policy not found"));
         orderPolicyDomainService.validatePurchasePolicy(order, purchasePolicy);
 
         PaymentDetails details = new PaymentDetails(paymentDTO.getCardToken(), paymentDTO.getBillingName(),
@@ -276,7 +286,9 @@ public class ActiveOrderService {
             // order.setAppliedCouponCode(couponCode);
 
             // new after domain service refactor:
-            DiscountPolicy policy = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+            DiscountPolicy policy = policyRepository
+                .findDiscountPolicyByEventId(order.getEventId())
+                .orElseThrow(() -> new RuntimeException("Discount policy not found"));
             orderPolicyDomainService.applyDiscountPolicy(order, policy, couponCode);
             // -------------------------------------------------------
 

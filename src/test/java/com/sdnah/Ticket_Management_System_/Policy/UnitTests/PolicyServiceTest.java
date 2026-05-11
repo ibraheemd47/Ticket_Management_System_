@@ -47,7 +47,7 @@ class PolicyServiceTest {
     void GivenRegularSellingPolicy_WhenCheckSelectionPermission_ThenGuestAllowed() {
         SellingPolicy policy = new SellingPolicy(1, "Regular selling",
                 SellingPolicy.SellingType.REGULAR, EVENT_ID);
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertTrue(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
     }
@@ -56,7 +56,7 @@ class PolicyServiceTest {
     void GivenLotterySellingPolicy_WhenGuestChecksSelectionPermission_ThenReturnFalse() {
         SellingPolicy policy = new SellingPolicy(1, "Lottery selling",
                 SellingPolicy.SellingType.LOTTERY, EVENT_ID);
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertFalse(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
     }
@@ -65,14 +65,14 @@ class PolicyServiceTest {
     void GivenLotterySellingPolicy_WhenMemberChecksSelectionPermission_ThenReturnTrue() {
         SellingPolicy policy = new SellingPolicy(1, "Lottery selling",
                 SellingPolicy.SellingType.LOTTERY, EVENT_ID);
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertTrue(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, true));
     }
 
     @Test
     void GivenNoSellingPolicy_WhenCheckSelectionPermission_ThenDefaultAllow() {
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID)).thenReturn(Optional.empty());
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
 
         assertTrue(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
     }
@@ -83,7 +83,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenNoPurchasePolicy_WhenValidateReservation_ThenDefaultAllow() {
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID)).thenReturn(Optional.empty());
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
 
         assertTrue(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 3, 18));
     }
@@ -91,7 +91,7 @@ class PolicyServiceTest {
     @Test
     void GivenPurchasePolicy_WhenQuantityPositive_ThenReservationApproved() {
         PurchasePolicy policy = new PurchasePolicy(2, "Default purchase", EVENT_ID);
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertTrue(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 1, 18));
     }
@@ -102,7 +102,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenNoPurchasePolicy_WhenValidateFinalPurchase_ThenDefaultAllow() {
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID)).thenReturn(Optional.empty());
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
 
         assertTrue(policyService.validateFinalPurchaseConditions(COMPANY_ID, EVENT_ID, 2, 18));
     }
@@ -110,7 +110,7 @@ class PolicyServiceTest {
     @Test
     void GivenPurchasePolicy_WhenFinalPurchaseValid_ThenReturnTrue() {
         PurchasePolicy policy = new PurchasePolicy(3, "Checkout purchase", EVENT_ID);
-        when(policyRepo.findPurchasePolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertTrue(policyService.validateFinalPurchaseConditions(COMPANY_ID, EVENT_ID, 2, 18));
     }
@@ -123,7 +123,7 @@ class PolicyServiceTest {
     void GivenDiscountPolicyWithPercentage_WhenApplyGeneralDiscounts_ThenReturnDiscountedPrice() {
         DiscountPolicy policy = new DiscountPolicy(4, "Discount policy", EVENT_ID);
         policy.addRule(new PercentageDiscountRule(20.0, "20% off"));
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertEquals(80.0,
                 policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 100.0, 2),
@@ -132,7 +132,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenNoDiscountPolicy_WhenApplyGeneralDiscounts_ThenReturnBasePrice() {
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID)).thenReturn(Optional.empty());
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
 
         assertEquals(100.0,
                 policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 100.0, 2),
@@ -147,7 +147,7 @@ class PolicyServiceTest {
     void GivenCouponDiscountAndCorrectCoupon_WhenCalculateCouponDiscount_ThenDiscountApplied() {
         DiscountPolicy policy = new DiscountPolicy(5, "Coupon discount", EVENT_ID);
         policy.addRule(new CouponDiscountRule(20.0, "SAVE20"));
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertEquals(80.0,
                 policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, "SAVE20"),
@@ -158,7 +158,7 @@ class PolicyServiceTest {
     void GivenCouponDiscountAndWrongCoupon_WhenCalculateCouponDiscount_ThenOriginalPriceReturned() {
         DiscountPolicy policy = new DiscountPolicy(5, "Coupon discount", EVENT_ID);
         policy.addRule(new CouponDiscountRule(20.0, "SAVE20"));
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertEquals(100.0,
                 policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, "WRONG"),
@@ -170,7 +170,7 @@ class PolicyServiceTest {
         assertEquals(100.0,
                 policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, ""),
                 0.001);
-        verify(policyRepo, never()).findDiscountPolicyByEventId2(any());
+        verify(policyRepo, never()).findDiscountPolicyByEventId(any());
     }
 
     @Test
@@ -178,7 +178,7 @@ class PolicyServiceTest {
         assertEquals(100.0,
                 policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, null),
                 0.001);
-        verify(policyRepo, never()).findDiscountPolicyByEventId2(any());
+        verify(policyRepo, never()).findDiscountPolicyByEventId(any());
     }
 
     // =========================================================================
@@ -189,7 +189,7 @@ class PolicyServiceTest {
     void GivenConditionalDiscountAndQuantityEnough_WhenCheckConditionalDiscount_ThenReturnTrue() {
         DiscountPolicy policy = new DiscountPolicy(6, "Conditional discount", EVENT_ID);
         policy.addRule(new QuantityConditionalDiscountRule(3, 10.0));
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertTrue(policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 3));
     }
@@ -198,14 +198,14 @@ class PolicyServiceTest {
     void GivenConditionalDiscountAndQuantityTooLow_WhenCheckConditionalDiscount_ThenReturnFalse() {
         DiscountPolicy policy = new DiscountPolicy(6, "Conditional discount", EVENT_ID);
         policy.addRule(new QuantityConditionalDiscountRule(3, 10.0));
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         assertFalse(policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 2));
     }
 
     @Test
     void GivenNoDiscountPolicy_WhenCheckConditionalDiscount_ThenReturnFalse() {
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID)).thenReturn(Optional.empty());
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
 
         assertFalse(policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 3));
     }
@@ -220,7 +220,7 @@ class PolicyServiceTest {
             throws Exception {
         SellingPolicy policy = new SellingPolicy(9, "Lottery policy",
                 SellingPolicy.SellingType.LOTTERY, EVENT_ID);
-        when(policyRepo.findSellingPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         int threads = 50;
         ExecutorService executor = Executors.newFixedThreadPool(threads);
@@ -254,7 +254,7 @@ class PolicyServiceTest {
             throws Exception {
         DiscountPolicy policy = new DiscountPolicy(10, "Concurrent discount", EVENT_ID);
         policy.addRule(new PercentageDiscountRule(25.0, "25% off"));
-        when(policyRepo.findDiscountPolicyByEventId2(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
 
         int threads = 50;
         ExecutorService executor = Executors.newFixedThreadPool(threads);

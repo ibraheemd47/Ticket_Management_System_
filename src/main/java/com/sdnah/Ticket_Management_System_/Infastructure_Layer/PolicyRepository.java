@@ -19,19 +19,13 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer> {
     Optional<Policy> findByPolicyId(int policyId);
     List<Policy>     findByEventId(UUID eventId);
 
-    DiscountPolicy findDiscountPolicyByEventId(UUID eventId);
-    PurchasePolicy findPurchasePolicyByEventId(UUID eventId);
-    SellingPolicy  findSellingPolicyByEventId(UUID eventId);
-
-    Optional<DiscountPolicy> findDiscountPolicyByEventId2(UUID eventId);
-    Optional<PurchasePolicy> findPurchasePolicyByEventId2(UUID eventId);
-    Optional<SellingPolicy>  findSellingPolicyByEventId2(UUID eventId);
+    Optional<DiscountPolicy> findDiscountPolicyByEventId(UUID eventId);
+    Optional<PurchasePolicy> findPurchasePolicyByEventId(UUID eventId);
+    Optional<SellingPolicy>  findSellingPolicyByEventId(UUID eventId);
 
     void deleteByPolicyId(int policyId);
 
-    // ── Save any Policy subtype (DiscountPolicy, PurchasePolicy, SellingPolicy)
-    // JpaRepository<Policy,Integer>.save() accepts Policy and all its subtypes.
-    // This wrapper fixes the compiler error when passing a concrete subtype.
+    // ── Save any Policy subtype ───────────────────────────────────
     default <S extends Policy> S savePolicy(S policy) {
         return save(policy);
     }

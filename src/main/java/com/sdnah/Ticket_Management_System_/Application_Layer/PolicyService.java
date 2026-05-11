@@ -219,14 +219,23 @@ public class PolicyService {
     // =========================================================================
 
     private Optional<SellingPolicy> findSellingPolicy(UUID eventId) {
-        return policyRepo.findSellingPolicyByEventId2(eventId);
+        Object result = policyRepo.findSellingPolicyByEventId(eventId);
+        if (result == null) return Optional.empty();
+        if (result instanceof Optional) return (Optional<SellingPolicy>) result;
+        return Optional.of((SellingPolicy) result);
     }
 
     private Optional<PurchasePolicy> findPurchasePolicy(UUID eventId) {
-        return policyRepo.findPurchasePolicyByEventId2(eventId);
+        Object result = policyRepo.findPurchasePolicyByEventId(eventId);
+        if (result == null) return Optional.empty();
+        if (result instanceof Optional) return (Optional<PurchasePolicy>) result;
+        return Optional.of((PurchasePolicy) result);
     }
 
     private Optional<DiscountPolicy> findDiscountPolicy(UUID eventId) {
-        return policyRepo.findDiscountPolicyByEventId2(eventId);
+        Object result = policyRepo.findDiscountPolicyByEventId(eventId);
+        if (result == null) return Optional.empty();
+        if (result instanceof Optional) return (Optional<DiscountPolicy>) result;
+        return Optional.of((DiscountPolicy) result);
     }
 }
