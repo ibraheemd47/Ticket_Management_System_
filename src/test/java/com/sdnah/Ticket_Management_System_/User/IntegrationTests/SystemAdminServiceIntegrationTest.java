@@ -10,13 +10,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.System_admin;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.UserRole;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.SystemAdminRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.AuthTokenService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 
 @SpringBootTest
 @ActiveProfiles("test")

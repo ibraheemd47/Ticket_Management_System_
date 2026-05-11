@@ -3,9 +3,9 @@ package com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.VerificationEmail;
-import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.VerificationEmail;
 
 import java.time.LocalDateTime;
 

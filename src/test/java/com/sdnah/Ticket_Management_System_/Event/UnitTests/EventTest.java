@@ -5,9 +5,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 
 import java.util.Date;
 import java.util.UUID;
