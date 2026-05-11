@@ -2,7 +2,8 @@ package com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig;
 
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
-import com.sdnah.Ticket_Management_System_.Application_Layer.PasswordHasher;
+
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PasswordHasher;
 
 @Primary
 @Component

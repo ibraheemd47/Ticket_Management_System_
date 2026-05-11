@@ -4,9 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.System_admin;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.UserRole;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
 
 class SystemAdminTest {
 

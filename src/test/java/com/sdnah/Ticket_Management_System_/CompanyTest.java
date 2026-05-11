@@ -2,8 +2,8 @@ package com.sdnah.Ticket_Management_System_;
 
 import org.junit.jupiter.api.*;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 
 import java.util.*;
 import java.util.concurrent.*;

@@ -1,10 +1,10 @@
 package com.sdnah.Ticket_Management_System_.NotificationTests;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.Notifications.NotificationService;
-import com.sdnah.Ticket_Management_System_.DTOs.NotificationDTO;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.Notification;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.NotificationType;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.NotificationRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.NotificationDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.Notification;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

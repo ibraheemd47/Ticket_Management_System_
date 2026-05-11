@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.AuthTokenService;
 
 class AuthTokenServiceAcceptanceTest {
 

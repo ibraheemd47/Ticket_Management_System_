@@ -15,13 +15,13 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentTransaction;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 
 @DataJpaTest
 @ActiveProfiles("test")

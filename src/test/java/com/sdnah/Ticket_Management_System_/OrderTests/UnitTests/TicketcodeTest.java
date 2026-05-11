@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode;
 
 class TicketcodeTest {
 

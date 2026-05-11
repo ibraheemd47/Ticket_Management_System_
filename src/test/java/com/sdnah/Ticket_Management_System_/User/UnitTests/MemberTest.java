@@ -9,10 +9,10 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.UserRole;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
 
 @DisplayName("Member — Domain Unit Tests")
 class MemberTest {

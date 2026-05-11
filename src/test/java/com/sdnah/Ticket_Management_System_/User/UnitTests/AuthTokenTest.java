@@ -8,7 +8,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.AuthToken;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.AuthToken;
 
 @DisplayName("AuthToken — Domain Unit Tests")
 class AuthTokenTest {

@@ -1,0 +1,29 @@
+package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.stereotype.Component;
+
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ITicketSupplierGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderItem;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode;
+
+@Component
+public class TicketSupplierGatewayProxy implements ITicketSupplierGateway {
+
+    @Override
+    public List<Ticketcode> issueTickets(UUID purchaseId, List<OrderItem> items) {
+        List<Ticketcode> result = new ArrayList<>();
+
+        for (OrderItem item : items) {
+            Ticketcode ticket = new Ticketcode(
+                    "TICKET-" + item.getTicketId(),
+                    "QR-" + purchaseId + "-" + item.getTicketId());
+            result.add(ticket);
+        }
+        return result;
+    }
+
+}
