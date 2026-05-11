@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -77,19 +75,6 @@ public class ActiveOrder {
         this.version = 0;
     }
 
-    public List<String> reserveTickets(List<SeatRequest> seats, String buyerId, List<Boolean> lockedStatuses) {
-        List<String> reservedTicketIds = new ArrayList<>();
-        for (int i = 0; i < seats.size(); i++) {
-            SeatRequest seat = seats.get(i);
-            if (lockedStatuses.get(i))
-                throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
-            Lock lock = new Lock(seat.getTicketId(), buyerId, this.expiresAt);
-            addTicket(seat.getTicketId(), seat.getSeatId(), seat.getAreaId(), seat.getPrice(), lock);
-            reservedTicketIds.add(seat.getTicketId());
-        }
-        return reservedTicketIds;
-    }
-
     public OrderItem addTicket(String ticketId, Long seatId, UUID areaId,
             BigDecimal price, Lock lock) {
         if (status != Status.ACTIVE)
@@ -100,17 +85,6 @@ public class ActiveOrder {
         item.setLock(lock);
         items.add(item);
         return item;
-    }
-    public String addTicketToOrder(SeatRequest seat, String buyerId, boolean isLocked) {
-        if (status != Status.ACTIVE)
-            throw new IllegalStateException("Order is not active");
-        if (isExpired())
-            throw new IllegalStateException("Order has expired");
-        if (isLocked)
-            throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
-        Lock lock = new Lock(seat.getTicketId(), buyerId, this.expiresAt);
-        addTicket(seat.getTicketId(), seat.getSeatId(), seat.getAreaId(), seat.getPrice(), lock);
-        return seat.getTicketId();
     }
 
     public OrderItem removeTicket(UUID itemId) {
@@ -158,14 +132,27 @@ public class ActiveOrder {
         this.discount = discount;
     }
 
+    /**
+     * Final price — updated every time PolicyService is called.
+     * If PolicyService was not called yet, returns original total.
+     */
     public BigDecimal getFinalPrice() {
         return finalPrice != null ? finalPrice : getTotal();
     }
 
+    /** Discount = total - finalPrice */
     public BigDecimal getDiscount() {
         return getTotal().subtract(getFinalPrice());
     }
 
+    /**
+     * Updates finalPrice directly from PolicyService result.
+     * Called after every PolicyService call:
+     * - applyGeneralDiscounts (type b) in reserveTickets / removeFromOrder
+     * - calculateCouponDiscount (type c) in applyCoupon
+     * If no discount applies, PolicyService returns original total → finalPrice =
+     * total → discount = 0.
+     */
     public void updateFinalPrice(double priceFromPolicyService) {
         BigDecimal price = BigDecimal.valueOf(priceFromPolicyService);
         if (price.compareTo(BigDecimal.ZERO) < 0)
@@ -189,16 +176,6 @@ public class ActiveOrder {
         return lockIds;
     }
 
-    public List<String> cancel() {
-        markCancelled();
-        return releaseAllLocks();
-    }
-
-    public List<String> expireOrder() {
-        markExpired();
-        return releaseAllLocks();
-    }
-
     public void setAppliedCouponCode(String code) {
         this.appliedCouponCode = code;
     }
@@ -213,6 +190,16 @@ public class ActiveOrder {
 
     public void markCancelled() {
         this.status = Status.CANCELLED;
+    }
+
+    /**
+     * Mark the order EXPIRED and clear every item's lock in one step.
+     * Returns the ticket IDs whose locks were released so the caller can
+     * release them in the ticket aggregate.
+     */
+    public List<String> expireOrder() {
+        markExpired();
+        return releaseAllLocks();
     }
 
     public UUID getId() {
