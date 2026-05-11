@@ -15,33 +15,17 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTr
 
 public class PaymentService {
     private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
-    private final IPaymentGateway paymentGateway;
     private final PaymentTransactionRepository transactionRepo;
 
-    public PaymentService(IPaymentGateway paymentGateway,
-            PaymentTransactionRepository transactionRepo) {
-        if (paymentGateway == null)
-            throw new IllegalArgumentException("paymentGateway required");
+    public PaymentService(PaymentTransactionRepository transactionRepo) {
         if (transactionRepo == null)
             throw new IllegalArgumentException("transactionRepo required");
-        this.paymentGateway = paymentGateway;
         this.transactionRepo = transactionRepo;
     }
 
-    public PaymentTransaction charge(UUID orderId, BigDecimal amount, PaymentDetails details) {
-        logger.info("Charging order {} amount {}", orderId, amount);
-        PaymentTransaction tx = paymentGateway.charge(orderId, amount, details);
+    public void saveTransaction(PaymentTransaction tx) {
+        logger.info("Saving transaction {}", tx.getTransactionId());
         transactionRepo.save(tx);
-        logger.info("Charge result for order {}: {}", orderId, tx.getStatus());
-        return tx;
-    }
-
-    public PaymentTransaction refund(String transactionId) {
-        logger.info("Refunding transaction {}", transactionId);
-        PaymentTransaction tx = paymentGateway.refund(transactionId);
-        transactionRepo.save(tx);
-        logger.info("Refund result for transaction {}: {}", transactionId, tx.getStatus());
-        return tx;
     }
 
 }

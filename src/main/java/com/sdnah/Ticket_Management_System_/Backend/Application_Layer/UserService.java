@@ -33,7 +33,7 @@ public class UserService implements IrepresnteUserService {
 
     public UserService(UserRepository userRepository, PasswordHasher passwordHasher,
             AuthTokenService authTokenService, VerificationEmail verificationService,
-             KeyedLock keyedLock) {
+            KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.authTokenService = authTokenService;
@@ -41,46 +41,28 @@ public class UserService implements IrepresnteUserService {
         this.keyedLock = keyedLock;
     }
 
-    // TODO: ZAKI DELETE
-    public boolean register(String username, String password) {
-        logger.info("Register request received for username={}", username);
-        validateUsername(username);
-        validatePassword(password);
-
-        return keyedLock.callLocked(LOCK_NS_USERNAME, username, () -> {
-            // check if username already exists (inside lock to prevent race)
-            if (userRepository.existsByUsername(username)) {
-                logger.warn("Register rejected: username already exists, username={}", username);
-                throw new RuntimeException("Username already exists");
-            }
-
-            String memberId = get_new_member_id();
-            String passwordHash = passwordHasher.hash(password);
-
-            Member member = new Member(memberId, username, passwordHash);
-            userRepository.save(member);
-
-            logger.info("Member registered successfully, memberId={}, username={}", memberId, username);
-
-            return true;
-        });
-    }
 
     public String login(String username, String password) {
         logger.info("Login attempt for username={}", username);
 
         Member member = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+                .orElseThrow(() -> {
+                    logger.error("Login failed: username not found, username={}", username);
+                    return new RuntimeException("Invalid username or password");
+                });
 
         if (!member.isActive()) {
+            logger.error("Login failed: member is inactive, username={}, memberId={}", username, member.getMemberId());
             throw new RuntimeException("Member is inactive");
         }
 
         if (!member.isVerified()) {
+            logger.error("Login failed: account is not verified, username={}, memberId={}", username, member.getMemberId());
             throw new RuntimeException("Account is not verified");
         }
 
         if (!passwordHasher.matches(password, member.getPasswordHash())) {
+            logger.error("Login failed: invalid password, username={}, memberId={}", username, member.getMemberId());
             throw new RuntimeException("Invalid username or password");
         }
 
@@ -93,6 +75,7 @@ public class UserService implements IrepresnteUserService {
     @Transactional
     public void logout(String tokenValue) {
         if (tokenValue == null || tokenValue.isBlank()) {
+            logger.error("Logout failed: token is empty");
             throw new RuntimeException("Token cannot be empty");
         }
 
@@ -113,12 +96,12 @@ public class UserService implements IrepresnteUserService {
     public void validateCompanyRoleRequest(CompanyRoleAssignment assignment) {
         logger.debug("Validating company role request for companyId={}", assignment.getCompanyId());
         if (assignment.getCompanyId() <= 0) {
-            logger.warn("Company role validation failed: missing company id");
+            logger.error("Company role validation failed: missing company id");
             throw new RuntimeException("Company id cannot be empty");
         }
 
         if (assignment.getRoleType() == null) {
-            logger.warn("Company role validation failed: missing role type");
+            logger.error("Company role validation failed: missing role type");
             throw new RuntimeException("Role type is required");
         }
 
@@ -126,7 +109,7 @@ public class UserService implements IrepresnteUserService {
                 || assignment.getRoleType() == CompanyRoleType.MANAGER)
                 && (assignment.getAppointedByMemberId() == null
                         || assignment.getAppointedByMemberId().isBlank())) {
-            logger.warn("Company role validation failed: appointed by member id is required for roleType={}",
+            logger.error("Company role validation failed: appointed by member id is required for roleType={}",
                     assignment.getRoleType());
             throw new RuntimeException("Appointed by member id is required");
         }
@@ -137,7 +120,10 @@ public class UserService implements IrepresnteUserService {
     public void forgotPassword(String email) {
         logger.info("Forgot password requested for email={}", email);
         Member member = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("No member found with this email"));
+                .orElseThrow(() -> {
+                    logger.error("Forgot password failed: no member found for email={}", email);
+                    return new RuntimeException("No member found with this email");
+                });
 
         verificationService.createAndSendPasswordResetCode(member);
         if (member != null) {
@@ -151,7 +137,10 @@ public class UserService implements IrepresnteUserService {
     public void resetPassword(String email, String code, String newPassword) {
         logger.info("Reset password request received for email={}", email);
         Member member = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("No member found with this email"));
+                .orElseThrow(() -> {
+                    logger.error("Reset password failed: no member found for email={}", email);
+                    return new RuntimeException("No member found with this email");
+                });
 
         verificationService.resetPassword(member, code, newPassword, passwordHasher);
         if (member != null) {
@@ -164,10 +153,12 @@ public class UserService implements IrepresnteUserService {
 
     public Member getMemberByToken(String tokenValue) {
         if (tokenValue == null || tokenValue.isBlank()) {
+            logger.error("Token validation failed: token is empty");
             throw new RuntimeException("Invalid token");
         }
 
         if (!authTokenService.validateToken(tokenValue)) {
+            logger.error("Token validation failed: invalid or expired token");
             throw new RuntimeException("Invalid or expired token");
         }
 
@@ -193,7 +184,7 @@ public class UserService implements IrepresnteUserService {
 
     private boolean validatePassword(String password) {
         if (password == null || password.length() < 6) {
-            logger.warn("Password validation failed: below minimum length");
+            logger.error("Password validation failed: below minimum length");
             throw new RuntimeException("Password must contain at least 6 characters");
         }
         logger.debug("Password validation passed");
@@ -202,11 +193,11 @@ public class UserService implements IrepresnteUserService {
 
     private boolean validateUsername(String username) {
         if (username == null || username.isBlank()) {
-            logger.warn("Username validation failed: empty username");
+            logger.error("Username validation failed: empty username");
             throw new RuntimeException("Username cannot be empty");
         }
         if (username.length() < 3) {
-            logger.warn("Username validation failed: username too short, username={}", username);
+            logger.error("Username validation failed: username too short, username={}", username);
             throw new RuntimeException("Username must contain at least 3 characters");
         }
         logger.debug("Username validation passed for username={}", username);
@@ -225,13 +216,13 @@ public class UserService implements IrepresnteUserService {
                 !validatePassword(password) ||
                 !validateEmail(email) ||
                 !validateVerificationTarget(email, phone, verificationMethod)) {
-            logger.warn("Register with verification rejected: invalid input data for username={}", username);
+            logger.error("Register with verification rejected: invalid input data for username={}", username);
             throw new RuntimeException("Invalid input data");
         }
 
         return keyedLock.callLocked(LOCK_NS_USERNAME, username, () -> {
             if (userRepository.existsByUsername(username)) {
-                logger.warn("Register with verification rejected: username already exists, username={}", username);
+                logger.error("Register with verification rejected: username already exists, username={}", username);
                 throw new RuntimeException("Username already exists");
             }
 
@@ -256,17 +247,20 @@ public class UserService implements IrepresnteUserService {
     public void verifyAccount(String username, String code) {
         logger.info("Account verification requested for username={}", username);
         if (username == null || username.isBlank()) {
-            logger.warn("Account verification rejected: missing username");
+            logger.error("Account verification rejected: missing username");
             throw new RuntimeException("Username is required");
         }
 
         if (code == null || code.isBlank()) {
-            logger.warn("Account verification rejected: missing code for username={}", username);
+            logger.error("Account verification rejected: missing code for username={}", username);
             throw new RuntimeException("Verification code is required");
         }
 
         Member member = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Member not found"));
+                .orElseThrow(() -> {
+                    logger.error("Account verification failed: member not found, username={}", username);
+                    return new RuntimeException("Member not found");
+                });
 
         verificationService.verifyCode(member, code);
         member.setVerified(true);
@@ -278,13 +272,13 @@ public class UserService implements IrepresnteUserService {
             String phone,
             VerificationMethod method) {
         if (method == null) {
-            logger.warn("Verification target validation failed: method is required");
+            logger.error("Verification target validation failed: method is required");
             throw new RuntimeException("Verification method is required");
         }
 
         if (method == VerificationMethod.EMAIL) {
             if (email == null || email.isBlank()) {
-                logger.warn("Verification target validation failed: missing email for EMAIL method");
+                logger.error("Verification target validation failed: missing email for EMAIL method");
                 throw new RuntimeException("Email is required for email verification");
             }
         }
@@ -333,7 +327,10 @@ public class UserService implements IrepresnteUserService {
     public Member getMemberByUsername(String username) {
         logger.debug("Fetching member by username={}", username);
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Member not found"));
+                .orElseThrow(() -> {
+                    logger.error("Member lookup failed: member not found, username={}", username);
+                    return new RuntimeException("Member not found");
+                });
     }
 
     public ProfileResponse getMyProfile(String tokenValue) {
@@ -395,6 +392,7 @@ public class UserService implements IrepresnteUserService {
         Member member = getMemberByToken(tokenValue);
 
         if (!member.isOwnerInCompany(companyId)) {
+            logger.error("Owner permission required for companyId={}, memberId={}", companyId, member.getMemberId());
             throw new RuntimeException("Owner permission required");
         }
 
@@ -405,6 +403,7 @@ public class UserService implements IrepresnteUserService {
         Member member = getMemberByToken(tokenValue);
 
         if (!member.isManagerInCompany(companyId) && !member.isOwnerInCompany(companyId)) {
+            logger.error("Manager permission required for companyId={}, memberId={}", companyId, member.getMemberId());
             throw new RuntimeException("Manager permission required");
         }
 
@@ -415,6 +414,7 @@ public class UserService implements IrepresnteUserService {
         Member member = getMemberByToken(tokenValue);
 
         if (!member.isSystemAdmin()) {
+            logger.error("Admin permission required for memberId={}", member.getMemberId());
             throw new RuntimeException("Admin permission required");
         }
 
@@ -425,15 +425,16 @@ public class UserService implements IrepresnteUserService {
         return getMemberByToken(tokenValue).getMemberId();
     }
 
-
     @Override
     public Member requireMember(String token) {
         return getMemberByToken(token);
     }
+
     @Override
     public String requireMemberId(String token) {
         return getMemberByToken(token).getMemberId();
     }
+
     @Override
     public boolean validateToken(String token) {
         return authTokenService.validateToken(token);
