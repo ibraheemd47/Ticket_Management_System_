@@ -93,6 +93,15 @@ public class CompanyAuthorizationDomainService {
         }
     }
 
+    public void assertCanAdminCloseCompany(Member actor, Company company) {
+        assertActiveMember(actor);
+        requireCompany(company);
+
+        if (!actor.isSystemAdmin()) {
+            throw new RuntimeException("Only system admin can close a production company");
+        }
+    }
+
     public void assertCanReopenCompany(Member actor, Company company) {
         assertActiveMember(actor);
         requireCompany(company);

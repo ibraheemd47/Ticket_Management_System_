@@ -9,6 +9,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermissio
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.User.UserRole;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
@@ -38,6 +39,9 @@ class company_managment_serivceTest {
     private static final String OWNER = "200";
     private static final String MANAGER = "300";
     private static final String USER = "999";
+
+    private static final String ADMIN = "500";
+    private static final String ADMIN_TOKEN = "token-admin";
 
     private static final String FOUNDER_TOKEN = "token-founder";
     private static final String OWNER_TOKEN = "token-owner";
@@ -72,6 +76,9 @@ class company_managment_serivceTest {
         mockMember(OWNER_TOKEN, OWNER);
         mockMember(MANAGER_TOKEN, MANAGER);
         mockMember(USER_TOKEN, USER);
+
+        mockMember(ADMIN_TOKEN, ADMIN);
+        membersById.get(ADMIN).setRole(UserRole.SYSTEM_ADMIN);
     }
 
     @Test
@@ -433,5 +440,40 @@ class company_managment_serivceTest {
 
     private EventDto eventDto(String name) {
         return new EventDto(null, name, null, show_type.CONFERENCE, "Venue");
+    }
+
+    @Test
+    void GivenSystemAdmin_WhenAdminCloseCompany_ThenCompanyClosedAndRolesCleared() {
+        service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.appointManager(
+                FOUNDER_TOKEN,
+                COMPANY_ID,
+                MANAGER,
+                EnumSet.of(CompanyPermission.MANAGE_EVENTS));
+
+        boolean result = service.adminCloseCompany(ADMIN_TOKEN, COMPANY_ID);
+
+        Company company = repo.findById(COMPANY_ID).orElseThrow();
+
+        assertTrue(result);
+        assertFalse(company.isOpen());
+        assertTrue(company.getOwnerIds().isEmpty());
+        assertTrue(company.getManagers().isEmpty());
+        verify(repo, atLeastOnce()).save(company);
+    }
+
+    @Test
+    void GivenNonAdmin_WhenAdminCloseCompany_ThenFail() {
+        assertThrows(RuntimeException.class,
+                () -> service.adminCloseCompany(USER_TOKEN, COMPANY_ID));
+    }
+
+    @Test
+    void GivenAlreadyClosedCompany_WhenAdminCloseCompany_ThenReturnFalse() {
+        service.adminCloseCompany(ADMIN_TOKEN, COMPANY_ID);
+
+        boolean result = service.adminCloseCompany(ADMIN_TOKEN, COMPANY_ID);
+
+        assertFalse(result);
     }
 }

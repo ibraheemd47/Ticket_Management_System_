@@ -382,6 +382,24 @@ public class company_managment_serivce {
                 company.getManagerPermissionsView());
     }
 
+
+    // --- II.6.1: Close Production Company by System Admin ---
+    @Transactional
+    public boolean adminCloseCompany(String actorToken, int companyId) {
+        Company company = getCompanyOrThrow(companyId);
+        Member actor = getActorFromToken(actorToken);
+
+        companyAuthorizationDomainService.assertCanAdminCloseCompany(actor, company);
+
+        boolean changed = company.adminCloseCompany();
+        companyRepository.save(company);
+
+        logger.info("Company closed by system admin. companyId={}, adminId={}, changed={}",
+                companyId, actor.getMemberId(), changed);
+
+        return changed;
+    }
+
     // --- Internal Helpers ---
 
     // private void validateOwnerOrManagerWithPermission(String userId, Company
