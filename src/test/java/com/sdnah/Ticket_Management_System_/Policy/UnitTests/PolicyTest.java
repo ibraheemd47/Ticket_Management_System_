@@ -1,6 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Policy.UnitTests;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
