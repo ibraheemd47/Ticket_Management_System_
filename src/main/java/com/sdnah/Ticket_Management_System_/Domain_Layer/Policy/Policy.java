@@ -2,13 +2,7 @@ package com.sdnah.Ticket_Management_System_.Domain_Layer.Policy;
 
 import java.util.UUID;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.DiscriminatorColumn;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Inheritance;
-import jakarta.persistence.InheritanceType;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "policies")
@@ -23,37 +17,30 @@ public abstract class Policy {
     @Column(name = "description")
     private String description;
 
+    /**
+     * Nullable: policies can be scoped to a company (null) or to a specific event (non-null).
+     */
     @Column(name = "event_id")
     private UUID eventId;
 
     protected Policy() {
-        // JPA required
+        // JPA
     }
 
     protected Policy(int policyId, String description, UUID eventId) {
-        if (policyId <= 0) {
+        if (policyId <= 0)
             throw new IllegalArgumentException("Policy ID must be positive");
-        }
-        if (description == null || description.trim().isEmpty()) {
+        if (description == null || description.trim().isEmpty())
             throw new IllegalArgumentException("Policy description cannot be empty");
-        }
-
-        this.policyId = policyId;
+        // eventId may be null for company-scoped policies
+        this.policyId    = policyId;
         this.description = description;
-        this.eventId = eventId;
+        this.eventId     = eventId;
     }
 
-    public int getPolicyId() {
-        return policyId;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public UUID getEventId() {
-        return eventId;
-    }
+    public int    getPolicyId()   { return policyId; }
+    public String getDescription(){ return description; }
+    public UUID   getEventId()    { return eventId; }
 
     public abstract boolean isValid();
 }

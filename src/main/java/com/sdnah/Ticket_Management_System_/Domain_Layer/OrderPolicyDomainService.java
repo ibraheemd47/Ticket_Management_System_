@@ -1,10 +1,13 @@
 package com.sdnah.Ticket_Management_System_.Domain_Layer;
 
+import java.time.LocalDateTime;
+
 import org.springframework.stereotype.Component;
 
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.DiscountPolicy;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.DiscountContext;
 
 @Component
 public class OrderPolicyDomainService {
@@ -27,7 +30,20 @@ public class OrderPolicyDomainService {
         }
 
         // Calculate final price according to discount policy rules
-        double finalPrice = policy.calculateFinalPrice(originalTotal, quantity, couponCode);
+        //double finalPrice = policy.calculateFinalPrice(originalTotal, quantity, couponCode);
+        DiscountContext context = new DiscountContext(
+        quantity,
+        LocalDateTime.now(),
+        couponCode,
+        order.getEventId(),  // NEW FIX: pass eventId for event-specific rules
+        null,
+        originalTotal,
+        null,
+        null,
+        null
+);
+
+    double finalPrice = policy.computeFinalPrice(originalTotal, context);
         order.updateFinalPrice(finalPrice);
 
         // Store coupon code if provided

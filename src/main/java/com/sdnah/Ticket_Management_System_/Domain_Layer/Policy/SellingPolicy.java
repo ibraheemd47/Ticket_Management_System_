@@ -23,16 +23,25 @@ public class SellingPolicy extends Policy {
 
     public SellingPolicy(int policyId, String description, SellingType type, UUID eventId) {
         super(policyId, description, eventId);
+
+        if (type == null) {
+            throw new IllegalArgumentException("Selling type cannot be null");
+        }
+
         this.type = type;
     }
 
     @Override
     public boolean isValid() {
-        return true;
+        return type != null;
     }
 
     public boolean isSelectionAllowed(boolean isMember) {
-        return type == SellingType.LOTTERY ? isMember : true;
+        if (type == null) {
+            return false;
+        }
+
+        return type == SellingType.REGULAR || isMember;
     }
 
     public SellingType getType() {
@@ -40,6 +49,10 @@ public class SellingPolicy extends Policy {
     }
 
     public void setType(SellingType type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Selling type cannot be null");
+        }
+
         this.type = type;
     }
 }
