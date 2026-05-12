@@ -36,6 +36,7 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
@@ -70,6 +71,9 @@ class ActiveOrderServiceTest {
     @Mock
     private IrepresnteUserService represnteUserService;
 
+    @Mock
+    private OrderActionLogRepository actionLogRepo;
+
     private ActiveOrderService service;
 
     @BeforeEach
@@ -85,7 +89,8 @@ class ActiveOrderServiceTest {
                 ticketGateway,
                 ticketRepository,
                 policyRepository,
-                represnteUserService
+                represnteUserService,
+                actionLogRepo
         );
     }
 

@@ -19,8 +19,12 @@ import com.sdnah.Ticket_Management_System_.Domain_Layer.CheckoutDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderActionLog;
+import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
 
+import com.sdnah.Ticket_Management_System_.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
@@ -41,6 +45,7 @@ public class ActiveOrderService {
     private final Ticket_Domain_Service ticketDomainService;// ++
     private final OrderPolicyDomainService orderPolicyDomainService;
     private final CheckoutDomainService checkoutDomainService;
+    private final OrderActionLogRepository actionLogRepo;
     private IrepresnteUserService represnteUserService;
 
     public ActiveOrderService(ActiveOrderRepository orderRepo,
@@ -51,7 +56,8 @@ public class ActiveOrderService {
             ITicketSupplierGateway ticketGateway,
             TicketRepository ticketRepository,
             PolicyRepository policyRepository,
-            IrepresnteUserService represnteUserService) {
+            IrepresnteUserService represnteUserService,
+            OrderActionLogRepository actionLogRepo) {
         if (orderRepo == null)
             throw new IllegalArgumentException("orderRepo required");
         if (purchaseRepo == null)
@@ -70,6 +76,8 @@ public class ActiveOrderService {
             throw new IllegalArgumentException("represnteUserService required");
         if (paymentService == null)
             throw new IllegalArgumentException("paymentService required");
+        if (actionLogRepo == null)
+            throw new IllegalArgumentException("actionLogRepo required");
 
         this.orderRepo = orderRepo;
         this.purchaseRepo = purchaseRepo;
@@ -80,7 +88,7 @@ public class ActiveOrderService {
         this.ticketDomainService = new Ticket_Domain_Service(ticketRepository);
         this.orderPolicyDomainService = new OrderPolicyDomainService(policyRepository);
         this.checkoutDomainService = new CheckoutDomainService(paymentGateway, ticketGateway, ticketDomainService);
-
+        this.actionLogRepo = actionLogRepo;
     }
 
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
@@ -132,11 +140,61 @@ public class ActiveOrderService {
         logger.info("Removing item {} from order {} by user {}", itemId, orderId, userToken);
         String buyerId = represnteUserService.requireMemberId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
-        order.removeTicket(itemId);
+        OrderItem removed = order.removeTicket(itemId);
+
+        // Record the action so the user can undo it (re-acquire the same seat).
+        actionLogRepo.save(OrderActionLog.forRemovedTicket(order.getId(), removed));
+
         orderPolicyDomainService.applyDiscounts(order, order.getAppliedCouponCode());
         orderRepo.save(order);
         logger.info("Item removed successfully from order {}", orderId);
         return OrderMapper.toDTO(order);
+    }
+
+    /**
+     * Reverses the most recent action recorded against {@code orderId}. The
+     * caller must own the order. Currently supports REMOVE_TICKET (re-adds the
+     * seat); other action types throw until they are retrofitted.
+     */
+    public OrderDTO undoLast(UUID orderId, String userToken) {
+        logger.info("Undo requested for order {} by user {}", orderId, userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
+        ActiveOrder order = findValidOrder(orderId, buyerId);
+
+        OrderActionLog last = actionLogRepo.findTopByOrderIdOrderByIdDesc(orderId)
+                .orElseThrow(() -> {
+                    logger.warn("Undo failed — no actions logged for order {}", orderId);
+                    return new IllegalStateException("Nothing to undo");
+                });
+
+        switch (last.getType()) {
+            case REMOVE_TICKET -> undoRemoveTicket(order, buyerId, last);
+            case ADD_TICKET, APPLY_COUPON -> {
+                throw new IllegalStateException(
+                        "Undo for " + last.getType() + " is not wired up yet");
+            }
+        }
+
+        orderPolicyDomainService.applyDiscounts(order, order.getAppliedCouponCode());
+        orderRepo.save(order);
+        actionLogRepo.deleteById(last.getId());
+        logger.info("Undid action {} on order {}", last.getType(), orderId);
+        return OrderMapper.toDTO(order);
+    }
+
+    private void undoRemoveTicket(ActiveOrder order, String buyerId, OrderActionLog log) {
+        if (orderRepo.isTicketLocked(log.getTicketId())) {
+            // Someone else (or even this user via another order) grabbed the seat
+            // between the remove and the undo — we can't honestly re-attach it.
+            logger.warn("Cannot undo remove on order {} — ticket {} is no longer free",
+                    order.getId(), log.getTicketId());
+            throw new IllegalStateException("Cannot undo: seat no longer available");
+        }
+        Lock lock = new Lock(log.getTicketId(), buyerId, order.getExpiresAt());
+        order.addTicket(log.getTicketId(), log.getSeatId(),
+                log.getAreaId(), log.getPrice(), lock);
+        // Re-acquire the ticket-aggregate lock so its status mirrors the order.
+        ticketDomainService.lockAllTickets(order, java.util.List.of(log.getTicketId()));
     }
 
     public PurchaseDTO checkout(UUID orderId, String userToken, PaymentDetailsDTO paymentDTO) {
