@@ -15,6 +15,7 @@ import com.vaadin.flow.router.Route;
 public class LoginView extends VerticalLayout {
 
     public LoginView() {
+        
         setSizeFull();
         setPadding(false);
         setSpacing(false);
@@ -35,11 +36,34 @@ public class LoginView extends VerticalLayout {
                 .set("border-radius", "4px")
                 .set("overflow", "hidden");
 
+        Div Header =createHeader();
         Div left = createLeftSide();
         Div right = createRightSide();
 
-        page.add(left, right);
+        page.add(Header, left, right);
         add(page);
+    }
+
+    private Div createHeader() {
+        Div header = new Div();
+        header.getStyle()
+                .set("width", "100%")
+                .set("height", "60px")
+                .set("background", "#ffffff")
+                .set("color", "white")
+                .set("display", "flex")
+                .set("align-items", "center")
+                .set("padding", "0 20px")
+                .set("box-sizing", "border-box");
+                H1 logo = new H1("TICKET MANAGEMENT");
+        logo.getStyle()                .set("margin", "0")
+                .set("font-size", "20px");
+                logo.addClickListener(event -> {
+        // Redirects to the MainView (Route "")
+        getUI().ifPresent(ui -> ui.navigate("")); 
+    });
+        header.add(logo);
+        return header;
     }
 
     private Div createLeftSide() {
