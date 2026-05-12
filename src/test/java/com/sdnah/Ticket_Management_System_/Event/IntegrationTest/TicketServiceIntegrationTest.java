@@ -13,16 +13,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.TicketService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Area;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket.TicketStatus;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket.TicketStatus;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -30,8 +31,12 @@ import jakarta.persistence.PersistenceContext;
 @DataJpaTest
 @AutoConfigureTestDatabase
 @ActiveProfiles("test")
-@Import(TicketService.class)
-@EnableJpaRepositories(basePackages = "com.sdnah.Ticket_Management_System_.Infastructure_Layer", excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository.class))
+// 1. Add .backend to the basePackages (if it isn't there already)
+@EnableJpaRepositories(basePackages = "com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer", 
+    // 2. Change Backend to backend
+    excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository.class))
+// 3. Change Backend to backend
+@Import(com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService.class)
 class TicketServiceIntegrationTest {
 
     private static final UUID USER_ID = UUID.randomUUID();

@@ -16,12 +16,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.EventService;
-import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -525,23 +525,4 @@ class EventAcceptanceTest {
                 }
         }
 
-        // -------------------------------------------------------------------------
-        // UC II.2.4 / II.2.8 — Reserve & Checkout
-        // -------------------------------------------------------------------------
-        @Nested
-        @DisplayName("UC II.2.4 / II.2.8 — Reserve and Checkout")
-        class ReserveAndCheckout {
-
-                @Test
-                @Disabled("Requires active_order_service + Booking_service integration")
-                @DisplayName("Reserve tickets — status becomes LOCKED_IN_CART")
-                void reserveTickets() {
-                }
-
-                @Test
-                @Disabled("Requires Booking_service + IPaymentGateway + ITicketSupplierGateway")
-                @DisplayName("Checkout — tickets become PURCHASED all-or-nothing")
-                void checkout() {
-                }
-        }
 }

@@ -16,18 +16,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock;
-import com.sdnah.Ticket_Management_System_.Application_Layer.PasswordHasher;
-import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
-import com.sdnah.Ticket_Management_System_.DTOs.ProfileResponse;
-import com.sdnah.Ticket_Management_System_.DTOs.UpdateProfileRequest;
-import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.VerificationEmail;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.AuthTokenService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PasswordHasher;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.ProfileResponse;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.UpdateProfileRequest;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.VerificationEmail;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserService — Acceptance Tests")

@@ -20,25 +20,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.IPaymentGateway;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.CheckoutDomainService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.CheckoutDomainService.CheckoutResult;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Ticket_Domain_Service;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Area;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentDetails;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.IPaymentGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ITicketSupplierGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CheckoutDomainService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CheckoutDomainService.CheckoutResult;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Ticket_Domain_Service;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentDetails;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentTransaction;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 
-/**
- * Exercises the saga rollback paths in CheckoutDomainService. Each test pins
- * one failure mode and asserts the compensating side effects ran (refund,
- * order cancellation, no orphaned charge, etc.).
- */
 class CheckoutDomainServiceTest {
 
     private IPaymentGateway payment;
@@ -49,7 +44,6 @@ class CheckoutDomainServiceTest {
 
     private ActiveOrder order;
     private PaymentDetails details;
-    private String ticketIdString;
 
     @BeforeEach
     void setUp() {
@@ -59,18 +53,15 @@ class CheckoutDomainServiceTest {
         ticketDomainService = new Ticket_Domain_Service(ticketRepo);
         service = new CheckoutDomainService(payment, tickets, ticketDomainService);
 
-        // Build a real order with a real OrderItem so the saga's
-        // finalize-order step has something to iterate over.
         order = new ActiveOrder("buyer-1", UUID.randomUUID(), 30);
         UUID ticketId = UUID.randomUUID();
-        ticketIdString = ticketId.toString();
+        String ticketIdString = ticketId.toString();
         Area area = new Area("GA");
         Lock lock = new Lock(ticketIdString, "buyer-1", order.getExpiresAt());
         order.addTicket(ticketIdString, 1L, area.getId(), BigDecimal.TEN, lock);
 
         details = mock(PaymentDetails.class);
 
-        // markTicketAsSold is strict — provide a real ticket entity in the repo.
         when(ticketRepo.findById(ticketId)).thenReturn(Optional.of(mock(ticket.class)));
     }
 

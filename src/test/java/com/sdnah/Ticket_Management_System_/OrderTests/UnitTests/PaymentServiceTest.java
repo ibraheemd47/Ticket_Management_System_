@@ -7,9 +7,11 @@ import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.IPaymentGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.PaymentService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentDetails;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentTransaction;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 
 class PaymentServiceTest {
 

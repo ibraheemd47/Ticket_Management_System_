@@ -1,237 +1,267 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.AcceptanceTests;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.IPaymentGateway;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PaymentDetailsDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.PaymentTransaction;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Ticketcode;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.IPaymentGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ITicketSupplierGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.PaymentService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PaymentDetailsDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentTransaction;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
+
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 @DataJpaTest
 @ActiveProfiles("test")
 @Import(ActiveOrderService.class)
 class OrderAcceptanceTest {
 
-    @Autowired
-    private ActiveOrderService orderService;
+        @Autowired
+        private ActiveOrderService orderService;
 
-    @Autowired
-    private ActiveOrderRepository orderRepository;
+        @Autowired
+        private ActiveOrderRepository orderRepository;
 
-    @MockBean
-    private IrepresnteUserService represnteUserService;
+        @MockBean
+        private IrepresnteUserService represnteUserService;
 
-    @MockBean
-    private PaymentService paymentService;
+        @MockBean
+        private PaymentService paymentService;
 
-    @MockBean
-    private IPaymentGateway paymentGateway;
+        @MockBean
+        private IPaymentGateway paymentGateway;
 
-    @MockBean
-    private ITicketSupplierGateway ticketGateway;
+        @MockBean
+        private ITicketSupplierGateway ticketGateway;
 
-    @MockBean
-    private PurchaseRepository purchaseRepository;
+        @MockBean
+        private PurchaseRepository purchaseRepository;
 
-    @MockBean
-    private PaymentTransactionRepository paymentTransactionRepository;
+        @MockBean
+        private PaymentTransactionRepository paymentTransactionRepository;
 
-    @MockBean
-    private TicketRepository ticketRepository;
+        @MockBean
+        private TicketRepository ticketRepository;
 
-    @MockBean
-    private PolicyRepository policyRepository;
+        @MockBean
+        private PolicyRepository policyRepository;
 
-    private static final String TOKEN_BUYER_1 = "token-buyer-1";
-    private static final String TOKEN_BUYER_2 = "token-buyer-2";
-    private static final String BUYER_1 = "11111111-1111-1111-1111-111111111111";
-    private static final String BUYER_2 = "22222222-2222-2222-2222-222222222222";    
+        @MockBean
+        private OrderPolicyDomainService orderPolicyDomainService;
 
-    @BeforeEach
-    void setup() {
-        orderRepository.deleteAll();
+        private static final String TOKEN_BUYER_1 = "token-buyer-1";
+        private static final String TOKEN_BUYER_2 = "token-buyer-2";
+        private static final String BUYER_1 = "buyer1";
+        private static final String BUYER_2 = "buyer2";
 
-        when(represnteUserService.requireMemberId(TOKEN_BUYER_1)).thenReturn(BUYER_1);
-        when(represnteUserService.requireMemberId(TOKEN_BUYER_2)).thenReturn(BUYER_2);
+        @BeforeEach
+        void setup() {
+                orderRepository.deleteAll();
 
-        when(policyRepository.findPurchasePolicyByEventId(any())).thenReturn(null);
-        when(policyRepository.findDiscountPolicyByEventId(any())).thenReturn(null);
+                when(represnteUserService.requireMemberId(TOKEN_BUYER_1)).thenReturn(BUYER_1);
+                when(represnteUserService.requireMemberId(TOKEN_BUYER_2)).thenReturn(BUYER_2);
 
-        when(ticketRepository.findById(any(UUID.class)))
-                .thenReturn(Optional.of(mock(ticket.class)));
-    }
+                when(policyRepository.findPurchasePolicyByEventId(any())).thenReturn(null);
+                when(policyRepository.findDiscountPolicyByEventId(any())).thenReturn(null);
 
-    @Test
-    @DisplayName("Given available tickets, when reserving tickets, then active order is created")
-    void reserveTickets_shouldCreateActiveOrderAndReserveTickets() {
-        UUID eventId = UUID.randomUUID();
+                when(ticketRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+        }
 
-        SeatRequest seat = new SeatRequest(
-                UUID.randomUUID().toString(),
-                1L,
-                UUID.randomUUID(),
-                new BigDecimal("50"));
+        @Test
+        @DisplayName("Given available tickets, when reserving tickets, then active order is created")
+        void reserveTickets_shouldCreateActiveOrderAndReserveTickets() {
+                // Arrange
+                UUID eventId = UUID.randomUUID();
 
-        OrderDTO result = orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
+                SeatRequest seat = new SeatRequest(
+                                UUID.randomUUID().toString(),
+                                1L,
+                                UUID.randomUUID(),
+                                new BigDecimal("50"));
 
-        assertNotNull(result);
-        assertEquals(BUYER_1, result.getbuyerId());
-        assertEquals(eventId, result.getEventId());
+                // Act
+                OrderDTO result = orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
 
-        verify(represnteUserService).requireMemberId(TOKEN_BUYER_1);
-    }
+                // Assert
+                assertNotNull(result);
+                assertEquals(BUYER_1, result.getbuyerId());
+                assertEquals(eventId, result.getEventId());
 
-    @Test
-    @DisplayName("Given same ticket already reserved, when another buyer reserves it, then exception is thrown")
-    void reserveTickets_shouldFail_whenTicketAlreadyReserved() {
-        UUID eventId = UUID.randomUUID();
-        String ticketId = UUID.randomUUID().toString();
+                verify(represnteUserService).requireMemberId(TOKEN_BUYER_1);
+                // Note: ActiveOrderService instantiates its own OrderPolicyDomainService
+                // (rather than injecting the @MockBean), so we assert the visible
+                // side effects via the result above rather than mock interactions.
+        }
 
-        SeatRequest seat = new SeatRequest(
-                ticketId,
-                1L,
-                UUID.randomUUID(),
-                new BigDecimal("50"));
+        @Test
+        @DisplayName("Given same ticket already reserved, when another buyer reserves it, then exception is thrown")
+        void reserveTickets_shouldFail_whenTicketAlreadyReserved() {
+                // Arrange
+                UUID eventId = UUID.randomUUID();
+                String ticketId = UUID.randomUUID().toString();
 
-        orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
+                SeatRequest seat = new SeatRequest(
+                                ticketId,
+                                1L,
+                                UUID.randomUUID(),
+                                new BigDecimal("50"));
 
-        assertThrows(IllegalStateException.class,
-                () -> orderService.reserveTickets(TOKEN_BUYER_2, eventId, List.of(seat)));
-    }
+                orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
 
-    @Test
-    @DisplayName("Given payment and ticket issuance succeed, when checking out, then purchase is completed")
-    void checkout_shouldCompletePurchase_whenPaymentAndTicketIssuanceSucceed() {
-        UUID eventId = UUID.randomUUID();
-        String ticketId = UUID.randomUUID().toString();
+                // Act + Assert
+                assertThrows(IllegalStateException.class,
+                                () -> orderService.reserveTickets(TOKEN_BUYER_2, eventId, List.of(seat)));
+        }
 
-        SeatRequest seat = new SeatRequest(
-                ticketId,
-                1L,
-                UUID.randomUUID(),
-                new BigDecimal("50"));
+        @Test
+        @DisplayName("Given payment and ticket issuance succeed, when checking out, then purchase is completed")
+        void checkout_shouldCompletePurchase_whenPaymentAndTicketIssuanceSucceed() {
+                // Arrange
+                UUID eventId = UUID.randomUUID();
+                String ticketId = UUID.randomUUID().toString();
 
-        OrderDTO order = orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
+                SeatRequest seat = new SeatRequest(
+                                ticketId,
+                                1L,
+                                UUID.randomUUID(),
+                                new BigDecimal("50"));
 
-        when(paymentGateway.charge(any(), any(), any()))
-                .thenReturn(new PaymentTransaction(
-                        "tx-" + UUID.randomUUID(),
-                        order.getOrderId(),
-                        new BigDecimal("50"),
-                        PaymentTransaction.Status.SUCCESS));
+                OrderDTO order = orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
 
-        when(ticketGateway.issueTickets(any(), anyList()))
-                .thenReturn(List.of(new Ticketcode("code1", "qr1")));
+                PaymentTransaction tx = new PaymentTransaction(
+                                "tx-" + UUID.randomUUID(),
+                                order.getOrderId(),
+                                new BigDecimal("50"),
+                                PaymentTransaction.Status.SUCCESS);
 
-        PaymentDetailsDTO paymentDTO = new PaymentDetailsDTO(
-        "card-token",
-        BUYER_1,
-        "VISA");
+                // Checkout now drives the payment via the saga directly through the
+                // gateway (PaymentService is bypassed at this point — transaction
+                // persistence happens in ActiveOrderService after the saga succeeds).
+                when(paymentGateway.charge(any(), any(), any())).thenReturn(tx);
 
-        PurchaseDTO purchase = orderService.checkout(order.getOrderId(), TOKEN_BUYER_1, paymentDTO);
+                when(ticketGateway.issueTickets(any(), anyList()))
+                                .thenReturn(List.of(new Ticketcode("code1", "qr1")));
 
-        assertNotNull(purchase);
+                // markTicketAsSold now requires the ticket to exist — stub a real entity
+                // for this test's seat so the post-checkout aggregate mirror succeeds.
+                ticket reservedTicket = mock(ticket.class);
+                when(ticketRepository.findById(UUID.fromString(ticketId)))
+                                .thenReturn(Optional.of(reservedTicket));
 
-        verify(ticketGateway).issueTickets(any(), anyList());
-        verify(purchaseRepository).save(any());
-    }
+                PaymentDetailsDTO paymentDTO = new PaymentDetailsDTO("card-token", "buyer1", "VISA");
 
-    @Test
-    @DisplayName("Given payment rejected, when checking out, then checkout fails")
-    void checkout_shouldFail_whenPaymentRejected() {
-        UUID eventId = UUID.randomUUID();
-        String ticketId = UUID.randomUUID().toString();
+                // Act
+                PurchaseDTO purchase = orderService.checkout(order.getOrderId(), TOKEN_BUYER_1, paymentDTO);
 
-        SeatRequest seat = new SeatRequest(
-                ticketId,
-                1L,
-                UUID.randomUUID(),
-                new BigDecimal("50"));
+                // Assert
+                assertNotNull(purchase);
+                verify(paymentGateway).charge(any(), any(), any());
+                verify(ticketGateway).issueTickets(any(), anyList());
+                verify(purchaseRepository).save(any());
+                // Transaction persistence goes through PaymentService now.
+                verify(paymentService).saveTransaction(tx);
+        }
 
-        OrderDTO order = orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
+        @Test
+        @DisplayName("Given payment rejected, when checking out, then checkout fails")
+        void checkout_shouldFail_whenPaymentRejected() {
+                // Arrange
+                UUID eventId = UUID.randomUUID();
+                String ticketId = UUID.randomUUID().toString();
 
-        when(paymentGateway.charge(any(), any(), any()))
-                .thenReturn(new PaymentTransaction(
-                        "tx-" + UUID.randomUUID(),
-                        order.getOrderId(),
-                        new BigDecimal("50"),
-                        PaymentTransaction.Status.FAILED));
+                SeatRequest seat = new SeatRequest(
+                                ticketId,
+                                1L,
+                                UUID.randomUUID(),
+                                new BigDecimal("50"));
 
-        PaymentDetailsDTO dto = new PaymentDetailsDTO("card-token", "buyer1", "VISA");
+                OrderDTO order = orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
 
-        assertThrows(IllegalStateException.class,
-                () -> orderService.checkout(order.getOrderId(), TOKEN_BUYER_1, dto));
-    }
+                PaymentTransaction tx = new PaymentTransaction(
+                                "tx-" + UUID.randomUUID(),
+                                order.getOrderId(),
+                                new BigDecimal("50"),
+                                PaymentTransaction.Status.FAILED);
 
-    @Test
-    @DisplayName("Given active order exists, when fetching active order, then it is returned")
-    void getActiveOrder_shouldReturnExistingActiveOrder() {
-        UUID eventId = UUID.randomUUID();
+                when(paymentGateway.charge(any(), any(), any())).thenReturn(tx);
 
-        SeatRequest seat = new SeatRequest(
-                UUID.randomUUID().toString(),
-                1L,
-                UUID.randomUUID(),
-                new BigDecimal("50"));
+                PaymentDetailsDTO dto = new PaymentDetailsDTO("card-token", "buyer1", "VISA");
 
-        orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
+                // Act + Assert
+                assertThrows(IllegalStateException.class,
+                                () -> orderService.checkout(order.getOrderId(), TOKEN_BUYER_1, dto));
+        }
 
-        OrderDTO activeOrder = orderService.getActiveOrder(TOKEN_BUYER_1, eventId);
+        @Test
+        @DisplayName("Given active order exists, when fetching active order, then it is returned")
+        void getActiveOrder_shouldReturnExistingActiveOrder() {
+                // Arrange
+                UUID eventId = UUID.randomUUID();
 
-        assertNotNull(activeOrder);
-        assertEquals(BUYER_1, activeOrder.getbuyerId());
-        assertEquals(eventId, activeOrder.getEventId());
-    }
+                SeatRequest seat = new SeatRequest(
+                                UUID.randomUUID().toString(),
+                                1L,
+                                UUID.randomUUID(),
+                                new BigDecimal("50"));
 
-    @Test
-    @DisplayName("Given active order exists, when cancelling order, then order is no longer active")
-    void cancelOrder_shouldRemoveOrder() {
-        UUID eventId = UUID.randomUUID();
+                orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
 
-        SeatRequest seat = new SeatRequest(
-                UUID.randomUUID().toString(),
-                1L,
-                UUID.randomUUID(),
-                new BigDecimal("50"));
+                // Act
+                OrderDTO activeOrder = orderService.getActiveOrder(TOKEN_BUYER_1, eventId);
 
-        OrderDTO order = orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
+                // Assert
+                assertNotNull(activeOrder);
+                assertEquals(BUYER_1, activeOrder.getbuyerId());
+                assertEquals(eventId, activeOrder.getEventId());
+        }
 
-        orderService.cancelOrder(order.getOrderId(), TOKEN_BUYER_1);
+        @Test
+        @DisplayName("Given active order exists, when cancelling order, then order is no longer active")
+        void cancelOrder_shouldRemoveOrder() {
+                // Arrange
+                UUID eventId = UUID.randomUUID();
 
-        assertThrows(IllegalStateException.class,
-                () -> orderService.getActiveOrder(TOKEN_BUYER_1, eventId));
-    }
+                SeatRequest seat = new SeatRequest(
+                                UUID.randomUUID().toString(),
+                                1L,
+                                UUID.randomUUID(),
+                                new BigDecimal("50"));
+
+                OrderDTO order = orderService.reserveTickets(TOKEN_BUYER_1, eventId, List.of(seat));
+
+                // Act
+                orderService.cancelOrder(order.getOrderId(), TOKEN_BUYER_1);
+
+                // Assert
+                assertThrows(IllegalStateException.class,
+                                () -> orderService.getActiveOrder(TOKEN_BUYER_1, eventId));
+        }
 }

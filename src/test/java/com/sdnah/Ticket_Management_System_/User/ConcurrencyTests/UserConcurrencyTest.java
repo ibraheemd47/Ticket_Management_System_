@@ -24,17 +24,17 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Company.CompanyRoleService;
-import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.System_admin;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.SystemAdminRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.AuthTokenService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.CompanyRoleService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig.TestConfig;
 
 @SpringBootTest

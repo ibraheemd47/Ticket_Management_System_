@@ -18,28 +18,25 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.IPaymentGateway;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Lock;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderActionLog;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.OrderActionLogRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.IPaymentGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ITicketSupplierGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.PaymentService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderActionLog;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderItem;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 
 /**
- * Unit tests for the user-driven undo flow on ActiveOrderService:
- *   - removeFromOrder writes an OrderActionLog entry
- *   - undoLast pops it, re-adds the seat, and deletes the entry
- *   - undoLast refuses gracefully when the seat was taken in the meantime
+ * Unit tests for the user-driven undo flow on ActiveOrderService.
  */
 class UndoActionTest {
 
@@ -77,7 +74,6 @@ class UndoActionTest {
                 ticketRepository, policyRepository, userService, actionLogRepo);
 
         when(userService.requireMemberId(USER_TOKEN)).thenReturn(BUYER_ID);
-        // Policy lookups default to null (no policy) so applyDiscounts is a no-op.
         when(policyRepository.findDiscountPolicyByEventId(any())).thenReturn(null);
     }
 
@@ -92,8 +88,8 @@ class UndoActionTest {
     @DisplayName("Given a user removes a ticket, when removeFromOrder runs, then an OrderActionLog is persisted")
     void removeFromOrder_PersistsActionLog() {
         String ticketId = UUID.randomUUID().toString();
-        // Order has TWO items so the post-remove applyDiscounts still sees a
-        // non-empty order (OrderPolicyDomainService.validateOrder requires it).
+        // Order has TWO items so post-remove the order is not empty (policy
+        // validation requires non-empty).
         ActiveOrder order = new ActiveOrder(BUYER_ID, EVENT_ID, 30);
         Lock l1 = new Lock(ticketId, BUYER_ID, order.getExpiresAt());
         order.addTicket(ticketId, 7L, UUID.randomUUID(), new BigDecimal("50"), l1);
@@ -123,8 +119,6 @@ class UndoActionTest {
     void undoLast_OnRemoveTicket_ReAddsSeatAndDeletesLog() {
         String ticketId = UUID.randomUUID().toString();
         ActiveOrder order = new ActiveOrder(BUYER_ID, EVENT_ID, 30);
-        // The order also needs at least one item for applyDiscounts to pass validation
-        // (validateOrder requires non-empty items). The re-added item from undo provides it.
         when(orderRepo.findById(order.getId())).thenReturn(Optional.of(order));
         when(orderRepo.isTicketLocked(ticketId)).thenReturn(false);
 

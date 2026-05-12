@@ -20,14 +20,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.TicketService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Waiting_QueueService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Area;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket.TicketStatus;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Waiting_Queue.WaitingQueue;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.Waiting_QueueRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Waiting_QueueService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket.TicketStatus;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Waiting_Queue.WaitingQueue;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.Waiting_QueueRepository;
 
 /**
  * Unit tests covering the buy-or-queue flow:
