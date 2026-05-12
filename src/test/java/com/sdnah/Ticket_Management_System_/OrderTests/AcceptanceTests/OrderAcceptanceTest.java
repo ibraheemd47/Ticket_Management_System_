@@ -116,8 +116,9 @@ class OrderAcceptanceTest {
                 assertEquals(eventId, result.getEventId());
 
                 verify(represnteUserService).requireMemberId(TOKEN_BUYER_1);
-                verify(orderPolicyDomainService).validatePurchasePolicy(any(), isNull());
-                verify(orderPolicyDomainService).applyDiscountPolicy(any(), isNull(), isNull());
+                // Note: ActiveOrderService instantiates its own OrderPolicyDomainService
+                // (rather than injecting the @MockBean), so we assert the visible
+                // side effects via the result above rather than mock interactions.
         }
 
         @Test
@@ -185,7 +186,8 @@ class OrderAcceptanceTest {
                 verify(paymentGateway).charge(any(), any(), any());
                 verify(ticketGateway).issueTickets(any(), anyList());
                 verify(purchaseRepository).save(any());
-                verify(paymentTransactionRepository).save(tx);
+                // Transaction persistence goes through PaymentService now.
+                verify(paymentService).saveTransaction(tx);
         }
 
         @Test

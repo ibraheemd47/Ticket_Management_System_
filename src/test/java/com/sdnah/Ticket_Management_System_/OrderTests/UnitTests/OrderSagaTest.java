@@ -16,21 +16,9 @@ class OrderSagaTest {
 
     private static CompensableStep step(String name, List<String> log, Runnable forward) {
         return new CompensableStep() {
-            @Override
-            public void execute() {
-                forward.run();
-                log.add("do:" + name);
-            }
-
-            @Override
-            public void compensate() {
-                log.add("undo:" + name);
-            }
-
-            @Override
-            public String name() {
-                return name;
-            }
+            @Override public void execute()    { forward.run(); log.add("do:" + name); }
+            @Override public void compensate() { log.add("undo:" + name); }
+            @Override public String name()     { return name; }
         };
     }
 
@@ -40,12 +28,9 @@ class OrderSagaTest {
         List<String> log = new ArrayList<>();
         OrderSaga saga = new OrderSaga();
 
-        saga.run(step("a", log, () -> {
-        }))
-                .run(step("b", log, () -> {
-                }))
-                .run(step("c", log, () -> {
-                }));
+        saga.run(step("a", log, () -> {}))
+            .run(step("b", log, () -> {}))
+            .run(step("c", log, () -> {}));
 
         assertThat(log).containsExactly("do:a", "do:b", "do:c");
         assertThat(saga.isRolledBack()).isFalse();
@@ -57,16 +42,13 @@ class OrderSagaTest {
     void middleStepThrows_PriorStepsCompensateLifo() {
         List<String> log = new ArrayList<>();
         OrderSaga saga = new OrderSaga();
-        saga.run(step("a", log, () -> {
-        }));
+        saga.run(step("a", log, () -> {}));
 
-        assertThatThrownBy(() -> saga.run(step("b", log, () -> {
-            throw new IllegalStateException("boom");
-        })))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("boom");
+        assertThatThrownBy(() ->
+                saga.run(step("b", log, () -> { throw new IllegalStateException("boom"); })))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("boom");
 
-        // 'a' succeeded; 'b' threw before completing → only 'a' compensates.
         assertThat(log).containsExactly("do:a", "undo:a");
         assertThat(saga.isRolledBack()).isTrue();
     }
@@ -77,33 +59,17 @@ class OrderSagaTest {
         List<String> log = new ArrayList<>();
         OrderSaga saga = new OrderSaga();
 
-        saga.run(step("a", log, () -> {
-        }));
+        saga.run(step("a", log, () -> {}));
         saga.run(new CompensableStep() {
-            @Override
-            public void execute() {
-                log.add("do:b");
-            }
-
-            @Override
-            public void compensate() {
-                log.add("undo:b-fail");
-                throw new RuntimeException("boom-undo");
-            }
-
-            @Override
-            public String name() {
-                return "b";
-            }
+            @Override public void execute()    { log.add("do:b"); }
+            @Override public void compensate() { log.add("undo:b-fail"); throw new RuntimeException("boom-undo"); }
+            @Override public String name()     { return "b"; }
         });
 
-        assertThatThrownBy(() -> saga.run(step("c", log, () -> {
-            throw new RuntimeException("trigger");
-        })))
-                .isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() ->
+                saga.run(step("c", log, () -> { throw new RuntimeException("trigger"); })))
+            .isInstanceOf(RuntimeException.class);
 
-        // LIFO: b's compensation runs and throws, but a's compensation must still
-        // execute.
         assertThat(log).containsExactly("do:a", "do:b", "undo:b-fail", "undo:a");
     }
 
@@ -113,8 +79,7 @@ class OrderSagaTest {
         OrderSaga saga = new OrderSaga();
         saga.rollback();
 
-        assertThatThrownBy(() -> saga.run(step("x", new ArrayList<>(), () -> {
-        })))
+        assertThatThrownBy(() -> saga.run(step("x", new ArrayList<>(), () -> {})))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already rolled back");
     }

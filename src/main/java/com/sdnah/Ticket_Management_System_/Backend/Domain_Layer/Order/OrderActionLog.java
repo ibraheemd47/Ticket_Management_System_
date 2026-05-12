@@ -49,103 +49,60 @@ public class OrderActionLog {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    // ── Snapshot fields (nullable; semantics depend on `type`) ───────────────
+    @Column(name = "ticket_id")           private String ticketId;
+    @Column(name = "seat_id")             private Long seatId;
+    @Column(name = "area_id")             private UUID areaId;
+    @Column(name = "price")               private BigDecimal price;
+    @Column(name = "coupon_code")         private String couponCode;
+    @Column(name = "prior_final_price")   private BigDecimal priorFinalPrice;
 
-    @Column(name = "ticket_id")
-    private String ticketId;
-
-    @Column(name = "seat_id")
-    private Long seatId;
-
-    @Column(name = "area_id")
-    private UUID areaId;
-
-    @Column(name = "price")
-    private BigDecimal price;
-
-    @Column(name = "coupon_code")
-    private String couponCode;
-
-    @Column(name = "prior_final_price")
-    private BigDecimal priorFinalPrice;
-
-    protected OrderActionLog() {
-    }
+    protected OrderActionLog() {}
 
     /** Inverse: re-add the same ticket to the order. */
     public static OrderActionLog forRemovedTicket(UUID orderId, OrderItem item) {
         OrderActionLog log = new OrderActionLog();
-        log.orderId = orderId;
-        log.type = ActionType.REMOVE_TICKET;
+        log.orderId   = orderId;
+        log.type      = ActionType.REMOVE_TICKET;
         log.createdAt = LocalDateTime.now();
-        log.ticketId = item.getTicketId();
-        log.seatId = item.getSeatId();
-        log.areaId = item.getAreaId();
-        log.price = item.getPrice();
+        log.ticketId  = item.getTicketId();
+        log.seatId    = item.getSeatId();
+        log.areaId    = item.getAreaId();
+        log.price     = item.getPrice();
         return log;
     }
 
     /** Inverse: remove the just-added ticket from the order. */
     public static OrderActionLog forAddedTicket(UUID orderId, OrderItem item) {
         OrderActionLog log = new OrderActionLog();
-        log.orderId = orderId;
-        log.type = ActionType.ADD_TICKET;
+        log.orderId   = orderId;
+        log.type      = ActionType.ADD_TICKET;
         log.createdAt = LocalDateTime.now();
-        log.ticketId = item.getTicketId();
-        log.seatId = item.getSeatId();
-        log.areaId = item.getAreaId();
-        log.price = item.getPrice();
+        log.ticketId  = item.getTicketId();
+        log.seatId    = item.getSeatId();
+        log.areaId    = item.getAreaId();
+        log.price     = item.getPrice();
         return log;
     }
 
     /** Inverse: revert finalPrice to {@code priorFinalPrice} and clear coupon. */
     public static OrderActionLog forAppliedCoupon(UUID orderId, String couponCode, BigDecimal priorFinalPrice) {
         OrderActionLog log = new OrderActionLog();
-        log.orderId = orderId;
-        log.type = ActionType.APPLY_COUPON;
-        log.createdAt = LocalDateTime.now();
-        log.couponCode = couponCode;
+        log.orderId         = orderId;
+        log.type            = ActionType.APPLY_COUPON;
+        log.createdAt       = LocalDateTime.now();
+        log.couponCode      = couponCode;
         log.priorFinalPrice = priorFinalPrice;
         return log;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public UUID getOrderId() {
-        return orderId;
-    }
-
-    public ActionType getType() {
-        return type;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public String getTicketId() {
-        return ticketId;
-    }
-
-    public Long getSeatId() {
-        return seatId;
-    }
-
-    public UUID getAreaId() {
-        return areaId;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public String getCouponCode() {
-        return couponCode;
-    }
-
-    public BigDecimal getPriorFinalPrice() {
-        return priorFinalPrice;
-    }
+    public Long getId()                   { return id; }
+    public UUID getOrderId()              { return orderId; }
+    public ActionType getType()           { return type; }
+    public LocalDateTime getCreatedAt()   { return createdAt; }
+    public String getTicketId()           { return ticketId; }
+    public Long getSeatId()               { return seatId; }
+    public UUID getAreaId()               { return areaId; }
+    public BigDecimal getPrice()          { return price; }
+    public String getCouponCode()         { return couponCode; }
+    public BigDecimal getPriorFinalPrice() { return priorFinalPrice; }
 }

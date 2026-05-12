@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
  * later step throws, the runner walks the stack in reverse and invokes
  * {@code compensate} on each previously-completed step before rethrowing.
  *
- * The runner is single-use. Construct a new instance per business transaction.
+ * Single-use — construct a new instance per business transaction.
  */
 public final class OrderSaga {
 
@@ -23,8 +23,7 @@ public final class OrderSaga {
 
     /**
      * Run a step. On exception, the runner rolls back every previously
-     * completed step (LIFO, best-effort) and rethrows the original exception
-     * so the caller can translate it to a domain-specific error.
+     * completed step (LIFO, best-effort) and rethrows the original exception.
      */
     public OrderSaga run(CompensableStep step) {
         if (rolledBack) {
@@ -41,14 +40,9 @@ public final class OrderSaga {
         }
     }
 
-    /**
-     * Manually trigger compensation of every completed step. Useful when the
-     * caller decides post-hoc that the whole transaction should be undone
-     * (e.g. a downstream validation rejected the result).
-     */
+    /** Manually trigger compensation of every completed step. */
     public void rollback() {
-        if (rolledBack)
-            return;
+        if (rolledBack) return;
         rolledBack = true;
         for (int i = completed.size() - 1; i >= 0; i--) {
             CompensableStep step = completed.get(i);
@@ -56,8 +50,6 @@ public final class OrderSaga {
                 step.compensate();
                 log.info("compensated step '{}'", step.name());
             } catch (RuntimeException ex) {
-                // Best-effort: keep compensating, but surface the partial failure
-                // for an operator to reconcile.
                 log.error("compensation for step '{}' failed: {}",
                         step.name(), ex.getMessage(), ex);
             }

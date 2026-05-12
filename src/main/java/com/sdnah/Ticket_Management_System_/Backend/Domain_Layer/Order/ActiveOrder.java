@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -75,6 +77,19 @@ public class ActiveOrder {
         this.version = 0;
     }
 
+    public List<String> reserveTickets(List<SeatRequest> seats, String buyerId, List<Boolean> lockedStatuses) {
+        List<String> reservedTicketIds = new ArrayList<>();
+        for (int i = 0; i < seats.size(); i++) {
+            SeatRequest seat = seats.get(i);
+            if (lockedStatuses.get(i))
+                throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
+            Lock lock = new Lock(seat.getTicketId(), buyerId, this.expiresAt);
+            addTicket(seat.getTicketId(), seat.getSeatId(), seat.getAreaId(), seat.getPrice(), lock);
+            reservedTicketIds.add(seat.getTicketId());
+        }
+        return reservedTicketIds;
+    }
+
     public OrderItem addTicket(String ticketId, Long seatId, UUID areaId,
             BigDecimal price, Lock lock) {
         if (status != Status.ACTIVE)
@@ -85,6 +100,18 @@ public class ActiveOrder {
         item.setLock(lock);
         items.add(item);
         return item;
+    }
+
+    public String addTicketToOrder(SeatRequest seat, String buyerId, boolean isLocked) {
+        if (status != Status.ACTIVE)
+            throw new IllegalStateException("Order is not active");
+        if (isExpired())
+            throw new IllegalStateException("Order has expired");
+        if (isLocked)
+            throw new IllegalStateException("Ticket already reserved: " + seat.getTicketId());
+        Lock lock = new Lock(seat.getTicketId(), buyerId, this.expiresAt);
+        addTicket(seat.getTicketId(), seat.getSeatId(), seat.getAreaId(), seat.getPrice(), lock);
+        return seat.getTicketId();
     }
 
     public OrderItem removeTicket(UUID itemId) {
@@ -199,6 +226,11 @@ public class ActiveOrder {
      */
     public List<String> expireOrder() {
         markExpired();
+        return releaseAllLocks();
+    }
+
+    public List<String> cancel() {
+        markCancelled();
         return releaseAllLocks();
     }
 
