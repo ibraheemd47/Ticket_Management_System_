@@ -3,7 +3,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
-
+//cupon-based discount policy
 @Entity
 @DiscriminatorValue("COUPON")
 public class CouponDiscountRule extends DiscountRule {
