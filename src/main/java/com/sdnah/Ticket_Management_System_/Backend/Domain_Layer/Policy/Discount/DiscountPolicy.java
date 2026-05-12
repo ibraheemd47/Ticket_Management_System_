@@ -14,7 +14,6 @@ public class DiscountPolicy extends Policy {
 
     @Column(name = "is_additive")
     private boolean isAdditive = false;
-
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     @JoinColumn(name = "root_rule_id")
     private DiscountRule rootRule;
