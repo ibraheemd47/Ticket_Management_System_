@@ -7,7 +7,7 @@ import java.util.UUID;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 
 import jakarta.persistence.*;
-
+//base
 @Entity
 @DiscriminatorValue("DISCOUNT")
 public class DiscountPolicy extends Policy {
