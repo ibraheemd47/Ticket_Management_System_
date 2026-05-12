@@ -3,7 +3,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount
 import java.util.List;
 
 import jakarta.persistence.*;
-
+//84
 @Entity
 @DiscriminatorValue("SUM")
 public class SumDiscountRule extends CompositeDiscountRule {
