@@ -1,7 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase;
 
 import jakarta.persistence.*;
-
+//Implement quantity-based purchase rule
 @Entity
 @DiscriminatorValue("MAX_TICKETS")
 public class MaxTicketsRule extends PurchaseRule {
