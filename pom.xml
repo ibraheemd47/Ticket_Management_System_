@@ -111,8 +111,11 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.sdnah.Ticket_Management_System_.TicketManagementSystemApplication</mainClass>
+                </configuration>
             </plugin>
-
+            
             <plugin>
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-maven-plugin</artifactId>
