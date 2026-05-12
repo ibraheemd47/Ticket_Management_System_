@@ -1,7 +1,5 @@
 package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy;
-
 import java.util.UUID;
-
 import jakarta.persistence.*;
 
 @Entity
