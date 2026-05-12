@@ -1,7 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount;
 
 import jakarta.persistence.*;
-
+//Implement conditional discount policy
 @Entity
 @DiscriminatorValue("QUANTITY")
 public class QuantityConditionalDiscountRule extends DiscountRule {
