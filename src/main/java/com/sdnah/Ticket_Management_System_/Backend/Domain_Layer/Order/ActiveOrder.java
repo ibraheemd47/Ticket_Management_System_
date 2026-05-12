@@ -101,6 +101,7 @@ public class ActiveOrder {
         items.add(item);
         return item;
     }
+
     public String addTicketToOrder(SeatRequest seat, String buyerId, boolean isLocked) {
         if (status != Status.ACTIVE)
             throw new IllegalStateException("Order is not active");
@@ -158,14 +159,27 @@ public class ActiveOrder {
         this.discount = discount;
     }
 
+    /**
+     * Final price — updated every time PolicyService is called.
+     * If PolicyService was not called yet, returns original total.
+     */
     public BigDecimal getFinalPrice() {
         return finalPrice != null ? finalPrice : getTotal();
     }
 
+    /** Discount = total - finalPrice */
     public BigDecimal getDiscount() {
         return getTotal().subtract(getFinalPrice());
     }
 
+    /**
+     * Updates finalPrice directly from PolicyService result.
+     * Called after every PolicyService call:
+     * - applyGeneralDiscounts (type b) in reserveTickets / removeFromOrder
+     * - calculateCouponDiscount (type c) in applyCoupon
+     * If no discount applies, PolicyService returns original total → finalPrice =
+     * total → discount = 0.
+     */
     public void updateFinalPrice(double priceFromPolicyService) {
         BigDecimal price = BigDecimal.valueOf(priceFromPolicyService);
         if (price.compareTo(BigDecimal.ZERO) < 0)
@@ -189,16 +203,6 @@ public class ActiveOrder {
         return lockIds;
     }
 
-    public List<String> cancel() {
-        markCancelled();
-        return releaseAllLocks();
-    }
-
-    public List<String> expireOrder() {
-        markExpired();
-        return releaseAllLocks();
-    }
-
     public void setAppliedCouponCode(String code) {
         this.appliedCouponCode = code;
     }
@@ -213,6 +217,21 @@ public class ActiveOrder {
 
     public void markCancelled() {
         this.status = Status.CANCELLED;
+    }
+
+    /**
+     * Mark the order EXPIRED and clear every item's lock in one step.
+     * Returns the ticket IDs whose locks were released so the caller can
+     * release them in the ticket aggregate.
+     */
+    public List<String> expireOrder() {
+        markExpired();
+        return releaseAllLocks();
+    }
+
+    public List<String> cancel() {
+        markCancelled();
+        return releaseAllLocks();
     }
 
     public UUID getId() {

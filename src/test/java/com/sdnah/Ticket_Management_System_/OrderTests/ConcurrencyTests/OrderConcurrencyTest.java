@@ -1,5 +1,10 @@
 package com.sdnah.Ticket_Management_System_.OrderTests.ConcurrencyTests;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -11,13 +16,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -71,6 +72,9 @@ class OrderConcurrencyTest {
     private PolicyRepository policyRepository;
 
     @MockBean
+    private OrderPolicyDomainService orderPolicyDomainService;
+
+    @MockBean
     private IrepresnteUserService represnteUserService;
 
     private static class Outcome {
@@ -83,6 +87,7 @@ class OrderConcurrencyTest {
     void setup() {
         activeOrderRepository.deleteAll();
 
+        // In these tests we use the token string itself as the buyerId.
         when(represnteUserService.requireMemberId(any(String.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
