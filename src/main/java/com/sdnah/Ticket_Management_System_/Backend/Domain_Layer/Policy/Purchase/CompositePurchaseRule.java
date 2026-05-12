@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.*;
-
+//#78
 /**
  * Abstract composite rule — stored in the same purchase_rules table.
  * Children linked via parent_rule_id (self-referential @OneToMany).
