@@ -7,7 +7,7 @@ import java.util.UUID;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 
 import jakarta.persistence.*;
-
+//Implement purchase policy base abstraction
 @Entity
 @DiscriminatorValue("PURCHASE")
 public class PurchasePolicy extends Policy {
