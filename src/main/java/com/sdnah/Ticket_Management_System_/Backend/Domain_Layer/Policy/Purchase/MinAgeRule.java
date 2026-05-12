@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase
 
 import jakarta.persistence.*;
 
+//Implement age-based purchase rule
 @Entity
 @DiscriminatorValue("MIN_AGE")
 public class MinAgeRule extends PurchaseRule {
