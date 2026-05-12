@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.*;
-
+//85
 @Entity
 @DiscriminatorValue("COMPOSITE")
 public abstract class CompositeDiscountRule extends DiscountRule {
