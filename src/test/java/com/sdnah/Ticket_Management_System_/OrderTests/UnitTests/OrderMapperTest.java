@@ -7,13 +7,13 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.OrderMapper;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderItemDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.PurchaseDTO;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.ActiveOrder;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.OrderItem;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Order.Purchase;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.OrderMapper;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderItemDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderItem;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
 
 class OrderMapperTest {
 

@@ -10,10 +10,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mail.javamail.JavaMailSender;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.PasswordHasher;
-import com.sdnah.Ticket_Management_System_.DTOs.VerificationMethod;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.VerificationEmail;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PasswordHasher;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.VerificationEmail;
 
 class VerificationEmailTest {
 

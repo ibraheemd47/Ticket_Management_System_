@@ -6,9 +6,9 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.ManagerPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ManagerPermission;
 
 class CompanyRoleAssignmentTest {
 

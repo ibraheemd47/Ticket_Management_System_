@@ -1,16 +1,16 @@
 package com.sdnah.Ticket_Management_System_.Policy.AcceptanceTests;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.PolicyService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.SellingPolicy;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.DiscountPolicy;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.PercentageDiscountRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.CouponDiscountRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.MaxTicketsRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.MinAgeRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.MinTicketsRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.PurchasePolicy;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -339,7 +339,7 @@ class PolicyServiceAcceptanceTest {
 
         verify(policyRepo).savePolicy(policy);
         assertEquals(10.0, policy.computeDiscount(
-                new com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount
+                new com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount
                         .DiscountContext(1, null)), 0.001);
     }
 
@@ -369,7 +369,7 @@ class PolicyServiceAcceptanceTest {
 
         verify(policyRepo).savePolicy(policy);
         assertEquals(30.0, policy.computeDiscount(
-                new com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount
+                new com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount
                         .DiscountContext(1, null)), 0.001);
     }
 
@@ -387,7 +387,7 @@ class PolicyServiceAcceptanceTest {
 
         verify(policyRepo).savePolicy(policy);
         assertEquals(0.0, policy.computeDiscount(
-                new com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Discount
+                new com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount
                         .DiscountContext(1, null)), 0.001);
     }
 

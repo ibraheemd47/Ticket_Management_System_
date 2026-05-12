@@ -1,8 +1,9 @@
 package com.sdnah.Ticket_Management_System_.NotificationTests;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.Notification;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Notifications.NotificationType;
 import org.junit.jupiter.api.Test;
+
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.Notification;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
 
 import static org.junit.jupiter.api.Assertions.*;
 

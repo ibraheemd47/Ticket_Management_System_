@@ -2,8 +2,8 @@ package com.sdnah.Ticket_Management_System_;
 
 import org.junit.jupiter.api.*;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -308,5 +308,30 @@ class CompanyTest {
 
                 assertEquals(1, success.get());
                 assertTrue(company.isManager(MANAGER));
+        }
+
+        @Test
+        void GivenAdminCloseCompany_WhenCalled_ThenCompanyClosedAndRolesCleared() {
+                company.appointAdditionalOwner(FOUNDER, OWNER);
+                company.appointManager(
+                                FOUNDER,
+                                MANAGER,
+                                EnumSet.of(CompanyPermission.MANAGE_EVENTS));
+
+                boolean changed = company.adminCloseCompany();
+
+                assertTrue(changed);
+                assertFalse(company.isOpen());
+                assertTrue(company.getOwnerIds().isEmpty());
+                assertTrue(company.getManagers().isEmpty());
+        }
+
+        @Test
+        void GivenAlreadyClosedCompany_WhenAdminCloseCompany_ThenReturnFalse() {
+                company.adminCloseCompany();
+
+                boolean changedAgain = company.adminCloseCompany();
+
+                assertFalse(changedAgain);
         }
 }

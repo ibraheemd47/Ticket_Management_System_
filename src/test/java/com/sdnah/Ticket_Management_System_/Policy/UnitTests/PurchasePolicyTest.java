@@ -1,10 +1,10 @@
 package com.sdnah.Ticket_Management_System_.Policy.UnitTests;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.MaxTicketsRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.MinTicketsRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.MinAgeRule;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.PurchasePolicy;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase.RuleResult;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.RuleResult;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -150,7 +150,7 @@ class PurchasePolicyTest {
         policy.addRule(new MinAgeRule(18));
 
         RuleResult result = policy.validate(
-                new com.sdnah.Ticket_Management_System_.Domain_Layer.Policy.Purchase
+                new com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase
                         .PurchaseContext(16, 1, false, false, null));
 
         assertFalse(result.isAllowed());

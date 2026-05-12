@@ -1,18 +1,19 @@
 package com.sdnah.Ticket_Management_System_;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Company.company_managment_serivce;
-import com.sdnah.Ticket_Management_System_.DTOs.CompanyDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.CompanyRolesViewDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.EventDto;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.Company;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Company.CompanyPermission;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Event;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.CompanyRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.IEventRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,9 @@ public class CompanyAcceptanceTest {
     private static final String USER_300_ID = "300";
     private static final String USER_201_ID = "201";
     private static final String USER_999_ID = "999";
+
+    private static final String ADMIN_ID = "500";
+    private static final String ADMIN_TOKEN = "token500";
 
     private static final String FOUNDER_TOKEN = "token100";
     private static final String USER_200_TOKEN = "token200";
@@ -120,6 +124,9 @@ public class CompanyAcceptanceTest {
         mockMember(USER_300_ID, "user300", USER_300_TOKEN);
         mockMember(USER_201_ID, "user201", USER_201_TOKEN);
         mockMember(USER_999_ID, "user999", USER_999_TOKEN);
+
+        mockMember(ADMIN_ID, "admin", ADMIN_TOKEN);
+        membersById.get(ADMIN_ID).setRole(UserRole.SYSTEM_ADMIN);
     }
 
     private void mockMember(String memberId, String username, String tokenValue) {
@@ -610,5 +617,45 @@ public class CompanyAcceptanceTest {
 
         assertThrows(RuntimeException.class,
                 () -> companyService.viewRolesAndPermissions(FOUNDER_TOKEN, 2));
+    }
+
+    // II.6.1 Close Production Company by System Admin
+    @Test
+    void systemAdminClosesProductionCompanySuccessfully() {
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
+        companyService.appointManager(
+                FOUNDER_TOKEN,
+                1,
+                USER_200_ID,
+                Set.of(CompanyPermission.MANAGE_EVENTS));
+
+        boolean changed = companyService.adminCloseCompany(ADMIN_TOKEN, 1);
+
+        Company company = companyRepository.findById(1).orElseThrow();
+
+        assertTrue(changed);
+        assertFalse(company.isOpen());
+        assertTrue(company.getOwnerIds().isEmpty());
+        assertTrue(company.getManagers().isEmpty());
+        assertTrue(company.getManagerPermissionsView().isEmpty());
+    }
+
+    @Test
+    void nonAdminCannotCloseProductionCompanyAsSystemAdmin() {
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+
+        assertThrows(RuntimeException.class,
+                () -> companyService.adminCloseCompany(USER_300_TOKEN, 1));
+    }
+
+    @Test
+    void systemAdminCloseAlreadyClosedCompanyReturnsFalse() {
+        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        companyService.adminCloseCompany(ADMIN_TOKEN, 1);
+
+        boolean changedAgain = companyService.adminCloseCompany(ADMIN_TOKEN, 1);
+
+        assertFalse(changedAgain);
     }
 }

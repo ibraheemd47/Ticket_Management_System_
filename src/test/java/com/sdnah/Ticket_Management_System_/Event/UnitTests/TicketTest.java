@@ -4,8 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Area;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
 
 import java.math.BigDecimal;
 import java.util.Date;

@@ -14,14 +14,14 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.KeyedLock;
-import com.sdnah.Ticket_Management_System_.Application_Layer.SystemAdminService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.UserService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.System_admin;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.UserRole;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.SystemAdminRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class SystemAdminServiceAcceptanceTest {

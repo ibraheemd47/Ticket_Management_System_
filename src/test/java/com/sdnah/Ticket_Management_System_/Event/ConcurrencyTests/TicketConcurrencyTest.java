@@ -24,11 +24,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.TicketService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.Area;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.Event.ticket.TicketStatus;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket.TicketStatus;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;

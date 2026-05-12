@@ -1,10 +1,4 @@
-
 package com.sdnah.Ticket_Management_System_.OrderTests.ConcurrencyTests;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -17,27 +11,32 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.IrepresnteUserService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.ITicketSupplierGateway;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Order.PaymentService;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.DTOs.OrderDTOs.SeatRequest;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.OrderPolicyDomainService;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.ActiveOrderRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PaymentTransactionRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.PurchaseRepository;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.IPaymentGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ITicketSupplierGateway;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.PaymentService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -60,6 +59,9 @@ class OrderConcurrencyTest {
     private PaymentService paymentService;
 
     @MockBean
+    private IPaymentGateway paymentGateway;
+
+    @MockBean
     private ITicketSupplierGateway ticketGateway;
 
     @MockBean
@@ -67,9 +69,6 @@ class OrderConcurrencyTest {
 
     @MockBean
     private PolicyRepository policyRepository;
-
-    @MockBean
-    private OrderPolicyDomainService orderPolicyDomainService;
 
     @MockBean
     private IrepresnteUserService represnteUserService;
@@ -84,7 +83,6 @@ class OrderConcurrencyTest {
     void setup() {
         activeOrderRepository.deleteAll();
 
-        // In these tests we use the token string itself as the buyerId.
         when(represnteUserService.requireMemberId(any(String.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 

@@ -14,13 +14,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.sdnah.Ticket_Management_System_.Application_Layer.AuthTokenService;
-import com.sdnah.Ticket_Management_System_.Application_Layer.Company.CompanyRoleService;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleAssignment;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.CompanyRoleType;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.ManagerPermission;
-import com.sdnah.Ticket_Management_System_.Domain_Layer.User.Member;
-import com.sdnah.Ticket_Management_System_.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.AuthTokenService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.CompanyRoleService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ManagerPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig.TestConfig;
 
 @SpringBootTest
@@ -35,13 +35,13 @@ class CompanyRoleServiceIntegrationTest {
         private static final String MANAGER_ID = "manager-1";
         private static final String OWNER_USERNAME = "ownerUser";
         @MockBean
-        private com.sdnah.Ticket_Management_System_.Application_Layer.Order.ActiveOrderService activeOrderService;
+        private com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService activeOrderService;
 @MockBean
-private com.sdnah.Ticket_Management_System_.Application_Layer.PolicyService policyService;
+private com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService policyService;
 @MockBean
-private com.sdnah.Ticket_Management_System_.Infastructure_Layer.PolicyRepository policyRepository;
+private com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository policyRepository;
         @MockBean
-        private com.sdnah.Ticket_Management_System_.Application_Layer.Factory factory;
+        private com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Factory factory;
         @Autowired
         private CompanyRoleService companyRoleService;
 
