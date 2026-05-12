@@ -3,7 +3,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase
 import java.util.List;
 
 import jakarta.persistence.*;
-
+//Implement AND composition for purchase rules
 @Entity
 @DiscriminatorValue("AND")
 public class AndRule extends CompositePurchaseRule {
