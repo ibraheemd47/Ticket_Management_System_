@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.*;
-
+//Implement OR composition for purchase rules
 @Entity
 @DiscriminatorValue("OR")
 public class OrRule extends CompositePurchaseRule {
