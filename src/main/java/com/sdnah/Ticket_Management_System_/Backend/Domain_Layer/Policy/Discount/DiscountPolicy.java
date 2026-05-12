@@ -21,8 +21,8 @@ public class DiscountPolicy extends Policy {
 
     protected DiscountPolicy() {}
 
-    public DiscountPolicy(int policyId, String description, UUID eventId) {
-        super(policyId, description, eventId);
+    public DiscountPolicy(int policyId, String description, UUID eventId, int companyId) {
+        super(policyId, description, eventId, companyId);
     }
 
     public void addRule(DiscountRule newRule) {

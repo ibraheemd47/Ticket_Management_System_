@@ -15,6 +15,9 @@ public abstract class Policy {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "company_id", nullable = false)
+    private int companyId;
+
     /**
      * Nullable: policies can be scoped to a company (null) or to a specific event (non-null).
      */
@@ -25,20 +28,25 @@ public abstract class Policy {
         // JPA
     }
 
-    protected Policy(int policyId, String description, UUID eventId) {
+    protected Policy(int policyId, String description, UUID eventId, int companyId) {
         if (policyId <= 0)
             throw new IllegalArgumentException("Policy ID must be positive");
         if (description == null || description.trim().isEmpty())
             throw new IllegalArgumentException("Policy description cannot be empty");
+        if (companyId <= 0)
+            throw new IllegalArgumentException("Company ID must be positive");
         // eventId may be null for company-scoped policies
         this.policyId    = policyId;
         this.description = description;
         this.eventId     = eventId;
+        this.companyId   = companyId;
     }
 
     public int    getPolicyId()   { return policyId; }
     public String getDescription(){ return description; }
     public UUID   getEventId()    { return eventId; }
+    public int    getCompanyId()  { return companyId; }
+    
 
     public abstract boolean isValid();
 }

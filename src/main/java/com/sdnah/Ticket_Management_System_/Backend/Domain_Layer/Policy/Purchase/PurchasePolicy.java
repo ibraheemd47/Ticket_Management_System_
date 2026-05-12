@@ -32,8 +32,8 @@ public class PurchasePolicy extends Policy {
 
     protected PurchasePolicy() {}
 
-    public PurchasePolicy(int policyId, String description, UUID eventId) {
-        super(policyId, description, eventId);
+    public PurchasePolicy(int policyId, String description, UUID eventId, int companyId) {
+        super(policyId, description, eventId, companyId);
     }
 
     // ── Core API ───────────────────────────────────────────────────────────────
