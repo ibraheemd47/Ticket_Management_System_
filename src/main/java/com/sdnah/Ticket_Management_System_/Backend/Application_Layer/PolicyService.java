@@ -267,8 +267,11 @@ public class PolicyService {
     }
 
     private Member getActorFromToken(String actorToken) {
-        if (actorToken == null || actorToken.isBlank())
+        if (actorToken == null || actorToken.isBlank()) {
+            logger.error("Invalid actor token: '{}'", actorToken);
             throw new SecurityException("Invalid token");
+        }
+            
         return representUserService.requireMember(actorToken);
     }
 
