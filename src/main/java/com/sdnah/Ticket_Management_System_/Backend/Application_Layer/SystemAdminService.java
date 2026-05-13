@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
+import java.time.LocalDateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -88,5 +90,37 @@ public class SystemAdminService {
         }
         throw new UnsupportedOperationException(
                 "Company lifecycle operations are not available: missing Company domain/repository implementation");
+    }
+
+    //version 2 - member suspension/reactivation
+    @Transactional
+    public void suspendUser(String token, String targetMemberId, long durationHours) {
+        requireAdmin(token);
+        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
+            Member target = userRepository.findByMemberId(targetMemberId);
+            if (target == null) throw new IllegalArgumentException("Member not found");
+            if (target.isSystemAdmin()) throw new IllegalArgumentException("Cannot suspend a system admin");
+
+            LocalDateTime until = LocalDateTime.now().plusHours(durationHours);
+            target.suspend(until);
+            userRepository.save(target);
+
+            //notifier.notifyUser(targetMemberId,"Your account has been suspended until " + until);
+        });
+    }
+
+    @Transactional
+    public void suspendPermanently(String token, String targetMemberId) {
+        requireAdmin(token);
+        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
+            Member target = userRepository.findByMemberId(targetMemberId);
+            if (target == null) throw new IllegalArgumentException("Member not found");
+            if (target.isSystemAdmin()) throw new IllegalArgumentException("Cannot suspend a system admin");
+
+            target.suspendPermanently();   
+            userRepository.save(target);
+
+            //notifier.notifyUser(targetMemberId,"Your account has been suspended permanently.");
+        });
     }
 }
