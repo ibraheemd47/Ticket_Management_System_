@@ -17,34 +17,34 @@ class PolicyTest {
     @Test
     void GivenNegativePolicyId_WhenCreatePolicy_ThenThrowIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                new PurchasePolicy(-1, "Invalid", EVENT_ID)
+                new PurchasePolicy(-1, "Invalid", EVENT_ID, 1)
         );
     }
 
     @Test
     void GivenZeroPolicyId_WhenCreatePolicy_ThenThrowIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                new PurchasePolicy(0, "Invalid", EVENT_ID)
+                new PurchasePolicy(0, "Invalid", EVENT_ID, 1)
         );
     }
 
     @Test
     void GivenNullDescription_WhenCreatePolicy_ThenThrowIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                new PurchasePolicy(1, null, EVENT_ID)
+                new PurchasePolicy(1, null, EVENT_ID, 1)
         );
     }
 
     @Test
     void GivenBlankDescription_WhenCreatePolicy_ThenThrowIllegalArgumentException() {
         assertThrows(IllegalArgumentException.class, () ->
-                new PurchasePolicy(1, "   ", EVENT_ID)
+                new PurchasePolicy(1, "   ", EVENT_ID, 1)
         );
     }
 
     @Test
     void GivenValidPolicy_WhenGettersCalled_ThenReturnConstructorValues() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Valid", EVENT_ID);
+        PurchasePolicy policy = new PurchasePolicy(1, "Valid", EVENT_ID, 1);
 
         assertEquals(1, policy.getPolicyId());
         assertEquals("Valid", policy.getDescription());
@@ -53,14 +53,14 @@ class PolicyTest {
 
     @Test
     void GivenNullEventId_WhenCreatePolicy_ThenPolicyCreatedAsDefaultPolicy() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default company policy", null);
+        PurchasePolicy policy = new PurchasePolicy(1, "Default company policy", null, 1);
 
         assertNull(policy.getEventId());
     }
 
     @Test
     void GivenValidPolicy_WhenIsValid_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Valid", EVENT_ID);
+        PurchasePolicy policy = new PurchasePolicy(1, "Valid", EVENT_ID, 1);
 
         assertTrue(policy.isValid());
     }

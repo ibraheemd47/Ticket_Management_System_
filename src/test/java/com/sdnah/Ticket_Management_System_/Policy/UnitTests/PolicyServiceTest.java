@@ -1,12 +1,19 @@
 package com.sdnah.Ticket_Management_System_.Policy.UnitTests;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountContext;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 
 import org.junit.jupiter.api.*;
@@ -14,9 +21,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,259 +33,218 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PolicyServiceTest {
 
-    @Mock
-    private PolicyRepository policyRepo;
+    @Mock private PolicyRepository      policyRepo;
+    @Mock private CompanyRepository     companyRepo;
+    @Mock private IrepresnteUserService representUserService;
+    @Mock private Member                actor;
+    @Mock private Company               company;
 
     private PolicyService policyService;
 
-    private static final int  COMPANY_ID = 10;
+    private static final int  COMPANY_ID = 1;
     private static final UUID EVENT_ID   = UUID.randomUUID();
+    private static final String TOKEN    = "token";
 
     @BeforeEach
     void setUp() {
-        policyService = new PolicyService(policyRepo);
+        policyService = new PolicyService(policyRepo, companyRepo, representUserService);
+    }
+
+    // ── Auth mock helper ──────────────────────────────────────────────────────
+
+    private void mockOwnerAuth() {
+        when(representUserService.requireMember(TOKEN)).thenReturn(actor);
+        when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        when(actor.isActive()).thenReturn(true);
+        when(company.isOwner(any())).thenReturn(true);
+        when(company.getCompanyId()).thenReturn(COMPANY_ID);
     }
 
     // =========================================================================
-    // Selling Policy — checkSelectionPermission
+    // UC II.4.3 — addDiscountRuleToEvent
     // =========================================================================
 
     @Test
-    void GivenRegularSellingPolicy_WhenCheckSelectionPermission_ThenGuestAllowed() {
-        SellingPolicy policy = new SellingPolicy(1, "Regular selling",
-                SellingPolicy.SellingType.REGULAR, EVENT_ID);
-        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
-
-        assertTrue(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
-    }
-
-    @Test
-    void GivenLotterySellingPolicy_WhenGuestChecksSelectionPermission_ThenReturnFalse() {
-        SellingPolicy policy = new SellingPolicy(1, "Lottery selling",
-                SellingPolicy.SellingType.LOTTERY, EVENT_ID);
-        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
-
-        assertFalse(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
-    }
-
-    @Test
-    void GivenLotterySellingPolicy_WhenMemberChecksSelectionPermission_ThenReturnTrue() {
-        SellingPolicy policy = new SellingPolicy(1, "Lottery selling",
-                SellingPolicy.SellingType.LOTTERY, EVENT_ID);
-        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
-
-        assertTrue(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, true));
-    }
-
-    @Test
-    void GivenNoSellingPolicy_WhenCheckSelectionPermission_ThenDefaultAllow() {
-        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
-
-        assertTrue(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
-    }
-
-    // =========================================================================
-    // Purchase Policy — validateReservationRequest
-    // =========================================================================
-
-    @Test
-    void GivenNoPurchasePolicy_WhenValidateReservation_ThenDefaultAllow() {
-        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
-
-        assertTrue(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 3, 18));
-    }
-
-    @Test
-    void GivenPurchasePolicy_WhenQuantityPositive_ThenReservationApproved() {
-        PurchasePolicy policy = new PurchasePolicy(2, "Default purchase", EVENT_ID);
-        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
-
-        assertTrue(policyService.validateReservationRequest(COMPANY_ID, EVENT_ID, 1, 18));
-    }
-
-    // =========================================================================
-    // Purchase Policy — validateFinalPurchaseConditions
-    // =========================================================================
-
-    @Test
-    void GivenNoPurchasePolicy_WhenValidateFinalPurchase_ThenDefaultAllow() {
-        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
-
-        assertTrue(policyService.validateFinalPurchaseConditions(COMPANY_ID, EVENT_ID, 2, 18));
-    }
-
-    @Test
-    void GivenPurchasePolicy_WhenFinalPurchaseValid_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(3, "Checkout purchase", EVENT_ID);
-        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
-
-        assertTrue(policyService.validateFinalPurchaseConditions(COMPANY_ID, EVENT_ID, 2, 18));
-    }
-
-    // =========================================================================
-    // Discount Policy — applyGeneralDiscounts
-    // =========================================================================
-
-    @Test
-    void GivenDiscountPolicyWithPercentage_WhenApplyGeneralDiscounts_ThenReturnDiscountedPrice() {
-        DiscountPolicy policy = new DiscountPolicy(4, "Discount policy", EVENT_ID);
-        policy.addRule(new PercentageDiscountRule(20.0, "20% off"));
+    void GivenDiscountPolicy_WhenAddDiscountRuleToEvent_ThenRuleSaved() {
+        DiscountPolicy policy = new DiscountPolicy(1, "Event policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
 
-        assertEquals(80.0,
-                policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 100.0, 2),
-                0.001);
+        policyService.addDiscountRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                new PercentageDiscountRule(10.0, "10% off"));
+
+        verify(policyRepo).savePolicy(policy);
+        assertTrue(policy.computeDiscount(new DiscountContext(1, null)) > 0.0);
     }
 
     @Test
-    void GivenNoDiscountPolicy_WhenApplyGeneralDiscounts_ThenReturnBasePrice() {
+    void GivenNoDiscountPolicy_WhenAddDiscountRuleToEvent_ThenExceptionThrown() {
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
+        when(policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
+                .thenReturn(Optional.empty());
+        mockOwnerAuth();
 
-        assertEquals(100.0,
-                policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 100.0, 2),
-                0.001);
+        assertThrows(IllegalArgumentException.class, () ->
+                policyService.addDiscountRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                        new PercentageDiscountRule(10.0, "10% off")));
     }
 
     // =========================================================================
-    // Discount Policy — calculateCouponDiscount
+    // UC II.4.3 — addDiscountRuleToCompany
     // =========================================================================
 
     @Test
-    void GivenCouponDiscountAndCorrectCoupon_WhenCalculateCouponDiscount_ThenDiscountApplied() {
-        DiscountPolicy policy = new DiscountPolicy(5, "Coupon discount", EVENT_ID);
-        policy.addRule(new CouponDiscountRule(20.0, "SAVE20"));
+    void GivenCompanyDiscountPolicy_WhenAddDiscountRuleToCompany_ThenRuleSaved() {
+        DiscountPolicy policy = new DiscountPolicy(2, "Company policy", null, COMPANY_ID);
+        when(policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
+                .thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
+
+        policyService.addDiscountRuleToCompany(TOKEN, COMPANY_ID,
+                new PercentageDiscountRule(15.0, "15% off"));
+
+        verify(policyRepo).savePolicy(policy);
+    }
+
+    // =========================================================================
+    // UC II.4.3 — setDiscountRulesForEvent
+    // =========================================================================
+
+    @Test
+    void GivenDiscountPolicy_WhenSetDiscountRulesForEvent_ThenRulesReplaced() {
+        DiscountPolicy policy = new DiscountPolicy(3, "Event policy", EVENT_ID, COMPANY_ID);
+        policy.addRule(new PercentageDiscountRule(5.0, "5% off"));
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
 
-        assertEquals(80.0,
-                policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, "SAVE20"),
-                0.001);
-    }
+        policyService.setDiscountRulesForEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                List.of(new PercentageDiscountRule(30.0, "30% off")), false);
 
-    @Test
-    void GivenCouponDiscountAndWrongCoupon_WhenCalculateCouponDiscount_ThenOriginalPriceReturned() {
-        DiscountPolicy policy = new DiscountPolicy(5, "Coupon discount", EVENT_ID);
-        policy.addRule(new CouponDiscountRule(20.0, "SAVE20"));
-        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
-
-        assertEquals(100.0,
-                policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, "WRONG"),
-                0.001);
-    }
-
-    @Test
-    void GivenEmptyCoupon_WhenCalculateCouponDiscount_ThenRepositoryNotUsedAndOriginalReturned() {
-        assertEquals(100.0,
-                policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, ""),
-                0.001);
-        verify(policyRepo, never()).findDiscountPolicyByEventId(any());
-    }
-
-    @Test
-    void GivenNullCoupon_WhenCalculateCouponDiscount_ThenRepositoryNotUsedAndOriginalReturned() {
-        assertEquals(100.0,
-                policyService.calculateCouponDiscount(COMPANY_ID, EVENT_ID, 100.0, 2, null),
-                0.001);
-        verify(policyRepo, never()).findDiscountPolicyByEventId(any());
+        verify(policyRepo).savePolicy(policy);
+        assertEquals(30.0, policy.computeDiscount(new DiscountContext(1, null)), 0.001);
     }
 
     // =========================================================================
-    // Discount Policy — isConditionalDiscountSatisfied
+    // UC II.4.3 — setDiscountRulesForCompany
     // =========================================================================
 
     @Test
-    void GivenConditionalDiscountAndQuantityEnough_WhenCheckConditionalDiscount_ThenReturnTrue() {
-        DiscountPolicy policy = new DiscountPolicy(6, "Conditional discount", EVENT_ID);
-        policy.addRule(new QuantityConditionalDiscountRule(3, 10.0));
-        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+    void GivenCompanyDiscountPolicy_WhenSetDiscountRulesForCompany_ThenRulesReplaced() {
+        DiscountPolicy policy = new DiscountPolicy(4, "Company policy", null, COMPANY_ID);
+        when(policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
+                .thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
 
-        assertTrue(policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 3));
-    }
+        policyService.setDiscountRulesForCompany(TOKEN, COMPANY_ID,
+                List.of(new PercentageDiscountRule(20.0, "20% off")), false);
 
-    @Test
-    void GivenConditionalDiscountAndQuantityTooLow_WhenCheckConditionalDiscount_ThenReturnFalse() {
-        DiscountPolicy policy = new DiscountPolicy(6, "Conditional discount", EVENT_ID);
-        policy.addRule(new QuantityConditionalDiscountRule(3, 10.0));
-        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
-
-        assertFalse(policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 2));
-    }
-
-    @Test
-    void GivenNoDiscountPolicy_WhenCheckConditionalDiscount_ThenReturnFalse() {
-        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
-
-        assertFalse(policyService.isConditionalDiscountSatisfied(COMPANY_ID, EVENT_ID, 3));
+        verify(policyRepo).savePolicy(policy);
+        assertEquals(20.0, policy.computeDiscount(new DiscountContext(1, null)), 0.001);
     }
 
     // =========================================================================
-    // Concurrency
+    // UC II.4.3 — addPurchaseRuleToEvent
     // =========================================================================
 
     @Test
-    @Timeout(5)
-    void GivenManyThreads_WhenCheckSelectionPermissionConcurrently_ThenAllResultsConsistent()
-            throws Exception {
-        SellingPolicy policy = new SellingPolicy(9, "Lottery policy",
-                SellingPolicy.SellingType.LOTTERY, EVENT_ID);
-        when(policyRepo.findSellingPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+    void GivenPurchasePolicy_WhenAddPurchaseRuleToEvent_ThenRuleSaved() {
+        PurchasePolicy policy = new PurchasePolicy(5, "Event policy", EVENT_ID, COMPANY_ID);
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
 
-        int threads = 50;
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
-        CountDownLatch ready = new CountDownLatch(threads);
-        CountDownLatch start = new CountDownLatch(1);
-        CountDownLatch done  = new CountDownLatch(threads);
-        ConcurrentLinkedQueue<Boolean> results = new ConcurrentLinkedQueue<>();
+        policyService.addPurchaseRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID, new MinAgeRule(18));
 
-        for (int i = 0; i < threads; i++) {
-            executor.submit(() -> {
-                ready.countDown();
-                start.await();
-                results.add(policyService.checkSelectionPermission(COMPANY_ID, EVENT_ID, false));
-                done.countDown();
-                return null;
-            });
-        }
-
-        ready.await();
-        start.countDown();
-        done.await();
-        executor.shutdown();
-
-        assertEquals(threads, results.size());
-        assertTrue(results.stream().allMatch(r -> !r));
+        verify(policyRepo).savePolicy(policy);
+        assertFalse(policy.validatePurchase(1, 16, false));
+        assertTrue(policy.validatePurchase(1, 18, false));
     }
 
     @Test
-    @Timeout(5)
-    void GivenManyThreads_WhenApplyDiscountConcurrently_ThenAllResultsConsistent()
-            throws Exception {
-        DiscountPolicy policy = new DiscountPolicy(10, "Concurrent discount", EVENT_ID);
-        policy.addRule(new PercentageDiscountRule(25.0, "25% off"));
+    void GivenNoPurchasePolicy_WhenAddPurchaseRuleToEvent_ThenExceptionThrown() {
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
+        when(policyRepo.findPurchasePolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
+                .thenReturn(Optional.empty());
+        mockOwnerAuth();
+
+        assertThrows(IllegalArgumentException.class, () ->
+                policyService.addPurchaseRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                        new MinAgeRule(18)));
+    }
+
+    // =========================================================================
+    // UC II.4.3 — addPurchaseRuleToCompany
+    // =========================================================================
+
+    @Test
+    void GivenCompanyPurchasePolicy_WhenAddPurchaseRuleToCompany_ThenRuleSaved() {
+        PurchasePolicy policy = new PurchasePolicy(6, "Company policy", null, COMPANY_ID);
+        when(policyRepo.findPurchasePolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
+                .thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
+
+        policyService.addPurchaseRuleToCompany(TOKEN, COMPANY_ID, new MinAgeRule(18));
+
+        verify(policyRepo).savePolicy(policy);
+    }
+
+    // =========================================================================
+    // UC II.4.3 — setPurchaseRulesForEvent
+    // =========================================================================
+
+    @Test
+    void GivenPurchasePolicy_WhenSetPurchaseRulesForEvent_ThenRulesReplaced() {
+        PurchasePolicy policy = new PurchasePolicy(7, "Event policy", EVENT_ID, COMPANY_ID);
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
+
+        policyService.setPurchaseRulesForEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                List.of(new MaxTicketsRule(5)), PurchasePolicy.Operator.AND);
+
+        verify(policyRepo).savePolicy(policy);
+        assertFalse(policy.validatePurchase(6, 20, false));
+        assertTrue(policy.validatePurchase(3, 20, false));
+    }
+
+    @Test
+    void GivenPurchasePolicy_WhenSetPurchaseRulesOrForEvent_ThenOrLogicApplied() {
+        PurchasePolicy policy = new PurchasePolicy(8, "OR policy", EVENT_ID, COMPANY_ID);
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
+
+        policyService.setPurchaseRulesForEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                List.of(new MaxTicketsRule(2), new MinTicketsRule(100)),
+                PurchasePolicy.Operator.OR);
+
+        verify(policyRepo).savePolicy(policy);
+        assertTrue(policy.validatePurchase(1, 20, false));   // passes MaxTickets
+        assertTrue(policy.validatePurchase(100, 20, false)); // passes MinTickets
+        assertFalse(policy.validatePurchase(5, 20, false));  // fails both
+    }
+
+    // =========================================================================
+    // Authorization — non-owner cannot modify
+    // =========================================================================
+
+    @Test
+    void GivenNonOwner_WhenAddDiscountRule_ThenThrowException() {
+        DiscountPolicy policy = new DiscountPolicy(9, "Policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(representUserService.requireMember(TOKEN)).thenReturn(actor);
+        when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        when(actor.isActive()).thenReturn(true);
+        when(company.isOwner(any())).thenReturn(false);
+        when(company.getCompanyId()).thenReturn(COMPANY_ID);
 
-        int threads = 50;
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
-        CountDownLatch ready = new CountDownLatch(threads);
-        CountDownLatch start = new CountDownLatch(1);
-        CountDownLatch done  = new CountDownLatch(threads);
-        ConcurrentLinkedQueue<Double> results = new ConcurrentLinkedQueue<>();
-
-        for (int i = 0; i < threads; i++) {
-            executor.submit(() -> {
-                ready.countDown();
-                start.await();
-                results.add(policyService.applyGeneralDiscounts(COMPANY_ID, EVENT_ID, 200.0, 2));
-                done.countDown();
-                return null;
-            });
-        }
-
-        ready.await();
-        start.countDown();
-        done.await();
-        executor.shutdown();
-
-        assertEquals(threads, results.size());
-        assertTrue(results.stream().allMatch(r -> Math.abs(r - 150.0) < 0.001));
+        assertThrows(RuntimeException.class, () ->
+                policyService.addDiscountRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                        new PercentageDiscountRule(10.0, "10% off")));
     }
 }
