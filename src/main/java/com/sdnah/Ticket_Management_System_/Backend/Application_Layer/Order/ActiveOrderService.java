@@ -30,6 +30,8 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseR
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+
 @Service
 @Transactional
 public class ActiveOrderService {
@@ -46,8 +48,10 @@ public class ActiveOrderService {
     private final CheckoutDomainService checkoutDomainService;
     private final OrderActionLogRepository actionLogRepo;
     private IrepresnteUserService represnteUserService;
+    private final NotificationService notificationService;
 
     public ActiveOrderService(ActiveOrderRepository orderRepo,
+            NotificationService notificationService,
             PurchaseRepository purchaseRepo,
             PaymentTransactionRepository transactionRepo,
             PaymentService paymentService,
@@ -77,6 +81,8 @@ public class ActiveOrderService {
             throw new IllegalArgumentException("paymentService required");
         if (actionLogRepo == null)
             throw new IllegalArgumentException("actionLogRepo required");
+        if (notificationService == null)
+            throw new IllegalArgumentException("notificationService required");
 
         this.orderRepo = orderRepo;
         this.purchaseRepo = purchaseRepo;
@@ -88,6 +94,7 @@ public class ActiveOrderService {
         this.orderPolicyDomainService = new OrderPolicyDomainService(policyRepository);
         this.checkoutDomainService = new CheckoutDomainService(paymentGateway, ticketGateway, ticketDomainService);
         this.actionLogRepo = actionLogRepo;
+        this.notificationService = notificationService;
         
     }
 
@@ -200,13 +207,22 @@ public class ActiveOrderService {
 
         PaymentDetails details = new PaymentDetails(paymentDTO.getCardToken(), paymentDTO.getBillingName(),
                 paymentDTO.getPaymentMethod());
+                
         try {
             CheckoutDomainService.CheckoutResult result = checkoutDomainService.checkout(order, details);
             purchaseRepo.save(result.getPurchase());
             paymentService.saveTransaction(result.getTransaction());
             orderRepo.save(order);
-            logger.info("checkout SUCCESS orderId={} purchaseId={}", orderId, result.getPurchase().getPurchaseId());
+            //notify buyer about successful purchase
+            notificationService.notifyPurchaseSuccess(
+                    buyerId,
+                    order.getEventId().toString()
+            );
+            logger.info("checkout SUCCESS orderId={} purchaseId={}",
+                    orderId,
+                    result.getPurchase().getPurchaseId());
             return OrderMapper.toDTO(result.getPurchase(), result.getTicketCodes());
+        
         } catch (Exception e) {
             logger.error("checkout FAILED | orderId={} error={}", orderId, e.getMessage());
             orderRepo.save(order);
