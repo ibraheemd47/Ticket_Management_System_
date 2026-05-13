@@ -226,6 +226,7 @@ public class NotificationService {
         } catch (IllegalArgumentException e) {
             logger.warning("Invalid unread-count request: " + e.getMessage());
             throw e;
+
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE,
                     "System error while counting unread notifications for user="
@@ -256,5 +257,21 @@ public class NotificationService {
                     e);
             throw e;
         }
+    }
+
+    public String notifyOwnerAppointed(String recipientUsername, String companyName) {
+        return createNotification(
+                recipientUsername,
+                "You were appointed as owner in company: " + companyName,
+                NotificationType.OWNER_APPOINTED
+        );
+    }
+
+    public String notifyOwnerRemoved(String recipientUsername, String companyName) {
+        return createNotification(
+                recipientUsername,
+                "You were removed from owner role in company: " + companyName,
+                NotificationType.OWNER_REMOVED
+        );
     }
 }

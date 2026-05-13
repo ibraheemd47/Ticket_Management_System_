@@ -15,6 +15,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRole
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ManagerPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
 @Service
 public class CompanyRoleService {
@@ -24,13 +25,18 @@ public class CompanyRoleService {
     private final UserRepository userRepository;
     private final UserService userService;
     private final KeyedLock keyedLock;
+    private final NotificationService notificationService;
 
     private static final String LOCK_NS = "company-role:member";
 
-    public CompanyRoleService(UserRepository userRepository, UserService userService, KeyedLock keyedLock) {
+    public CompanyRoleService(UserRepository userRepository,
+                          UserService userService,
+                          KeyedLock keyedLock,
+                          NotificationService notificationService) {
         this.userRepository = userRepository;
         this.userService = userService;
         this.keyedLock = keyedLock;
+        this.notificationService = notificationService;
     }
 
     public void assignOwner(String actorToken, int companyId, String newOwnerId) {
@@ -63,6 +69,9 @@ public class CompanyRoleService {
 
             target.addCompanyRole(assignment);
             userRepository.saveAndFlush(target);
+
+            //notifications
+            notificationService.notifyOwnerAppointed(newOwnerId, "company " + companyId);
 
             logger.info("Owner assigned successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), newOwnerId, companyId);
@@ -100,6 +109,9 @@ public class CompanyRoleService {
             target.addCompanyRole(assignment);
             userRepository.saveAndFlush(target);
 
+            //notifications
+            notificationService.notifyManagerAppointed(managerId, "company " + companyId);
+
             logger.info("Manager assigned successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), managerId, companyId);
         });
@@ -135,6 +147,9 @@ public class CompanyRoleService {
 
             target.setCompanyRoles(updatedRoles);
             userRepository.saveAndFlush(target);
+
+            //notifications
+            notificationService.notifyOwnerRemoved(ownerId, "company " + companyId);
 
             logger.info("Owner removed successfully, actorId={}, targetId={}, companyId={}",
                     actor.getMemberId(), ownerId, companyId);
@@ -178,6 +193,9 @@ public class CompanyRoleService {
             managerRole.addPermission(permission);
             userRepository.saveAndFlush(target);
 
+            //notifications
+            notificationService.notifyPermissionsChanged(managerId, "company " + companyId);
+
             logger.info("Permission added successfully, actorId={}, targetId={}, companyId={}, permission={}",
                     actor.getMemberId(), managerId, companyId, permission);
         });
@@ -220,6 +238,9 @@ public class CompanyRoleService {
 
             managerRole.removePermission(permission);
             userRepository.saveAndFlush(target);
+
+            //notifications
+            notificationService.notifyPermissionsChanged(managerId, "company " + companyId);
 
             logger.info("Permission removed successfully, actorId={}, targetId={}, companyId={}, permission={}",
                     actor.getMemberId(), managerId, companyId, permission);
