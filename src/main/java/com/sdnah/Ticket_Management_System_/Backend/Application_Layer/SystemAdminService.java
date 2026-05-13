@@ -93,6 +93,7 @@ public class SystemAdminService {
     }
 
     //version 2 - member suspension/reactivation
+    //use case ( II.6.7 )
     @Transactional
     public void suspendUser(String token, String targetMemberId, long durationHours) {
         requireAdmin(token);
@@ -104,11 +105,12 @@ public class SystemAdminService {
             LocalDateTime until = LocalDateTime.now().plusHours(durationHours);
             target.suspend(until);
             userRepository.save(target);
-
+            //todo: notify user of suspension and duration
             //notifier.notifyUser(targetMemberId,"Your account has been suspended until " + until);
         });
     }
 
+    //use case ( II.6.7 )
     @Transactional
     public void suspendPermanently(String token, String targetMemberId) {
         requireAdmin(token);
@@ -119,8 +121,24 @@ public class SystemAdminService {
 
             target.suspendPermanently();   
             userRepository.save(target);
-
+            //todo: notify user of permanent suspension
             //notifier.notifyUser(targetMemberId,"Your account has been suspended permanently.");
+        });
+    }
+
+    //use case ( II.6.8 )
+    @Transactional
+    public void unsuspendUser(String token, String targetMemberId) {
+        requireAdmin(token);
+        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
+            Member target = userRepository.findByMemberId(targetMemberId);
+            if (target == null) throw new IllegalArgumentException("Member not found");
+            if (!target.isSuspended()) throw new IllegalArgumentException("Member is not suspended");
+
+            target.unsuspend();
+            userRepository.save(target);
+            //todo: notify user of reactivation
+            //notifier.notifyUser(targetMemberId, "Your suspension has been lifted.");
         });
     }
 }

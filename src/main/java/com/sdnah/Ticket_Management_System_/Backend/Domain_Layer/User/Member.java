@@ -323,4 +323,10 @@ public class Member {
          this.suspendedPermanently = true;
         this.suspendedUntil = null;
     }
+
+    public void unsuspend() 
+    {
+        this.suspendedPermanently = false;
+        this.suspendedUntil = null;
+    }
 }
