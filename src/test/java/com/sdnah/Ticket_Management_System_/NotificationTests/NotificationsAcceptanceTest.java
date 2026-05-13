@@ -11,8 +11,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.RealtimeNotificationSender;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 public class NotificationsAcceptanceTest {
@@ -20,10 +23,12 @@ public class NotificationsAcceptanceTest {
     private NotificationService notificationsService;
     private NotificationRepository notificationRepository;
     private Map<String, Notification> notifications;
+    private RealtimeNotificationSender realtimeNotificationSender;
 
     @BeforeEach
     void setUp() {
         notificationRepository = mock(NotificationRepository.class);
+        realtimeNotificationSender = mock(RealtimeNotificationSender.class);
         notifications = new ConcurrentHashMap<>();
 
         when(notificationRepository.save(any(Notification.class))).thenAnswer(invocation -> {
@@ -39,7 +44,10 @@ public class NotificationsAcceptanceTest {
                     .toList();
         });
 
-        notificationsService = new NotificationService(notificationRepository);
+        notificationsService = new NotificationService(
+        notificationRepository,
+        realtimeNotificationSender
+);
     }
 
     @Test
