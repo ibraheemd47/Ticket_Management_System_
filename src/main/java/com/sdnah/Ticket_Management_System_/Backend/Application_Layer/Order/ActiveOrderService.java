@@ -88,6 +88,7 @@ public class ActiveOrderService {
         this.orderPolicyDomainService = new OrderPolicyDomainService(policyRepository);
         this.checkoutDomainService = new CheckoutDomainService(paymentGateway, ticketGateway, ticketDomainService);
         this.actionLogRepo = actionLogRepo;
+        
     }
 
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {

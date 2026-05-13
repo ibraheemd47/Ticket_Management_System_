@@ -16,16 +16,12 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRep
 public class OrderPolicyDomainService {
 
     private final PolicyRepository policyRepository;
-    private final IEventRepository eventRepository;
 
-    public OrderPolicyDomainService(PolicyRepository policyRepository,
-                                    IEventRepository eventRepository) {
+    public OrderPolicyDomainService(PolicyRepository policyRepository
+                                    ) {
         if (policyRepository == null)
             throw new IllegalArgumentException("policyRepository required");
-        if (eventRepository == null)
-            throw new IllegalArgumentException("eventRepository required");
         this.policyRepository = policyRepository;
-        this.eventRepository  = eventRepository;
     }
 
     // =========================================================================
@@ -64,12 +60,12 @@ public class OrderPolicyDomainService {
             if (ep.isPresent()) return ep.get();
         }
 
-        Integer companyId = getCompanyIdFromEvent(order);
-        if (companyId != null) {
-            return policyRepository
-                    .findPurchasePolicyByCompanyIdAndEventIdIsNull(companyId)
-                    .orElse(null);
-        }
+        // Integer companyId = getCompanyIdFromEvent(order);
+        // if (companyId != null) {
+        //     return policyRepository
+        //             .findPurchasePolicyByCompanyIdAndEventIdIsNull(companyId)
+        //             .orElse(null);
+        // }
 
         return null; // no restrictions
     }
@@ -81,12 +77,12 @@ public class OrderPolicyDomainService {
             if (ep.isPresent()) return ep.get();
         }
 
-        Integer companyId = getCompanyIdFromEvent(order);
-        if (companyId != null) {
-            return policyRepository
-                    .findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId)
-                    .orElse(null);
-        }
+        // Integer companyId = getCompanyIdFromEvent(order);
+        // if (companyId != null) {
+        //     return policyRepository
+        //             .findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId)
+        //             .orElse(null);
+        // }
 
         return null; // no discount
     }
@@ -95,12 +91,12 @@ public class OrderPolicyDomainService {
      * Gets the companyId by loading the Event associated with the order.
      * Returns null if the event is not found.
      */
-    private Integer getCompanyIdFromEvent(ActiveOrder order) {
-        if (order.getEventId() == null) return null;
-        return eventRepository.findById(order.getEventId())
-                .map(event -> event.getCompanyId().intValue())
-                .orElse(null);
-    }
+    // private Integer getCompanyIdFromEvent(ActiveOrder order) {
+    //     if (order.getEventId() == null) return null;
+    //     return eventRepository.findById(order.getEventId())
+    //             .map(event -> event.getCompanyId().intValue())
+    //             .orElse(null);
+    // }
 
     // =========================================================================
     // UC II.2.8 — Apply discount policy to order
