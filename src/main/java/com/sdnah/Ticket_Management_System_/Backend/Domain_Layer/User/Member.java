@@ -58,6 +58,9 @@ public class Member {
     private boolean verified;
 
     //for version2 suspension and reactivation
+    @Column(name = "suspension_start_date")
+    private LocalDateTime suspensionStartedAt;
+
     @Column(name = "suspension_end_date")
     private LocalDateTime suspendedUntil;
 
@@ -308,9 +311,11 @@ public class Member {
 
     public LocalDateTime getSuspendedUntil() { return suspendedUntil; }
     public boolean isSuspendedPermanently() { return suspendedPermanently; }
+    public LocalDateTime getSuspensionStartedAt() { return suspensionStartedAt; }
 
 
-    public void suspend(LocalDateTime until) {        // null = לצמיתות
+    public void suspend(LocalDateTime until) {
+        this.suspensionStartedAt = LocalDateTime.now(); 
         if (until == null) {
             suspendPermanently();
         } else {
@@ -319,8 +324,10 @@ public class Member {
         }
     }
 
-    public void suspendPermanently() {
-         this.suspendedPermanently = true;
+    public void suspendPermanently() 
+    {
+        this.suspensionStartedAt = LocalDateTime.now(); // ← הוסף
+        this.suspendedPermanently = true;
         this.suspendedUntil = null;
     }
 
@@ -328,5 +335,6 @@ public class Member {
     {
         this.suspendedPermanently = false;
         this.suspendedUntil = null;
+        this.suspensionStartedAt = null; 
     }
 }

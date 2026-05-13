@@ -1,12 +1,15 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.SuspensionDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
@@ -104,7 +107,7 @@ public class SystemAdminService {
 
             LocalDateTime until = LocalDateTime.now().plusHours(durationHours);
             target.suspend(until);
-            userRepository.save(target);
+            checkIsloggedInAndLogout(target);
             //todo: notify user of suspension and duration
             //notifier.notifyUser(targetMemberId,"Your account has been suspended until " + until);
         });
@@ -120,10 +123,19 @@ public class SystemAdminService {
             if (target.isSystemAdmin()) throw new IllegalArgumentException("Cannot suspend a system admin");
 
             target.suspendPermanently();   
-            userRepository.save(target);
+            checkIsloggedInAndLogout(target);
             //todo: notify user of permanent suspension
             //notifier.notifyUser(targetMemberId,"Your account has been suspended permanently.");
         });
+    }
+
+    //in case the user is currently logged in, we log them out 
+    private void checkIsloggedInAndLogout(Member target) {
+        if (target.isLoggedin()) 
+            {
+            target.logout();
+        }
+         userRepository.save(target);
     }
 
     //use case ( II.6.8 )
@@ -141,4 +153,20 @@ public class SystemAdminService {
             //notifier.notifyUser(targetMemberId, "Your suspension has been lifted.");
         });
     }
+
+    // use case ( II.6.9 )
+    public List<SuspensionDTO> getSuspensions(String token) {
+        requireAdmin(token);
+        return userRepository.findAll().stream()
+            .filter(Member::isSuspended)
+            .map(m -> new SuspensionDTO(
+                m.getMemberId(),
+                m.getUsername(),
+                m.getSuspensionStartedAt(),
+                m.getSuspendedUntil(),
+                m.isSuspendedPermanently()
+            ))
+            .collect(Collectors.toList());
+}
+  
 }
