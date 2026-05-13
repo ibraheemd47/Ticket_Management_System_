@@ -25,33 +25,47 @@ public class Notification {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    public Notification(String recipientUsername, String message, NotificationType type) {
-        this(UUID.randomUUID().toString(), recipientUsername, message, type, LocalDateTime.now());
-    }
+    @Column(nullable = false)
+    private boolean read;
 
     protected Notification() {
         // required by JPA
     }
 
-    public Notification(String id, String recipientUsername, String message, NotificationType type, LocalDateTime createdAt) {
+    public Notification(String recipientUsername, String message, NotificationType type) {
+        this(UUID.randomUUID().toString(), recipientUsername, message, type, LocalDateTime.now(), false);
+    }
+
+    public Notification(String id,
+                        String recipientUsername,
+                        String message,
+                        NotificationType type,
+                        LocalDateTime createdAt,
+                        boolean read) {
         validateId(id);
         validateRecipientUsername(recipientUsername);
         validateMessage(message);
         validateType(type);
         validateCreatedAt(createdAt);
+
         this.id = id;
         this.recipientUsername = recipientUsername.trim();
         this.message = message.trim();
         this.type = type;
         this.createdAt = createdAt;
+        this.read = read;
     }
 
-    /*
-     * Helper used by the repository/service layer to retrieve notifications
-     * for a specific member.
-     */
     public boolean belongsTo(String username) {
-        return recipientUsername.equals(username);
+        return username != null && recipientUsername.equals(username.trim());
+    }
+
+    public void markAsRead() {
+        this.read = true;
+    }
+
+    public boolean isRead() {
+        return read;
     }
 
     private void validateId(String id) {
@@ -60,20 +74,12 @@ public class Notification {
         }
     }
 
-    /*
-     * Supports notification ownership by a specific recipient.
-     * This matches the use-case idea that notifications are associated with a member.
-     */
     private void validateRecipientUsername(String recipientUsername) {
         if (recipientUsername == null || recipientUsername.isBlank()) {
             throw new IllegalArgumentException("Recipient username cannot be null or blank.");
         }
     }
 
-    /*
-     * Supports negative test scenarios:
-     * invalid/incomplete notification data must be rejected.
-     */
     private void validateMessage(String message) {
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("Notification message cannot be null or blank.");
@@ -112,9 +118,6 @@ public class Notification {
         return createdAt;
     }
 
-    /*
-     * Entity identity is based on notification id.
-     */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -123,7 +126,7 @@ public class Notification {
     }
 
     @Override
-    public int hashCode() { 
+    public int hashCode() {
         return Objects.hash(id);
     }
 }
