@@ -10,28 +10,25 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CheckoutDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CheckoutDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderActionLog;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentDetails;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.DiscountPolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.IPolicyRepo;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.PurchasePolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 
 @Service
 @Transactional
@@ -44,9 +41,10 @@ public class ActiveOrderService {
     private final PaymentTransactionRepository transactionRepo;
     private final PaymentService paymentService;
     private final ITicketSupplierGateway ticketGateway;
-    private final Ticket_Domain_Service ticketDomainService;// ++
+    private final Ticket_Domain_Service ticketDomainService;
     private final OrderPolicyDomainService orderPolicyDomainService;
     private final CheckoutDomainService checkoutDomainService;
+    private final OrderActionLogRepository actionLogRepo;
     private IrepresnteUserService represnteUserService;
 
     public ActiveOrderService(ActiveOrderRepository orderRepo,
@@ -57,7 +55,8 @@ public class ActiveOrderService {
             ITicketSupplierGateway ticketGateway,
             TicketRepository ticketRepository,
             PolicyRepository policyRepository,
-            IrepresnteUserService represnteUserService) {
+            IrepresnteUserService represnteUserService,
+            OrderActionLogRepository actionLogRepo) {
         if (orderRepo == null)
             throw new IllegalArgumentException("orderRepo required");
         if (purchaseRepo == null)
@@ -76,6 +75,8 @@ public class ActiveOrderService {
             throw new IllegalArgumentException("represnteUserService required");
         if (paymentService == null)
             throw new IllegalArgumentException("paymentService required");
+        if (actionLogRepo == null)
+            throw new IllegalArgumentException("actionLogRepo required");
 
         this.orderRepo = orderRepo;
         this.purchaseRepo = purchaseRepo;
@@ -86,7 +87,8 @@ public class ActiveOrderService {
         this.ticketDomainService = new Ticket_Domain_Service(ticketRepository);
         this.orderPolicyDomainService = new OrderPolicyDomainService(policyRepository);
         this.checkoutDomainService = new CheckoutDomainService(paymentGateway, ticketGateway, ticketDomainService);
-
+        this.actionLogRepo = actionLogRepo;
+        
     }
 
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
@@ -108,7 +110,6 @@ public class ActiveOrderService {
             logger.info("Reservation completed successfully order {}", order.getId());
             return OrderMapper.toDTO(order);
         } catch (Exception e) {
-            // @Transactional rolls back all saves automatically — locks released
             logger.error("reserveTickets FAILED rollback done userToken={}", userToken);
             throw e;
         }
@@ -123,7 +124,6 @@ public class ActiveOrderService {
             String ticketId = order.addTicketToOrder(seat, buyerId, isLocked);
             orderRepo.save(order);
             ticketDomainService.lockAllTickets(order, List.of(ticketId));
-            // recalculate policies — quantity changed
             orderPolicyDomainService.validateAndApplyDiscounts(order, order.getAppliedCouponCode());
             orderRepo.save(order);
             logger.info("addTicketToOrder SUCCESS orderId={}", orderId);
@@ -138,11 +138,58 @@ public class ActiveOrderService {
         logger.info("Removing item {} from order {} by user {}", itemId, orderId, userToken);
         String buyerId = represnteUserService.requireMemberId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
-        order.removeTicket(itemId);
+        OrderItem removed = order.removeTicket(itemId);
+
+        // Record the action so the user can undo it (re-acquire the same seat).
+        actionLogRepo.save(OrderActionLog.forRemovedTicket(order.getId(), removed));
+
         orderPolicyDomainService.applyDiscounts(order, order.getAppliedCouponCode());
         orderRepo.save(order);
         logger.info("Item removed successfully from order {}", orderId);
         return OrderMapper.toDTO(order);
+    }
+
+    /**
+     * Reverses the most recent action recorded against {@code orderId}. The
+     * caller must own the order. Currently supports REMOVE_TICKET (re-adds the
+     * seat); other action types throw until they are retrofitted.
+     */
+    public OrderDTO undoLast(UUID orderId, String userToken) {
+        logger.info("Undo requested for order {} by user {}", orderId, userToken);
+        String buyerId = represnteUserService.requireMemberId(userToken);
+        ActiveOrder order = findValidOrder(orderId, buyerId);
+
+        OrderActionLog last = actionLogRepo.findTopByOrderIdOrderByIdDesc(orderId)
+                .orElseThrow(() -> {
+                    logger.warn("Undo failed — no actions logged for order {}", orderId);
+                    return new IllegalStateException("Nothing to undo");
+                });
+
+        switch (last.getType()) {
+            case REMOVE_TICKET -> undoRemoveTicket(order, buyerId, last);
+            case ADD_TICKET, APPLY_COUPON -> {
+                throw new IllegalStateException(
+                        "Undo for " + last.getType() + " is not wired up yet");
+            }
+        }
+
+        orderPolicyDomainService.applyDiscounts(order, order.getAppliedCouponCode());
+        orderRepo.save(order);
+        actionLogRepo.deleteById(last.getId());
+        logger.info("Undid action {} on order {}", last.getType(), orderId);
+        return OrderMapper.toDTO(order);
+    }
+
+    private void undoRemoveTicket(ActiveOrder order, String buyerId, OrderActionLog log) {
+        if (orderRepo.isTicketLocked(log.getTicketId())) {
+            logger.warn("Cannot undo remove on order {} — ticket {} is no longer free",
+                    order.getId(), log.getTicketId());
+            throw new IllegalStateException("Cannot undo: seat no longer available");
+        }
+        Lock lock = new Lock(log.getTicketId(), buyerId, order.getExpiresAt());
+        order.addTicket(log.getTicketId(), log.getSeatId(),
+                log.getAreaId(), log.getPrice(), lock);
+        ticketDomainService.lockAllTickets(order, List.of(log.getTicketId()));
     }
 
     public PurchaseDTO checkout(UUID orderId, String userToken, PaymentDetailsDTO paymentDTO) {
@@ -162,7 +209,7 @@ public class ActiveOrderService {
             return OrderMapper.toDTO(result.getPurchase(), result.getTicketCodes());
         } catch (Exception e) {
             logger.error("checkout FAILED | orderId={} error={}", orderId, e.getMessage());
-            orderRepo.save(order); // persist CANCELLED status
+            orderRepo.save(order);
             throw e;
         }
     }
@@ -205,7 +252,6 @@ public class ActiveOrderService {
             orderRepo.save(order);
             logger.info("Coupon applied successfully for user {} on order {}", buyerId, orderId);
             return OrderMapper.toDTO(order);
-
         } catch (IllegalArgumentException e) {
             logger.error("Invalid coupon {} orderId={} error={}", couponCode, orderId, e.getMessage());
             throw new IllegalStateException("Coupon is not valid");
@@ -219,10 +265,6 @@ public class ActiveOrderService {
         return result;
     }
 
-    /**
-     * Returns all ACTIVE (in-progress, not yet purchased) orders for a buyer.
-     * Used for GetAllUpcomingOrdersByMemberId.
-     */
     public List<OrderDTO> getPendingOrdersByBuyer(String userToken) {
         String buyerId = represnteUserService.requireMemberId(userToken);
         logger.info("Fetching active orders for buyer {}", buyerId);
@@ -238,7 +280,6 @@ public class ActiveOrderService {
         return OrderMapper.toDTO(order);
     }
 
-    /** completed purchases — GetAllPassedOrdersByMemberId */
     public List<PurchaseDTO> getPurchaseHistory(String userToken) {
         String buyerId = represnteUserService.requireMemberId(userToken);
         logger.info("Fetching purchase history for user {}", buyerId);
@@ -247,11 +288,6 @@ public class ActiveOrderService {
         return result;
     }
 
-    /**
-     * Runs every minute to release expired orders.
-     * Marks expired ACTIVE orders as EXPIRED, clears locks,
-     * and marks tickets as AVAILABLE in EVENT aggregate.
-     */
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void releaseExpiredOrders() {
@@ -259,7 +295,7 @@ public class ActiveOrderService {
         try {
             List<ActiveOrder> expiredOrders = orderRepo.findExpiredOrders();
             ticketDomainService.expireOrders(expiredOrders);
-            orderRepo.saveAll(expiredOrders); // persist all at once
+            orderRepo.saveAll(expiredOrders);
             logger.info("Expired orders cleanup done. count={}", expiredOrders.size());
         } catch (Exception e) {
             logger.error("releaseExpiredOrders FAILED | error={}", e.getMessage());

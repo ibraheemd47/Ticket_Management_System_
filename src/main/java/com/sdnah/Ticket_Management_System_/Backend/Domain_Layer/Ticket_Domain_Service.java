@@ -1,9 +1,9 @@
 package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.LoggerFactory;
-import java.util.List;
 
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
@@ -13,7 +13,7 @@ import ch.qos.logback.classic.Logger;
 
 public class Ticket_Domain_Service {
 
-    private Logger logger = (Logger) LoggerFactory.getLogger(Ticket_Domain_Service.class);
+    private final Logger logger = (Logger) LoggerFactory.getLogger(Ticket_Domain_Service.class);
     private final TicketRepository ticketRepository;
 
     public Ticket_Domain_Service(TicketRepository ticketRepository) {
@@ -50,16 +50,10 @@ public class Ticket_Domain_Service {
         logger.info("Locking ticket {} for buyer {}", ticket.getTicketId(), buyerId);
         UUID buyerUUID = UUID.fromString(buyerId);
         ticket.lockInCart(buyerUUID);
-        // Additional logic like setting a timer to unlock the ticket after a certain
-        // period, etc.
-
     }
 
-     public void expireOrders(List<ActiveOrder> expiredOrders) {
+    public void expireOrders(List<ActiveOrder> expiredOrders) {
         for (ActiveOrder order : expiredOrders)
             releaseAllTickets(order.expireOrder());
     }
-
-    
-
 }

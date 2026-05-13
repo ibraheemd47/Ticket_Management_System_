@@ -42,6 +42,7 @@ public class System_admin extends Member {
         for (CompanyRoleAssignment role : member.getCompanyRoles()) {
             this.addCompanyRole(role);
         }
+        
     }
 
     public String getWhoAssigned() {
