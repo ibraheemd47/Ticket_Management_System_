@@ -20,7 +20,8 @@ class SellingPolicyTest {
                 1,
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
-                EVENT_ID
+                EVENT_ID,
+                1
         );
 
         assertTrue(policy.isSelectionAllowed(false));
@@ -32,7 +33,8 @@ class SellingPolicyTest {
                 1,
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
-                EVENT_ID
+                EVENT_ID,
+                1
         );
 
         assertTrue(policy.isSelectionAllowed(true));
@@ -44,7 +46,8 @@ class SellingPolicyTest {
                 1,
                 "Lottery",
                 SellingPolicy.SellingType.LOTTERY,
-                EVENT_ID
+                EVENT_ID,
+                1
         );
 
         assertFalse(policy.isSelectionAllowed(false));
@@ -56,7 +59,8 @@ class SellingPolicyTest {
                 1,
                 "Lottery",
                 SellingPolicy.SellingType.LOTTERY,
-                EVENT_ID
+                EVENT_ID,
+                1
         );
 
         assertTrue(policy.isSelectionAllowed(true));
@@ -68,7 +72,8 @@ class SellingPolicyTest {
                 1,
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
-                EVENT_ID
+                EVENT_ID,
+                1
         );
 
         policy.setType(SellingPolicy.SellingType.LOTTERY);

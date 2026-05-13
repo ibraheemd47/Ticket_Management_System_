@@ -70,7 +70,6 @@ public class company_managment_serivce {
     public void openCompany(String actorToken, int companyId, String name) {
         try {
             Member actor = getActorFromToken(actorToken);
-
             companyAuthorizationDomainService.assertCanOpenCompany(actor);
 
             logger.info("Opening company. companyId={}, founderId={}", companyId, actor.getMemberId());
