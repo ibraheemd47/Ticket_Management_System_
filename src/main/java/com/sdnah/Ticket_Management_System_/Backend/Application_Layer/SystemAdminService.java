@@ -1,10 +1,15 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.SuspensionDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
@@ -89,4 +94,79 @@ public class SystemAdminService {
         throw new UnsupportedOperationException(
                 "Company lifecycle operations are not available: missing Company domain/repository implementation");
     }
+
+    //version 2 - member suspension/reactivation
+    //use case ( II.6.7 )
+    @Transactional
+    public void suspendUser(String token, String targetMemberId, long durationHours) {
+        requireAdmin(token);
+        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
+            Member target = userRepository.findByMemberId(targetMemberId);
+            if (target == null) throw new IllegalArgumentException("Member not found");
+            if (target.isSystemAdmin()) throw new IllegalArgumentException("Cannot suspend a system admin");
+
+            LocalDateTime until = LocalDateTime.now().plusHours(durationHours);
+            target.suspend(until);
+            checkIsloggedInAndLogout(target);
+            //todo: notify user of suspension and duration
+            //notifier.notifyUser(targetMemberId,"Your account has been suspended until " + until);
+        });
+    }
+
+    //use case ( II.6.7 )
+    @Transactional
+    public void suspendPermanently(String token, String targetMemberId) {
+        requireAdmin(token);
+        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
+            Member target = userRepository.findByMemberId(targetMemberId);
+            if (target == null) throw new IllegalArgumentException("Member not found");
+            if (target.isSystemAdmin()) throw new IllegalArgumentException("Cannot suspend a system admin");
+
+            target.suspendPermanently();   
+            checkIsloggedInAndLogout(target);
+            //todo: notify user of permanent suspension
+            //notifier.notifyUser(targetMemberId,"Your account has been suspended permanently.");
+        });
+    }
+
+    //in case the user is currently logged in, we log them out 
+    private void checkIsloggedInAndLogout(Member target) {
+        if (target.isLoggedin()) 
+            {
+            target.logout();
+        }
+         userRepository.save(target);
+    }
+
+    //use case ( II.6.8 )
+    @Transactional
+    public void unsuspendUser(String token, String targetMemberId) {
+        requireAdmin(token);
+        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
+            Member target = userRepository.findByMemberId(targetMemberId);
+            if (target == null) throw new IllegalArgumentException("Member not found");
+            if (!target.isSuspended()) throw new IllegalArgumentException("Member is not suspended");
+
+            target.unsuspend();
+            userRepository.save(target);
+            //todo: notify user of reactivation
+            //notifier.notifyUser(targetMemberId, "Your suspension has been lifted.");
+        });
+    }
+
+    // use case ( II.6.9 )
+    public List<SuspensionDTO> getSuspensions(String token) {
+        requireAdmin(token);
+        return userRepository.findAll().stream()
+            .filter(Member::isSuspended)
+            .map(m -> new SuspensionDTO(
+                m.getMemberId(),
+                m.getUsername(),
+                m.getSuspensionStartedAt(),
+                m.getSuspendedUntil(),
+                m.isSuspendedPermanently()
+            ))
+            .collect(Collectors.toList());
+}
+  
 }

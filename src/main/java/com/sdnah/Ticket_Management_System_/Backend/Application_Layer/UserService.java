@@ -51,6 +51,12 @@ public class UserService implements IrepresnteUserService {
                     return new RuntimeException("Invalid username or password");
                 });
 
+        // Check if account is suspended
+        if (member.isSuspended()) 
+        {
+            logger.warn("Login failed: account is suspended until {}, username={}, memberId={}", member.getSuspendedUntil(), username, member.getMemberId());
+            throw new RuntimeException("Your account is suspended.");
+        }
         if (!member.isActive()) {
             logger.error("Login failed: member is inactive, username={}, memberId={}", username, member.getMemberId());
             throw new RuntimeException("Member is inactive");
