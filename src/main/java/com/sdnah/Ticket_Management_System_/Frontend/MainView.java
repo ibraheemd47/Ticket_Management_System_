@@ -6,10 +6,12 @@ import org.checkerframework.checker.units.qual.h;
 import org.checkerframework.checker.units.qual.s;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
@@ -32,8 +34,38 @@ public class MainView extends VerticalLayout {
         this.eventService = eventService;
         setupHeader();
         setupSearchBar();
+        setupEventSection();    // Header 1: Upcoming Events
+        setupCompanySection();
        
     }
+
+private void setupCompanySection() {
+        H2 companyHeader = new H2("Our Partner Companies");
+    companyHeader.getStyle().set("margin-top", "40px");
+
+    // Using a HorizontalLayout to show company logos or cards
+    HorizontalLayout companyList = new HorizontalLayout();
+    companyList.setWidthFull();
+    companyList.setJustifyContentMode(JustifyContentMode.START);
+    companyList.setSpacing(true);
+    
+    add(companyHeader, companyList);
+    }
+
+private void setupEventSection() {
+    H2 eventHeader = new H2("Upcoming Events");
+    eventHeader.getStyle().set("margin-top", "40px");
+
+    // Displaying events in a Grid as per Version 1 requirements
+    Grid<Event> eventGrid = new Grid<>(Event.class, false);
+    eventGrid.addColumn(Event::getName).setHeader("Event Name");
+    eventGrid.addColumn(Event::getVenue).setHeader("Venue");
+    
+    // Fetch data using your domain service
+    // eventGrid.setItems(eventService.getShowsForThisWeek());
+
+    add(eventHeader, eventGrid);
+}
 
 private void setupHeader() {
     // 1. Logo on the left
