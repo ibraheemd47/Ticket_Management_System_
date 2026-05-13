@@ -53,11 +53,11 @@ class PolicyServiceTest {
     // ── Auth mock helper ──────────────────────────────────────────────────────
 
     private void mockOwnerAuth() {
-        when(representUserService.requireMember(TOKEN)).thenReturn(actor);
-        when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
-        when(actor.isActive()).thenReturn(true);
-        when(company.isOwner(any())).thenReturn(true);
-        when(company.getCompanyId()).thenReturn(COMPANY_ID);
+        lenient().when(representUserService.requireMember(TOKEN)).thenReturn(actor);
+        lenient().when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        lenient().when(actor.isActive()).thenReturn(true);
+        lenient().when(company.isOwner(any())).thenReturn(true);
+        lenient().when(company.getCompanyId()).thenReturn(COMPANY_ID);
     }
 
     // =========================================================================
@@ -81,8 +81,6 @@ class PolicyServiceTest {
     @Test
     void GivenNoDiscountPolicy_WhenAddDiscountRuleToEvent_ThenExceptionThrown() {
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
-        when(policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
-                .thenReturn(Optional.empty());
         mockOwnerAuth();
 
         assertThrows(IllegalArgumentException.class, () ->
@@ -167,8 +165,6 @@ class PolicyServiceTest {
     @Test
     void GivenNoPurchasePolicy_WhenAddPurchaseRuleToEvent_ThenExceptionThrown() {
         when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.empty());
-        when(policyRepo.findPurchasePolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
-                .thenReturn(Optional.empty());
         mockOwnerAuth();
 
         assertThrows(IllegalArgumentException.class, () ->

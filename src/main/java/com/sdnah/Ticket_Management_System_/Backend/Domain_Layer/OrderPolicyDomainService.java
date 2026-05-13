@@ -9,7 +9,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrde
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountContext;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 
 @Component
@@ -17,8 +16,7 @@ public class OrderPolicyDomainService {
 
     private final PolicyRepository policyRepository;
 
-    public OrderPolicyDomainService(PolicyRepository policyRepository
-                                    ) {
+    public OrderPolicyDomainService(PolicyRepository policyRepository) {
         if (policyRepository == null)
             throw new IllegalArgumentException("policyRepository required");
         this.policyRepository = policyRepository;
@@ -50,53 +48,23 @@ public class OrderPolicyDomainService {
     }
 
     // =========================================================================
-    // Private: find policies — event-first, company-fallback via Event
+    // Private: find policies by eventId only
+    // Every event has its own policy — no company fallback needed.
     // =========================================================================
 
     private PurchasePolicy findPurchasePolicy(ActiveOrder order) {
-        if (order.getEventId() != null) {
-            Optional<PurchasePolicy> ep =
-                    policyRepository.findPurchasePolicyByEventId(order.getEventId());
-            if (ep.isPresent()) return ep.get();
-        }
-
-        // Integer companyId = getCompanyIdFromEvent(order);
-        // if (companyId != null) {
-        //     return policyRepository
-        //             .findPurchasePolicyByCompanyIdAndEventIdIsNull(companyId)
-        //             .orElse(null);
-        // }
-
-        return null; // no restrictions
+        Object result = policyRepository.findPurchasePolicyByEventId(order.getEventId());
+        if (result == null) return null;
+        if (result instanceof java.util.Optional) return ((java.util.Optional<PurchasePolicy>) result).orElse(null);
+        return (PurchasePolicy) result;
     }
 
     private DiscountPolicy findDiscountPolicy(ActiveOrder order) {
-        if (order.getEventId() != null) {
-            Optional<DiscountPolicy> ep =
-                    policyRepository.findDiscountPolicyByEventId(order.getEventId());
-            if (ep.isPresent()) return ep.get();
-        }
-
-        // Integer companyId = getCompanyIdFromEvent(order);
-        // if (companyId != null) {
-        //     return policyRepository
-        //             .findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId)
-        //             .orElse(null);
-        // }
-
-        return null; // no discount
+        Object result = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+        if (result == null) return null;
+        if (result instanceof java.util.Optional) return ((java.util.Optional<DiscountPolicy>) result).orElse(null);
+        return (DiscountPolicy) result;
     }
-
-    /**
-     * Gets the companyId by loading the Event associated with the order.
-     * Returns null if the event is not found.
-     */
-    // private Integer getCompanyIdFromEvent(ActiveOrder order) {
-    //     if (order.getEventId() == null) return null;
-    //     return eventRepository.findById(order.getEventId())
-    //             .map(event -> event.getCompanyId().intValue())
-    //             .orElse(null);
-    // }
 
     // =========================================================================
     // UC II.2.8 — Apply discount policy to order
@@ -133,7 +101,7 @@ public class OrderPolicyDomainService {
     public void validatePurchasePolicy(ActiveOrder order, PurchasePolicy policy) {
         validateOrder(order);
 
-        if (policy == null) return;
+        if (policy == null) return; // no restrictions
 
         int quantity = order.getItems().size();
         if (!policy.validatePurchase(quantity, false)) {
