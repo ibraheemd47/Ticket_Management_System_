@@ -17,8 +17,13 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 
 import ch.qos.logback.classic.Logger;
+
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
+
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
 @Service
 public class EventService {
@@ -34,12 +39,23 @@ public class EventService {
     private static final String LOCK_NS_EVENT_REVIEW = "event:review";
     private static final String LOCK_NS_EVENT_SEAT = "event:seat";
 
+    private final NotificationService notificationService;
+    private final PurchaseRepository purchaseRepository;
+
     public EventService(IEventRepository eventRepository,
+            PurchaseRepository purchaseRepository,
+            NotificationService notificationService,
             KeyedLock keyedLock,
             TransactionTemplate transactionTemplate) {
-        this.eventRepository = eventRepository;
-        this.keyedLock = keyedLock;
-        this.transactionTemplate = transactionTemplate;
+                if (notificationService == null)
+                throw new IllegalArgumentException("notificationService required");
+                if (purchaseRepository == null)
+                throw new IllegalArgumentException("purchaseRepository required");
+                this.notificationService = notificationService;
+                this.eventRepository = eventRepository;
+                this.keyedLock = keyedLock;
+                this.transactionTemplate = transactionTemplate;
+                this.purchaseRepository = purchaseRepository;
     }
 
     // ── Creation / Deletion ──────────────────────────────────────────────────
@@ -57,10 +73,18 @@ public class EventService {
 
                 logger.info("Deleting event {}", eventId);
                 event.delete(ownerId);
-                eventRepository.delete(event);
-                eventRepository.flush();
-            });
-        });
+
+            //notify all buyers that the event was cancelled
+            notifyEventBuyers(
+                    event.getEventId(),
+                    event.getName(),
+                    true
+            );
+
+            eventRepository.delete(event);
+            eventRepository.flush();
+                        });
+                    });
     }
 
     // ── Shows ────────────────────────────────────────────────────────────────
@@ -224,6 +248,13 @@ public class EventService {
                         .orElseThrow(() -> new RuntimeException("Event not found"));
 
                 event.editDates(newStartDate, newEndDate, managerId);
+
+                //notify all buyers that event dates changed
+                notifyEventBuyers(
+                        event.getEventId(),
+                        event.getName(),
+                        false
+                );
                 eventRepository.saveAndFlush(event);
             });
         });
@@ -350,5 +381,29 @@ public class EventService {
 
             return eventRepository.bookSeat(eventId, showId, areaName, seatNumber, userId);
         }));
+    }
+
+    //helper function
+    private void notifyEventBuyers(UUID eventId,
+                               String eventName,
+                               boolean cancelled) {
+
+        purchaseRepository.findByEventId(eventId)
+                .forEach(purchase -> {
+
+                    String buyerId = purchase.getbuyerId();
+
+                    if (cancelled) {
+                        notificationService.notifyEventCancelled(
+                                buyerId,
+                                eventName
+                        );
+                    } else {
+                        notificationService.notifyEventRescheduled(
+                                buyerId,
+                                eventName
+                        );
+                    }
+                });
     }
 }
