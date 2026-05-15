@@ -1,132 +1,164 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.vaadin.flow.theme.lumo.LumoUtility;
-
-import org.checkerframework.checker.units.qual.h;
-import org.checkerframework.checker.units.qual.s;
-
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
-import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Paragraph;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.Route;
 
 @Route("") // Landing page
 public class MainView extends VerticalLayout {
-    private final EventService eventService; // Application service
+    private final EventService eventService;
 
     public MainView(EventService eventService) {
         this.eventService = eventService;
+
+        // 1. Match the overall page background and spacing from ProfileView
+        setSizeFull();
+        setPadding(false);
+        setSpacing(false);
+
+        getStyle()
+                .set("background", "#f4f4f4")
+                .set("font-family", "Arial, sans-serif");
+
         setupHeader();
-        setupSearchBar();
-        setupEventSection();    // Header 1: Upcoming Events
+        setupEventSection();    
         setupCompanySection();
-       
     }
 
-private void setupCompanySection() {
-        H2 companyHeader = new H2("Our Partner Companies");
-    companyHeader.getStyle().set("margin-top", "40px");
+    private void setupHeader() {
+        HorizontalLayout header = new HorizontalLayout();
+        
+        // 2. Match the blue header style
+        header.getStyle()
+                .set("background", "#026cdf")
+                .set("padding", "20px 52px")
+                .set("width", "100%")
+                .set("box-sizing", "border-box");
+        header.setAlignItems(Alignment.CENTER);
+        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
-    // Using a HorizontalLayout to show company logos or cards
-    HorizontalLayout companyList = new HorizontalLayout();
-    companyList.setWidthFull();
-    companyList.setJustifyContentMode(JustifyContentMode.START);
-    companyList.setSpacing(true);
-    
-    add(companyHeader, companyList);
+        H1 logo = new H1("TICKET MANAGEMENT");
+        logo.getStyle()
+                .set("color", "Black")
+                .set("margin", "0")
+                .set("font-size", "24px")
+                .set("font-weight", "900")
+                .set("cursor", "pointer");
+        logo.addClickListener(e -> UI.getCurrent().navigate(MainView.class));
+
+        TextField searchField = setupSearchBar();
+        searchField.getStyle().set("margin", "0 40px"); // Add breathing room
+
+        // 3. Custom styled buttons for the blue background
+        Button loginBtn = new Button("Login", e -> UI.getCurrent().navigate("login"));
+        loginBtn.getStyle()
+                .set("background", "white")
+                .set("color", "#026cdf")
+                .set("font-weight", "700")
+                .set("border-radius", "8px")
+                .set("cursor", "pointer");
+
+        Button signupBtn = new Button("Sign Up", e -> UI.getCurrent().navigate("signup"));
+        signupBtn.getStyle()
+                .set("background", "transparent")
+                .set("color", "white")
+                .set("border", "2px solid white")
+                .set("font-weight", "700")
+                .set("border-radius", "8px")
+                .set("cursor", "pointer");
+
+        HorizontalLayout authButtons = new HorizontalLayout(loginBtn, signupBtn);
+
+        header.add(logo, searchField, authButtons);
+        header.expand(searchField); 
+
+        add(header);
     }
 
-private void setupEventSection() {
-    H2 eventHeader = new H2("Upcoming Events");
-    eventHeader.getStyle().set("margin-top", "40px");
+    private void setupEventSection() {
+        Div container = createSectionContainer();
 
-    // Displaying events in a Grid as per Version 1 requirements
-    Grid<Event> eventGrid = new Grid<>(Event.class, false);
-    eventGrid.addColumn(Event::getName).setHeader("Event Name");
-    eventGrid.addColumn(Event::getVenue).setHeader("Venue");
-    
-    // Fetch data using your domain service
-    // eventGrid.setItems(eventService.getShowsForThisWeek());
+        Div headerContainer = createBlueHeaderContainer("Upcoming Events");
 
-    add(eventHeader, eventGrid);
-}
+        Grid<Event> eventGrid = new Grid<>(Event.class, false);
+        eventGrid.addColumn(Event::getName).setHeader("Event Name");
+        eventGrid.addColumn(Event::getVenue).setHeader("Area");
+        // eventGrid.setItems(eventService.getShowsForThisWeek());
+        
+        // Round bottom corners to attach smoothly to the blue header
+        eventGrid.getStyle().set("border-radius", "0 0 8px 8px"); 
 
-private void setupHeader() {
-    // 1. Logo on the left
-    H1 logo = new H1("TICKET MANAGEMENT");
-    logo.getStyle().set("margin", "0");
-    logo.getStyle().set("font-size", "var(--lumo-font-size-l)");
-    logo.addClickListener(e -> UI.getCurrent().navigate(MainView.class));
+        container.add(headerContainer, eventGrid);
+        add(container);
+    }
 
-    // 2. The Search Bar (The middle part)
-    // TextField searchField = new TextField();
-    // searchField.setPlaceholder("Search for artists, venues, and events");
-    // searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
-    // searchField.setClearButtonVisible(true);
-    
-    // // Make it wider - use a CSS width or a percentage
-    // searchField.setWidth("50%"); 
-    TextField searchField = setupSearchBar();
+    private void setupCompanySection() {
+        Div container = createSectionContainer();
 
-    // 3. Login Button on the right
-    Button loginBtn = new Button("Login", e -> UI.getCurrent().navigate("login"));
-    loginBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Div headerContainer = createBlueHeaderContainer("Our Partner Companies");
 
-    Button signupBtn = new Button("Sign Up", e -> UI.getCurrent().navigate("signup"));
-    signupBtn.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        HorizontalLayout companyList = new HorizontalLayout();
+        companyList.setWidthFull();
+        companyList.setSpacing(true);
+        companyList.getStyle()
+                .set("background", "white")
+                .set("padding", "20px")
+                .set("border-radius", "0 0 8px 8px"); // White box below the blue header
+        
+        container.add(headerContainer, companyList);
+        add(container);
+    }
 
-    // 4. Put them all in a HorizontalLayout
-    HorizontalLayout header = new HorizontalLayout(logo, searchField, loginBtn, signupBtn);
-    
-    // 5. Layout Magic: This makes the search bar stay in the middle and take up space
-    header.setWidthFull();
-    header.setAlignItems(Alignment.CENTER);
-    header.setPadding(true);
-    
-    // This pushes the logo left and the button right
-    header.setJustifyContentMode(JustifyContentMode.BETWEEN);
-    
-    // If you want the search bar even wider, tell the header to "expand" it
-    header.expand(searchField); 
+    private TextField setupSearchBar() {
+        TextField searchField = new TextField();
+        searchField.setPlaceholder("Search for artists, Areas, and events");
+        searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
+        searchField.setClearButtonVisible(true);
+        searchField.setWidth("50%"); 
+        
+        searchField.setValueChangeMode(ValueChangeMode.LAZY);
+        searchField.addValueChangeListener(e -> {
+            // Backend search logic
+        });
+        return searchField;
+    }
 
-    add(header);
-}
+    // --- Helper Methods for Consistent Styling ---
 
+    private Div createSectionContainer() {
+        Div container = new Div();
+        container.getStyle()
+                .set("padding", "40px 52px 0 52px") // Matches header side padding
+                .set("width", "100%")
+                .set("box-sizing", "border-box");
+        return container;
+    }
 
-private TextField setupSearchBar() {
-    TextField searchField = new TextField();
-    searchField.setPlaceholder("Search for artists, Areas, and events");
-    searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
-    searchField.setClearButtonVisible(true);
-    
-    // Make it wider - use a CSS width or a percentage
-    searchField.setWidth("50%"); 
-    
-    // Trigger search on every keystroke (with a small delay for performance)
-    searchField.setValueChangeMode(ValueChangeMode.LAZY);
-    searchField.addValueChangeListener(e -> {
-        // Here you call your backend logic to filter the events
-        // updateEventList(e.getValue()); // to implement in a future step
-    });
-    return searchField;
-    
-}
+    private Div createBlueHeaderContainer(String titleText) {
+        Div headerContainer = new Div();
+        headerContainer.getStyle()
+                .set("background", "#026cdf")
+                .set("padding", "14px 24px")
+                .set("border-radius", "8px 8px 0 0");
 
+        H2 header = new H2(titleText);
+        header.getStyle()
+                .set("color", "Black")
+                .set("margin", "0")
+                .set("font-size", "22px");
 
+        headerContainer.add(header);
+        return headerContainer;
+    }
 }
