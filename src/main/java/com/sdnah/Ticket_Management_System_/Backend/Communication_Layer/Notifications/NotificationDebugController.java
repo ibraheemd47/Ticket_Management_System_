@@ -8,9 +8,9 @@ import java.util.Set;
 @RequestMapping("/api/notifications/debug")
 public class NotificationDebugController {
 
-    private final ConnectedUserRegistry connectedUserRegistry;
+    private final NotificationSessionRegistry connectedUserRegistry;
 
-    public NotificationDebugController(ConnectedUserRegistry connectedUserRegistry) {
+    public NotificationDebugController(NotificationSessionRegistry connectedUserRegistry) {
         this.connectedUserRegistry = connectedUserRegistry;
     }
 

@@ -2,19 +2,19 @@ package com.sdnah.Ticket_Management_System_.Backend.Communication_Layer.Notifica
 
 import java.security.Principal;
 
-public class StompUserPrincipal implements Principal {
+public class NotificationPrincipal implements Principal {
 
-    private final String name;
+    private final String member_id;
 
-    public StompUserPrincipal(String name) {
-        if (name == null || name.isBlank()) {
+    public NotificationPrincipal(String memberId) {
+        if (memberId == null || memberId.isBlank()) {
             throw new IllegalArgumentException("Principal name cannot be null or blank");
         }
-        this.name = name.trim();
+        this.member_id = memberId.trim();
     }
 
     @Override
     public String getName() {
-        return name;
+        return member_id;
     }
 }

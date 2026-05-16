@@ -54,6 +54,6 @@ public class NotificationHandshakeHandler extends DefaultHandshakeHandler {
 
         logger.info("WebSocket notification user connected: " + principalName);
 
-        return new StompUserPrincipal(principalName);
+        return new NotificationPrincipal(principalName);
     }
 }

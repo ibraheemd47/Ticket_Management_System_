@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @Component
-public class ConnectedUserRegistry {
+public class NotificationSessionRegistry {
 
     private final ConcurrentMap<String, Set<String>> sessionsByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> userBySession = new ConcurrentHashMap<>();

@@ -21,12 +21,12 @@ public class NotificationService {
     private static final Logger logger = Logger.getLogger(NotificationService.class.getName());
 
     private final NotificationRepository notificationRepository;
-    private final RealtimeNotificationSender realtimeNotificationSender;
+    private final INotifier notifier;
 
     public NotificationService(NotificationRepository notificationRepository,
-                               RealtimeNotificationSender realtimeNotificationSender) {
+                               INotifier realtimeNotificationSender) {
         this.notificationRepository = Objects.requireNonNull(notificationRepository);
-        this.realtimeNotificationSender = Objects.requireNonNull(realtimeNotificationSender);
+        this.notifier = Objects.requireNonNull(realtimeNotificationSender);
     }
 
     @Transactional
@@ -38,8 +38,13 @@ public class NotificationService {
            NotificationDTO dto = NotificationDTO.fromDomain(notification);
 
             try {
-                realtimeNotificationSender.sendToUser(recipientUsername.trim(), dto);
-                logger.info("Real-time notification sent. recipient=" + recipientUsername + ", type=" + type);
+                boolean is_notify_send =notifier.notifyUser(recipientUsername.trim(), dto);
+                if(is_notify_send){
+                    logger.info("Real-time notification sent. recipient=" + recipientUsername + ", type=" + type);
+                } else {
+                    logger.info("Notification saved but recipient is not connected for real-time delivery. recipient=" +
+                            recipientUsername + ", type=" + type);
+                }
             } catch (RuntimeException deliveryError) {
                 logger.warning("Notification saved but real-time delivery failed. recipient="
                         + recipientUsername + ", reason=" + deliveryError.getMessage());
@@ -126,7 +131,8 @@ public class NotificationService {
         }
     }
 
-    public String notifyPurchaseSuccess(String recipientUsername, String eventName) {
+    public String 
+    notifyPurchaseSuccess(String recipientUsername, String eventName) {
         return createNotification(
                 recipientUsername,
                 "Purchase completed successfully for event: " + eventName,

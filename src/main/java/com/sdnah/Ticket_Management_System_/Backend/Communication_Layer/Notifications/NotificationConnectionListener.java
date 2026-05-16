@@ -10,41 +10,42 @@ import java.security.Principal;
 import java.util.logging.Logger;
 
 @Component
-public class NotificationSocketEventListener {
+public class NotificationConnectionListener {
 
     private static final Logger logger =
-            Logger.getLogger(NotificationSocketEventListener.class.getName());
+            Logger.getLogger(NotificationConnectionListener.class.getName());
 
-    private final ConnectedUserRegistry connectedUserRegistry;
+    //private final NotificationSessionRegistry connectedUserRegistry;
 
-    public NotificationSocketEventListener(ConnectedUserRegistry connectedUserRegistry) {
-        this.connectedUserRegistry = connectedUserRegistry;
+    private final Broadcaster broadcaster;
+    public NotificationConnectionListener(Broadcaster broadcaster) {
+        this.broadcaster = broadcaster;
     }
 
     @EventListener
-    public void handleSessionConnected(SessionConnectedEvent event) {
+    public void onConnected(SessionConnectedEvent event) {
         Principal user = event.getUser();
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
 
         String sessionId = accessor.getSessionId();
 
         if (user == null || sessionId == null) {
-            logger.warning("WebSocket connected without user or sessionId");
+            logger.warning("socket connected without user or sessionId");
             return;
         }
 
-        connectedUserRegistry.register(user.getName(), sessionId);
+        broadcaster.register(user.getName(), sessionId);
 
-        logger.info("Notification WebSocket connected. user="
+        logger.info("Notification socket connected. user="
                 + user.getName() + ", sessionId=" + sessionId);
     }
 
     @EventListener
-    public void handleSessionDisconnect(SessionDisconnectEvent event) {
+    public void onDisconnected(SessionDisconnectEvent event) {
         String sessionId = event.getSessionId();
 
-        connectedUserRegistry.unregisterSession(sessionId);
+        broadcaster.unregister(sessionId);
 
-        logger.info("Notification WebSocket disconnected. sessionId=" + sessionId);
+        logger.info("Notification socket disconnected. sessionId=" + sessionId);
     }
 }

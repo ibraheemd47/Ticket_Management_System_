@@ -10,7 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.RealtimeNotificationSender;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.INotifier;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,12 +20,12 @@ public class NotificationsServiceUnitTest {
 
     private NotificationService notificationsService;
     private NotificationRepository notificationRepository;
-    private RealtimeNotificationSender realtimeNotificationSender;
+    private INotifier realtimeNotificationSender;
 
     @BeforeEach
         void setUp() {
         notificationRepository = mock(NotificationRepository.class);
-        realtimeNotificationSender = mock(RealtimeNotificationSender.class);
+        realtimeNotificationSender = mock(INotifier.class);
 
         notificationsService = new NotificationService(
                 notificationRepository,

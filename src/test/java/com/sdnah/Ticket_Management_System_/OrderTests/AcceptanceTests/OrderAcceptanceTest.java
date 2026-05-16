@@ -18,6 +18,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.IPaymentGateway;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ITicketSupplierGateway;
@@ -73,6 +74,8 @@ class OrderAcceptanceTest {
 
         @MockBean
         private PolicyRepository policyRepository;
+        @MockBean
+        private NotificationService notificationService;
 
         @MockBean
         private OrderPolicyDomainService orderPolicyDomainService;
@@ -93,6 +96,9 @@ class OrderAcceptanceTest {
                 when(policyRepository.findDiscountPolicyByEventId(any())).thenReturn(null);
 
                 when(ticketRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+                when(notificationService.notifyPurchaseSuccess(anyString(), anyString()))
+                .thenReturn("notification-id");
+
         }
 
         @Test
