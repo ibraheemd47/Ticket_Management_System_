@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -15,21 +17,21 @@ import com.vaadin.flow.router.Route;
 @Route("signup")
 public class SignUpView extends VerticalLayout {
 
-    public SignUpView() {
+    private final UserService userService;
+
+    public SignUpView(UserService userService) {
+        this.userService = userService;
+
         setSizeFull();
         setPadding(false);
         setSpacing(false);
 
-        // 1. Match the global page background
         getStyle()
                 .set("background", "#f4f4f4")
                 .set("font-family", "Arial, sans-serif");
 
-        // 2. Add the Header to the top
-        Div header = createHeader();
-        add(header);
+        add(createHeader());
 
-        // 3. Create a wrapper to center the card
         Div cardWrapper = new Div();
         cardWrapper.getStyle()
                 .set("display", "flex")
@@ -38,21 +40,17 @@ public class SignUpView extends VerticalLayout {
                 .set("align-items", "center")
                 .set("justify-content", "center");
 
-        // 4. The main Sign Up Card (Slightly taller to fit extra fields)
         Div card = new Div();
         card.getStyle()
                 .set("display", "flex")
                 .set("width", "950px")
-                .set("min-height", "620px") // Increased slightly from 570px for the extra fields
+                .set("min-height", "620px")
                 .set("background", "white")
                 .set("box-shadow", "0 8px 30px rgba(0,0,0,0.12)")
                 .set("border-radius", "8px")
                 .set("overflow", "hidden");
 
-        Div left = createLeftSide();
-        Div right = createRightSide();
-
-        card.add(left, right);
+        card.add(createLeftSide(), createRightSide());
         cardWrapper.add(card);
         add(cardWrapper);
     }
@@ -74,11 +72,9 @@ public class SignUpView extends VerticalLayout {
                 .set("font-size", "24px")
                 .set("font-weight", "900")
                 .set("cursor", "pointer");
-                
-        logo.addClickListener(event -> {
-            getUI().ifPresent(ui -> ui.navigate("")); 
-        });
-        
+
+        logo.addClickListener(event -> getUI().ifPresent(ui -> ui.navigate("")));
+
         header.add(logo);
         return header;
     }
@@ -101,7 +97,7 @@ public class SignUpView extends VerticalLayout {
                 .set("font-size", "26px")
                 .set("font-weight", "800");
 
-        H1 welcome = new H1("JOIN US"); // Changed from WELCOME
+        H1 welcome = new H1("JOIN US");
         welcome.getStyle()
                 .set("margin-top", "40px")
                 .set("margin-bottom", "12px")
@@ -113,7 +109,7 @@ public class SignUpView extends VerticalLayout {
         whiteLine.getStyle()
                 .set("width", "85px")
                 .set("height", "5px")
-                .set("background", "white") 
+                .set("background", "white")
                 .set("margin-bottom", "28px")
                 .set("border-radius", "2px");
 
@@ -134,7 +130,7 @@ public class SignUpView extends VerticalLayout {
         Div right = new Div();
         right.getStyle()
                 .set("width", "50%")
-                .set("padding", "40px 55px") // Reduced top/bottom padding slightly to fit fields
+                .set("padding", "40px 55px")
                 .set("box-sizing", "border-box")
                 .set("display", "flex")
                 .set("flex-direction", "column")
@@ -154,30 +150,32 @@ public class SignUpView extends VerticalLayout {
                 .set("line-height", "1.5")
                 .set("margin-bottom", "20px");
 
-        // First and Last Name side-by-side
         HorizontalLayout nameLayout = new HorizontalLayout();
         nameLayout.setWidthFull();
-        
+
         TextField firstName = new TextField("First Name");
         firstName.setWidthFull();
-        
+
         TextField lastName = new TextField("Last Name");
         lastName.setWidthFull();
-        
+
         nameLayout.add(firstName, lastName);
 
-        // Email
+        TextField username = new TextField("Username");
+        username.setWidthFull();
+
         TextField email = new TextField("Email Address");
         email.setWidthFull();
 
-        // Passwords
+        TextField phone = new TextField("Phone");
+        phone.setWidthFull();
+
         PasswordField password = new PasswordField("Password");
         password.setWidthFull();
 
         PasswordField confirmPassword = new PasswordField("Confirm Password");
         confirmPassword.setWidthFull();
 
-        // Sign Up Button
         Button signupButton = new Button("Create Account");
         signupButton.setWidthFull();
         signupButton.getStyle()
@@ -191,19 +189,39 @@ public class SignUpView extends VerticalLayout {
                 .set("margin-top", "20px");
 
         signupButton.addClickListener(event -> {
-            if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            if (firstName.isEmpty() || lastName.isEmpty() || username.isEmpty()
+                    || email.isEmpty() || phone.isEmpty()
+                    || password.isEmpty() || confirmPassword.isEmpty()) {
                 Notification.show("Please fill in all fields.");
                 return;
             }
+
             if (!password.getValue().equals(confirmPassword.getValue())) {
                 Notification.show("Passwords do not match!");
                 return;
             }
-            Notification.show("Account creation initiated for: " + email.getValue());
-            // Uncomment backend logic when ready
+
+            try {
+                userService.register(
+                        username.getValue(),
+                        password.getValue(),
+                        email.getValue(),
+                        phone.getValue(),
+                        VerificationMethod.EMAIL
+                );
+
+                Notification.show("Account created. Please enter the verification code.");
+
+                getUI().ifPresent(ui -> {
+                    ui.getSession().setAttribute("pendingUsername", username.getValue());
+                    ui.navigate("verify-account");
+                });
+
+            } catch (Exception ex) {
+                Notification.show(ex.getMessage());
+            }
         });
 
-        // Redirect to Login Link
         Paragraph alreadyAccount = new Paragraph("Already have an account? Sign in");
         alreadyAccount.getStyle()
                 .set("text-align", "center")
@@ -211,11 +229,11 @@ public class SignUpView extends VerticalLayout {
                 .set("color", "#026cdf")
                 .set("font-weight", "700")
                 .set("margin-top", "25px")
-                .set("cursor", "pointer"); 
-        
+                .set("cursor", "pointer");
+
         alreadyAccount.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("login")));
 
-        right.add(title, subtitle, nameLayout, email, password, confirmPassword, signupButton, alreadyAccount);
+        right.add(title, subtitle, nameLayout, username, email, phone, password, confirmPassword, signupButton, alreadyAccount);
         return right;
     }
 }

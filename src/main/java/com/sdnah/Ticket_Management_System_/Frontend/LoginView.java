@@ -1,5 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -14,21 +15,21 @@ import com.vaadin.flow.router.Route;
 @Route("login")
 public class LoginView extends VerticalLayout {
 
-    public LoginView() {
+    private final UserService userService;
+
+    public LoginView(UserService userService) {
+        this.userService = userService;
+
         setSizeFull();
         setPadding(false);
         setSpacing(false);
 
-        // 1. Match the global page background to MainView
         getStyle()
                 .set("background", "#f4f4f4")
                 .set("font-family", "Arial, sans-serif");
 
-        // 2. Add the Header to the top of the page (not inside the card)
-        Div header = createHeader();
-        add(header);
+        add(createHeader());
 
-        // 3. Create a wrapper to center the card vertically and horizontally
         Div cardWrapper = new Div();
         cardWrapper.getStyle()
                 .set("display", "flex")
@@ -37,7 +38,6 @@ public class LoginView extends VerticalLayout {
                 .set("align-items", "center")
                 .set("justify-content", "center");
 
-        // 4. The main Login Card
         Div card = new Div();
         card.getStyle()
                 .set("display", "flex")
@@ -45,13 +45,10 @@ public class LoginView extends VerticalLayout {
                 .set("height", "570px")
                 .set("background", "white")
                 .set("box-shadow", "0 8px 30px rgba(0,0,0,0.12)")
-                .set("border-radius", "8px") // Match the 8px corners from MainView
+                .set("border-radius", "8px")
                 .set("overflow", "hidden");
 
-        Div left = createLeftSide();
-        Div right = createRightSide();
-
-        card.add(left, right);
+        card.add(createLeftSide(), createRightSide());
         cardWrapper.add(card);
         add(cardWrapper);
     }
@@ -60,9 +57,9 @@ public class LoginView extends VerticalLayout {
         Div header = new Div();
         header.getStyle()
                 .set("width", "100%")
-                .set("background", "#026cdf") // Match the new blue theme
+                .set("background", "#026cdf")
                 .set("color", "white")
-                .set("padding", "20px 52px") // Match MainView padding
+                .set("padding", "20px 52px")
                 .set("display", "flex")
                 .set("align-items", "center")
                 .set("box-sizing", "border-box");
@@ -73,11 +70,9 @@ public class LoginView extends VerticalLayout {
                 .set("font-size", "24px")
                 .set("font-weight", "900")
                 .set("cursor", "pointer");
-                
-        logo.addClickListener(event -> {
-            getUI().ifPresent(ui -> ui.navigate("")); 
-        });
-        
+
+        logo.addClickListener(event -> getUI().ifPresent(ui -> ui.navigate("main")));
+
         header.add(logo);
         return header;
     }
@@ -86,13 +81,13 @@ public class LoginView extends VerticalLayout {
         Div left = new Div();
         left.getStyle()
                 .set("width", "50%")
-                .set("background", "#026cdf") // Made the left panel brand blue instead of black
+                .set("background", "#026cdf")
                 .set("color", "white")
                 .set("padding", "50px")
                 .set("box-sizing", "border-box")
                 .set("display", "flex")
                 .set("flex-direction", "column")
-                .set("justify-content", "center"); // Centers the text nicely
+                .set("justify-content", "center");
 
         H2 logo = new H2("VibePass");
         logo.getStyle()
@@ -102,18 +97,17 @@ public class LoginView extends VerticalLayout {
 
         H1 welcome = new H1("WELCOME");
         welcome.getStyle()
-                .set("margin-top", "40px") // Adjusted since it's vertically centered now
+                .set("margin-top", "40px")
                 .set("margin-bottom", "12px")
                 .set("font-size", "52px")
                 .set("font-weight", "900")
                 .set("letter-spacing", "1px");
 
-        // Changed to a white line so it stands out against the blue background
         Div whiteLine = new Div();
         whiteLine.getStyle()
                 .set("width", "85px")
                 .set("height", "5px")
-                .set("background", "white") 
+                .set("background", "white")
                 .set("margin-bottom", "28px")
                 .set("border-radius", "2px");
 
@@ -147,15 +141,15 @@ public class LoginView extends VerticalLayout {
                 .set("margin", "0 0 18px 0")
                 .set("color", "#111111");
 
-        Paragraph subtitle = new Paragraph("If you don't have an account you will be prompted to create one.");
+        Paragraph subtitle = new Paragraph("Enter your username and password to continue.");
         subtitle.getStyle()
                 .set("font-size", "15px")
                 .set("color", "#555555")
                 .set("line-height", "1.5")
                 .set("margin-bottom", "35px");
 
-        TextField email = new TextField("Email Address");
-        email.setWidthFull();
+        TextField username = new TextField("Username");
+        username.setWidthFull();
 
         PasswordField password = new PasswordField("Password");
         password.setWidthFull();
@@ -164,36 +158,48 @@ public class LoginView extends VerticalLayout {
         continueButton.setWidthFull();
         continueButton.getStyle()
                 .set("height", "48px")
-                .set("background", "#026cdf") // Updated to new theme blue
+                .set("background", "#026cdf")
                 .set("color", "white")
                 .set("font-weight", "700")
                 .set("font-size", "16px")
-                .set("border-radius", "8px") // Match rounded buttons
+                .set("border-radius", "8px")
                 .set("cursor", "pointer")
                 .set("margin-top", "18px");
 
         continueButton.addClickListener(event -> {
-            if (email.isEmpty() || password.isEmpty()) {
-                Notification.show("Please enter email and password");
+            if (username.isEmpty() || password.isEmpty()) {
+                Notification.show("Please enter username and password");
                 return;
             }
-            Notification.show("Login clicked: " + email.getValue());
-            // Uncomment backend logic when ready
+
+            try {
+                String token = userService.login(
+                        username.getValue(),
+                        password.getValue()
+                );
+
+                getUI().ifPresent(ui -> ui.getSession().setAttribute("token", token));
+
+                Notification.show("Login successful");
+                getUI().ifPresent(ui -> ui.navigate("main"));
+
+            } catch (Exception ex) {
+                Notification.show(ex.getMessage());
+            }
         });
 
         Paragraph createAccount = new Paragraph("New to the show? Create an account");
         createAccount.getStyle()
                 .set("text-align", "center")
                 .set("font-size", "14px")
-                .set("color", "#026cdf") // Updated to new theme blue
+                .set("color", "#026cdf")
                 .set("font-weight", "700")
                 .set("margin-top", "35px")
-                .set("cursor", "pointer"); // Shows the user they can click it
-        
-        // Added the navigation logic to the Sign Up page
+                .set("cursor", "pointer");
+
         createAccount.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("signup")));
 
-        right.add(title, subtitle, email, password, continueButton, createAccount);
+        right.add(title, subtitle, username, password, continueButton, createAccount);
         return right;
     }
 }
