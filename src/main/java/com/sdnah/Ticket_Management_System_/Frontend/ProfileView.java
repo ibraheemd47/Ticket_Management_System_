@@ -50,7 +50,7 @@ public class ProfileView extends VerticalLayout {
                 .set("gap", "40px")
                 .set("align-items", "center");
 
-        Span home = createNavItem("Home", "");
+        Span home = createNavItem("Home", "main");
         
 
         Span account = new Span("👤 My Account");
@@ -111,7 +111,7 @@ public class ProfileView extends VerticalLayout {
                 .set("line-height", "1.5");
 
         Button myOrders = createMainButton("My Orders", "orders?tab=active");
-        Button browseEvents = createSecondaryButton("Browse Events", "");
+        Button browseEvents = createSecondaryButton("Browse Events", "main");
 
         card.add(avatar, title, subtitle, myOrders, browseEvents);
         wrapper.add(card);

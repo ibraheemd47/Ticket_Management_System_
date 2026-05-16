@@ -61,25 +61,64 @@ public class MainView extends VerticalLayout {
         searchField.getStyle().set("margin", "0 40px"); // Add breathing room
 
         // 3. Custom styled buttons for the blue background
-        Button loginBtn = new Button("Login", e -> UI.getCurrent().navigate("login"));
-        loginBtn.getStyle()
-                .set("background", "white")
-                .set("color", "#026cdf")
-                .set("font-weight", "700")
-                .set("border-radius", "8px")
-                .set("cursor", "pointer");
+        HorizontalLayout authButtons = new HorizontalLayout();
 
-        Button signupBtn = new Button("Sign Up", e -> UI.getCurrent().navigate("signup"));
-        signupBtn.getStyle()
-                .set("background", "transparent")
-                .set("color", "white")
-                .set("border", "2px solid white")
-                .set("font-weight", "700")
-                .set("border-radius", "8px")
-                .set("cursor", "pointer");
+        Object token = UI.getCurrent()
+                .getSession()
+                .getAttribute("token");
 
-        HorizontalLayout authButtons = new HorizontalLayout(loginBtn, signupBtn);
+        if (token == null) {
 
+            Button loginBtn = new Button("Login",
+                    e -> UI.getCurrent().navigate("login"));
+
+            loginBtn.getStyle()
+                    .set("background", "white")
+                    .set("color", "#026cdf")
+                    .set("font-weight", "700")
+                    .set("border-radius", "8px")
+                    .set("cursor", "pointer");
+
+            Button signupBtn = new Button("Sign Up",
+                    e -> UI.getCurrent().navigate("signup"));
+
+            signupBtn.getStyle()
+                    .set("background", "transparent")
+                    .set("color", "white")
+                    .set("border", "2px solid white")
+                    .set("font-weight", "700")
+                    .set("border-radius", "8px")
+                    .set("cursor", "pointer");
+
+            authButtons.add(loginBtn, signupBtn);
+
+        } else {
+
+            Button profileBtn = new Button("My Profile",
+                    e -> UI.getCurrent().navigate("profile"));
+
+            profileBtn.getStyle()
+                    .set("background", "white")
+                    .set("color", "#026cdf")
+                    .set("font-weight", "700")
+                    .set("border-radius", "8px")
+                    .set("cursor", "pointer");
+
+            Button logoutBtn = new Button("Logout", e -> {
+                UI.getCurrent().getSession().setAttribute("token", null);
+                UI.getCurrent().navigate("main");
+            });
+
+            logoutBtn.getStyle()
+                    .set("background", "transparent")
+                    .set("color", "white")
+                    .set("border", "2px solid white")
+                    .set("font-weight", "700")
+                    .set("border-radius", "8px")
+                    .set("cursor", "pointer");
+
+            authButtons.add(profileBtn, logoutBtn);
+        }
         header.add(logo, searchField, authButtons);
         header.expand(searchField); 
 

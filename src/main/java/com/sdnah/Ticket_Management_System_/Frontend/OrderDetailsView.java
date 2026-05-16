@@ -65,7 +65,7 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
                 .set("font-size", "22px")
                 .set("font-weight", "900");
 
-        Span events = createNavItem("Events", "");
+        Span events = createNavItem("Events", "main");
         
 
         Div spacer = new Div();
@@ -193,7 +193,7 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
                 .set("cursor", "pointer");
 
         browse.addClickListener(e ->
-                getUI().ifPresent(ui -> ui.navigate(""))
+                getUI().ifPresent(ui -> ui.navigate("main"))
         );
 
         empty.add(icon, title, text, browse);
