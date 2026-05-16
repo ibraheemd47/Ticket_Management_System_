@@ -2,7 +2,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Communication_Layer.Notifica
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.NotificationDTO;
-
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,36 +12,44 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
+private final IrepresnteUserService userService;
+public NotificationController(NotificationService notificationService,
+                              IrepresnteUserService userService) {
+    this.notificationService = notificationService;
+    this.userService = userService;
+}
 
-    public NotificationController(NotificationService notificationService) {
-        this.notificationService = notificationService;
-    }
+@GetMapping("/me")
+public List<NotificationDTO> getMyNotifications(@RequestParam String token) {
+    String memberId = userService.requireMemberId(token);
+    return notificationService.getNotificationsForUser(memberId);
+}
 
-    @GetMapping("/{username}")
-    public List<NotificationDTO> getNotifications(@PathVariable String username) {
-        return notificationService.getNotificationsForUser(username);
-    }
+@GetMapping("/me/unread")
+public List<NotificationDTO> getMyUnreadNotifications(@RequestParam String token) {
+    String memberId = userService.requireMemberId(token);
+    return notificationService.getUnreadNotificationsForUser(memberId);
+}
 
-    @GetMapping("/{username}/unread")
-    public List<NotificationDTO> getUnreadNotifications(@PathVariable String username) {
-        return notificationService.getUnreadNotificationsForUser(username);
-    }
 
-    @PatchMapping("/{username}/{notificationId}/read")
-    public void markNotificationAsRead(@PathVariable String username,
-                                       @PathVariable String notificationId) {
-        notificationService.markAsRead(notificationId, username);
-    }
+@GetMapping("/me/unread/count")
+public long getMyUnreadCount(@RequestParam String token) {
+    String memberId = userService.requireMemberId(token);
+    return notificationService.getUnreadCount(memberId);
+}
 
-    @GetMapping("/{username}/unread/count")
-    public long getUnreadCount(@PathVariable String username) {
-        return notificationService.getUnreadCount(username);
-    }
+@PatchMapping("/me/{notificationId}/read")
+public void markMyNotificationAsRead(@RequestParam String token,
+                                     @PathVariable String notificationId) {
+    String memberId = userService.requireMemberId(token);
+    notificationService.markAsRead(notificationId, memberId);
+}
 
-    @PatchMapping("/{username}/read-all")
-    public void markAllAsRead(@PathVariable String username) {
-        notificationService.markAllAsRead(username);
-    }
+@PatchMapping("/me/read-all")
+public void markAllMyNotificationsAsRead(@RequestParam String token) {
+    String memberId = userService.requireMemberId(token);
+    notificationService.markAllAsRead(memberId);
+}
     @PostMapping("/debug/send")
 public String debugSendNotification(@RequestParam String recipientMemberId,
                                     @RequestParam String message) {
