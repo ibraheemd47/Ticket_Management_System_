@@ -16,6 +16,14 @@ public class WebSocketNotificationSender implements RealtimeNotificationSender {
 
     @Override
     public void sendToUser(String recipientUsername, NotificationDTO notification) {
+                if (recipientUsername == null || recipientUsername.isBlank()) {
+            throw new IllegalArgumentException("recipientUsername cannot be null or blank");
+        }
+
+
+        if (notification == null) {
+            throw new IllegalArgumentException("notification cannot be null");
+        }
         messagingTemplate.convertAndSendToUser(
                 recipientUsername,
                 "/queue/notifications",

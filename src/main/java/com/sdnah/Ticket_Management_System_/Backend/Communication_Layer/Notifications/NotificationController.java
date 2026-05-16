@@ -42,5 +42,13 @@ public class NotificationController {
     public void markAllAsRead(@PathVariable String username) {
         notificationService.markAllAsRead(username);
     }
-    
+    @PostMapping("/debug/send")
+public String debugSendNotification(@RequestParam String recipientMemberId,
+                                    @RequestParam String message) {
+    return notificationService.createNotification(
+            recipientMemberId,
+            message,
+            com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType.ROLE_CHANGED
+    );
+}
 }
