@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.CompanyRoleService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ManagerPermission;
@@ -33,7 +34,8 @@ class CompanyRoleServiceAcceptanceTest {
     private static final String OWNER_ID = "owner-1";
     private static final String TARGET_ID = "target-1";
     private static final String MANAGER_ID = "manager-1";
-
+    @Mock
+    private NotificationService notificationService;
     @Mock
     private UserRepository userRepository;
 

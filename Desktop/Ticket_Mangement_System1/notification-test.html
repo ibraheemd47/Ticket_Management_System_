@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Notification Test</title>
+</head>
+<body>
+  <h2>Notification WebSocket Test</h2>
+
+  <label>Member ID:</label>
+  <input id="memberId" value="member123" />
+
+  <br><br>
+
+  <button onclick="connectSocket()">Connect Socket</button>
+  <button onclick="sendNotification()">Send Test Notification</button>
+
+  <h3>Log:</h3>
+  <pre id="log"></pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+
+  <script>
+    let client = null;
+
+    function log(msg) {
+      document.getElementById("log").textContent += msg + "\n";
+      console.log(msg);
+    }
+
+    function connectSocket() {
+      const memberId = document.getElementById("memberId").value;
+
+      client = new StompJs.Client({
+        webSocketFactory: () =>
+          new SockJS(`http://localhost:8080/ws-notifications?memberId=${memberId}`),
+
+        reconnectDelay: 5000,
+
+        onConnect: () => {
+          log("Connected as: " + memberId);
+
+          client.subscribe("/user/queue/notifications", (message) => {
+            log("Notification received:");
+            log(message.body);
+
+            const notification = JSON.parse(message.body);
+            alert(notification.message);
+          });
+
+          log("Subscribed to /user/queue/notifications");
+        },
+
+        onStompError: (frame) => {
+          log("STOMP error: " + frame.headers["message"]);
+          log(frame.body);
+        },
+
+        onWebSocketError: (event) => {
+          log("WebSocket error. Check console.");
+          console.error(event);
+        }
+      });
+
+      client.activate();
+    }
+
+    async function sendNotification() {
+      const memberId = document.getElementById("memberId").value;
+      const message = encodeURIComponent("hello from websocket test");
+
+      const url =
+        `http://localhost:8080/api/notifications/debug/send?recipientMemberId=${memberId}&message=${message}`;
+
+      log("Sending: " + url);
+
+      const response = await fetch(url, {
+        method: "POST"
+      });
+
+      const text = await response.text();
+      log("Response: " + response.status + " " + text);
+    }
+  </script>
+</body>
+</html>
