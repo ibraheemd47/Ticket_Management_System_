@@ -20,6 +20,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.IPaymentGateway;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ITicketSupplierGateway;
@@ -33,6 +34,8 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTr
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+// import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.PolicyService;
 
 class ActiveOrderServiceTest {
 
@@ -46,15 +49,19 @@ class ActiveOrderServiceTest {
     @Mock private PolicyRepository policyRepository;
     @Mock private IrepresnteUserService represnteUserService;
     @Mock private OrderActionLogRepository actionLogRepo;
+    @Mock private NotificationService notificationService;
+    // @Mock private PolicyService policyService;
 
     private ActiveOrderService service;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        
 
         service = new ActiveOrderService(
                 orderRepo,
+                notificationService,
                 purchaseRepo,
                 txRepo,
                 paymentService,
@@ -63,7 +70,8 @@ class ActiveOrderServiceTest {
                 ticketRepository,
                 policyRepository,
                 represnteUserService,
-                actionLogRepo);
+                actionLogRepo
+        );
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ class company_managment_serivceTest {
     private UserRepository userRepository;
     private IEventRepository eventRepository;
     private IrepresnteUserService representUserService;
+    private NotificationService notificationService;
 
     private static final int COMPANY_ID = 1;
 
@@ -56,12 +58,14 @@ class company_managment_serivceTest {
         userRepository = mock(UserRepository.class);
         eventRepository = mock(IEventRepository.class);
         representUserService = mock(IrepresnteUserService.class);
+        notificationService = mock(NotificationService.class);
 
         service = new company_managment_serivce(
-                repo,
-                userRepository,
-                eventRepository,
-                representUserService);
+            repo,
+            userRepository,
+            eventRepository,
+            representUserService,
+            notificationService);
 
         Company company = new Company(COMPANY_ID, "Main Company", FOUNDER);
 

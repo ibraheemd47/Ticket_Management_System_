@@ -25,11 +25,14 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepos
 
 import org.springframework.stereotype.Service;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+
 @Service
 public class company_managment_serivce {
     private final CompanyAuthorizationDomainService companyAuthorizationDomainService;
     private static final Logger logger = LoggerFactory.getLogger(company_managment_serivce.class);
 
+    private final NotificationService notificationService;
     // Repositories
     private final CompanyRepository companyRepository;
     private UserRepository userRepository;
@@ -37,13 +40,18 @@ public class company_managment_serivce {
     private IrepresnteUserService representUserService;
 
     @Autowired
-    public company_managment_serivce(CompanyRepository companyRepository, UserRepository userRepository,
-             IEventRepository eventRepository, IrepresnteUserService representUserService) {
+    public company_managment_serivce(CompanyRepository companyRepository,
+            UserRepository userRepository,
+            IEventRepository eventRepository,
+            IrepresnteUserService representUserService,
+            NotificationService notificationService) {
+
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.representUserService = representUserService;
+        this.notificationService = notificationService;
     }
 
     // --- II.2.1: View Active Production Companies ---
@@ -242,6 +250,9 @@ public class company_managment_serivce {
                 Set.of()));
         userRepository.save(newManager);
 
+        //notification: notify new manager
+        notificationService.notifyManagerAppointed(newManagerId, company.getCompanyName());
+
         logger.info("Manager appointed successfully. companyId={}, newManagerId={}, actingOwnerId={}",
                 companyId, newManagerId, actor.getMemberId());
     }
@@ -277,6 +288,9 @@ public class company_managment_serivce {
                 Set.of()));
         userRepository.save(newOwner);
 
+        //notifications
+        notificationService.notifyOwnerAppointed(newOwnerId, company.getCompanyName());
+
         logger.info("Additional owner appointed. companyId={}, newOwnerId={}, actingOwnerId={}",
                 companyId, newOwnerId, actor.getMemberId());
     }
@@ -290,6 +304,9 @@ public class company_managment_serivce {
 
         company.removeOwnerAppointment(actor.getMemberId(), targetOwnerId);
         companyRepository.save(company);
+
+        //notifications
+        notificationService.notifyOwnerRemoved(targetOwnerId, company.getCompanyName());
 
         logger.info("Owner appointment removed. companyId={}, targetOwnerId={}, actingOwnerId={}",
                 companyId, targetOwnerId, actor.getMemberId());
@@ -315,6 +332,9 @@ public class company_managment_serivce {
         company.modifyManagerPermissions(actor.getMemberId(), managerId, updatedPermissions);
         companyRepository.save(company);
 
+        //notifications
+        notificationService.notifyPermissionsChanged(managerId, company.getCompanyName());
+
         logger.info("Manager permissions updated. companyId={}, managerId={}, actingOwnerId={}",
                 companyId, managerId, actor.getMemberId());
     }
@@ -329,6 +349,9 @@ public class company_managment_serivce {
         company.removeManagerAppointment(actor.getMemberId(), managerId);
         companyRepository.save(company);
 
+        //notifications
+        notificationService.notifyManagerRemoved(managerId, company.getCompanyName());
+
         logger.info("Manager appointment removed. companyId={}, managerId={}, actingOwnerId={}",
                 companyId, managerId, actor.getMemberId());
     }
@@ -342,6 +365,10 @@ public class company_managment_serivce {
 
         boolean changed = company.closeCompany(actor.getMemberId());
         companyRepository.save(company);
+
+        if (changed) {
+            notifyCompanyRoleMembers(company, true);
+        }
 
         logger.info("Company close requested. companyId={}, actorId={}, changed={}",
                 companyId, actor.getMemberId(), changed);
@@ -358,6 +385,10 @@ public class company_managment_serivce {
 
         boolean changed = company.reopenCompany(actor.getMemberId());
         companyRepository.save(company);
+
+        if (changed) {
+            notifyCompanyRoleMembers(company, false);
+        }
 
         logger.info("Company reopen requested. companyId={}, actorId={}, changed={}",
                 companyId, actor.getMemberId(), changed);
@@ -390,6 +421,10 @@ public class company_managment_serivce {
 
         boolean changed = company.adminCloseCompany();
         companyRepository.save(company);
+
+        if (changed) {
+            notifyCompanyRoleMembers(company, true);
+        }
 
         logger.info("Company closed by system admin. companyId={}, adminId={}, changed={}",
                 companyId, actor.getMemberId(), changed);
@@ -511,6 +546,28 @@ public class company_managment_serivce {
             throw new SecurityException("Invalid token");
         }
         return representUserService.requireMember(actorToken);
+    }
+
+
+    //helper function: notify members
+    private void notifyCompanyRoleMembers(Company company, boolean closed) {
+        Set<String> recipients = new HashSet<>();
+
+        recipients.add(company.getCompanyFounderId());
+        recipients.addAll(company.getOwnerIds());
+        recipients.addAll(company.getManagerPermissionsView().keySet());
+
+        for (String recipient : recipients) {
+            if (recipient == null || recipient.isBlank()) {
+                continue;
+            }
+
+            if (closed) {
+                notificationService.notifyCompanyClosed(recipient, company.getCompanyName());
+            } else {
+                notificationService.notifyCompanyReopened(recipient, company.getCompanyName());
+            }
+        }
     }
 
 }

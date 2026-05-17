@@ -34,6 +34,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTr
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
 /**
  * Unit tests for the user-driven undo flow on ActiveOrderService.
@@ -51,6 +52,7 @@ class UndoActionTest {
     private IrepresnteUserService userService;
     private OrderActionLogRepository actionLogRepo;
     private ActiveOrderService service;
+    private NotificationService notificationService;
 
     private final String USER_TOKEN = "tok";
     private final String BUYER_ID   = "11111111-1111-1111-1111-111111111111";
@@ -68,10 +70,21 @@ class UndoActionTest {
         policyRepository = mock(PolicyRepository.class);
         userService      = mock(IrepresnteUserService.class);
         actionLogRepo    = mock(OrderActionLogRepository.class);
+        notificationService = mock(NotificationService.class);
 
         service = new ActiveOrderService(
-                orderRepo, purchaseRepo, txRepo, paymentService, paymentGateway, ticketGateway,
-                ticketRepository, policyRepository, userService, actionLogRepo);
+                orderRepo,
+                notificationService,
+                purchaseRepo,
+                txRepo,
+                paymentService,
+                paymentGateway,
+                ticketGateway,
+                ticketRepository,
+                policyRepository,
+                userService,
+                actionLogRepo
+        );
 
         when(userService.requireMemberId(USER_TOKEN)).thenReturn(BUYER_ID);
         when(policyRepository.findDiscountPolicyByEventId(any())).thenReturn(null);

@@ -26,6 +26,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.IPaymentGateway;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ITicketSupplierGateway;
@@ -77,6 +78,8 @@ class OrderConcurrencyTest {
     @MockBean
     private IrepresnteUserService represnteUserService;
 
+    @MockBean
+    private NotificationService notificationService;
     private static class Outcome {
         final AtomicInteger successes = new AtomicInteger();
         final AtomicInteger failures = new AtomicInteger();

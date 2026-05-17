@@ -12,18 +12,31 @@ public class NotificationDTO {
     private final String message;
     private final NotificationType type;
     private final LocalDateTime createdAt;
+    private final boolean read;
 
-    public NotificationDTO(String id, String recipientUsername, String message, NotificationType type, LocalDateTime createdAt) {
+    public NotificationDTO(String id,
+                           String recipientUsername,
+                           String message,
+                           NotificationType type,
+                           LocalDateTime createdAt,
+                           boolean read) {
         this.id = id;
         this.recipientUsername = recipientUsername;
         this.message = message;
         this.type = type;
         this.createdAt = createdAt;
+        this.read = read;
     }
 
     public static NotificationDTO fromDomain(Notification notification) {
-        return new NotificationDTO(notification.getId(), notification.getRecipientUsername(), notification.getMessage(), 
-        notification.getType(), notification.getCreatedAt());
+        return new NotificationDTO(
+                notification.getId(),
+                notification.getRecipientUsername(),
+                notification.getMessage(),
+                notification.getType(),
+                notification.getCreatedAt(),
+                notification.isRead()
+        );
     }
 
     public String getId() {
@@ -44,5 +57,9 @@ public class NotificationDTO {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isRead() {
+        return read;
     }
 }
