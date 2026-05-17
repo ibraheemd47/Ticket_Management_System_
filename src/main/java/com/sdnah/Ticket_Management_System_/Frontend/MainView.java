@@ -125,7 +125,7 @@ public class MainView extends VerticalLayout {
                                         .set("border-radius", "8px")
                                         .set("cursor", "pointer");
 
-                        authButtons.add(notificationBell, profileBtn, logoutBtn);
+                        authButtons.add(notificationBell, profileBtn, logoutBtn);//<= to add if need in others
 
                         // authButtons.add(profileBtn, logoutBtn);
                 }
