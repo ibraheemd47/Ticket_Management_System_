@@ -1,5 +1,9 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
@@ -18,12 +22,21 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.VaadinSession;
 
 @Route("admin")
 public class SystemAdminView extends VerticalLayout implements BeforeEnterObserver {
     private String selectedTab = "users";
+    private final SystemAdminService systemAdminService;
+    private final company_managment_serivce companyManagmentService;
+    private final NotificationService notificationService;
+    private String token;
 
-    public SystemAdminView() {
+    public SystemAdminView(SystemAdminService systemAdminService, company_managment_serivce companyManagmentService,
+            NotificationService notificationService) {
+        this.systemAdminService = systemAdminService;
+        this.companyManagmentService = companyManagmentService;
+        this.notificationService = notificationService;
         setSizeFull();
         setPadding(false);
         setSpacing(false);
@@ -34,6 +47,11 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        token = (String) VaadinSession.getCurrent().getAttribute("token");
+        // if (token == null || token.isBlank()) {
+        // event.rerouteTo("login");
+        // return;
+        // }
         var params = event.getLocation().getQueryParameters().getParameters();
         if (params.containsKey("tab") && !params.get("tab").isEmpty())
             selectedTab = params.get("tab").get(0);
@@ -126,87 +144,122 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
 
     // TAB: USERS — II.6.2 Remove Member + II.6.7 Suspend
     private Div buildUsers() {
-    Div wrapper = new Div();
-    wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap","wrap");
+        Div wrapper = new Div();
+        wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
 
-    Div usersListCard = actionCard("Registered Users",
-    "Browse all registered platform users. The list will appear here after backend connection.");
-    //systemAdminService.getAllUsers()
-    Div usersPlaceholder = new Div();
-    usersPlaceholder.getStyle()
-    .set("background", "#f9fafb")
-    .set("border", "1px dashed #d1d5db")
-    .set("border-radius", "8px")
-    .set("padding", "40px 24px")
-    .set("text-align", "center");
+        Div usersListCard = actionCard("Registered Users",
+                "All registered members on the platform.");
+        // systemAdminService.getAllUsers()
+        Div tableArea = new Div();
+        tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
 
-    Paragraph usersText = new Paragraph(
-    "Registered users list will appear here after connecting the backend.");
+        Button loadBtn = actionButton("Load Users", "#026cdf");
+        loadBtn.addClickListener(e -> {
+            tableArea.removeAll();
+            try {
+                // var users = systemAdminService.getAllUsers(token);
+                // if (users.isEmpty()) {
+                // tableArea.add(new Paragraph("No users found."));
+                // return;
+                // }
 
-    usersText.getStyle()
-    .set("color", "#9ca3af")
-    .set("font-size", "14px")
-    .set("margin", "0");
+                // Div headerRow = tableRow("#026cdf", "white");
+                // headerRow.add(
+                // tableCell("Member ID", true),
+                // tableCell("Username", true),
+                // tableCell("Email", true),
+                // tableCell("Status", true));
+                // tableArea.add(headerRow);
 
-    usersPlaceholder.add(usersText);
-    usersListCard.add(usersPlaceholder);
+                // for (int i = 0; i < users.size(); i++) {
+                // var m = users.get(i);
+                // Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+                // String status = m.isSuspended() ? " Suspended"
+                // : m.isActive() ? " Active"
+                // : " Inactive";
+                // row.add(
+                // tableCell(m.getMemberId(), false),
+                // tableCell(m.getUsername(), false),
+                // tableCell(m.getEmail() != null ? m.getEmail() : "—", false),
+                // tableCell(status, false));
+                // tableArea.add(row);
+                // }
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
 
-    wrapper.add(usersListCard);
+        usersListCard.add(loadBtn, tableArea);
+        wrapper.add(usersListCard);
 
-    // Suspend user card — II.6.7
-    Div suspendCard = actionCard("Suspend User","Enter the Member ID of the member you wish to suspend. Suspended members can browse the platform but cannot perform any actions.");
+        // Suspend user card — II.6.7
+        Div suspendCard = actionCard("Suspend User",
+                "Enter the Member ID of the member you wish to suspend. Suspended members can browse the platform but cannot perform any actions.");
 
-    TextField suspendMemberID = styledField("Member ID to suspend");
+        TextField suspendMemberID = styledField("Member ID to suspend");
 
-    RadioButtonGroup<String> type = new RadioButtonGroup<>();
-    type.setLabel("Suspension Type");
-    type.setItems("Temporary", "Permanent");
-    type.setValue("Temporary");
-    type.getStyle().set("margin-top", "12px");
+        RadioButtonGroup<String> type = new RadioButtonGroup<>();
+        type.setLabel("Suspension Type");
+        type.setItems("Temporary", "Permanent");
+        type.setValue("Temporary");
+        type.getStyle().set("margin-top", "12px");
 
-    NumberField hours = new NumberField("Duration (hours)");
-    hours.setValue(24.0);
-    hours.setMin(1);
-    hours.setWidthFull();
-    hours.getStyle().set("margin-top", "8px");
+        NumberField hours = new NumberField("Duration (hours)");
+        hours.setValue(24.0);
+        hours.setMin(1);
+        hours.setWidthFull();
+        hours.getStyle().set("margin-top", "8px");
+        type.addValueChangeListener(e -> hours.setVisible(e.getValue().equals("Temporary")));
 
-    type.addValueChangeListener(e ->
-    hours.setVisible(e.getValue().equals("Temporary")));
+        Button suspendBtn = actionButton("Suspend User", "#026cdf");
 
-    Button suspendBtn = actionButton("Suspend User", "#026cdf");
+        suspendBtn.addClickListener(e -> {
+            if (suspendMemberID.isEmpty()) {
+                showError("Please enter a Member ID.");
+                return;
+            }
+            try {
+                if (type.getValue().equals("Permanent")) {
+                    systemAdminService.suspendPermanently(token, suspendMemberID.getValue());
+                    showSuccess("User '" + suspendMemberID.getValue() + "' suspended permanently.");
+                } else {
+                    long h = hours.getValue() == null ? 24 : hours.getValue().longValue();
+                    systemAdminService.suspendUser(token, suspendMemberID.getValue(), h);
+                    showSuccess("User '" + suspendMemberID.getValue() + "' suspended for " + h + " hours.");
+                }
+                suspendMemberID.clear();
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+            suspendMemberID.clear();
+        });
 
-    suspendBtn.addClickListener(e -> {
-    if (suspendMemberID.isEmpty()) {
-    showError("Please enter a Member ID.");
-    return;
-    }
-    // TsystemAdminService.suspendUser(token, memberId, hours)
-    showSuccess("User '" + suspendMemberID.getValue() + "' has been suspended.");
-    suspendMemberID.clear();
-    });
+        suspendCard.add(suspendMemberID, type, hours, suspendBtn);
+        wrapper.add(suspendCard);
 
-    suspendCard.add(suspendMemberID, type, hours, suspendBtn);
-    wrapper.add(suspendCard);
+        // Remove member card — II.6.2
+        Div removeCard = actionCard("Remove Member",
+                "Enter the Member ID of the member you wish to remove. This action is irreversible and will revoke all their roles and permissions.");
 
-    // Remove member card — II.6.2
-    Div removeCard = actionCard("Remove Member",
-    "Enter the Member ID of the member you wish to remove. This action is irreversible and will revoke all their roles and permissions.");
+        TextField removeMemberID = styledField("Member ID to remove");
+        Button removeBtn = actionButton("Remove Member", "#026cdf");
 
-    TextField removeMemberID = styledField("Member ID to remove");
-    Button removeBtn = actionButton("Remove Member", "#026cdf");
-
-    removeBtn.addClickListener(e -> {
-    if (removeMemberID.isEmpty()) {
-    showError("Please enter a MemberID.");
-    return;
-    }
-    // systemAdminService.removeMember(token, memberId)
-    showSuccess("Member '" + removeMemberID.getValue() + "' has been removed.");
-    removeMemberID.clear();
-    });
-    removeCard.add(removeMemberID, removeBtn);
-    wrapper.add(removeCard);
-    return wrapper;
+        removeBtn.addClickListener(e -> {
+            if (removeMemberID.isEmpty()) {
+                showError("Please enter a MemberID.");
+                return;
+            }
+            try {
+                // systemAdminService.removeMember(token, removeMemberID.getValue());
+                showSuccess("Member '" + removeMemberID.getValue() + "' has been removed.");
+                removeMemberID.clear();
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
+        removeCard.add(removeMemberID, removeBtn);
+        wrapper.add(removeCard);
+        return wrapper;
     }
 
     // TAB: SUSPENDED — II.6.8 Unsuspend + II.6.9 View
@@ -217,19 +270,23 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         Div unsuspendCard = actionCard("Unsuspend User",
                 "Enter the Member ID of the suspended member you wish to reinstate. They will regain full access to the platform immediately.");
 
-        TextField MemberID = styledField("Member ID to unsuspend");
+        TextField unsuspendId = styledField("Member ID to unsuspend");
         Button unsuspendBtn = actionButton("Unsuspend User", "#026cdf");
         unsuspendBtn.addClickListener(e -> {
-            if (MemberID.isEmpty()) {
+            if (unsuspendId.isEmpty()) {
                 showError("Please enter a MemberID.");
                 return;
             }
-            // systemAdminService.unsuspendUser(token, memberId)
-            showSuccess("User '" + MemberID.getValue() + "' has been unsuspended.");
-            MemberID.clear();
+            try {
+                systemAdminService.unsuspendUser(token, unsuspendId.getValue());
+                showSuccess("User '" + unsuspendId.getValue() + "' unsuspended.");
+                unsuspendId.clear();
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
         });
 
-        unsuspendCard.add(MemberID, unsuspendBtn);
+        unsuspendCard.add(unsuspendId, unsuspendBtn);
         wrapper.add(unsuspendCard);
 
         // View suspensions card — II.6.9
@@ -241,16 +298,36 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         resultArea.getStyle().set("margin-top", "16px");
 
         viewBtn.addClickListener(e -> {
-            // systemAdminService.getSuspensions(token)
             resultArea.removeAll();
-            Paragraph p = new Paragraph("📋 charlie — suspended until 2026-05-31 (30 days)");
-            p.getStyle().set("background", "#f3f4f6").set("padding", "12px").set("border-radius", "8px");
-            resultArea.add(p);
-        });
+            try {
+                var suspensions = systemAdminService.getSuspensions(token);
+                if (suspensions.isEmpty()) {
+                    resultArea.add(new Paragraph("No suspended users found."));
+                    return;
+                }
+                for (var s : suspensions) {
+                    Div row = new Div();
+                    row.getStyle().set("background", "#f3f4f6").set("border-radius", "8px")
+                            .set("padding", "12px 16px")
+                            .set("font-size", "14px");
 
+                    String until = s.isSuspendedPermanently() ? "Permanent"
+                            : (s.getSuspendedUntil() != null ? s.getSuspendedUntil().toString() : "—");
+                    row.add(new Paragraph(
+                            "👤 " + s.getUsername() +
+                                    " (ID: " + s.getMemberId() + ")" +
+                                    " — until: " + until +
+                                    (s.getSuspensionStartedAt() != null
+                                            ? " | since: " + s.getSuspensionStartedAt().toLocalDate()
+                                            : "")));
+                    resultArea.add(row);
+                }
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
         viewCard.add(viewBtn, resultArea);
         wrapper.add(viewCard);
-
         return wrapper;
     }
 
@@ -263,51 +340,46 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 .set("gap", "24px")
                 .set("align-items", "flex-start")
                 .set("width", "100%");
-
         // LEFT SIDE — companies list
-        Div companiesList = new Div();
-        companiesList.getStyle()
-                .set("background", "white")
-                .set("border-radius", "8px")
-                .set("padding", "28px")
-                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.07)")
-                .set("border-top", "4px solid #026cdf")
-                .set("width", "340px")
-                .set("min-height", "420px")
-                .set("box-sizing", "border-box");
+        Div companiesListCard = actionCard("Active Production Companies",
+                "All active production companies on the platform.");
+        Div tableArea = new Div();
+        tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
 
-        H3 listTitle = new H3("Production Companies");
-        listTitle.getStyle()
-                .set("margin", "0 0 8px 0")
-                .set("font-size", "18px")
-                .set("font-weight", "700");
+        Button loadBtn = actionButton("Load Companies", "#026cdf");
+        loadBtn.addClickListener(e -> {
+            tableArea.removeAll();
+            try {
+                var companies = companyManagmentService.getActiveCompanies();
+                if (companies.isEmpty()) {
+                    tableArea.add(new Paragraph("No active companies found."));
+                    return;
+                }
+                Div headerRow = tableRow("#026cdf", "white");
+                headerRow.add(
+                        tableCell("Company ID", true),
+                        tableCell("Name", true),
+                        tableCell("Rating", true),
+                        tableCell("Status", true));
+                tableArea.add(headerRow);
 
-        Paragraph listDesc = new Paragraph(
-                "All production companies will appear here after connecting the backend.");
-        listDesc.getStyle()
-                .set("color", "#6b7280")
-                .set("font-size", "14px")
-                .set("line-height", "1.5")
-                .set("margin", "0 0 20px 0");
+                for (int i = 0; i < companies.size(); i++) {
+                    var c = companies.get(i);
+                    Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+                    row.add(
+                            tableCell(String.valueOf(c.getCompanyId()), false),
+                            tableCell(c.getCompanyName(), false),
+                            tableCell(String.valueOf(c.getRating()), false),
+                            tableCell("Active", false));
+                    tableArea.add(row);
+                }
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
 
-        Div placeholder = new Div();
-        placeholder.getStyle()
-                .set("background", "#f9fafb")
-                .set("border", "1px dashed #d1d5db")
-                .set("border-radius", "8px")
-                .set("padding", "40px 24px")
-                .set("text-align", "center");
-
-        Paragraph p = new Paragraph(
-                "Production companies list will appear here after connecting the backend.");
-        p.getStyle()
-                .set("color", "#9ca3af")
-                .set("font-size", "14px")
-                .set("margin", "0");
-
-        placeholder.add(p);
-
-        companiesList.add(listTitle, listDesc, placeholder);
+        companiesListCard.add(loadBtn, tableArea);
+        wrapper.add(companiesListCard);
 
         // RIGHT SIDE — close company form
         Div card = actionCard(
@@ -325,20 +397,23 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         Button closeBtn = actionButton("Close Company", "#026cdf");
 
         closeBtn.addClickListener(e -> {
-
             if (companyId.isEmpty()) {
                 showError("Please enter a Company ID.");
                 return;
             }
-            // systemAdminService.closeCompany(token, companyId)
-            showSuccess("Company '" + companyId.getValue() + "' has been closed.");
-
-            companyId.clear();
-            reason.clear();
+            try {
+                companyManagmentService.adminCloseCompany(token, Integer.parseInt(companyId.getValue()));
+                showSuccess("Company '" + companyId.getValue() + "' has been closed.");
+                companyId.clear();
+                reason.clear();
+            } catch (NumberFormatException ex) {
+                showError("Company ID must be a number.");
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
         });
         card.add(companyId, reason, closeBtn);
-        wrapper.add(companiesList, card);
-
+        wrapper.add(card);
         return wrapper;
     }
 
@@ -346,7 +421,6 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
     private Div buildComplaints() {
         Div wrapper = new Div();
         wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
-
         // View complaints
         Div viewCard = actionCard("View Complaints",
                 "Browse submitted complaints from members regarding fake tickets, event issues or platform abuse.");
@@ -362,10 +436,8 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         Paragraph pt2 = new Paragraph("Complaint list will appear here after connecting the backend.");
         pt2.getStyle().set("color", "#9ca3af").set("font-size", "14px").set("margin", "0");
         placeholder2.add(pt2);
-
         viewCard.add(placeholder2);
         wrapper.add(viewCard);
-
         // Send system message
         Div msgCard = actionCard("Send System Message",
                 "Send an official system message to a member or production company. Use this for important platform notifications.");
@@ -375,22 +447,23 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         message.setWidthFull();
         message.setPlaceholder("Type your message here...");
         message.getStyle().set("margin-top", "12px");
-
         Button sendBtn = actionButton("Send Message", "#026cdf");
         sendBtn.addClickListener(e -> {
             if (recipient.isEmpty() || message.isEmpty()) {
                 showError("Please fill in all fields.");
                 return;
             }
-            // notificationService.sendSystemMessage(token, recipient, message)
-            showSuccess("Message sent to '" + recipient.getValue() + "'.");
-            recipient.clear();
-            message.clear();
+            try {
+                notificationService.createNotification(recipient.getValue(), message.getValue(),NotificationType.SYSTEM_ANNOUNCEMENT);
+                showSuccess("Message sent to '" + recipient.getValue() + "'.");
+                recipient.clear();
+                message.clear();
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
         });
-
         msgCard.add(recipient, message, sendBtn);
         wrapper.add(msgCard);
-
         return wrapper;
     }
 
@@ -525,6 +598,25 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         field.setWidthFull();
         field.getStyle().set("margin-bottom", "12px");
         return field;
+    }
+
+    private Div tableRow(String bg, String color) {
+        Div row = new Div();
+        row.getStyle()
+                .set("display", "grid")
+                .set("grid-template-columns", "2fr 1fr 2fr 1fr")
+                .set("background", bg).set("color", color)
+                .set("border-radius", "6px").set("padding", "10px 12px")
+                .set("font-size", "13px").set("margin-bottom", "2px");
+        return row;
+    }
+
+    private Span tableCell(String text, boolean bold) {
+        Span s = new Span(text);
+        if (bold)
+            s.getStyle().set("font-weight", "700");
+        s.getStyle().set("overflow", "hidden").set("text-overflow", "ellipsis");
+        return s;
     }
 
     private Button actionButton(String text, String color) {
