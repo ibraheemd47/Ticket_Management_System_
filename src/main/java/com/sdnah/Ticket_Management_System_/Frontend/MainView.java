@@ -1,9 +1,12 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.util.List;
+
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -131,12 +134,28 @@ public class MainView extends VerticalLayout {
         Div headerContainer = createBlueHeaderContainer("Upcoming Events");
 
         Grid<Event> eventGrid = new Grid<>(Event.class, false);
-        eventGrid.addColumn(Event::getName).setHeader("Event Name");
-        eventGrid.addColumn(Event::getVenue).setHeader("Area");
-        // eventGrid.setItems(eventService.getShowsForThisWeek());
-        
-        // Round bottom corners to attach smoothly to the blue header
-        eventGrid.getStyle().set("border-radius", "0 0 8px 8px"); 
+        eventGrid.addColumn(Event::getName).setHeader("Event Name").setFlexGrow(2);
+        eventGrid.addColumn(ev -> ev.getVenue() != null ? ev.getVenue() : "—")
+                .setHeader("Venue").setFlexGrow(2);
+        eventGrid.addColumn(ev -> ev.getEventType() != null ? ev.getEventType().name() : "—")
+                .setHeader("Type").setFlexGrow(1);
+        eventGrid.addComponentColumn(ev -> {
+            Button btn = new Button("View Event", e -> {
+                UI.getCurrent().getSession().setAttribute("eventId", ev.getEventId().toString());
+                UI.getCurrent().navigate("EventDetails");
+            });
+            btn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            btn.getStyle().set("font-size", "13px");
+            return btn;
+        }).setHeader("").setAutoWidth(true);
+
+        try {
+            List<Event> events = eventService.getAllEvents();
+            eventGrid.setItems(events);
+        } catch (Exception ignored) {}
+
+        eventGrid.setAllRowsVisible(true);
+        eventGrid.getStyle().set("border-radius", "0 0 8px 8px");
 
         container.add(headerContainer, eventGrid);
         add(container);

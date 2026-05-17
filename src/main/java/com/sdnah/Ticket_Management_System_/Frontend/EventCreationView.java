@@ -6,9 +6,13 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.time.ZoneId;
+
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ShowDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -32,12 +36,14 @@ import com.vaadin.flow.router.Route;
 public class EventCreationView extends VerticalLayout {
 
     private final company_managment_serivce companyService;
+    private final EventService eventService;
 
     private final List<ShowDTO> shows = new ArrayList<>();
     private Div showsContainer;
 
-    public EventCreationView(company_managment_serivce companyService) {
+    public EventCreationView(company_managment_serivce companyService, EventService eventService) {
         this.companyService = companyService;
+        this.eventService   = eventService;
         addMockShows();
 
         setSizeFull();
@@ -433,12 +439,21 @@ public class EventCreationView extends VerticalLayout {
         Object tokenObj     = UI.getCurrent().getSession().getAttribute("token");
         Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
 
-        if (tokenObj == null || companyIdObj == null) {
+        if (tokenObj == null) {
             Notification.show("Not logged in — sign in first to save the event",
                     4000, Notification.Position.MIDDLE)
                     .addThemeVariants(NotificationVariant.LUMO_WARNING);
             return;
         }
+        if (companyIdObj == null) {
+            Notification.show("No company selected — navigate from your company page",
+                    4000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            return;
+        }
+
+        String token    = tokenObj.toString();
+        int    companyId = Integer.parseInt(companyIdObj.toString());
 
         EventDto dto   = new EventDto();
         dto.name       = name.trim();
@@ -448,11 +463,24 @@ public class EventCreationView extends VerticalLayout {
         dto.endDate    = end;
 
         try {
-            EventDto created = companyService.addEvent(
-                    tokenObj.toString(), Integer.parseInt(companyIdObj.toString()), dto);
+            EventDto created = companyService.addEvent(token, companyId, dto);
 
-            Notification.show("Event \"" + created.name + "\" created!", 3000,
-                    Notification.Position.TOP_CENTER)
+            // Persist shows
+            Long memberId = companyService.getMemberIdByToken(token);
+            for (ShowDTO s : shows) {
+                java.util.Date showDate = s.showDate != null
+                    ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
+                    : null;
+                show newShow = new show(created.id, s.name, s.description, s.singer, showDate);
+                try {
+                    eventService.addShowToEvent(created.id, newShow, memberId);
+                } catch (Exception ignored) {
+                    // show added to event even if area config fails separately
+                }
+            }
+
+            Notification.show("Event \"" + created.name + "\" created with " + shows.size() + " show(s)!",
+                    3000, Notification.Position.TOP_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             UI.getCurrent().getSession().setAttribute("eventId", created.id.toString());

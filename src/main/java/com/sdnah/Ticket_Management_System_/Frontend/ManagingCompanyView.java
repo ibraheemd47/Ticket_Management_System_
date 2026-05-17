@@ -162,8 +162,10 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             return;
         }
 
-        Button addEvent = new Button("+ New event", e ->
-                Notification.show("Hook up to EventCreationView", 2500, Notification.Position.TOP_CENTER));
+        Button addEvent = new Button("+ New event", e -> {
+            UI.getCurrent().getSession().setAttribute("managingCompanyId", this.companyId);
+            UI.getCurrent().navigate("event-create");
+        });
         addEvent.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Grid<UUID> grid = new Grid<>(UUID.class, false);

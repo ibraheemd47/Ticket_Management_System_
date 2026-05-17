@@ -540,6 +540,10 @@ public class company_managment_serivce {
                 company.getLogoURL());
     }
 
+    public Long getMemberIdByToken(String actorToken) {
+        return Long.valueOf(getActorFromToken(actorToken).getMemberId());
+    }
+
     // helper function
     private Member getActorFromToken(String actorToken) {
         if (actorToken == null || actorToken.isBlank()) {
