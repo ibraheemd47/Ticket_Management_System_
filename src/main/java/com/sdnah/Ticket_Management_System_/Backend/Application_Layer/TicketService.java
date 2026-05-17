@@ -1,7 +1,9 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +83,19 @@ public class TicketService {
                     return success;
                 })
                 .orElse(false);
+    }
+
+    /**
+     * Returns a map of seatId → true/false (true = at least one AVAILABLE ticket exists for that seat).
+     * Used by the seat-selection view to colour seats green/red.
+     */
+    public Map<Long, Boolean> getSeatAvailability(UUID showId) {
+        return ticketRepository.findByShowId(showId).stream()
+                .filter(t -> t.getSeat() != null)
+                .collect(Collectors.toMap(
+                        t -> t.getSeat().getId(),
+                        t -> t.getStatus() == ticket.TicketStatus.AVAILABLE,
+                        (a, b) -> a || b));
     }
 
     /**

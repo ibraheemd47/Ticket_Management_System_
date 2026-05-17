@@ -1,10 +1,12 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.LoggerFactory;
@@ -13,11 +15,19 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Row;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Seat;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.SeatedArea;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.StandingArea;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 
 import ch.qos.logback.classic.Logger;
 
@@ -31,6 +41,7 @@ public class EventService {
     private final IEventRepository eventRepository;
     private final KeyedLock keyedLock;
     private final TransactionTemplate transactionTemplate;
+    private final TicketRepository ticketRepository;
 
     private final Logger logger = (Logger) LoggerFactory.getLogger(EventService.class);
 
@@ -46,7 +57,8 @@ public class EventService {
             PurchaseRepository purchaseRepository,
             NotificationService notificationService,
             KeyedLock keyedLock,
-            TransactionTemplate transactionTemplate) {
+            TransactionTemplate transactionTemplate,
+            TicketRepository ticketRepository) {
                 if (notificationService == null)
                 throw new IllegalArgumentException("notificationService required");
                 if (purchaseRepository == null)
@@ -56,6 +68,7 @@ public class EventService {
                 this.keyedLock = keyedLock;
                 this.transactionTemplate = transactionTemplate;
                 this.purchaseRepository = purchaseRepository;
+                this.ticketRepository = ticketRepository;
     }
 
     // ── Creation / Deletion ──────────────────────────────────────────────────
@@ -381,6 +394,83 @@ public class EventService {
 
             return eventRepository.bookSeat(eventId, showId, areaName, seatNumber, userId);
         }));
+    }
+
+    // ── Show loading (eagerly initializes all lazy collections) ─────────────
+
+    @Transactional
+    public show loadShowFully(UUID eventId, UUID showId) {
+        show s = eventRepository.getShowDetails(eventId, showId)
+                .orElseThrow(() -> new RuntimeException("Show not found"));
+        List<Area> areas = s.getAreas();
+        if (areas != null) {
+            for (Area area : areas) {
+                if (area instanceof SeatedArea sa) {
+                    for (Block block : sa.getBlocks()) {
+                        List<Row> rows = block.getRows();
+                        if (rows != null) {
+                            for (Row row : rows) {
+                                List<Seat> seats = row.getSeats();
+                                if (seats != null) seats.size(); // force-init
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return s;
+    }
+
+    // ── Ticket reservation ───────────────────────────────────────────────────
+
+    @Transactional
+    public ticket reserveSeat(UUID eventId, UUID showId, UUID areaId, Long seatId, UUID userId) {
+        String key = eventId + ":" + showId + ":" + areaId + ":" + seatId;
+        return keyedLock.callLocked(LOCK_NS_EVENT_SEAT, key, () -> {
+            Optional<ticket> existing = ticketRepository
+                    .findFirstByShowIdAndSeat_IdAndStatus(showId, seatId, ticket.TicketStatus.AVAILABLE);
+            if (existing.isPresent()) {
+                ticket t = existing.get();
+                t.lockInCart(userId);
+                return ticketRepository.save(t);
+            }
+            // Generate a new ticket on-the-fly for this seat
+            Seat seat = eventRepository.findSeatById(seatId)
+                    .orElseThrow(() -> new RuntimeException("Seat not found"));
+            Area area = eventRepository.findAreaById(areaId)
+                    .orElseThrow(() -> new RuntimeException("Area not found"));
+            show s = eventRepository.getShowDetails(eventId, showId)
+                    .orElseThrow(() -> new RuntimeException("Show not found"));
+            ticket t = new ticket(UUID.randomUUID(), showId, seat, area,
+                    s.getShowDate(), new BigDecimal("50.00"));
+            t.lockInCart(userId);
+            logger.info("Generated and reserved seated ticket for seat {} by user {}", seatId, userId);
+            return ticketRepository.save(t);
+        });
+    }
+
+    @Transactional
+    public ticket reserveStanding(UUID eventId, UUID showId, UUID areaId, UUID userId) {
+        String key = eventId + ":" + showId + ":" + areaId + ":standing";
+        return keyedLock.callLocked(LOCK_NS_EVENT_SEAT, key, () -> {
+            Optional<ticket> existing = ticketRepository
+                    .findFirstByShowIdAndArea_IdAndSeatIsNullAndStatus(showId, areaId, ticket.TicketStatus.AVAILABLE);
+            if (existing.isPresent()) {
+                ticket t = existing.get();
+                t.lockInCart(userId);
+                return ticketRepository.save(t);
+            }
+            Area area = eventRepository.findAreaById(areaId)
+                    .orElseThrow(() -> new RuntimeException("Standing area not found"));
+            if (!(area instanceof StandingArea sa) || sa.isFull())
+                throw new RuntimeException("No standing spots available");
+            show s = eventRepository.getShowDetails(eventId, showId)
+                    .orElseThrow(() -> new RuntimeException("Show not found"));
+            ticket t = new ticket(UUID.randomUUID(), showId, area, s.getShowDate(), new BigDecimal("30.00"));
+            t.lockInCart(userId);
+            logger.info("Generated and reserved standing ticket for area {} by user {}", areaId, userId);
+            return ticketRepository.save(t);
+        });
     }
 
     //helper function
