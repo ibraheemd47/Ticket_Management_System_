@@ -31,7 +31,7 @@ import com.vaadin.flow.router.Route;
  * {@code uiPushRegistry.push(token, ui -> { ... })} to flip the view to the
  * "you're up" state. No polling.
  */
-@Push
+
 @Route("queue")
 public class WaitingQueueView extends VerticalLayout implements BeforeEnterObserver {
 
