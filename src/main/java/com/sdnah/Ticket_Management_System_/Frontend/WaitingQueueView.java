@@ -13,7 +13,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.page.Push;
+//import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
@@ -31,7 +31,7 @@ import com.vaadin.flow.router.Route;
  * {@code uiPushRegistry.push(token, ui -> { ... })} to flip the view to the
  * "you're up" state. No polling.
  */
-@Push
+//@Push
 @Route("queue")
 public class WaitingQueueView extends VerticalLayout implements BeforeEnterObserver {
 
