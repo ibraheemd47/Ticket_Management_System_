@@ -58,7 +58,7 @@ public class MainView extends VerticalLayout {
 
         H1 logo = new H1("TICKET MANAGEMENT");
         logo.getStyle()
-                .set("color", "white") // Changed back to white for contrast on blue
+                .set("color", "black") // Changed back to white for contrast on blue
                 .set("margin", "0")
                 .set("font-size", "24px")
                 .set("font-weight", "900")
