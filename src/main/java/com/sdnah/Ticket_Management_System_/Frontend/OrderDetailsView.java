@@ -64,6 +64,8 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
                 .set("margin", "0")
                 .set("font-size", "22px")
                 .set("font-weight", "900");
+                logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
+                logo.getStyle().set("cursor", "pointer");
 
         Span events = createNavItem("Events", "main");
         

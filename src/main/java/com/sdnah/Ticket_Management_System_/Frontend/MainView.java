@@ -11,6 +11,10 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -37,12 +41,13 @@ public class MainView extends VerticalLayout {
         setupHeader();
         setupEventSection();    
         setupCompanySection();
+        setupHottestArtistsSection(); // Added Artists Section
+        setupFooter(); // Added About Us & Socials Footer
     }
 
     private void setupHeader() {
         HorizontalLayout header = new HorizontalLayout();
         
-        // 2. Match the blue header style
         header.getStyle()
                 .set("background", "#026cdf")
                 .set("padding", "20px 52px")
@@ -53,7 +58,7 @@ public class MainView extends VerticalLayout {
 
         H1 logo = new H1("TICKET MANAGEMENT");
         logo.getStyle()
-                .set("color", "Black")
+                .set("color", "white") // Changed back to white for contrast on blue
                 .set("margin", "0")
                 .set("font-size", "24px")
                 .set("font-weight", "900")
@@ -61,76 +66,46 @@ public class MainView extends VerticalLayout {
         logo.addClickListener(e -> UI.getCurrent().navigate(MainView.class));
 
         TextField searchField = setupSearchBar();
-        searchField.getStyle().set("margin", "0 40px"); // Add breathing room
+        searchField.getStyle().set("margin", "0 40px"); 
 
-        // 3. Custom styled buttons for the blue background
         HorizontalLayout authButtons = new HorizontalLayout();
 
-        Object token = UI.getCurrent()
-                .getSession()
-                .getAttribute("token");
+        Object token = UI.getCurrent().getSession().getAttribute("token");
 
         if (token == null) {
+            Button loginBtn = new Button("Login", e -> UI.getCurrent().navigate("login"));
+            loginBtn.getStyle().set("background", "white").set("color", "#026cdf")
+                    .set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
 
-            Button loginBtn = new Button("Login",
-                    e -> UI.getCurrent().navigate("login"));
-
-            loginBtn.getStyle()
-                    .set("background", "white")
-                    .set("color", "#026cdf")
-                    .set("font-weight", "700")
-                    .set("border-radius", "8px")
-                    .set("cursor", "pointer");
-
-            Button signupBtn = new Button("Sign Up",
-                    e -> UI.getCurrent().navigate("signup"));
-
-            signupBtn.getStyle()
-                    .set("background", "transparent")
-                    .set("color", "white")
-                    .set("border", "2px solid white")
-                    .set("font-weight", "700")
-                    .set("border-radius", "8px")
-                    .set("cursor", "pointer");
+            Button signupBtn = new Button("Sign Up", e -> UI.getCurrent().navigate("signup"));
+            signupBtn.getStyle().set("background", "transparent").set("color", "white")
+                    .set("border", "2px solid white").set("font-weight", "700")
+                    .set("border-radius", "8px").set("cursor", "pointer");
 
             authButtons.add(loginBtn, signupBtn);
-
         } else {
-
-            Button profileBtn = new Button("My Profile",
-                    e -> UI.getCurrent().navigate("profile"));
-
-            profileBtn.getStyle()
-                    .set("background", "white")
-                    .set("color", "#026cdf")
-                    .set("font-weight", "700")
-                    .set("border-radius", "8px")
-                    .set("cursor", "pointer");
+            Button profileBtn = new Button("My Profile", e -> UI.getCurrent().navigate("profile"));
+            profileBtn.getStyle().set("background", "white").set("color", "#026cdf")
+                    .set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
 
             Button logoutBtn = new Button("Logout", e -> {
                 UI.getCurrent().getSession().setAttribute("token", null);
                 UI.getCurrent().navigate("main");
             });
-
-            logoutBtn.getStyle()
-                    .set("background", "transparent")
-                    .set("color", "white")
-                    .set("border", "2px solid white")
-                    .set("font-weight", "700")
-                    .set("border-radius", "8px")
-                    .set("cursor", "pointer");
+            logoutBtn.getStyle().set("background", "transparent").set("color", "white")
+                    .set("border", "2px solid white").set("font-weight", "700")
+                    .set("border-radius", "8px").set("cursor", "pointer");
 
             authButtons.add(profileBtn, logoutBtn);
         }
+        
         header.add(logo, searchField, authButtons);
         header.expand(searchField); 
-
         add(header);
     }
 
     private void setupEventSection() {
         Div container = createSectionContainer();
-
         Div headerContainer = createBlueHeaderContainer("Upcoming Events");
 
         Grid<Event> eventGrid = new Grid<>(Event.class, false);
@@ -145,7 +120,7 @@ public class MainView extends VerticalLayout {
                 UI.getCurrent().navigate("EventDetails");
             });
             btn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-            btn.getStyle().set("font-size", "13px");
+            btn.getStyle().set("font-size", "13px").set("cursor", "pointer");
             return btn;
         }).setHeader("").setAutoWidth(true);
 
@@ -163,7 +138,6 @@ public class MainView extends VerticalLayout {
 
     private void setupCompanySection() {
         Div container = createSectionContainer();
-
         Div headerContainer = createBlueHeaderContainer("Our Partner Companies");
 
         HorizontalLayout companyList = new HorizontalLayout();
@@ -172,10 +146,134 @@ public class MainView extends VerticalLayout {
         companyList.getStyle()
                 .set("background", "white")
                 .set("padding", "20px")
-                .set("border-radius", "0 0 8px 8px"); // White box below the blue header
+                .set("border-radius", "0 0 8px 8px"); 
         
+        // Example Company Mock
+        // companyList.add(new H3("LiveNation"), new H3("SeatGeek"), new H3("StubHub"));
+
         container.add(headerContainer, companyList);
         add(container);
+    }
+
+    // --- NEW: Hottest Artists Section ---
+    private void setupHottestArtistsSection() {
+        Div container = createSectionContainer();
+        Div headerContainer = createBlueHeaderContainer("Hottest Artists");
+
+        HorizontalLayout artistList = new HorizontalLayout();
+        artistList.setWidthFull();
+        artistList.setJustifyContentMode(JustifyContentMode.AROUND);
+        artistList.getStyle()
+                .set("background", "white")
+                .set("padding", "40px 20px")
+                .set("border-radius", "0 0 8px 8px"); 
+
+        // Add the artists. Ensure you place the actual images in: src/main/resources/META-INF/resources/images/
+        // I am using external placeholder URLs temporarily so you can see the layout immediately
+        artistList.add(
+            createArtistCard("Drake", "https://ui-avatars.com/api/?name=Drake&background=0D8ABC&color=fff&size=150"),
+            createArtistCard("J. Cole", "https://ui-avatars.com/api/?name=J+Cole&background=111827&color=fff&size=150"),
+            createArtistCard("Kendrick Lamar", "https://ui-avatars.com/api/?name=Kendrick+Lamar&background=E53E3E&color=fff&size=150"),
+            createArtistCard("The Weeknd", "https://ui-avatars.com/api/?name=The+Weeknd&background=D69E2E&color=fff&size=150")
+        );
+
+        container.add(headerContainer, artistList);
+        add(container);
+    }
+
+    // Helper for creating individual clickable artist cards
+    private Div createArtistCard(String name, String imageUrl) {
+        Div card = new Div();
+        card.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("align-items", "center")
+                .set("cursor", "pointer") // Makes mouse pointer a hand
+                .set("transition", "transform 0.2s");
+
+        // Hover effect for the card
+        card.getElement().addEventListener("mouseover", e -> card.getStyle().set("transform", "scale(1.05)"));
+        card.getElement().addEventListener("mouseout", e -> card.getStyle().set("transform", "scale(1)"));
+
+        Image img = new Image(imageUrl, name);
+        img.setWidth("100px");
+        img.setHeight("100px");
+        img.getStyle()
+                .set("border-radius", "50%") // Makes image a perfect circle
+                .set("object-fit", "cover")
+                .set("box-shadow", "0 4px 10px rgba(0,0,0,0.1)");
+
+        H3 artistName = new H3(name);
+        artistName.getStyle().set("margin-top", "15px").set("color", "#111827");
+
+        card.add(img, artistName);
+        
+        // Navigation listener
+        card.addClickListener(e -> {
+            // e.g., UI.getCurrent().navigate("search?artist=" + name);
+            System.out.println("Navigating to shows for: " + name);
+        });
+
+        return card;
+    }
+
+    // --- NEW: About Us & Socials Footer ---
+    private void setupFooter() {
+        Div footer = new Div();
+        footer.setWidthFull();
+        footer.getStyle()
+                .set("background", "#111827") // Dark modern background
+                .set("color", "white")
+                .set("padding", "50px 52px")
+                .set("margin-top", "60px") // Pushes footer down
+                .set("display", "flex")
+                .set("justify-content", "space-between")
+                .set("box-sizing", "border-box");
+
+        // About Us Left Side
+        Div aboutSection = new Div();
+        aboutSection.setWidth("50%");
+        H2 aboutTitle = new H2("About VibePass");
+        aboutTitle.getStyle().set("margin-top", "0").set("color", "white");
+        
+        Paragraph aboutDesc = new Paragraph(
+            "VibePass is your ultimate gateway to live entertainment. We connect fans directly with the artists, teams, and events they love. Our mission is to provide a seamless, fair, and incredibly secure ticketing experience so you can focus on enjoying the show."
+        );
+        aboutDesc.getStyle().set("line-height", "1.6").set("color", "#9ca3af");
+        aboutSection.add(aboutTitle, aboutDesc);
+
+        // Social Media Right Side
+        Div socialSection = new Div();
+        H2 socialTitle = new H2("Follow Us");
+        socialTitle.getStyle().set("margin-top", "0").set("color", "white");
+
+        HorizontalLayout iconsLayout = new HorizontalLayout();
+        iconsLayout.setSpacing(true);
+
+        iconsLayout.add(
+            createSocialIcon(VaadinIcon.MOBILE),
+            createSocialIcon(VaadinIcon.TWITTER),
+            createSocialIcon(VaadinIcon.FACEBOOK),
+            createSocialIcon(VaadinIcon.YOUTUBE)
+        );
+
+        socialSection.add(socialTitle, iconsLayout);
+        footer.add(aboutSection, socialSection);
+        
+        add(footer);
+    }
+
+    // Helper to create styled, clickable social icons
+    private Icon createSocialIcon(VaadinIcon vaadinIcon) {
+        Icon icon = vaadinIcon.create();
+        icon.getStyle()
+                .set("color", "white")
+                .set("cursor", "pointer")
+                .set("width", "30px")
+                .set("height", "30px");
+        
+        icon.addClickListener(e -> System.out.println("Social icon clicked!"));
+        return icon;
     }
 
     private TextField setupSearchBar() {
@@ -192,12 +290,10 @@ public class MainView extends VerticalLayout {
         return searchField;
     }
 
-    // --- Helper Methods for Consistent Styling ---
-
     private Div createSectionContainer() {
         Div container = new Div();
         container.getStyle()
-                .set("padding", "40px 52px 0 52px") // Matches header side padding
+                .set("padding", "40px 52px 0 52px") 
                 .set("width", "100%")
                 .set("box-sizing", "border-box");
         return container;
@@ -212,7 +308,7 @@ public class MainView extends VerticalLayout {
 
         H2 header = new H2(titleText);
         header.getStyle()
-                .set("color", "Black")
+                .set("color", "white") // Fixed to white so it looks good on the blue background
                 .set("margin", "0")
                 .set("font-size", "22px");
 

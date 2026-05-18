@@ -102,6 +102,8 @@ public class EventCreationView extends VerticalLayout {
 
         H2 logo = new H2("TICKET MANAGEMENT");
         logo.getStyle().set("margin", "0").set("font-size", "24px").set("font-weight", "900");
+        logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
+        logo.getStyle().set("cursor", "pointer");
 
         Div nav = new Div();
         nav.getStyle().set("display", "flex").set("gap", "32px").set("align-items", "center");

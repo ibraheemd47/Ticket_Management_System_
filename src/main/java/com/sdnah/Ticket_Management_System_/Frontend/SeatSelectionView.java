@@ -10,6 +10,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.imageio.plugins.tiff.TIFFDirectory;
+
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
@@ -484,6 +486,8 @@ public class SeatSelectionView extends VerticalLayout {
             .set("justify-content", "space-between").set("align-items", "center");
         H2 logo = new H2("TICKET MANAGEMENT");
         logo.getStyle().set("margin", "0").set("font-size", "24px").set("font-weight", "900");
+        logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
+        logo.getStyle().set("cursor", "pointer");
         Div nav = new Div();
         nav.getStyle().set("display", "flex").set("gap", "32px").set("align-items", "center");
         nav.add(
