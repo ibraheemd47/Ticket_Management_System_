@@ -39,10 +39,47 @@ public class MainView extends VerticalLayout {
                 .set("font-family", "Arial, sans-serif");
 
         setupHeader();
-        setupEventSection();    
+        setupQuickAccessBar(); // links to /queue, /manager/order, /company
+        setupEventSection();
         setupCompanySection();
         setupHottestArtistsSection(); // Added Artists Section
         setupFooter(); // Added About Us & Socials Footer
+    }
+
+    /**
+     * Quick links to the three role-specific views. For now they're always
+     * visible so the team can click through during development; gate them on
+     * the user's role once auth + role wiring lands.
+     */
+    private void setupQuickAccessBar() {
+        HorizontalLayout bar = new HorizontalLayout();
+        bar.setWidthFull();
+        bar.setPadding(false);
+        bar.setSpacing(true);
+        bar.getStyle()
+                .set("background", "#e8f1ff")
+                .set("padding", "12px 52px")
+                .set("box-sizing", "border-box")
+                .set("border-bottom", "1px solid #cdd9ec");
+
+        bar.add(
+                quickLink("⏳  Waiting queue",     "queue"),
+                quickLink("📋  Manage an order",    "manager/order"),
+                quickLink("🏢  Manage company",     "company"));
+        add(bar);
+    }
+
+    private Button quickLink(String label, String route) {
+        Button b = new Button(label, e -> UI.getCurrent().navigate(route));
+        b.getStyle()
+                .set("background", "white")
+                .set("color", "#026cdf")
+                .set("border", "1px solid #cdd9ec")
+                .set("border-radius", "999px")
+                .set("padding", "6px 16px")
+                .set("font-weight", "700")
+                .set("cursor", "pointer");
+        return b;
     }
 
     private void setupHeader() {
