@@ -260,7 +260,7 @@ public class SystemAdminService {
         WaitingQueue queue = waitingQueueRepository.findById(queueId)
                 .orElseThrow(() -> new IllegalArgumentException("Queue not found"));
 
-        queue.increaseQueueFlow(amount);
+        queue.increaseFlow(amount);
 
         return waitingQueueRepository.save(queue);
     }
