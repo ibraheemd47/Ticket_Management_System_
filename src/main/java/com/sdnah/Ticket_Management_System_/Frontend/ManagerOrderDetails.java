@@ -58,31 +58,49 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        // Auth-light for now (signup/verify flow still WIP). When auth is back,
+        // re-add: if (t == null) event.forwardTo(LoginView.class);
         Object t = UI.getCurrent().getSession().getAttribute(SESSION_TOKEN);
         Object o = UI.getCurrent().getSession().getAttribute(SESSION_ORDER_ID);
 
-        if (t == null) {
-            event.forwardTo(LoginView.class);
-            return;
-        }
-        if (o == null) {
-            Notification.show("No order selected", 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            event.forwardTo("main");
-            return;
-        }
-        this.token   = t.toString();
-        this.orderId = UUID.fromString(o.toString());
+        this.token = t != null ? t.toString() : "dev-token";
 
-        try {
-            this.order = orderService.getOrderById(orderId, token);
-            add(buildContent(order));
-        } catch (RuntimeException ex) {
-            Notification.show("Couldn't load order: " + ex.getMessage(), 4000,
-                            Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            event.forwardTo("main");
+        if (o == null) {
+            add(emptyState("No order selected.",
+                    "Click an order from the manager dashboard, or set the "
+                            + "\"managerOrderId\" session attribute, then come back."));
+            return;
         }
+        try {
+            this.orderId = UUID.fromString(o.toString());
+            this.order   = orderService.getOrderById(orderId, token);
+            add(buildContent(order));
+        } catch (IllegalArgumentException badUuid) {
+            add(emptyState("Invalid order id",
+                    "Session value isn't a UUID: " + o));
+        } catch (RuntimeException ex) {
+            add(emptyState("Couldn't load order", ex.getMessage()));
+        }
+    }
+
+    private Div emptyState(String title, String detail) {
+        Div card = new Div();
+        card.getStyle()
+                .set("max-width", "560px")
+                .set("margin", "60px auto")
+                .set("padding", "32px")
+                .set("background", "white")
+                .set("border-radius", "16px")
+                .set("box-shadow", "0 6px 20px rgba(0,0,0,0.06)")
+                .set("text-align", "center");
+        H1 t = new H1(title);
+        t.getStyle().set("margin", "0 0 8px 0").set("color", "#333");
+        Paragraph d = new Paragraph(detail);
+        d.getStyle().set("color", "#666").set("margin", "0");
+        card.add(t, d);
+        Div outer = new Div(card);
+        outer.setWidthFull();
+        return outer;
     }
 
     // ── Layout ───────────────────────────────────────────────────────────────
