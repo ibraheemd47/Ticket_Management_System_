@@ -1,8 +1,10 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Waiting_QueueService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -30,13 +32,15 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
     private final SystemAdminService systemAdminService;
     private final company_managment_serivce companyManagmentService;
     private final NotificationService notificationService;
+    private final ActiveOrderService activeOrderService;
     private String token;
 
     public SystemAdminView(SystemAdminService systemAdminService, company_managment_serivce companyManagmentService,
-            NotificationService notificationService) {
+            NotificationService notificationService, ActiveOrderService activeOrderService) {
         this.systemAdminService = systemAdminService;
         this.companyManagmentService = companyManagmentService;
         this.notificationService = notificationService;
+        this.activeOrderService = activeOrderService;
         setSizeFull();
         setPadding(false);
         setSpacing(false);
@@ -454,7 +458,8 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 return;
             }
             try {
-                notificationService.createNotification(recipient.getValue(), message.getValue(),NotificationType.SYSTEM_ANNOUNCEMENT);
+                notificationService.createNotification(recipient.getValue(), message.getValue(),
+                        NotificationType.SYSTEM_ANNOUNCEMENT);
                 showSuccess("Message sent to '" + recipient.getValue() + "'.");
                 recipient.clear();
                 message.clear();
@@ -470,21 +475,32 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
     // TAB: ANALYTICS — II.6.5
     private Div buildAnalytics() {
         Div wrapper = new Div();
-        wrapper.getStyle().set("display", "grid").set("grid-template-columns", "1fr 1fr 1fr").set("gap", "24px");
-
-        wrapper.add(
-                analyticsCard("Active Sessions", "👥", "Live visitors right now"),
-                analyticsCard("New Registrations", "🆕", "Members registered today"),
-                analyticsCard("Tickets Reserved", "🎟️", "Active reservations"),
-                analyticsCard("Purchases Today", "💳", "Completed transactions"),
-                analyticsCard("Peak Load", "📈", "Max concurrent users today"),
-                analyticsCard("Reservation Rate", "⏱️", "Reservations per minute"));
-
-        // TODO: connect AnalyticsService to display live data (II.6.5)
+        wrapper.getStyle().set("display", "grid").set("grid-template-columns", "1fr 1fr 1fr")
+                .set("gap", "24px");
+        // int totalUsers = systemAdminService.getAllUsers(token).size();
+        // long loggedInNow = systemAdminService.getLoggedInUsersCount(token);
+        // int suspendedUsers = systemAdminService.getSuspensions(token).size();
+        int activeOrders = activeOrderService.getActiveOrdersCount();
+        int purchasesToday = activeOrderService.getPurchasesTodayCount();
+        int reservationRate = activeOrderService.getReservationRate();
+        try {
+            wrapper.add(
+                    // analyticsCard("Total Users", "👥", "All registered members",
+                    // String.valueOf(totalUsers)),
+                    // analyticsCard("Active Sessions", "🟢", "Live visitors right now",
+                    // String.valueOf(loggedInNow)),
+                    // analyticsCard("Suspended Users", "🔴", "Currently suspended
+                    // members",String.valueOf(suspendedUsers)),
+                    analyticsCard("Purchases Today", "💳", "Completed transactions", String.valueOf(purchasesToday)),
+                    analyticsCard("Active Orders", "🎟️", "Orders pending payment", String.valueOf(activeOrders)),
+                    analyticsCard("Reservation Rate", "⏱️", "Reservations per minute", reservationRate + "/min"));
+        } catch (Exception ex) {
+            showError("Failed to load analytics: " + ex.getMessage());
+        }
         return wrapper;
     }
 
-    private Div analyticsCard(String title, String value, String desc) {
+    private Div analyticsCard(String title, String icon, String desc, String count) {
         Div c = new Div();
         c.getStyle()
                 .set("background", "white")
@@ -493,17 +509,22 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 .set("box-shadow", "0 2px 8px rgba(0,0,0,0.07)")
                 .set("border-top", "4px solid #026cdf");
 
-        H3 val = new H3(value);
-        val.getStyle().set("margin", "0 0 8px 0").set("font-size", "30px").set("font-weight", "900").set("color",
-                "#026cdf");
+        H3 val = new H3(icon);
+        val.getStyle().set("margin", "0 0 8px 0").set("font-size", "30px")
+                .set("font-weight", "900").set("color", "#026cdf");
 
         Paragraph t = new Paragraph(title);
-        t.getStyle().set("margin", "0 0 4px 0").set("font-weight", "700").set("font-size", "14px").set("color", "#111");
+        t.getStyle().set("margin", "0 0 4px 0").set("font-weight", "700")
+                .set("font-size", "14px").set("color", "#111");
+
+        Paragraph countP = new Paragraph(count);
+        countP.getStyle().set("margin", "0 0 4px 0").set("font-size", "22px")
+                .set("font-weight", "900").set("color", "#026cdf");
 
         Paragraph d = new Paragraph(desc);
         d.getStyle().set("margin", "0").set("font-size", "13px").set("color", "#9ca3af");
 
-        c.add(val, t, d);
+        c.add(val, t, countP, d);
         return c;
     }
 
@@ -511,62 +532,100 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
     private Div buildQueues() {
         Div wrapper = new Div();
         wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
-        // View queues
-        Div viewCard = actionCard("View Active Queues",
-                "Monitor all active virtual queues across the platform. Use this during high-demand ticket releases to track queue status.");
-
-        Div placeholderQ = new Div();
-        placeholderQ.getStyle()
-                .set("background", "#f9fafb")
-                .set("border", "1px dashed #d1d5db")
-                .set("border-radius", "8px")
-                .set("padding", "40px 24px")
-                .set("text-align", "center");
-        Paragraph ptQ = new Paragraph("Active queue list will appear here after connecting the backend.");
-        ptQ.getStyle().set("color", "#9ca3af").set("font-size", "14px").set("margin", "0");
-        placeholderQ.add(ptQ);
-        viewCard.add(placeholderQ);
-        wrapper.add(viewCard);
-        // Control queue
-        Div controlCard = actionCard("Control Queue",
-                "Select a queue by its event ID and adjust the user flow rate, or clear the queue entirely if a technical issue occurs.");
-
-        TextField queueId = styledField("Queue / Event ID");
-
-        Button increaseBtn = actionButton("Increase Flow", "#026cdf");
-        increaseBtn.addClickListener(e -> {
-            if (queueId.isEmpty()) {
-                showError("Please enter a Queue ID.");
-                return;
-            }
-            // queueService.increaseFlowRate(token, queueId)
-            showSuccess("Flow rate increased for queue '" + queueId.getValue() + "'.");
-        });
-
-        Button decreaseBtn = actionButton("Decrease Flow", "#026cdf");
-        decreaseBtn.addClickListener(e -> {
-            if (queueId.isEmpty()) {
-                showError("Please enter a Queue ID.");
-                return;
-            }
-            // queueService.decreaseFlowRate(token, queueId)
-            showSuccess("Flow rate decreased for queue '" + queueId.getValue() + "'.");
-        });
-
-        Button clearBtn = actionButton("Clear Queue", "#026cdf");
-        clearBtn.addClickListener(e -> {
-            if (queueId.isEmpty()) {
-                showError("Please enter a Queue ID.");
-                return;
-            }
-            // queueService.clearQueue(token, queueId)
-            showSuccess("Queue '" + queueId.getValue() + "' cleared.");
-        });
-
-        controlCard.add(queueId, increaseBtn, decreaseBtn, clearBtn);
-        wrapper.add(controlCard);
-
+        wrapper.add(buildQueuesListCard());
+        wrapper.add(buildQueueControlCard());
         return wrapper;
+    }
+ 
+    private Div buildQueuesListCard() {
+        Div card = actionCard("View Active Queues",
+                "Monitor all active virtual queues across the platform. Use this during high-demand ticket releases.");
+ 
+        Div tableArea = new Div();
+        tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
+ 
+        Button loadBtn = actionButton("Load Queues", "#026cdf");
+        // loadBtn.addClickListener(e -> {
+        //     tableArea.removeAll();
+        //     try {
+        //         var queues = systemAdminService.getAllQueues(token);
+        //         if (queues.isEmpty()) { tableArea.add(new Paragraph("No active queues found.")); return; }
+ 
+        //         Div headerRow = tableRow("#026cdf", "white");
+        //         headerRow.add(tableCell("Show ID", true), tableCell("Waiting", true),
+        //                 tableCell("Flow Rate/min", true));
+        //         tableArea.add(headerRow);
+ 
+        //         for (int i = 0; i < queues.size(); i++) {
+        //             var q = queues.get(i);
+        //             Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+        //             row.add(tableCell(String.valueOf(q.getShowId()), false),
+        //                     tableCell(String.valueOf(q.getTotalWaiting()), false),
+        //                     tableCell(String.valueOf(q.getCheckoutCapacityPerMinute()), false));
+        //             tableArea.add(row);
+        //         }
+        //     } catch (Exception ex) { showError(ex.getMessage()); }
+        // });
+ 
+        card.add(loadBtn, tableArea);
+        return card;
+    }
+ 
+    private Div buildQueueControlCard() {
+        Div card = actionCard("Control Queue",
+                "Adjust the user flow rate or clear a queue entirely if a technical issue occurs.");
+ 
+        TextField queueId = styledField("Show ID");
+ 
+        NumberField flowAmount = new NumberField("Flow change amount");
+        flowAmount.setMin(1);
+        flowAmount.setWidthFull();
+        flowAmount.getStyle().set("margin-top", "8px");
+ 
+        Button increaseBtn = actionButton("Increase Flow", "#026cdf");
+        Button decreaseBtn = actionButton("Decrease Flow", "#026cdf");
+        Button clearBtn    = actionButton("Clear Queue", "#026cdf");
+ 
+        increaseBtn.setEnabled(false);
+        decreaseBtn.setEnabled(false);
+        clearBtn.setEnabled(false);
+ 
+        Runnable updateButtons = () -> {
+            boolean hasQueueId = !queueId.isEmpty();
+            boolean hasAmount  = flowAmount.getValue() != null && flowAmount.getValue() >= 1;
+            increaseBtn.setEnabled(hasQueueId && hasAmount);
+            decreaseBtn.setEnabled(hasQueueId && hasAmount);
+            clearBtn.setEnabled(hasQueueId);
+        };
+ 
+        queueId.addValueChangeListener(e -> updateButtons.run());
+        flowAmount.addValueChangeListener(e -> updateButtons.run());
+ 
+        // increaseBtn.addClickListener(e -> {
+        //     try {
+        //         int amount = flowAmount.getValue().intValue();
+        //         systemAdminService.increaseQueueFlow(token, Long.parseLong(queueId.getValue()), amount);
+        //         showSuccess("Flow rate increased by " + amount + " for queue '" + queueId.getValue() + "'.");
+        //     } catch (Exception ex) { showError(ex.getMessage()); }
+        // });
+ 
+        // decreaseBtn.addClickListener(e -> {
+        //     try {
+        //         int amount = flowAmount.getValue().intValue();
+        //         systemAdminService.decreaseQueueFlow(token, Long.parseLong(queueId.getValue()), amount);
+        //         showSuccess("Flow rate decreased by " + amount + " for queue '" + queueId.getValue() + "'.");
+        //     } catch (Exception ex) { showError(ex.getMessage()); }
+        // });
+ 
+        // clearBtn.addClickListener(e -> {
+        //     try {
+        //         systemAdminService.clearQueue(token, Long.parseLong(queueId.getValue()));
+        //         showSuccess("Queue '" + queueId.getValue() + "' cleared.");
+        //     } catch (Exception ex) { showError(ex.getMessage()); }
+        // });
+ 
+        card.add(queueId, flowAmount, increaseBtn, decreaseBtn, clearBtn);
+        return card;
     }
 
     // HELPERS
