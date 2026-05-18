@@ -31,7 +31,8 @@ import com.vaadin.flow.router.Route;
  * {@code uiPushRegistry.push(token, ui -> { ... })} to flip the view to the
  * "you're up" state. No polling.
  */
-
+// Note: @Push is enabled application-wide on TicketManagementSystemApplication,
+// so this view automatically gets server-push without re-annotating here.
 @Route("queue")
 public class WaitingQueueView extends VerticalLayout implements BeforeEnterObserver {
 
@@ -81,19 +82,22 @@ public class WaitingQueueView extends VerticalLayout implements BeforeEnterObser
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        // Auth-light for now (signup/verify flow still WIP). When auth is back,
+        // re-add: if (t == null) event.forwardTo(LoginView.class);
         Object t  = UI.getCurrent().getSession().getAttribute(SESSION_TOKEN);
         Object mi = UI.getCurrent().getSession().getAttribute(SESSION_MEMBER_ID);
         Object si = UI.getCurrent().getSession().getAttribute(SESSION_SHOW_ID);
 
-        if (t == null || mi == null || si == null) {
-            event.forwardTo(LoginView.class);
-            return;
-        }
-        this.token  = t.toString();
-        this.userId = Long.parseLong(mi.toString());
-        this.showId = Long.parseLong(si.toString());
+        this.token  = t  != null ? t.toString()              : "dev-token";
+        this.userId = mi != null ? Long.parseLong(mi.toString()) : 101L;
+        this.showId = si != null ? Long.parseLong(si.toString()) : 42L;
 
-        refreshFromBackend();
+        try {
+            refreshFromBackend();
+        } catch (RuntimeException ex) {
+            positionLabel.setText("—");
+            etaLabel.setText("No live queue data: " + ex.getMessage());
+        }
     }
 
     @Override
