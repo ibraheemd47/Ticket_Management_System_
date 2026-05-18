@@ -109,7 +109,8 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 tab("Companies", "companies"),
                 tab("Complaints", "complaints"),
                 tab("Analytics", "analytics"),
-                tab("Queues", "queues"));
+                tab("Queues", "queues"),
+                tab("Purchase History", "purchases"));
 
         header.add(topRow, crumb, title, tabs);
         return header;
@@ -140,6 +141,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
             case "complaints" -> content.add(buildComplaints());
             case "analytics" -> content.add(buildAnalytics());
             case "queues" -> content.add(buildQueues());
+            case "purchases"  -> content.add(buildPurchaseHistory());
             default -> content.add(buildUsers());
         }
 
@@ -625,6 +627,99 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         // });
  
         card.add(queueId, flowAmount, increaseBtn, decreaseBtn, clearBtn);
+        return card;
+    }
+
+    // TAB: PURCHASE HISTORY — II.6.4
+ 
+    private Div buildPurchaseHistory() {
+        Div wrapper = new Div();
+        wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
+        wrapper.add(buildPurchasesByBuyerCard());
+        wrapper.add(buildPurchasesByEventCard());
+        return wrapper;
+    }
+ 
+    private Div buildPurchasesByBuyerCard() {
+        Div card = actionCard("Purchases by Buyer",
+                "View full purchase history of a specific member by their Member ID.");
+ 
+        TextField buyerId = styledField("Member ID");
+        Button searchBtn = actionButton("Load Purchases", "#026cdf");
+ 
+        Div tableArea = new Div();
+        tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
+ 
+        searchBtn.addClickListener(e -> {
+            if (buyerId.isEmpty()) { showError("Please enter a Member ID."); return; }
+            tableArea.removeAll();
+            // try {
+            //     var purchases = systemAdminService.getPurchasesByBuyer(token, buyerId.getValue());
+            //     if (purchases.isEmpty()) { tableArea.add(new Paragraph("No purchases found.")); return; }
+ 
+            //     Div headerRow = tableRow("#026cdf", "white");
+            //     headerRow.add(tableCell("Purchase ID", true), tableCell("Order ID", true),
+            //             tableCell("Price", true), tableCell("Date", true));
+            //     tableArea.add(headerRow);
+ 
+            //     for (int i = 0; i < purchases.size(); i++) {
+            //         var p = purchases.get(i);
+            //         Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+            //         row.add(
+            //                 tableCell(p.getPurchaseId().toString(), false),
+            //                 tableCell(p.getOrderId().toString(), false),
+            //                 tableCell(p.getFinalPrice() != null ? p.getFinalPrice().toString() : "—", false),
+            //                 tableCell(p.getPurchasedAt() != null
+            //                         ? p.getPurchasedAt().toLocalDate().toString() : "—", false));
+            //         tableArea.add(row);
+            //     }
+            // } catch (Exception ex) { showError(ex.getMessage()); }
+        });
+ 
+        card.add(buyerId, searchBtn, tableArea);
+        return card;
+    }
+ 
+    private Div buildPurchasesByEventCard() {
+        Div card = actionCard("Purchases by Event",
+                "View all purchases made for a specific event by its Event ID.");
+ 
+        TextField eventId = styledField("Event ID ");
+        Button searchBtn = actionButton("Load Purchases", "#026cdf");
+ 
+        Div tableArea = new Div();
+        tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
+ 
+        searchBtn.addClickListener(e -> {
+            // if (eventId.isEmpty()) { showError("Please enter an Event ID."); return; }
+            // tableArea.removeAll();
+            // try {
+            //     var purchases = systemAdminService.getPurchasesByEvent(token,
+            //             UUID.fromString(eventId.getValue()));
+            //     if (purchases.isEmpty()) { tableArea.add(new Paragraph("No purchases found.")); return; }
+ 
+            //     Div headerRow = tableRow("#026cdf", "white");
+            //     headerRow.add(tableCell("Purchase ID", true), tableCell("Order ID", true),
+            //             tableCell("Price", true), tableCell("Date", true));
+            //     tableArea.add(headerRow);
+ 
+            //     for (int i = 0; i < purchases.size(); i++) {
+            //         var p = purchases.get(i);
+            //         Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+            //         row.add(
+            //                 tableCell(p.getPurchaseId().toString(), false),
+            //                 tableCell(p.getOrderId().toString(), false),
+            //                 tableCell(p.getFinalPrice() != null ? p.getFinalPrice().toString() : "—", false),
+            //                 tableCell(p.getPurchasedAt() != null
+            //                         ? p.getPurchasedAt().toLocalDate().toString() : "—", false));
+            //         tableArea.add(row);
+            //     }
+            // } catch (IllegalArgumentException ex) {
+            //     showError("Invalid UUID format.");
+            // } catch (Exception ex) { showError(ex.getMessage()); }
+        });
+ 
+        card.add(eventId, searchBtn, tableArea);
         return card;
     }
 
