@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -11,10 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.SuspensionDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.UserDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Waiting_Queue.WaitingQueue;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.Waiting_QueueRepository;
 
 @Service
 public class SystemAdminService {
@@ -22,6 +27,9 @@ public class SystemAdminService {
 
     private final UserRepository userRepository;
     private final SystemAdminRepository systemAdminRepository;
+    private final PurchaseRepository purchaseRepository;
+    private final Waiting_QueueRepository waitingQueueRepository;
+
     private final UserService userService;
     private final KeyedLock keyedLock;
 
@@ -29,10 +37,14 @@ public class SystemAdminService {
 
     public SystemAdminService(UserRepository userRepository,
             SystemAdminRepository systemAdminRepository,
+            PurchaseRepository purchaseRepository,
+            Waiting_QueueRepository waitingQueueRepository,
             UserService userService,
             KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.systemAdminRepository = systemAdminRepository;
+        this.purchaseRepository = purchaseRepository;
+        this.waitingQueueRepository = waitingQueueRepository;
         this.userService = userService;
         this.keyedLock = keyedLock;
     }
@@ -176,11 +188,14 @@ public class SystemAdminService {
                 .collect(Collectors.toList());
     }
 
+    // for ui
+    @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers(String token) {
         requireAdmin(token);
         return userRepository.getAllmembers();
     }
 
+    @Transactional(readOnly = true)
     public int getLoggedInUsersCount(String token) {
         requireAdmin(token);
         return (int) userRepository.findAll().stream()
@@ -188,19 +203,123 @@ public class SystemAdminService {
                 .count();
     }
 
-    public boolean removeMember(String token, String username) {
+    @Transactional
+    public void removeMember(String token, String usernameOrMemberId) {
         requireAdmin(token);
-        keyedLock.runLocked(LOCK_NS, username, () -> {
-            var target = userRepository.findByUsername(username);
-            Member member = target.orElse(null);
-            if (member == null)
-                throw new IllegalArgumentException("Member not found");
-            
-            if (member.isSystemAdmin())
-                throw new IllegalArgumentException("Cannot remove a system admin");
 
-            userRepository.delete(member);
+        Member target = findMemberByUsernameOrMemberId(usernameOrMemberId);
+
+        if (target == null) {
+            throw new IllegalArgumentException("Member not found");
+        }
+
+        if (target.isSystemAdmin()) {
+            throw new IllegalArgumentException("Cannot remove a system admin");
+        }
+
+        keyedLock.runLocked(LOCK_NS, target.getMemberId(), () -> {
+            Member freshTarget = userRepository.findByMemberId(target.getMemberId());
+
+            if (freshTarget == null) {
+                throw new IllegalArgumentException("Member not found");
+            }
+
+            if (freshTarget.isSystemAdmin()) {
+                throw new IllegalArgumentException("Cannot remove a system admin");
+            }
+
+            userRepository.delete(freshTarget);
         });
-        return true;
+    }
+
+    private Member findMemberByUsernameOrMemberId(String usernameOrMemberId) {
+        if (usernameOrMemberId == null || usernameOrMemberId.isBlank()) {
+            throw new IllegalArgumentException("Username/memberId is required");
+        }
+
+        String cleanValue = usernameOrMemberId.trim();
+
+        return userRepository.findByUsername(cleanValue)
+                .orElseGet(() -> userRepository.findByMemberId(cleanValue));
+    }
+
+    @Transactional(readOnly = true)
+    public List<WaitingQueue> getAllQueues(String token) {
+        requireAdmin(token);
+        return waitingQueueRepository.findAll();
+    }
+
+    @Transactional
+    public WaitingQueue increaseQueueFlow(String token, long queueId, int amount) {
+        requireAdmin(token);
+
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        WaitingQueue queue = waitingQueueRepository.findById(queueId)
+                .orElseThrow(() -> new IllegalArgumentException("Queue not found"));
+
+        queue.increaseQueueFlow(amount);
+
+        return waitingQueueRepository.save(queue);
+    }
+
+    @Transactional
+    public WaitingQueue decreaseQueueFlow(String token, long queueId, int amount) {
+        requireAdmin(token);
+
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        WaitingQueue queue = waitingQueueRepository.findById(queueId)
+                .orElseThrow(() -> new IllegalArgumentException("Queue not found"));
+
+        queue.decreaseFlow(amount);
+
+        return waitingQueueRepository.save(queue);
+    }
+
+    @Transactional
+    public void clearQueue(String token, long queueId) {
+        requireAdmin(token);
+
+        WaitingQueue queue = waitingQueueRepository.findById(queueId)
+                .orElseThrow(() -> new IllegalArgumentException("Queue not found"));
+
+        queue.clearQueue();
+
+        waitingQueueRepository.save(queue);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Purchase> getPurchasesByBuyer(String token, String buyerId) {
+        requireAdmin(token);
+
+        if (buyerId == null || buyerId.isBlank()) {
+            throw new IllegalArgumentException("Buyer id is required");
+        }
+
+        return purchaseRepository.findByBuyerId(buyerId.trim());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Purchase> getPurchasesByEvent(String token, UUID eventId) {
+        requireAdmin(token);
+
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event id is required");
+        }
+
+        return purchaseRepository.findByEventId(eventId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<?> getAllComplaints(String token) {
+        requireAdmin(token);
+
+        throw new UnsupportedOperationException(
+                "Complaints are not implemented yet: missing Complaint domain/repository");
     }
 }

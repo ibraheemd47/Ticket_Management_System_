@@ -20,8 +20,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.Waiting_QueueRepository;
 
 @ExtendWith(MockitoExtension.class)
 class SystemAdminServiceAcceptanceTest {
@@ -37,6 +39,10 @@ class SystemAdminServiceAcceptanceTest {
     @Mock
     private SystemAdminRepository systemAdminRepository;
 
+    @Mock
+    private PurchaseRepository purchaseRepository;
+    @Mock
+    private Waiting_QueueRepository waitingQueueRepository;
     @Mock
     private UserService userService;
 
@@ -54,6 +60,8 @@ class SystemAdminServiceAcceptanceTest {
         systemAdminService = new SystemAdminService(
                 userRepository,
                 systemAdminRepository,
+                purchaseRepository,
+                waitingQueueRepository,
                 userService,
                 keyedLock);
 
