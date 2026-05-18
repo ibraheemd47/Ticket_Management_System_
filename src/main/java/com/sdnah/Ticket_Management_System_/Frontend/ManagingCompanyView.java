@@ -72,21 +72,13 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        // Auth-light for now (signup/verify flow still WIP). When auth is back,
+        // re-add: if (t == null) event.forwardTo(LoginView.class);
         Object t = UI.getCurrent().getSession().getAttribute(SESSION_TOKEN);
         Object c = UI.getCurrent().getSession().getAttribute(SESSION_COMPANY_ID);
 
-        if (t == null) {
-            event.forwardTo(LoginView.class);
-            return;
-        }
-        if (c == null) {
-            Notification.show("No company selected", 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            event.forwardTo("main");
-            return;
-        }
-        this.token     = t.toString();
-        this.companyId = Integer.parseInt(c.toString());
+        this.token     = t != null ? t.toString()                : "dev-token";
+        this.companyId = c != null ? Integer.parseInt(c.toString()) : 1;
 
         add(buildShell());
         renderEventsTab();
