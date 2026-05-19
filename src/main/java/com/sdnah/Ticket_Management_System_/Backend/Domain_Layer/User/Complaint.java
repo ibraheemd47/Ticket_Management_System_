@@ -4,6 +4,10 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.checkerframework.checker.units.qual.C;
+
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
+
 @Entity
 @Table(name = "complaints")
 public class Complaint {
@@ -61,6 +65,18 @@ public class Complaint {
         this.status = ComplaintStatus.OPEN;
         this.createdAt = LocalDateTime.now();
     }
+    public Complaint(ComplaintDTO dto) {
+        this.complaintId = dto.getComplaintId() != null ? dto.getComplaintId() : UUID.randomUUID();
+        this.reporterMemberId = dto.getReporterMemberId();
+        this.subject = dto.getSubject();
+        this.description = dto.getDescription();
+        this.targetType = dto.getTargetType();
+        this.targetId = dto.getTargetId();
+        this.status = dto.getStatus() != null ? dto.getStatus() : ComplaintStatus.OPEN;
+        this.createdAt = dto.getCreatedAt() != null ? dto.getCreatedAt() : LocalDateTime.now();
+        this.resolvedAt = dto.getResolvedAt();
+        this.adminResponse = dto.getAdminResponse();
+    }
 
     public void markInProgress() {
         this.status = ComplaintStatus.IN_PROGRESS;
@@ -116,5 +132,8 @@ public class Complaint {
 
     public String getAdminResponse() {
         return adminResponse;
+    }
+    public ComplaintDTO toDTO() {
+        return new ComplaintDTO(this);
     }
 }
