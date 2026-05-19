@@ -6,8 +6,7 @@ import java.util.UUID;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Complaint;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ComplaintStatus;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+
 
 public class ComplaintDTO {
 
