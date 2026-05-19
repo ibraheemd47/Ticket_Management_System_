@@ -20,6 +20,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ComplaintRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
@@ -38,6 +39,8 @@ class SystemAdminServiceAcceptanceTest {
 
     @Mock
     private SystemAdminRepository systemAdminRepository;
+    @Mock
+    private ComplaintRepository complaintRepository;
 
     @Mock
     private PurchaseRepository purchaseRepository;
@@ -62,7 +65,7 @@ class SystemAdminServiceAcceptanceTest {
                 systemAdminRepository,
                 purchaseRepository,
                 waitingQueueRepository,
-                userService,
+                userService,complaintRepository,
                 keyedLock);
 
         adminMember = new System_admin(new Member(ADMIN_ID, "adminUser", "hash"), "System");

@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,8 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Waiting_Queue.WaitingQueue;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ComplaintRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
@@ -33,6 +36,8 @@ public class SystemAdminService {
     private final UserService userService;
     private final KeyedLock keyedLock;
 
+    private final ComplaintRepository  complaintRepository;
+
     private static final String LOCK_NS = "system-admin:member";
 
     public SystemAdminService(UserRepository userRepository,
@@ -40,12 +45,14 @@ public class SystemAdminService {
             PurchaseRepository purchaseRepository,
             Waiting_QueueRepository waitingQueueRepository,
             UserService userService,
+            ComplaintRepository complaintRepository,
             KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.systemAdminRepository = systemAdminRepository;
         this.purchaseRepository = purchaseRepository;
         this.waitingQueueRepository = waitingQueueRepository;
         this.userService = userService;
+        this.complaintRepository = complaintRepository;
         this.keyedLock = keyedLock;
     }
 
@@ -319,7 +326,6 @@ public class SystemAdminService {
     public List<?> getAllComplaints(String token) {
         requireAdmin(token);
 
-        throw new UnsupportedOperationException(
-                "Complaints are not implemented yet: missing Complaint domain/repository");
+        return complaintRepository.findAll();
     }
 }
