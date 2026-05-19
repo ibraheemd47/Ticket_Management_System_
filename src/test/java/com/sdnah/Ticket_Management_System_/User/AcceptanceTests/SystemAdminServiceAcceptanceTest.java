@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
@@ -48,6 +49,11 @@ class SystemAdminServiceAcceptanceTest {
     private Waiting_QueueRepository waitingQueueRepository;
     @Mock
     private UserService userService;
+    @Mock
+    private ComplaintRepository complaintRepo;
+    @Mock
+    private ComplaintService complaintService;
+
 
     @Spy
     private KeyedLock keyedLock = new KeyedLock();
@@ -65,7 +71,7 @@ class SystemAdminServiceAcceptanceTest {
                 systemAdminRepository,
                 purchaseRepository,
                 waitingQueueRepository,
-                userService,complaintRepository,
+                userService,complaintRepository,complaintService,
                 keyedLock);
 
         adminMember = new System_admin(new Member(ADMIN_ID, "adminUser", "hash"), "System");

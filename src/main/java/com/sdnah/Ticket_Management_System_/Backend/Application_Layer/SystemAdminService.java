@@ -208,7 +208,7 @@ public class SystemAdminService {
     @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers(String token) {
         requireAdmin(token);
-        return userRepository.getAllmembers();
+        return userRepository.findAll().stream().map(Member::toUserDTO).collect(Collectors.toList());
     }
 
     /**
