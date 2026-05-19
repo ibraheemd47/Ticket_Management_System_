@@ -200,9 +200,9 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
 
         // Suspend user card — II.6.7
         Div suspendCard = actionCard("Suspend User",
-                "Enter the Member ID of the member you wish to suspend. Suspended members can browse the platform but cannot perform any actions.");
+                "Enter the Username of the member you wish to suspend. Suspended members can browse the platform but cannot perform any actions.");
 
-        TextField suspendMemberID = styledField("Member ID to suspend");
+        TextField suspendUsername = styledField("Username to suspend");
 
         RadioButtonGroup<String> type = new RadioButtonGroup<>();
         type.setLabel("Suspension Type");
@@ -220,50 +220,50 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         Button suspendBtn = actionButton("Suspend User", "#026cdf");
 
         suspendBtn.addClickListener(e -> {
-            if (suspendMemberID.isEmpty()) {
-                showError("Please enter a Member ID.");
+            if (suspendUsername.isEmpty()) {
+                showError("Please enter a Username.");
                 return;
             }
             try {
                 if (type.getValue().equals("Permanent")) {
-                    systemAdminService.suspendPermanently(token, suspendMemberID.getValue());
-                    showSuccess("User '" + suspendMemberID.getValue() + "' suspended permanently.");
+                    systemAdminService.suspendPermanently(token, suspendUsername.getValue());
+                    showSuccess("User '" + suspendUsername.getValue() + "' suspended permanently.");
                 } else {
                     long h = hours.getValue() == null ? 24 : hours.getValue().longValue();
-                    systemAdminService.suspendUser(token, suspendMemberID.getValue(), h);
-                    showSuccess("User '" + suspendMemberID.getValue() + "' suspended for " + h + " hours.");
+                    systemAdminService.suspendUser(token, suspendUsername.getValue(), h);
+                    showSuccess("User '" + suspendUsername.getValue() + "' suspended for " + h + " hours.");
                 }
-                suspendMemberID.clear();
+                suspendUsername.clear();
             } catch (Exception ex) {
                 showError(ex.getMessage());
             }
-            suspendMemberID.clear();
+            suspendUsername.clear();
         });
 
-        suspendCard.add(suspendMemberID, type, hours, suspendBtn);
+        suspendCard.add(suspendUsername, type, hours, suspendBtn);
         wrapper.add(suspendCard);
 
         // Remove member card — II.6.2
         Div removeCard = actionCard("Remove Member",
-                "Enter the Member ID of the member you wish to remove. This action is irreversible and will revoke all their roles and permissions.");
+                "Enter the Username of the member you wish to remove. This action is irreversible and will revoke all their roles and permissions.");
 
-        TextField removeMemberID = styledField("Member ID to remove");
+        TextField removeUsername = styledField("Username to remove");
         Button removeBtn = actionButton("Remove Member", "#026cdf");
 
         removeBtn.addClickListener(e -> {
-            if (removeMemberID.isEmpty()) {
-                showError("Please enter a MemberID.");
+            if (removeUsername.isEmpty()) {
+                showError("Please enter a Username.");
                 return;
             }
             try {
                 // systemAdminService.removeMember(token, removeMemberID.getValue());
-                showSuccess("Member '" + removeMemberID.getValue() + "' has been removed.");
-                removeMemberID.clear();
+                showSuccess("Member '" + removeUsername.getValue() + "' has been removed.");
+                removeUsername.clear();
             } catch (Exception ex) {
                 showError(ex.getMessage());
             }
         });
-        removeCard.add(removeMemberID, removeBtn);
+        removeCard.add(removeUsername, removeBtn);
         wrapper.add(removeCard);
         return wrapper;
     }
@@ -274,25 +274,25 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
         // Unsuspend card — II.6.8
         Div unsuspendCard = actionCard("Unsuspend User",
-                "Enter the Member ID of the suspended member you wish to reinstate. They will regain full access to the platform immediately.");
+                "Enter the Username of the suspended member you wish to reinstate. They will regain full access to the platform immediately.");
 
-        TextField unsuspendId = styledField("Member ID to unsuspend");
+        TextField unsuspendUsername = styledField("Username to unsuspend");
         Button unsuspendBtn = actionButton("Unsuspend User", "#026cdf");
         unsuspendBtn.addClickListener(e -> {
-            if (unsuspendId.isEmpty()) {
-                showError("Please enter a MemberID.");
+            if (unsuspendUsername.isEmpty()) {
+                showError("Please enter a Username.");
                 return;
             }
             try {
-                systemAdminService.unsuspendUser(token, unsuspendId.getValue());
-                showSuccess("User '" + unsuspendId.getValue() + "' unsuspended.");
-                unsuspendId.clear();
+                systemAdminService.unsuspendUser(token, unsuspendUsername.getValue());
+                showSuccess("User '" + unsuspendUsername.getValue() + "' unsuspended.");
+                unsuspendUsername.clear();
             } catch (Exception ex) {
                 showError(ex.getMessage());
             }
         });
 
-        unsuspendCard.add(unsuspendId, unsuspendBtn);
+        unsuspendCard.add(unsuspendUsername, unsuspendBtn);
         wrapper.add(unsuspendCard);
 
         // View suspensions card — II.6.9
@@ -448,7 +448,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         Div msgCard = actionCard("Send System Message",
                 "Send an official system message to a member or production company. Use this for important platform notifications.");
 
-        TextField recipient = styledField("Member ID or Company ID");
+        TextField recipient = styledField("Username or Company ID");
         TextArea message = new TextArea("Message");
         message.setWidthFull();
         message.setPlaceholder("Type your message here...");
