@@ -23,8 +23,8 @@ public class Lottery {
 
     @Enumerated(EnumType.STRING)
     private LotteryStatus status;
-
-    @OneToMany(mappedBy = "lottery", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    
+    @OneToMany(mappedBy = "lottery", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<LotteryEntry> entries = new ArrayList<>();
 
     public enum LotteryStatus {
