@@ -72,6 +72,7 @@ public class company_managment_serivce {
                 .flatMap(company -> company.getAssociatedEventIds().stream())
                 .toList();
     }
+    
 
     // --- II.3.2: Open Production Company (Triggered by II.1.1) ---
     @Transactional

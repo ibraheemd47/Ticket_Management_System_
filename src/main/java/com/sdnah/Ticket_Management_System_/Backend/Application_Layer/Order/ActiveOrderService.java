@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
@@ -29,7 +30,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRep
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
-
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
 @Service
@@ -49,6 +50,9 @@ public class ActiveOrderService {
     private final OrderActionLogRepository actionLogRepo;
     private IrepresnteUserService represnteUserService;
     private final NotificationService notificationService;
+
+    @Autowired  
+    private LotteryRepository lotteryRepository;
 
     public ActiveOrderService(ActiveOrderRepository orderRepo,
             NotificationService notificationService,
@@ -91,10 +95,12 @@ public class ActiveOrderService {
         this.ticketGateway = ticketGateway;
         this.represnteUserService = represnteUserService;
         this.ticketDomainService = new Ticket_Domain_Service(ticketRepository);
-        this.orderPolicyDomainService = new OrderPolicyDomainService(policyRepository);
+        this.orderPolicyDomainService = new OrderPolicyDomainService(policyRepository, lotteryRepository);
         this.checkoutDomainService = new CheckoutDomainService(paymentGateway, ticketGateway, ticketDomainService);
         this.actionLogRepo = actionLogRepo;
         this.notificationService = notificationService;
+        
+
         
     }
 
