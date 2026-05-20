@@ -67,7 +67,7 @@ public class LotteryService {
     // UC II.3.6 — REGISTER TO LOTTERY (VERIFIED MEMBER ONLY)
     // =========================================================================
     @Transactional
-    public LotteryEntryDTO registerToLottery(String actorToken, UUID lotteryId) {
+    public synchronized LotteryEntryDTO registerToLottery(String actorToken, UUID lotteryId) {
         Member member = getActorFromToken(actorToken);
 
         logger.info("Member {} registering to lottery {}", member.getMemberId(), lotteryId);

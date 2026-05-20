@@ -5,6 +5,13 @@ import java.util.UUID;
 
 import jakarta.persistence.*;
 
+// @Entity
+// @Table(name = "lottery_entries")
+
+// @Table(name = "lottery_entries", 
+// uniqueConstraints = @UniqueConstraint(columnNames = {"lottery_id", "member_id"}))
+
+
 @Entity
 @Table(name = "lottery_entries")
 public class LotteryEntry {
