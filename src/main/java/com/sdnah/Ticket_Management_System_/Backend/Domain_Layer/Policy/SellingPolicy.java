@@ -17,6 +17,9 @@ public class SellingPolicy extends Policy {
     @Column(name = "selling_type")
     private SellingType type;
 
+    // @Column(name = "lottery_id")
+    // private UUID lotteryId; // null אם REGULAR
+
     protected SellingPolicy() {
         // JPA
     }
