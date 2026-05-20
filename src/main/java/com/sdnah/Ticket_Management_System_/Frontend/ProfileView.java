@@ -1,5 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -79,6 +80,12 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private Div createProfileContent() {
+
+        String username = (String) UI.getCurrent().getSession().getAttribute("username");
+        String displayName = (username != null) ? username : "{}";
+
+    H1 greeting = new H1("Hello, " + displayName);
+    greeting.getStyle().set("font-size", "24px").set("margin-bottom", "10px");
         Div wrapper = new Div();
 
         wrapper.getStyle()
@@ -129,7 +136,7 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
         Button myOrders = createMainButton("My Orders", "orders?tab=active");
         Button browseEvents = createSecondaryButton("Browse Events", "main");
 
-        card.add(avatar, title, subtitle, myOrders, browseEvents);
+        card.add(greeting, avatar, title, subtitle, myOrders, browseEvents);
         wrapper.add(card);
 
         return wrapper;

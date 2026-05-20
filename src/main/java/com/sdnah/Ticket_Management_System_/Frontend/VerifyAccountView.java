@@ -96,7 +96,8 @@ public class VerifyAccountView extends VerticalLayout {
                     String token = userService.login(username.getValue(), tempPassword); 
                     
                     // 4. Set the token so MainView knows we are logged in
-                    getUI().get().getSession().setAttribute("token", token);
+                getUI().get().getSession().setAttribute("token", token);
+                getUI().get().getSession().setAttribute("username", username.getValue());
                 }
 
                 Notification.show("Verified and logged in successfully!");
