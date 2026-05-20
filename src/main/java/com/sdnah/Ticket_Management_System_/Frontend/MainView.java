@@ -3,6 +3,7 @@ package com.sdnah.Ticket_Management_System_.Frontend;
 import java.util.List;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -18,6 +19,7 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.Route;
@@ -25,9 +27,11 @@ import com.vaadin.flow.router.Route;
 @Route("main") // Landing page
 public class MainView extends VerticalLayout {
     private final EventService eventService;
+    private final UserService userService;
 
-    public MainView(EventService eventService) {
+    public MainView(EventService eventService, UserService userService) {
         this.eventService = eventService;
+        this.userService = userService;
 
         // 1. Match the overall page background and spacing from ProfileView
         setSizeFull();
@@ -102,8 +106,8 @@ public class MainView extends VerticalLayout {
                 .set("cursor", "pointer");
         logo.addClickListener(e -> UI.getCurrent().navigate(MainView.class));
 
-        TextField searchField = setupSearchBar();
-        searchField.getStyle().set("margin", "0 40px"); 
+       HorizontalLayout searchBarLayout = setupSearchBar();
+    searchBarLayout.getStyle().set("margin", "0 40px");
 
         HorizontalLayout authButtons = new HorizontalLayout();
 
@@ -125,19 +129,33 @@ public class MainView extends VerticalLayout {
             profileBtn.getStyle().set("background", "white").set("color", "#026cdf")
                     .set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
 
-            Button logoutBtn = new Button("Logout", e -> {
-                UI.getCurrent().getSession().setAttribute("token", null);
-                UI.getCurrent().navigate("main");
-            });
-            logoutBtn.getStyle().set("background", "transparent").set("color", "white")
-                    .set("border", "2px solid white").set("font-weight", "700")
-                    .set("border-radius", "8px").set("cursor", "pointer");
+           Button logoutBtn = new Button("Logout", e -> {
+    // 1. Get the current token from the session
+    String currentToken = (String) UI.getCurrent().getSession().getAttribute("token");
+    
+    // 2. Call your backend UserService logout function
+    if (currentToken != null) {
+        userService.logout(currentToken); 
+        // Note: If your logout function takes a username instead of a token, 
+        // pass the username here!
+    }
+
+    // 3. Clear the session attribute so the UI knows the user is logged out
+    UI.getCurrent().getSession().setAttribute("token", null);
+
+    // 4. THE FIX: Reload the page to refresh the header buttons
+    UI.getCurrent().getPage().reload(); 
+});
+
+logoutBtn.getStyle().set("background", "transparent").set("color", "white")
+        .set("border", "2px solid white").set("font-weight", "700")
+        .set("border-radius", "8px").set("cursor", "pointer");
 
             authButtons.add(profileBtn, logoutBtn);
         }
         
-        header.add(logo, searchField, authButtons);
-        header.expand(searchField); 
+        header.add(logo, searchBarLayout, authButtons);
+        header.expand(searchBarLayout ); 
         add(header);
     }
 
@@ -313,19 +331,48 @@ public class MainView extends VerticalLayout {
         return icon;
     }
 
-    private TextField setupSearchBar() {
-        TextField searchField = new TextField();
-        searchField.setPlaceholder("Search for artists, Areas, and events");
-        searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
-        searchField.setClearButtonVisible(true);
-        searchField.setWidth("50%"); 
+   private HorizontalLayout setupSearchBar() {
+    // 1. Create the Filter Dropdown
+    Select<String> searchFilter = new Select<>();
+    searchFilter.setItems("All", "Event", "Area", "Company");
+    searchFilter.setValue("All"); // Set default selected value
+    searchFilter.getStyle().set("cursor", "pointer");
+
+    // 2. Create the Text Field (Your existing code)
+    TextField searchField = new TextField();
+    searchField.setPlaceholder("Search for artists, areas, and events...");
+    searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
+    searchField.setClearButtonVisible(true);
+    
+    // Make the text field take up the remaining space in the layout
+    searchField.setWidthFull(); 
+
+    // 3. Handle the Search Logic
+    searchField.setValueChangeMode(ValueChangeMode.LAZY);
+    searchField.addValueChangeListener(e -> {
+        String searchTerm = e.getValue();
+        String selectedCategory = searchFilter.getValue();
         
-        searchField.setValueChangeMode(ValueChangeMode.LAZY);
-        searchField.addValueChangeListener(e -> {
-            // Backend search logic
-        });
-        return searchField;
-    }
+        System.out.println("Searching for: " + searchTerm + " in category: " + selectedCategory);
+        // TODO: Call your backend search logic using BOTH searchTerm and selectedCategory
+    });
+
+    // Optional: Also trigger a search if the user changes the filter dropdown while text is already entered
+    searchFilter.addValueChangeListener(e -> {
+        if (!searchField.isEmpty()) {
+            System.out.println("Filter changed, searching for: " + searchField.getValue() + " in category: " + e.getValue());
+            // TODO: Call your backend search logic here too
+        }
+    });
+
+    // 4. Combine them into a single HorizontalLayout
+    HorizontalLayout searchLayout = new HorizontalLayout(searchFilter, searchField);
+    searchLayout.setWidth("50%"); // The 50% width goes on the container now
+    searchLayout.setAlignItems(Alignment.BASELINE); // Aligns them nicely on the bottom edge
+    searchLayout.setSpacing(false); // Set to true if you want a gap between them
+    
+    return searchLayout;
+}
 
     private Div createSectionContainer() {
         Div container = new Div();

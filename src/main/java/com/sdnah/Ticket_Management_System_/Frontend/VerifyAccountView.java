@@ -84,13 +84,28 @@ public class VerifyAccountView extends VerticalLayout {
             }
 
             try {
+                // 1. Verify the account
                 userService.verifyAccount(username.getValue(), code.getValue());
 
-                Notification.show("Account verified successfully");
+                // 2. Retrieve the temporary password from the session
+                String tempPassword = (String) getUI().get().getSession().getAttribute("pendingPassword");
 
+                if (tempPassword != null) {
+                    // 3. Call the login function! 
+                    // (Assuming your login method returns the token, or an Optional<User> that contains it)
+                    String token = userService.login(username.getValue(), tempPassword); 
+                    
+                    // 4. Set the token so MainView knows we are logged in
+                    getUI().get().getSession().setAttribute("token", token);
+                }
+
+                Notification.show("Verified and logged in successfully!");
+
+                // 5. Clean up the session (Security!) and go to MainView
                 getUI().ifPresent(ui -> {
                     ui.getSession().setAttribute("pendingUsername", null);
-                    ui.navigate("login");
+                    ui.getSession().setAttribute("pendingPassword", null); // Delete password from memory
+                    ui.navigate("main"); // Redirect to the main page!
                 });
 
             } catch (Exception ex) {

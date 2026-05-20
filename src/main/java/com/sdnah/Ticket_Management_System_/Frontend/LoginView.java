@@ -179,6 +179,7 @@ public class LoginView extends VerticalLayout {
                 );
 
                 getUI().ifPresent(ui -> ui.getSession().setAttribute("token", token));
+                getUI().ifPresent(ui -> ui.getSession().setAttribute("userId", username.getId().toString()));
 
                 Notification.show("Login successful");
                 getUI().ifPresent(ui -> ui.navigate("main"));

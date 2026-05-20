@@ -32,6 +32,13 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
+        // Check if the user has a token in their session
+        Object token = event.getUI().getSession().getAttribute("token");
+        // If there is no token, reroute them to the login page immediately
+        if (token == null) {
+            event.rerouteTo("login");
+        }
+        
         QueryParameters queryParameters = event.getLocation().getQueryParameters();
         Map<String, List<String>> params = queryParameters.getParameters();
 

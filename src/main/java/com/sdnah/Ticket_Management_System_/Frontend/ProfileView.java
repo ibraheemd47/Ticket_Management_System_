@@ -7,10 +7,13 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 
 @Route("profile")
-public class ProfileView extends VerticalLayout {
+// 1. ADD "implements BeforeEnterObserver" TO THE CLASS SIGNATURE
+public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
 
     public ProfileView() {
         setSizeFull();
@@ -23,6 +26,18 @@ public class ProfileView extends VerticalLayout {
 
         add(createHeader());
         add(createProfileContent());
+    }
+
+    // 2. IMPLEMENT THE SECURITY CHECK METHOD
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        // Check if the user has a token in their session
+        Object token = event.getUI().getSession().getAttribute("token");
+
+        // If there is no token, reroute them to the login page immediately
+        if (token == null) {
+            event.rerouteTo("login");
+        }
     }
 
     private Div createHeader() {
@@ -43,7 +58,7 @@ public class ProfileView extends VerticalLayout {
                 .set("margin", "0")
                 .set("font-size", "24px")
                 .set("font-weight", "900");
-                 logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
+        logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
         logo.getStyle().set("cursor", "pointer");
 
         Div nav = new Div();
@@ -54,7 +69,6 @@ public class ProfileView extends VerticalLayout {
 
         Span home = createNavItem("Home", "main");
         
-
         Span account = new Span("👤 My Account");
         account.getStyle().set("font-weight", "700");
 

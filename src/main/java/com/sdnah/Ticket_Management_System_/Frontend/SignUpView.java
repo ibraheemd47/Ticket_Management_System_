@@ -189,6 +189,7 @@ public class SignUpView extends VerticalLayout {
                 .set("margin-top", "20px");
 
         signupButton.addClickListener(event -> {
+            // 1. Check for empty fields
             if (firstName.isEmpty() || lastName.isEmpty() || username.isEmpty()
                     || email.isEmpty() || phone.isEmpty()
                     || password.isEmpty() || confirmPassword.isEmpty()) {
@@ -196,11 +197,20 @@ public class SignUpView extends VerticalLayout {
                 return;
             }
 
+            // 2. Validate Phone Number (Exactly 10 digits, starts with 050-058)
+            String phoneRegex = "^05[0-8]\\d{7}$";
+            if (!phone.getValue().matches(phoneRegex)) {
+                Notification.show("Invalid phone number. It must be exactly 10 digits and start with 050-058.");
+                return;
+            }
+
+            // 3. Validate Passwords match
             if (!password.getValue().equals(confirmPassword.getValue())) {
                 Notification.show("Passwords do not match!");
                 return;
             }
 
+            // 4. Proceed with Registration
             try {
                 userService.register(
                         username.getValue(),
@@ -214,6 +224,8 @@ public class SignUpView extends VerticalLayout {
 
                 getUI().ifPresent(ui -> {
                     ui.getSession().setAttribute("pendingUsername", username.getValue());
+                    // ADD THIS LINE: temporarily store the password
+                    ui.getSession().setAttribute("pendingPassword", password.getValue()); 
                     ui.navigate("verify-account");
                 });
 

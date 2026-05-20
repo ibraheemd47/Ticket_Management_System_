@@ -9,10 +9,12 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 
 @Route("checkout")
-public class CheckoutView extends VerticalLayout {
+public class CheckoutView extends VerticalLayout implements BeforeEnterObserver {
 
     public CheckoutView() {
 
@@ -28,6 +30,15 @@ public class CheckoutView extends VerticalLayout {
         add(createCheckoutContent());
     }
 
+ @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        Object token = event.getUI().getSession().getAttribute("token");
+
+        // If there is no token, reroute them to the login page immediately
+        if (token == null) {
+            event.rerouteTo("login");
+        }
+    }
     private Div createHeader() {
 
         Div header = new Div();
@@ -207,29 +218,55 @@ public class CheckoutView extends VerticalLayout {
         return card;
     }
 
-    private Div createSummaryCard() {
+   private Div createSummaryCard() {
+    Div card = createCard();
+    H2 title = new H2("Order Summary");
+    title.getStyle().set("margin", "0 0 24px 0").set("font-size", "26px");
 
-        Div card = createCard();
+    // Pre-total display
+    Span preTotalLabel = new Span("Total: ");
+    Span preTotalValue = new Span("$100.00"); // Mock price
+    Div summaryRow = new Div(preTotalLabel, preTotalValue);
 
-        H2 title = new H2("Order Summary");
+    // Coupon Toggle
+    Span couponToggle = new Span("Do you have a Coupon code?");
+    couponToggle.getStyle().set("color", "#026cdf").set("cursor", "pointer").set("font-weight", "bold");
 
-        title.getStyle()
-                .set("margin", "0 0 24px 0")
-                .set("font-size", "26px");
+    VerticalLayout couponContainer = new VerticalLayout();
+    couponContainer.setVisible(false); // Hidden by default
+    TextField couponField = new TextField();
+    couponField.setPlaceholder("Enter code");
+    Button applyBtn = new Button("Apply");
 
-        Paragraph empty = new Paragraph(
-                "Selected tickets and order details will appear here after connecting the backend."
-        );
+    couponToggle.addClickListener(e -> couponContainer.setVisible(!couponContainer.isVisible()));
+    couponContainer.add(couponField, applyBtn);
 
-        empty.getStyle()
-                .set("color", "#6b7280")
-                .set("line-height", "1.7")
-                .set("font-size", "16px");
+    // Coupon logic
+    applyBtn.addClickListener(e -> {
+        // Assume you have a DiscountService to check policy
+        // boolean isValid = discountService.isValid(couponField.getValue());
+        boolean isValid = couponField.getValue().equals("SAVE20"); // Mock check
 
-        card.add(title, empty);
+        if (isValid) {
+            // Update UI
+            preTotalValue.getStyle().set("text-decoration", "line-through").set("color", "gray");
+            
+            Span discountValue = new Span("Discount: -$20.00");
+            discountValue.getStyle().set("color", "green");
+            
+            Span newTotal = new Span("New Total: $80.00");
+            newTotal.getStyle().set("font-weight", "bold").set("font-size", "20px");
+            
+            card.add(discountValue, newTotal);
+            Notification.show("Coupon applied!");
+        } else {
+            Notification.show("Invalid coupon code.");
+        }
+    });
 
-        return card;
-    }
+    card.add(title, summaryRow, couponToggle, couponContainer);
+    return card;
+}
 
     private Div createCard() {
 

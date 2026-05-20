@@ -25,6 +25,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
@@ -385,22 +386,55 @@ public class SeatSelectionView extends VerticalLayout {
     // ── Reserve handlers ──────────────────────────────────────────────────────
 
     private void handleSeatReserve(SeatData seat) {
-        if (isMock || userId == null) {
-            Notification.show("Please log in to reserve a ticket", 3000, Notification.Position.TOP_CENTER)
-                .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-        try {
-            ticket t = eventService.reserveSeat(eventId, showId, currentArea.id(), seat.id(), userId);
-            Notification.show("Ticket reserved! ID: " + t.getTicketId().toString().substring(0, 8),
-                    4000, Notification.Position.TOP_CENTER)
-                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            UI.getCurrent().navigate("profile");
-        } catch (RuntimeException ex) {
-            Notification.show(ex.getMessage(), 3000, Notification.Position.MIDDLE)
-                .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
+    // Check if "token" is present in the session instead of "userId"
+    Object token = UI.getCurrent().getSession().getAttribute("token");
+    
+    if (isMock || token == null) {
+        Notification.show("Please log in to reserve a ticket", 3000, Notification.Position.TOP_CENTER)
+            .addThemeVariants(NotificationVariant.LUMO_WARNING);
+        return;
     }
+    
+    try {
+        // 1. Call the service to lock the seat/create a temporary order
+        ticket t = eventService.reserveSeat(eventId, showId, currentArea.id(), seat.id(), userId);
+        
+        // 2. Store the ticket ID in session so CheckoutView can find it later
+        UI.getCurrent().getSession().setAttribute("pendingTicketId", t.getTicketId());
+        
+        // 3. Open the summary dialog
+        openOrderSummaryDialog(t);
+
+    } catch (RuntimeException ex) {
+        Notification.show(ex.getMessage(), 3000, Notification.Position.MIDDLE)
+            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+}
+
+private void openOrderSummaryDialog(ticket t) {
+    Dialog dialog = new Dialog();
+    dialog.setHeaderTitle("Order Summary");
+    dialog.setModal(true);
+
+    VerticalLayout dialogLayout = new VerticalLayout();
+    dialogLayout.add(new Paragraph("Seat reserved successfully!"));
+    dialogLayout.add(new H3("Total: $50.00")); // Or fetch price from ticket object
+
+    Button checkoutBtn = new Button("Proceed to Checkout", e -> {
+        dialog.close();
+        UI.getCurrent().navigate("checkout");
+    });
+    checkoutBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+    Button continueBtn = new Button("Continue Shopping", e -> {
+        dialog.close();
+        UI.getCurrent().navigate("main");
+    });
+
+    dialogLayout.add(checkoutBtn, continueBtn);
+    dialog.add(dialogLayout);
+    dialog.open();
+}
 
     private void handleStandingReserve(AreaInfo ai) {
         if (isMock || userId == null) {
@@ -478,6 +512,7 @@ public class SeatSelectionView extends VerticalLayout {
     // ── UI helpers ────────────────────────────────────────────────────────────
 
     private Div buildHeader() {
+        
         Div header = new Div();
         header.getStyle()
             .set("background", "#026cdf").set("color", "white")
@@ -492,8 +527,14 @@ public class SeatSelectionView extends VerticalLayout {
         nav.getStyle().set("display", "flex").set("gap", "32px").set("align-items", "center");
         nav.add(
             clickable("Home",          () -> UI.getCurrent().navigate("main")),
-            clickable("← Event",       () -> UI.getCurrent().navigate("EventDetails")),
-            clickable("👤 My Account", () -> UI.getCurrent().navigate("profile")));
+            clickable("← Event",       () -> UI.getCurrent().navigate("EventDetails"))
+        );
+            Object token = UI.getCurrent().getSession().getAttribute("token");
+    if (token != null) {
+        nav.add(clickable("👤 My Account", () -> UI.getCurrent().navigate("profile")));
+    } else {
+        nav.add(clickable("Login", () -> UI.getCurrent().navigate("login")));
+    }
         header.add(logo, nav);
         return header;
     }
