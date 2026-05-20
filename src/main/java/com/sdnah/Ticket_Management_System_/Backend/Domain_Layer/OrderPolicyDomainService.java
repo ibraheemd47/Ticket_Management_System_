@@ -5,21 +5,27 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.LotteryEntry;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountContext;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 
 @Component
 public class OrderPolicyDomainService {
 
     private final PolicyRepository policyRepository;
+    private final LotteryRepository lotteryRepository;
+    
 
-    public OrderPolicyDomainService(PolicyRepository policyRepository) {
+    public OrderPolicyDomainService(PolicyRepository policyRepository, LotteryRepository lotteryRepository) {
         if (policyRepository == null)
             throw new IllegalArgumentException("policyRepository required");
         this.policyRepository = policyRepository;
+        this.lotteryRepository = lotteryRepository;
     }
 
     // =========================================================================
@@ -107,6 +113,34 @@ public class OrderPolicyDomainService {
         if (!policy.validatePurchase(quantity, false)) {
             throw new IllegalStateException("Order rejected by purchase policy");
         }
+    }
+
+
+    // =========================================================================
+    // Selling policy validation (for lottery access code)
+    // =========================================================================
+    public void validateSellingPolicy(ActiveOrder order, String memberId) {
+        Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
+        SellingPolicy policy = toSellingPolicy(result);
+
+        if (policy == null || policy.getType() == SellingPolicy.SellingType.REGULAR) {
+            return; 
+        }
+
+        // LOTTERY — בדוק accessCode תקף
+        lotteryRepository.findByEventId(order.getEventId()).stream()
+            .flatMap(l -> l.getEntries().stream())
+            .filter(e -> e.getMemberId().equals(memberId))
+            .filter(LotteryEntry::isAccessCodeValid)
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException(
+                "No valid lottery access code for this event"));
+    }
+
+    private SellingPolicy toSellingPolicy(Object result) {
+        if (result == null) return null;
+        if (result instanceof Optional) return ((Optional<SellingPolicy>) result).orElse(null);
+        return (SellingPolicy) result;
     }
 
     // =========================================================================

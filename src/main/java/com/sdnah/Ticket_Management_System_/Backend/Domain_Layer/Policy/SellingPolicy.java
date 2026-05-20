@@ -1,4 +1,5 @@
 package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy;
+
 import java.util.UUID;
 
 import jakarta.persistence.*;
@@ -15,6 +16,9 @@ public class SellingPolicy extends Policy {
     @Enumerated(EnumType.STRING)
     @Column(name = "selling_type")
     private SellingType type;
+
+    // @Column(name = "lottery_id")
+    // private UUID lotteryId; // null אם REGULAR
 
     protected SellingPolicy() {
         // JPA
