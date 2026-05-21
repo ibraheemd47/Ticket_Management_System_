@@ -1,6 +1,5 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -13,7 +12,6 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 
 @Route("profile")
-// 1. ADD "implements BeforeEnterObserver" TO THE CLASS SIGNATURE
 public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
 
     public ProfileView() {
@@ -29,13 +27,9 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
         add(createProfileContent());
     }
 
-    // 2. IMPLEMENT THE SECURITY CHECK METHOD
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        // Check if the user has a token in their session
         Object token = event.getUI().getSession().getAttribute("token");
-
-        // If there is no token, reroute them to the login page immediately
         if (token == null) {
             event.rerouteTo("login");
         }
@@ -58,9 +52,10 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
         logo.getStyle()
                 .set("margin", "0")
                 .set("font-size", "24px")
-                .set("font-weight", "900");
+                .set("font-weight", "900")
+                .set("cursor", "pointer");
+
         logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
-        logo.getStyle().set("cursor", "pointer");
 
         Div nav = new Div();
         nav.getStyle()
@@ -69,7 +64,7 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
                 .set("align-items", "center");
 
         Span home = createNavItem("Home", "main");
-        
+
         Span account = new Span("👤 My Account");
         account.getStyle().set("font-weight", "700");
 
@@ -80,12 +75,6 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private Div createProfileContent() {
-
-        String username = (String) UI.getCurrent().getSession().getAttribute("username");
-        String displayName = (username != null) ? username : "{}";
-
-    H1 greeting = new H1("Hello, " + displayName);
-    greeting.getStyle().set("font-size", "24px").set("margin-bottom", "10px");
         Div wrapper = new Div();
 
         wrapper.getStyle()
@@ -124,19 +113,18 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
                 .set("font-size", "38px")
                 .set("color", "#111827");
 
-        Paragraph subtitle = new Paragraph(
-                "Manage your account and view your order history."
-        );
+        Paragraph subtitle = new Paragraph("Manage your account and view your order history.");
         subtitle.getStyle()
                 .set("color", "#6b7280")
                 .set("font-size", "16px")
                 .set("margin", "14px 0 34px 0")
                 .set("line-height", "1.5");
 
+        Button myDetails = createMainButton("My Details", "profile-details");
         Button myOrders = createMainButton("My Orders", "orders?tab=active");
         Button browseEvents = createSecondaryButton("Browse Events", "main");
 
-        card.add(greeting, avatar, title, subtitle, myOrders, browseEvents);
+        card.add(avatar, title, subtitle, myDetails, myOrders, browseEvents);
         wrapper.add(card);
 
         return wrapper;
@@ -149,9 +137,7 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
                 .set("cursor", "pointer")
                 .set("font-weight", "700");
 
-        item.addClickListener(e ->
-                getUI().ifPresent(ui -> ui.navigate(route))
-        );
+        item.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate(route)));
 
         return item;
     }
@@ -166,11 +152,10 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
                 .set("margin-bottom", "16px")
                 .set("font-weight", "700")
                 .set("padding", "14px")
-                .set("border-radius", "8px");
+                .set("border-radius", "8px")
+                .set("cursor", "pointer");
 
-        button.addClickListener(e ->
-                getUI().ifPresent(ui -> ui.navigate(route))
-        );
+        button.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate(route)));
 
         return button;
     }
@@ -185,11 +170,10 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
                 .set("color", "#026cdf")
                 .set("font-weight", "700")
                 .set("padding", "14px")
-                .set("border-radius", "8px");
+                .set("border-radius", "8px")
+                .set("cursor", "pointer");
 
-        button.addClickListener(e ->
-                getUI().ifPresent(ui -> ui.navigate(route))
-        );
+        button.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate(route)));
 
         return button;
     }
