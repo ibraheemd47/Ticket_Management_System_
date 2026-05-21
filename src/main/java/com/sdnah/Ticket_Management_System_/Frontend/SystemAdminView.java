@@ -25,6 +25,7 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
+import java.util.UUID;
 
 @Route("admin")
 public class SystemAdminView extends VerticalLayout implements BeforeEnterObserver {
@@ -52,10 +53,10 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         token = (String) VaadinSession.getCurrent().getAttribute("token");
-        // if (token == null || token.isBlank()) {
-        // event.rerouteTo("login");
-        // return;
-        // }
+        if (token == null || token.isBlank()) {
+            event.rerouteTo("login");
+            return;
+        }
         var params = event.getLocation().getQueryParameters().getParameters();
         if (params.containsKey("tab") && !params.get("tab").isEmpty())
             selectedTab = params.get("tab").get(0);
@@ -108,7 +109,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 tab("Suspended", "suspended"),
                 tab("Companies", "companies"),
                 tab("Complaints", "complaints"),
-                tab("Messages","messages"),
+                tab("Messages", "messages"),
                 tab("Analytics", "analytics"),
                 tab("Queues", "queues"),
                 tab("Purchase History", "purchases"));
@@ -140,10 +141,10 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
             case "suspended" -> content.add(buildSuspended());
             case "companies" -> content.add(buildCompanies());
             case "complaints" -> content.add(buildComplaints());
-            case "messages"   -> content.add(buildMessages());
+            case "messages" -> content.add(buildMessages());
             case "analytics" -> content.add(buildAnalytics());
             case "queues" -> content.add(buildQueues());
-            case "purchases"  -> content.add(buildPurchaseHistory());
+            case "purchases" -> content.add(buildPurchaseHistory());
             default -> content.add(buildUsers());
         }
 
@@ -157,7 +158,6 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
 
         Div usersListCard = actionCard("Registered Users",
                 "All registered members on the platform.");
-        // systemAdminService.getAllUsers()
         Div tableArea = new Div();
         tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
 
@@ -165,33 +165,33 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         loadBtn.addClickListener(e -> {
             tableArea.removeAll();
             try {
-                // var users = systemAdminService.getAllUsers(token);
-                // if (users.isEmpty()) {
-                // tableArea.add(new Paragraph("No users found."));
-                // return;
-                // }
+                var users = systemAdminService.getAllUsers(token);
+                if (users.isEmpty()) {
+                    tableArea.add(new Paragraph("No users found."));
+                    return;
+                }
 
-                // Div headerRow = tableRow("#026cdf", "white");
-                // headerRow.add(
-                // tableCell("Member ID", true),
-                // tableCell("Username", true),
-                // tableCell("Email", true),
-                // tableCell("Status", true));
-                // tableArea.add(headerRow);
+                Div headerRow = tableRow("#026cdf", "white");
+                headerRow.add(
+                        tableCell("Member ID", true),
+                        tableCell("Username", true),
+                        tableCell("Email", true),
+                        tableCell("Status", true));
+                tableArea.add(headerRow);
 
-                // for (int i = 0; i < users.size(); i++) {
-                // var m = users.get(i);
-                // Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
-                // String status = m.isSuspended() ? " Suspended"
-                // : m.isActive() ? " Active"
-                // : " Inactive";
-                // row.add(
-                // tableCell(m.getMemberId(), false),
-                // tableCell(m.getUsername(), false),
-                // tableCell(m.getEmail() != null ? m.getEmail() : "—", false),
-                // tableCell(status, false));
-                // tableArea.add(row);
-                // }
+                for (int i = 0; i < users.size(); i++) {
+                    var m = users.get(i);
+                    Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+                    String status = m.isSuspended() ? " Suspended"
+                            : m.isActive() ? " Active"
+                                    : " Inactive";
+                    row.add(
+                            tableCell(m.getMemberId(), false),
+                            tableCell(m.getUsername(), false),
+                            tableCell(m.getEmail() != null ? m.getEmail() : "—", false),
+                            tableCell(status, false));
+                    tableArea.add(row);
+                }
             } catch (Exception ex) {
                 showError(ex.getMessage());
             }
@@ -258,7 +258,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 return;
             }
             try {
-                // systemAdminService.removeMember(token, removeUsername.getValue());
+                systemAdminService.removeMember(token, removeUsername.getValue());
                 showSuccess("Member '" + removeUsername.getValue() + "' has been removed.");
                 removeUsername.clear();
             } catch (Exception ex) {
@@ -425,96 +425,109 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         return wrapper;
     }
 
-    // TAB: COMPLAINTS — II.6.3 
+    // TAB: COMPLAINTS — II.6.3
     private Div buildComplaints() {
         Div wrapper = new Div();
         wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
         wrapper.add(buildViewComplaintsCard());
         return wrapper;
     }
- 
+
     private Div buildViewComplaintsCard() {
         Div card = actionCard("View Complaints",
                 "Browse and respond to submitted complaints from members.");
- 
+
         Button loadBtn = actionButton("Load Complaints", "#026cdf");
         Div resultArea = new Div();
         resultArea.getStyle().set("margin-top", "16px").set("display", "flex")
                 .set("flex-direction", "column").set("gap", "12px");
- 
-        // loadBtn.addClickListener(e -> {
-        //     resultArea.removeAll();
-        //     try {
-        //         var complaints = systemAdminService.getAllComplaints(token);
-        //         if (complaints.isEmpty()) { resultArea.add(new Paragraph("No complaints found.")); return; }
- 
-        //         for (var c : complaints) {
-        //             Div complaintCard = new Div();
-        //             complaintCard.getStyle()
-        //                     .set("background", "white").set("border-radius", "8px")
-        //                     .set("padding", "16px").set("border", "1px solid #e5e7eb")
-        //                     .set("border-left", "4px solid #026cdf");
- 
-        //             // שורה עליונה — subject + status + תאריך
-        //             Div topRow = new Div();
-        //             topRow.getStyle().set("display", "flex").set("justify-content", "space-between")
-        //                     .set("align-items", "center").set("margin-bottom", "6px");
- 
-        //             Span subject = new Span("📋 " + c.getSubject());
-        //             subject.getStyle().set("font-weight", "700").set("font-size", "14px");
- 
-        //             Span statusSpan = new Span(c.getStatus().toString());
-        //             statusSpan.getStyle()
-        //                     .set("font-size", "12px").set("font-weight", "600").set("padding", "2px 8px")
-        //                     .set("border-radius", "999px")
-        //                     .set("background", "RESOLVED".equals(c.getStatus().toString()) ? "#dcfce7" : "#fef9c3")
-        //                     .set("color", "RESOLVED".equals(c.getStatus().toString()) ? "#16a34a" : "#854d0e");
- 
-        //             topRow.add(subject, statusSpan);
- 
-        //             // reporter + תאריך
-        //             Paragraph meta = new Paragraph(
-        //                     "👤 " + c.getReporterMemberId() +
-        //                     (c.getCreatedAt() != null ? "  •  " + c.getCreatedAt().toLocalDate() : ""));
-        //             meta.getStyle().set("margin", "0 0 8px 0").set("font-size", "13px").set("color", "#6b7280");
- 
-        //             // description
-        //             Paragraph desc = new Paragraph("📝 " + c.getDescription());
-        //             desc.getStyle().set("margin", "0 0 12px 0").set("font-size", "13px").set("color", "#374151");
- 
-        //             // response + resolve
-        //             TextArea response = new TextArea("Admin Response");
-        //             response.setWidthFull();
-        //             response.setPlaceholder("Type your response...");
-        //             if (c.getAdminResponse() != null && !c.getAdminResponse().isBlank()) {
-        //                 response.setValue(c.getAdminResponse());
-        //                 response.setReadOnly(true);
-        //             }
- 
-        //             Button resolveBtn = actionButton("Resolve", "#16a34a");
-        //             resolveBtn.setEnabled(c.getAdminResponse() == null || c.getAdminResponse().isBlank());
-        //             resolveBtn.addClickListener(re -> {
-        //                 if (response.isEmpty()) { showError("Please enter a response."); return; }
-        //                 try {
-        //                     // systemAdminService.resolveComplaint(token, c.getComplaintId(), response.getValue());
-        //                     showSuccess("Complaint resolved.");
-        //                     resolveBtn.setEnabled(false);
-        //                     response.setReadOnly(true);
-        //                     statusSpan.setText("RESOLVED");
-        //                     statusSpan.getStyle().set("background", "#dcfce7").set("color", "#16a34a");
-        //                 } catch (Exception ex) { showError(ex.getMessage()); }
-        //             });
- 
-        //             complaintCard.add(topRow, meta, desc, response, resolveBtn);
-        //             resultArea.add(complaintCard);
-        //         }
-        //     } catch (Exception ex) { showError(ex.getMessage()); }
-        // });
- 
+
+        loadBtn.addClickListener(e -> {
+            resultArea.removeAll();
+            try {
+                var complaints = systemAdminService.getAllComplaints(token);
+                if (complaints.isEmpty()) {
+                    resultArea.add(new Paragraph("No complaints found."));
+                    return;
+                }
+
+                for (var c : complaints) {
+                    Div complaintCard = new Div();
+                    complaintCard.getStyle()
+                            .set("background", "white").set("border-radius", "8px")
+                            .set("padding", "16px").set("border", "1px solid #e5e7eb")
+                            .set("border-left", "4px solid #026cdf");
+
+                    // שורה עליונה — subject + status + תאריך
+                    Div topRow = new Div();
+                    topRow.getStyle().set("display", "flex").set("justify-content",
+                            "space-between")
+                            .set("align-items", "center").set("margin-bottom", "6px");
+
+                    Span subject = new Span("📋 " + c.getSubject());
+                    subject.getStyle().set("font-weight", "700").set("font-size", "14px");
+
+                    Span statusSpan = new Span(c.getStatus().toString());
+                    statusSpan.getStyle()
+                            .set("font-size", "12px").set("font-weight", "600").set("padding", "2px 8px")
+                            .set("border-radius", "999px")
+                            .set("background", "RESOLVED".equals(c.getStatus().toString()) ? "#dcfce7" : "#fef9c3")
+                            .set("color", "RESOLVED".equals(c.getStatus().toString()) ? "#16a34a" : "#854d0e");
+
+                    topRow.add(subject, statusSpan);
+
+                    // reporter + תאריך
+                    Paragraph meta = new Paragraph(
+                            "👤 " + c.getReporterMemberId() +
+                                    (c.getCreatedAt() != null ? " • " + c.getCreatedAt().toLocalDate() : ""));
+                    meta.getStyle().set("margin", "0 0 8px 0").set("font-size",
+                            "13px").set("color", "#6b7280");
+
+                    // description
+                    Paragraph desc = new Paragraph("📝 " + c.getDescription());
+                    desc.getStyle().set("margin", "0 0 12px 0").set("font-size",
+                            "13px").set("color", "#374151");
+
+                    // response + resolve
+                    TextArea response = new TextArea("Admin Response");
+                    response.setWidthFull();
+                    response.setPlaceholder("Type your response...");
+                    if (c.getAdminResponse() != null && !c.getAdminResponse().isBlank()) {
+                        response.setValue(c.getAdminResponse());
+                        response.setReadOnly(true);
+                    }
+
+                    Button resolveBtn = actionButton("Resolve", "#16a34a");
+                    resolveBtn.setEnabled(c.getAdminResponse() == null ||
+                            c.getAdminResponse().isBlank());
+                    resolveBtn.addClickListener(re -> {
+                        if (response.isEmpty()) {
+                            showError("Please enter a response.");
+                            return;
+                        }
+                        try {
+                            systemAdminService.resolveComplaint(token, c.getComplaintId(), response.getValue());
+                            showSuccess("Complaint resolved.");
+                            resolveBtn.setEnabled(false);
+                            response.setReadOnly(true);
+                            statusSpan.setText("RESOLVED");
+                            statusSpan.getStyle().set("background", "#dcfce7").set("color", "#16a34a");
+                        } catch (Exception ex) {
+                            showError(ex.getMessage());
+                        }
+                    });
+
+                    complaintCard.add(topRow, meta, desc, response, resolveBtn);
+                    resultArea.add(complaintCard);
+                }
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
+
         card.add(loadBtn, resultArea);
         return card;
     }
- 
 
     // TAB: MESSAGES — II.6.3 Send System Message
     private Div buildMessages() {
@@ -523,20 +536,23 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         wrapper.add(buildSendSystemMessageCard());
         return wrapper;
     }
- 
+
     private Div buildSendSystemMessageCard() {
         Div card = actionCard("Send System Message",
                 "Send an official system message to a member. Use this for important platform notifications.");
- 
+
         TextField recipient = styledField("Recipient Username");
         TextArea message = new TextArea("Message");
         message.setWidthFull();
         message.setPlaceholder("Type your message here...");
         message.getStyle().set("margin-top", "12px");
- 
+
         Button sendBtn = actionButton("Send Message", "#026cdf");
         sendBtn.addClickListener(e -> {
-            if (recipient.isEmpty() || message.isEmpty()) { showError("Please fill in all fields."); return; }
+            if (recipient.isEmpty() || message.isEmpty()) {
+                showError("Please fill in all fields.");
+                return;
+            }
             try {
                 notificationService.createNotification(
                         recipient.getValue(),
@@ -545,9 +561,11 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 showSuccess("Message sent to '" + recipient.getValue() + "'.");
                 recipient.clear();
                 message.clear();
-            } catch (Exception ex) { showError(ex.getMessage()); }
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
         });
- 
+
         card.add(recipient, message, sendBtn);
         return card;
     }
@@ -557,20 +575,18 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         Div wrapper = new Div();
         wrapper.getStyle().set("display", "grid").set("grid-template-columns", "1fr 1fr 1fr")
                 .set("gap", "24px");
-        // int totalUsers = systemAdminService.getAllUsers(token).size();
-        // long loggedInNow = systemAdminService.getLoggedInUsersCount(token);
-        // int suspendedUsers = systemAdminService.getSuspensions(token).size();
+        int totalUsers = systemAdminService.getAllUsers(token).size();
+        long loggedInNow = systemAdminService.getLoggedInUsersCount(token);
+        int suspendedUsers = systemAdminService.getSuspensions(token).size();
         int activeOrders = activeOrderService.getActiveOrdersCount();
         int purchasesToday = activeOrderService.getPurchasesTodayCount();
         int reservationRate = activeOrderService.getReservationRate();
         try {
             wrapper.add(
-                    // analyticsCard("Total Users", "👥", "All registered members",
-                    // String.valueOf(totalUsers)),
-                    // analyticsCard("Active Sessions", "🟢", "Live visitors right now",
-                    // String.valueOf(loggedInNow)),
-                    // analyticsCard("Suspended Users", "🔴", "Currently suspended
-                    // members",String.valueOf(suspendedUsers)),
+                    analyticsCard("Total Users", "👥", "All registered members", String.valueOf(totalUsers)),
+                    analyticsCard("Active Sessions", "🟢", "Live visitors right now", String.valueOf(loggedInNow)),
+                    analyticsCard("Suspended Users", "🔴", "Currently suspended members",
+                            String.valueOf(suspendedUsers)),
                     analyticsCard("Purchases Today", "💳", "Completed transactions", String.valueOf(purchasesToday)),
                     analyticsCard("Active Orders", "🎟️", "Orders pending payment", String.valueOf(activeOrders)),
                     analyticsCard("Reservation Rate", "⏱️", "Reservations per minute", reservationRate + "/min"));
@@ -616,100 +632,115 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         wrapper.add(buildQueueControlCard());
         return wrapper;
     }
- 
+
     private Div buildQueuesListCard() {
         Div card = actionCard("View Active Queues",
                 "Monitor all active virtual queues across the platform. Use this during high-demand ticket releases.");
- 
+
         Div tableArea = new Div();
         tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
- 
+
         Button loadBtn = actionButton("Load Queues", "#026cdf");
-        // loadBtn.addClickListener(e -> {
-        //     tableArea.removeAll();
-        //     try {
-        //         var queues = systemAdminService.getAllQueues(token);
-        //         if (queues.isEmpty()) { tableArea.add(new Paragraph("No active queues found.")); return; }
- 
-        //         Div headerRow = tableRow("#026cdf", "white");
-        //         headerRow.add(tableCell("Show ID", true), tableCell("Waiting", true),
-        //                 tableCell("Flow Rate/min", true));
-        //         tableArea.add(headerRow);
- 
-        //         for (int i = 0; i < queues.size(); i++) {
-        //             var q = queues.get(i);
-        //             Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
-        //             row.add(tableCell(String.valueOf(q.getShowId()), false),
-        //                     tableCell(String.valueOf(q.getTotalWaiting()), false),
-        //                     tableCell(String.valueOf(q.getCheckoutCapacityPerMinute()), false));
-        //             tableArea.add(row);
-        //         }
-        //     } catch (Exception ex) { showError(ex.getMessage()); }
-        // });
- 
+        loadBtn.addClickListener(e -> {
+            tableArea.removeAll();
+            try {
+                var queues = systemAdminService.getAllQueues(token);
+                if (queues.isEmpty()) {
+                    tableArea.add(new Paragraph("No active queues found."));
+                    return;
+                }
+
+                Div headerRow = tableRow("#026cdf", "white");
+                headerRow.add(tableCell("Show ID", true), tableCell("Waiting", true),
+                        tableCell("Flow Rate/min", true));
+                tableArea.add(headerRow);
+
+                for (int i = 0; i < queues.size(); i++) {
+                    var q = queues.get(i);
+                    Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+                    row.add(tableCell(String.valueOf(q.getShowId()), false),
+                            tableCell(String.valueOf(q.getTotalWaiting()), false),
+                            tableCell(String.valueOf(q.getCheckoutCapacityPerMinute()), false));
+                    tableArea.add(row);
+                }
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
+
         card.add(loadBtn, tableArea);
         return card;
     }
- 
+
     private Div buildQueueControlCard() {
         Div card = actionCard("Control Queue",
                 "Adjust the user flow rate or clear a queue entirely if a technical issue occurs.");
- 
+
         TextField queueId = styledField("Show ID");
- 
+
         NumberField flowAmount = new NumberField("Flow change amount");
         flowAmount.setMin(1);
         flowAmount.setWidthFull();
         flowAmount.getStyle().set("margin-top", "8px");
- 
+
         Button increaseBtn = actionButton("Increase Flow", "#026cdf");
         Button decreaseBtn = actionButton("Decrease Flow", "#026cdf");
-        Button clearBtn    = actionButton("Clear Queue", "#026cdf");
- 
+        Button clearBtn = actionButton("Clear Queue", "#026cdf");
+
         increaseBtn.setEnabled(false);
         decreaseBtn.setEnabled(false);
         clearBtn.setEnabled(false);
- 
+
         Runnable updateButtons = () -> {
             boolean hasQueueId = !queueId.isEmpty();
-            boolean hasAmount  = flowAmount.getValue() != null && flowAmount.getValue() >= 1;
+            boolean hasAmount = flowAmount.getValue() != null && flowAmount.getValue() >= 1;
             increaseBtn.setEnabled(hasQueueId && hasAmount);
             decreaseBtn.setEnabled(hasQueueId && hasAmount);
             clearBtn.setEnabled(hasQueueId);
         };
- 
+
         queueId.addValueChangeListener(e -> updateButtons.run());
         flowAmount.addValueChangeListener(e -> updateButtons.run());
- 
-        // increaseBtn.addClickListener(e -> {
-        //     try {
-        //         int amount = flowAmount.getValue().intValue();
-        //         systemAdminService.increaseQueueFlow(token, Long.parseLong(queueId.getValue()), amount);
-        //         showSuccess("Flow rate increased by " + amount + " for queue '" + queueId.getValue() + "'.");
-        //     } catch (Exception ex) { showError(ex.getMessage()); }
-        // });
- 
-        // decreaseBtn.addClickListener(e -> {
-        //     try {
-        //         int amount = flowAmount.getValue().intValue();
-        //         systemAdminService.decreaseQueueFlow(token, Long.parseLong(queueId.getValue()), amount);
-        //         showSuccess("Flow rate decreased by " + amount + " for queue '" + queueId.getValue() + "'.");
-        //     } catch (Exception ex) { showError(ex.getMessage()); }
-        // });
- 
-        // clearBtn.addClickListener(e -> {
-        //     try {
-        //         systemAdminService.clearQueue(token, Long.parseLong(queueId.getValue()));
-        //         showSuccess("Queue '" + queueId.getValue() + "' cleared.");
-        //     } catch (Exception ex) { showError(ex.getMessage()); }
-        // });
- 
+
+        increaseBtn.addClickListener(e -> {
+            try {
+                int amount = flowAmount.getValue().intValue();
+                systemAdminService.increaseQueueFlow(token,
+                        Long.parseLong(queueId.getValue()), amount);
+                showSuccess("Flow rate increased by " + amount + " for queue '" +
+                        queueId.getValue() + "'.");
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
+
+        decreaseBtn.addClickListener(e -> {
+            try {
+                int amount = flowAmount.getValue().intValue();
+                systemAdminService.decreaseQueueFlow(token,
+                        Long.parseLong(queueId.getValue()), amount);
+                showSuccess("Flow rate decreased by " + amount + " for queue '" +
+                        queueId.getValue() + "'.");
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
+
+        clearBtn.addClickListener(e -> {
+            try {
+                systemAdminService.clearQueue(token, Long.parseLong(queueId.getValue()));
+                showSuccess("Queue '" + queueId.getValue() + "' cleared.");
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
+        });
+
         card.add(queueId, flowAmount, increaseBtn, decreaseBtn, clearBtn);
         return card;
     }
 
     // TAB: PURCHASE HISTORY — II.6.4
- 
+
     private Div buildPurchaseHistory() {
         Div wrapper = new Div();
         wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
@@ -717,86 +748,104 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         wrapper.add(buildPurchasesByEventCard());
         return wrapper;
     }
- 
+
     private Div buildPurchasesByBuyerCard() {
         Div card = actionCard("Purchases by Buyer",
                 "View full purchase history of a specific member by their Member ID.");
- 
-        TextField buyerId = styledField("Member ID");
+
+        TextField buyerId = styledField("Username or Member ID");
         Button searchBtn = actionButton("Load Purchases", "#026cdf");
- 
+
         Div tableArea = new Div();
         tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
- 
+
         searchBtn.addClickListener(e -> {
-            if (buyerId.isEmpty()) { showError("Please enter a Member ID."); return; }
+            if (buyerId.isEmpty()) {
+                showError("Please enter a Member ID.");
+                return;
+            }
             tableArea.removeAll();
-            // try {
-            //     var purchases = systemAdminService.getPurchasesByBuyer(token, buyerId.getValue());
-            //     if (purchases.isEmpty()) { tableArea.add(new Paragraph("No purchases found.")); return; }
- 
-            //     Div headerRow = tableRow("#026cdf", "white");
-            //     headerRow.add(tableCell("Purchase ID", true), tableCell("Order ID", true),
-            //             tableCell("Price", true), tableCell("Date", true));
-            //     tableArea.add(headerRow);
- 
-            //     for (int i = 0; i < purchases.size(); i++) {
-            //         var p = purchases.get(i);
-            //         Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
-            //         row.add(
-            //                 tableCell(p.getPurchaseId().toString(), false),
-            //                 tableCell(p.getOrderId().toString(), false),
-            //                 tableCell(p.getFinalPrice() != null ? p.getFinalPrice().toString() : "—", false),
-            //                 tableCell(p.getPurchasedAt() != null
-            //                         ? p.getPurchasedAt().toLocalDate().toString() : "—", false));
-            //         tableArea.add(row);
-            //     }
-            // } catch (Exception ex) { showError(ex.getMessage()); }
+            try {
+                var purchases = systemAdminService.getPurchasesByBuyer(token, buyerId.getValue());
+                if (purchases.isEmpty()) {
+                    tableArea.add(new Paragraph("No purchases found."));
+                    return;
+                }
+
+                Div headerRow = tableRow("#026cdf", "white");
+                headerRow.add(tableCell("Purchase ID", true), tableCell("Order ID", true),
+                        tableCell("Price", true), tableCell("Date", true));
+                tableArea.add(headerRow);
+
+                for (int i = 0; i < purchases.size(); i++) {
+                    var p = purchases.get(i);
+                    Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+                    row.add(
+                            tableCell(p.getPurchaseId().toString(), false),
+                            tableCell(p.getOrderId().toString(), false),
+                            tableCell(p.getFinalPrice() != null ? p.getFinalPrice().toString() : "—",
+                                    false),
+                            tableCell(p.getPurchasedAt() != null
+                                    ? p.getPurchasedAt().toLocalDate().toString()
+                                    : "—", false));
+                    tableArea.add(row);
+                }
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
         });
- 
+
         card.add(buyerId, searchBtn, tableArea);
         return card;
     }
- 
+
     private Div buildPurchasesByEventCard() {
         Div card = actionCard("Purchases by Event",
                 "View all purchases made for a specific event by its Event ID.");
- 
+
         TextField eventId = styledField("Event ID ");
         Button searchBtn = actionButton("Load Purchases", "#026cdf");
- 
+
         Div tableArea = new Div();
         tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
- 
+
         searchBtn.addClickListener(e -> {
-            // if (eventId.isEmpty()) { showError("Please enter an Event ID."); return; }
-            // tableArea.removeAll();
-            // try {
-            //     var purchases = systemAdminService.getPurchasesByEvent(token,
-            //             UUID.fromString(eventId.getValue()));
-            //     if (purchases.isEmpty()) { tableArea.add(new Paragraph("No purchases found.")); return; }
- 
-            //     Div headerRow = tableRow("#026cdf", "white");
-            //     headerRow.add(tableCell("Purchase ID", true), tableCell("Order ID", true),
-            //             tableCell("Price", true), tableCell("Date", true));
-            //     tableArea.add(headerRow);
- 
-            //     for (int i = 0; i < purchases.size(); i++) {
-            //         var p = purchases.get(i);
-            //         Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
-            //         row.add(
-            //                 tableCell(p.getPurchaseId().toString(), false),
-            //                 tableCell(p.getOrderId().toString(), false),
-            //                 tableCell(p.getFinalPrice() != null ? p.getFinalPrice().toString() : "—", false),
-            //                 tableCell(p.getPurchasedAt() != null
-            //                         ? p.getPurchasedAt().toLocalDate().toString() : "—", false));
-            //         tableArea.add(row);
-            //     }
-            // } catch (IllegalArgumentException ex) {
-            //     showError("Invalid UUID format.");
-            // } catch (Exception ex) { showError(ex.getMessage()); }
+            if (eventId.isEmpty()) {
+                showError("Please enter an Event ID.");
+                return;
+            }
+            tableArea.removeAll();
+            try {
+                var purchases = systemAdminService.getPurchasesByEvent(token, UUID.fromString(eventId.getValue()));
+                if (purchases.isEmpty()) {
+                    tableArea.add(new Paragraph("No purchases found."));
+                    return;
+                }
+
+                Div headerRow = tableRow("#026cdf", "white");
+                headerRow.add(tableCell("Purchase ID", true), tableCell("Order ID", true),
+                        tableCell("Price", true), tableCell("Date", true));
+                tableArea.add(headerRow);
+
+                for (int i = 0; i < purchases.size(); i++) {
+                    var p = purchases.get(i);
+                    Div row = tableRow(i % 2 == 0 ? "#f9fafb" : "white", "#111");
+                    row.add(
+                            tableCell(p.getPurchaseId().toString(), false),
+                            tableCell(p.getOrderId().toString(), false),
+                            tableCell(p.getFinalPrice() != null ? p.getFinalPrice().toString() : "—", false),
+                            tableCell(p.getPurchasedAt() != null
+                                    ? p.getPurchasedAt().toLocalDate().toString()
+                                    : "—", false));
+                    tableArea.add(row);
+                }
+            } catch (IllegalArgumentException ex) {
+                showError("Invalid UUID format.");
+            } catch (Exception ex) {
+                showError(ex.getMessage());
+            }
         });
- 
+
         card.add(eventId, searchBtn, tableArea);
         return card;
     }

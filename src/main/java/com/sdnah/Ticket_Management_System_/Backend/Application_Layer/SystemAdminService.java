@@ -11,9 +11,11 @@ import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.OrderMapper;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.SuspensionDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.UserDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
@@ -122,18 +124,21 @@ public class SystemAdminService {
     // version 2 - member suspension/reactivation
     // use case ( II.6.7 )
     @Transactional
-    public void suspendUser(String token, String targetMemberId, long durationHours) {
+    public void suspendUser(String token, String username, long durationHours) {
         requireAdmin(token);
-        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
-            Member target = userRepository.findByMemberId(targetMemberId);
-            if (target == null)
+         Member target = findMemberByUsernameOrMemberId(username);
+        if (target == null)
+            throw new IllegalArgumentException("Member not found");
+        keyedLock.runLocked(LOCK_NS, target.getMemberId(), () -> {
+            Member fresh = userRepository.findByMemberId(target.getMemberId());
+            if (fresh  == null)
                 throw new IllegalArgumentException("Member not found");
-            if (target.isSystemAdmin())
+            if (fresh.isSystemAdmin())
                 throw new IllegalArgumentException("Cannot suspend a system admin");
 
             LocalDateTime until = LocalDateTime.now().plusHours(durationHours);
-            target.suspend(until);
-            checkIsloggedInAndLogout(target);
+            fresh.suspend(until);
+            checkIsloggedInAndLogout(fresh);
             // todo: notify user of suspension and duration
             // notifier.notifyUser(targetMemberId,"Your account has been suspended until " +
             // until);
@@ -142,17 +147,21 @@ public class SystemAdminService {
 
     // use case ( II.6.7 )
     @Transactional
-    public void suspendPermanently(String token, String targetMemberId) {
+    public void suspendPermanently(String token, String username) {
         requireAdmin(token);
-        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
-            Member target = userRepository.findByMemberId(targetMemberId);
-            if (target == null)
+        Member target = findMemberByUsernameOrMemberId(username);
+        if (target == null)
+            throw new IllegalArgumentException("Member not found");
+ 
+        keyedLock.runLocked(LOCK_NS, target.getMemberId(), () -> {
+            Member fresh = userRepository.findByMemberId(target.getMemberId());
+            if (fresh == null)
                 throw new IllegalArgumentException("Member not found");
-            if (target.isSystemAdmin())
+            if (fresh.isSystemAdmin())
                 throw new IllegalArgumentException("Cannot suspend a system admin");
-
-            target.suspendPermanently();
-            checkIsloggedInAndLogout(target);
+ 
+            fresh.suspendPermanently();
+            checkIsloggedInAndLogout(fresh);
             // todo: notify user of permanent suspension
             // notifier.notifyUser(targetMemberId,"Your account has been suspended
             // permanently.");
@@ -169,17 +178,21 @@ public class SystemAdminService {
 
     // use case ( II.6.8 )
     @Transactional
-    public void unsuspendUser(String token, String targetMemberId) {
+    public void unsuspendUser(String token, String username) {
         requireAdmin(token);
-        keyedLock.runLocked(LOCK_NS, targetMemberId, () -> {
-            Member target = userRepository.findByMemberId(targetMemberId);
-            if (target == null)
+        Member target = findMemberByUsernameOrMemberId(username);
+        if (target == null)
+            throw new IllegalArgumentException("Member not found");
+ 
+        keyedLock.runLocked(LOCK_NS, target.getMemberId(), () -> {
+            Member fresh = userRepository.findByMemberId(target.getMemberId());
+            if (fresh == null)
                 throw new IllegalArgumentException("Member not found");
-            if (!target.isSuspended())
+            if (!fresh.isSuspended())
                 throw new IllegalArgumentException("Member is not suspended");
-
-            target.unsuspend();
-            userRepository.save(target);
+ 
+            fresh.unsuspend();
+            userRepository.save(fresh);
             // todo: notify user of reactivation
             // notifier.notifyUser(targetMemberId, "Your suspension has been lifted.");
         });
@@ -201,9 +214,17 @@ public class SystemAdminService {
 
     // for ui
     /**
-     * Retrieves a list of all users in the system. This method is intended for system
-     * @param token The authentication token of the system admin requesting the user list. Must be a valid token associated with a system admin account.
-     * @return A list of UserDTO objects representing all users in the system. Each UserDTO contains details about a user, such as their member ID, username, and other relevant information. This allows the system admin to view and manage the users in the ticket management system effectively.
+     * Retrieves a list of all users in the system. This method is intended for
+     * system
+     * 
+     * @param token The authentication token of the system admin requesting the user
+     *              list. Must be a valid token associated with a system admin
+     *              account.
+     * @return A list of UserDTO objects representing all users in the system. Each
+     *         UserDTO contains details about a user, such as their member ID,
+     *         username, and other relevant information. This allows the system
+     *         admin to view and manage the users in the ticket management system
+     *         effectively.
      */
     @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers(String token) {
@@ -212,9 +233,15 @@ public class SystemAdminService {
     }
 
     /**
-     * Retrieves the count of currently logged-in users in the system. This method is
-     * @param token The authentication token of the system admin requesting the count. Must be a valid token associated with a system admin account.
-     * @return The number of users currently logged in to the system. This count includes all members who have an active session and are considered logged in at the time of the request.
+     * Retrieves the count of currently logged-in users in the system. This method
+     * is
+     * 
+     * @param token The authentication token of the system admin requesting the
+     *              count. Must be a valid token associated with a system admin
+     *              account.
+     * @return The number of users currently logged in to the system. This count
+     *         includes all members who have an active session and are considered
+     *         logged in at the time of the request.
      */
     @Transactional(readOnly = true)
     public int getLoggedInUsersCount(String token) {
@@ -225,9 +252,14 @@ public class SystemAdminService {
     }
 
     /**
-     * Removes a member from the system. 
-     * @param token The authentication token of the system admin requesting the member removal. Must be a valid token associated with a system admin account.
-     * @param usernameOrMemberId The username or member ID of the member to be removed. Must correspond to an existing member in the system.
+     * Removes a member from the system.
+     * 
+     * @param token              The authentication token of the system admin
+     *                           requesting the member removal. Must be a valid
+     *                           token associated with a system admin account.
+     * @param usernameOrMemberId The username or member ID of the member to be
+     *                           removed. Must correspond to an existing member in
+     *                           the system.
      */
     @Transactional
     public void removeMember(String token, String usernameOrMemberId) {
@@ -408,14 +440,27 @@ public class SystemAdminService {
      *         specified buyer.
      */
     @Transactional(readOnly = true)
-    public List<Purchase> getPurchasesByEvent(String token, UUID eventId) {
+    public List<PurchaseDTO> getPurchasesByEvent(String token, UUID eventId) {
         requireAdmin(token);
-
-        if (eventId == null) {
+        if (eventId == null)
             throw new IllegalArgumentException("Event id is required");
-        }
 
-        return purchaseRepository.findByEventId(eventId);
+        return OrderMapper.purchaseToDTOList(
+                purchaseRepository.findByEventId(eventId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PurchaseDTO> getPurchasesByBuyer(String token, String usernameOrMemberId) {
+        requireAdmin(token);
+        if (usernameOrMemberId == null || usernameOrMemberId.isBlank())
+            throw new IllegalArgumentException("Username or Member ID is required");
+
+        Member member = findMemberByUsernameOrMemberId(usernameOrMemberId);
+        if (member == null)
+            throw new IllegalArgumentException("Member not found");
+
+        return OrderMapper.purchaseToDTOList(
+                purchaseRepository.findByBuyerId(member.getMemberId()));
     }
 
     /**
@@ -434,5 +479,12 @@ public class SystemAdminService {
     public List<ComplaintDTO> getAllComplaints(String token) {
         requireAdmin(token);
         return complaintService.getUserComplaints(token);
+    }
+
+    // מענה לתלונה — II.6.3
+    @Transactional
+    public void resolveComplaint(String token, UUID complaintId, String adminResponse) {
+        requireAdmin(token);
+        complaintService.resolveComplaint(token, complaintId, adminResponse);
     }
 }
