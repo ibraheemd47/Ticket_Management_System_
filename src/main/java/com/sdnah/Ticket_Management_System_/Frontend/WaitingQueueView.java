@@ -82,13 +82,15 @@ public class WaitingQueueView extends VerticalLayout implements BeforeEnterObser
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        // Auth-light for now (signup/verify flow still WIP). When auth is back,
-        // re-add: if (t == null) event.forwardTo(LoginView.class);
         Object t  = UI.getCurrent().getSession().getAttribute(SESSION_TOKEN);
+        if (t == null) {
+            event.forwardTo(LoginView.class);
+            return;
+        }
         Object mi = UI.getCurrent().getSession().getAttribute(SESSION_MEMBER_ID);
         Object si = UI.getCurrent().getSession().getAttribute(SESSION_SHOW_ID);
 
-        this.token  = t  != null ? t.toString()              : "dev-token";
+        this.token  = t.toString();
         this.userId = mi != null ? Long.parseLong(mi.toString()) : 101L;
         this.showId = si != null ? Long.parseLong(si.toString()) : 42L;
 
@@ -247,7 +249,32 @@ public class WaitingQueueView extends VerticalLayout implements BeforeEnterObser
                 .set("border-radius", "8px");
         refreshButton.addClickListener(e -> refreshFromBackend());
 
-        card.add(title, blurb, statusBadge, positionLabel, etaLabel, claimButton, refreshButton);
+        // Dev helper — lets you actually join the queue from the UI so you can
+        // see real "#1, #2…" states. Remove once a real "no seats → queue me"
+        // hand-off exists upstream.
+        Button joinDev = new Button("(Dev) Join this queue as user " + userId, e -> {
+            try {
+                boolean joined = queueService.joinQueue(userId, showId);
+                Notification.show(joined ? "Joined the queue." : "Already in the queue.",
+                        2500, Notification.Position.TOP_CENTER);
+                refreshFromBackend();
+            } catch (RuntimeException ex) {
+                Notification.show("Join failed: " + ex.getMessage(), 3500,
+                                Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        joinDev.getStyle()
+                .set("margin-top", "12px")
+                .set("background", "#fff")
+                .set("color", "#666")
+                .set("border", "1px dashed #cdd9ec")
+                .set("font-size", "12px")
+                .set("padding", "6px 16px")
+                .set("border-radius", "999px");
+
+        card.add(title, blurb, statusBadge, positionLabel, etaLabel,
+                claimButton, refreshButton, joinDev);
 
         Div outer = new Div(card);
         outer.setWidthFull();
