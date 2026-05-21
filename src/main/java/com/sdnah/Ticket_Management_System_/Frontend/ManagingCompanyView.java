@@ -6,8 +6,12 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -48,6 +52,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private static final String SESSION_COMPANY_ID = "managingCompanyId";
 
     private final company_managment_serivce companyService;
+    private final UserService userService;
 
     private String token;
     private int companyId;
@@ -57,8 +62,10 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private final Tab rolesTab    = new Tab("Roles");
     private final Tab policiesTab = new Tab("Policies");
 
-    public ManagingCompanyView(company_managment_serivce companyService) {
+    public ManagingCompanyView(company_managment_serivce companyService,
+                               UserService userService) {
         this.companyService = companyService;
+        this.userService = userService;
 
         setSizeFull();
         setPadding(false);
@@ -72,16 +79,134 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        // Auth-light for now (signup/verify flow still WIP). When auth is back,
-        // re-add: if (t == null) event.forwardTo(LoginView.class);
         Object t = UI.getCurrent().getSession().getAttribute(SESSION_TOKEN);
+        if (t == null) {
+            event.forwardTo(LoginView.class);
+            return;
+        }
+        this.token = t.toString();
+
         Object c = UI.getCurrent().getSession().getAttribute(SESSION_COMPANY_ID);
-
-        this.token     = t != null ? t.toString()                : "dev-token";
-        this.companyId = c != null ? Integer.parseInt(c.toString()) : 1;
-
+        if (c == null) {
+            // No specific company picked — show the list of the user's companies.
+            add(buildCompanyChooser());
+            return;
+        }
+        this.companyId = Integer.parseInt(c.toString());
         add(buildShell());
         renderEventsTab();
+    }
+
+    // ── Chooser (list mode) ─────────────────────────────────────────────────
+
+    private Component buildCompanyChooser() {
+        Div card = new Div();
+        card.getStyle()
+                .set("max-width", "1080px")
+                .set("margin", "40px auto")
+                .set("padding", "24px 32px")
+                .set("background", "white")
+                .set("border-radius", "16px")
+                .set("box-shadow", "0 6px 20px rgba(0,0,0,0.06)");
+
+        H1 title = new H1("My companies");
+        title.getStyle().set("margin", "0 0 4px 0");
+
+        Paragraph blurb = new Paragraph(
+                "Pick a company below to manage its events, roles and policies. " +
+                "Use \"Create new company\" if you don't have any yet.");
+        blurb.getStyle().set("color", "#666").set("margin-top", "0");
+
+        Button create = new Button("+ Create new company", e -> {
+            // Make sure no stale id leaks into the create flow.
+            UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, null);
+            UI.getCurrent().navigate("company-create");
+        });
+        create.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        create.getStyle().set("margin", "12px 0");
+
+        card.add(title, blurb, create);
+
+        // Resolve the user's companies via their role assignments.
+        List<CompanyRow> myCompanies;
+        try {
+            Member me = userService.getMemberByToken(token);
+            myCompanies = resolveMyCompanies(me);
+        } catch (RuntimeException ex) {
+            card.add(error("Couldn't load your companies: " + ex.getMessage()));
+            Div outer = new Div(card);
+            outer.setWidthFull();
+            return outer;
+        }
+
+        if (myCompanies.isEmpty()) {
+            Paragraph empty = new Paragraph(
+                    "You don't own or manage any company yet. Click \"+ Create new company\" to start one.");
+            empty.getStyle().set("color", "#666").set("padding", "24px 0");
+            card.add(empty);
+        } else {
+            Grid<CompanyRow> grid = new Grid<>(CompanyRow.class, false);
+            grid.addColumn(r -> "#" + r.companyId).setHeader("ID").setAutoWidth(true);
+            grid.addColumn(r -> r.name == null ? "—" : r.name).setHeader("Name").setFlexGrow(2);
+            grid.addColumn(r -> r.role).setHeader("Your role").setAutoWidth(true);
+            grid.addComponentColumn(r -> {
+                Button manage = new Button("Manage", ev -> {
+                    UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, r.companyId);
+                    UI.getCurrent().getPage().reload();
+                });
+                manage.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+                return manage;
+            }).setHeader("");
+            grid.setItems(myCompanies);
+            grid.setAllRowsVisible(true);
+            grid.setWidthFull();
+            card.add(grid);
+        }
+
+        Div outer = new Div(card);
+        outer.setWidthFull();
+        return outer;
+    }
+
+    /** Cross-reference the member's roles with the active-companies list to get names. */
+    private List<CompanyRow> resolveMyCompanies(Member me) {
+        Set<Integer> myCompanyIds = new java.util.HashSet<>();
+        Map<Integer, String> roleByCompany = new java.util.HashMap<>();
+        for (CompanyRoleAssignment a : me.getCompanyRoles()) {
+            myCompanyIds.add(a.getCompanyId());
+            // First role wins if there are duplicates.
+            roleByCompany.putIfAbsent(a.getCompanyId(),
+                    a.isOwner() ? "Owner" : a.isManager() ? "Manager" : a.getRoleType().name());
+        }
+
+        // Best available source for company names today; switch to a dedicated
+        // "find by ids" query if/when one is added.
+        Map<Integer, String> nameById = new java.util.HashMap<>();
+        try {
+            for (CompanyDTO dto : companyService.getActiveCompanies()) {
+                nameById.put(dto.getCompanyId(), dto.getCompanyName());
+            }
+        } catch (RuntimeException ignored) {
+            // If the lookup blows up we still show IDs.
+        }
+
+        List<CompanyRow> out = new java.util.ArrayList<>();
+        for (Integer cid : myCompanyIds) {
+            out.add(new CompanyRow(cid, nameById.get(cid), roleByCompany.get(cid)));
+        }
+        out.sort((a, b) -> Integer.compare(a.companyId, b.companyId));
+        return out;
+    }
+
+    private static final class CompanyRow {
+        final int companyId;
+        final String name;
+        final String role;
+        CompanyRow(int companyId, String name, String role) {
+            this.companyId = companyId;
+            this.name = name;
+            this.role = role;
+        }
     }
 
     // ── Shell ────────────────────────────────────────────────────────────────
@@ -120,8 +245,16 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
                 .set("border-radius", "16px")
                 .set("box-shadow", "0 6px 20px rgba(0,0,0,0.06)");
 
+        Button back = new Button("← Back to my companies", e -> {
+            UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, null);
+            UI.getCurrent().getPage().reload();
+        });
+        back.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        back.getStyle().set("margin-bottom", "8px");
+
         H1 title = new H1("Company #" + companyId);
         title.getStyle().set("margin", "0 0 16px 0");
+        card.add(back);
 
         Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab);
         tabs.addSelectedChangeListener(e -> {
