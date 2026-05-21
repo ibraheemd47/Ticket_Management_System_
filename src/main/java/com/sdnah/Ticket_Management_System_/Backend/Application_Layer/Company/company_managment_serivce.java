@@ -110,18 +110,38 @@ public class company_managment_serivce {
 
         company.validateActionPermission(actor.getMemberId(), CompanyPermission.MANAGE_EVENTS);
 
-        Event event = new Event(dto.name, dto.eventType, Long.valueOf(companyId), Long.valueOf(actor.getMemberId()));
+        Long ownerId = Long.valueOf(companyId);
+        Event event = new Event(dto.name, dto.eventType, Long.valueOf(companyId), ownerId);
+
+        if (dto.venue != null && !dto.venue.isBlank())
+            event.editVenue(dto.venue, ownerId);
+
+        if (dto.startDate != null || dto.endDate != null) {
+            java.util.Date startDate = dto.startDate != null
+                ? java.util.Date.from(dto.startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()) : null;
+            java.util.Date endDate = dto.endDate != null
+                ? java.util.Date.from(dto.endDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()) : null;
+            event.editDates(startDate, endDate, ownerId);
+        }
+
         Event savedEvent = eventRepository.save(event);
 
         company.addEventId(actor.getMemberId(), savedEvent.getEventId());
         companyRepository.save(company);
 
+        java.time.LocalDate retStart = savedEvent.getStartDate() == null ? null :
+            savedEvent.getStartDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        java.time.LocalDate retEnd = savedEvent.getEndDate() == null ? null :
+            savedEvent.getEndDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
         return new EventDto(
                 savedEvent.getEventId(),
                 savedEvent.getName(),
-                savedEvent.getStartDate() == null ? null : savedEvent.getStartDate().toString(),
+                retStart,
+                retEnd,
                 savedEvent.getEventType(),
-                savedEvent.getVenue());
+                savedEvent.getVenue(),
+                null);
     }
 
     @Transactional

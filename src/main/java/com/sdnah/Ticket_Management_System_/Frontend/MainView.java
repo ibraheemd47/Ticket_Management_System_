@@ -69,7 +69,8 @@ public class MainView extends VerticalLayout {
         bar.add(
                 quickLink("⏳  Waiting queue",     "queue"),
                 quickLink("📋  Manage an order",    "manager/order"),
-                quickLink("🏢  Manage company",     "company"));
+                quickLink("🏢  Manage company",     "company"),
+                quickLink("Create New Company", "company-create"));
         add(bar);
     }
 
@@ -128,7 +129,7 @@ public class MainView extends VerticalLayout {
             Button profileBtn = new Button("My Profile", e -> UI.getCurrent().navigate("profile"));
             profileBtn.getStyle().set("background", "white").set("color", "#026cdf")
                     .set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
-
+            
            Button logoutBtn = new Button("Logout", e -> {
     // 1. Get the current token from the session
     String currentToken = (String) UI.getCurrent().getSession().getAttribute("token");

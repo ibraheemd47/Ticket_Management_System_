@@ -165,7 +165,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         grid.addComponentColumn(id -> {
             Button open = new Button("Open", ev -> {
                 UI.getCurrent().getSession().setAttribute("eventId", id.toString());
-                UI.getCurrent().navigate("event");
+                UI.getCurrent().navigate("EventDetails");
             });
             open.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
             return open;

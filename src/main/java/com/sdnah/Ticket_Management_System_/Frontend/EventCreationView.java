@@ -5,6 +5,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import java.time.ZoneId;
 
@@ -12,8 +13,24 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.com
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ShowDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Row;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Seat;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.SeatedArea;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.StandingArea;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -28,6 +45,8 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
@@ -37,13 +56,28 @@ public class EventCreationView extends VerticalLayout {
 
     private final company_managment_serivce companyService;
     private final EventService eventService;
+    private final PolicyRepository policyRepo;
 
     private final List<ShowDTO> shows = new ArrayList<>();
     private Div showsContainer;
 
-    public EventCreationView(company_managment_serivce companyService, EventService eventService) {
+    // Policy UI fields — selling
+    private ComboBox<SellingType> sellingTypeBox;
+    // — purchase
+    private IntegerField minAgeField;
+    private IntegerField minTicketsField;
+    private IntegerField maxTicketsField;
+    // — percentage discount
+    private NumberField  percentageField;
+    // — coupon discount
+    private TextField    couponCodeField;
+    private NumberField  couponPctField;
+    private DatePicker   couponExpiryPicker;
+
+    public EventCreationView(company_managment_serivce companyService, EventService eventService, PolicyRepository policyRepo) {
         this.companyService = companyService;
         this.eventService   = eventService;
+        this.policyRepo     = policyRepo;
         addMockShows();
 
         setSizeFull();
@@ -53,7 +87,7 @@ public class EventCreationView extends VerticalLayout {
                 .set("background", "#f4f4f4")
                 .set("font-family", "Arial, sans-serif");
 
-        Div content = new Div(buildEventCard(), buildShowsCard());
+        Div content = new Div(buildEventCard(), buildShowsCard(), buildPoliciesCard());
         content.getStyle()
                 .set("max-width", "760px")
                 .set("margin", "40px auto")
@@ -416,6 +450,162 @@ public class EventCreationView extends VerticalLayout {
         catch (NumberFormatException e) { return 0; }
     }
 
+    // ── Policies card ────────────────────────────────────────────────────────
+
+    private Div buildPoliciesCard() {
+        Div card = card();
+
+        H2 title = new H2("Policies");
+        title.getStyle().set("margin", "0 0 16px 0").set("font-size", "20px").set("color", "#111");
+
+        // ── Selling Policy (required) ──
+        sellingTypeBox = new ComboBox<>("Selling Type");
+        sellingTypeBox.setItems(SellingType.values());
+        sellingTypeBox.setItemLabelGenerator(t -> capitalize(t.name()));
+        sellingTypeBox.setValue(SellingType.REGULAR);
+        sellingTypeBox.setWidthFull();
+
+        // ── Purchase Policy (optional) ──
+        minAgeField = new IntegerField("Minimum Age");
+        minAgeField.setMin(0);
+        minAgeField.setPlaceholder("Leave empty = no restriction");
+        minAgeField.setWidthFull();
+
+        minTicketsField = new IntegerField("Minimum Tickets per Purchase");
+        minTicketsField.setMin(1);
+        minTicketsField.setPlaceholder("Leave empty = no minimum");
+        minTicketsField.setWidthFull();
+
+        maxTicketsField = new IntegerField("Maximum Tickets per Purchase");
+        maxTicketsField.setMin(1);
+        maxTicketsField.setPlaceholder("Leave empty = no limit");
+        maxTicketsField.setWidthFull();
+
+        // ── Percentage Discount Policy (optional) ──
+        percentageField = new NumberField("Percentage Off (0–100)");
+        percentageField.setMin(0);
+        percentageField.setMax(100);
+        percentageField.setPlaceholder("Leave empty = no percentage discount");
+        percentageField.setWidthFull();
+
+        // ── Coupon Discount Policy (optional) ──
+        couponCodeField = new TextField("Coupon Code");
+        couponCodeField.setPlaceholder("e.g. SUMMER25  —  leave empty to skip");
+        couponCodeField.setWidthFull();
+
+        couponPctField = new NumberField("Coupon Percentage Off (0–100)");
+        couponPctField.setMin(0);
+        couponPctField.setMax(100);
+        couponPctField.setPlaceholder("Required when coupon code is set");
+        couponPctField.setWidthFull();
+
+        couponExpiryPicker = new DatePicker("Coupon Expiry Date (optional)");
+        couponExpiryPicker.setPlaceholder("Leave empty = never expires");
+        couponExpiryPicker.setWidthFull();
+
+        Button savePoliciesBtn = new Button("Save Policies", e -> handleSavePolicies());
+        savePoliciesBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        savePoliciesBtn.getStyle()
+                .set("background", "#026cdf")
+                .set("color", "white")
+                .set("font-weight", "700")
+                .set("margin-top", "8px");
+
+        card.add(title,
+                sectionLabel("Selling Policy"),
+                sellingTypeBox,
+                sectionLabel("Purchase Policy (optional)"),
+                minAgeField, minTicketsField, maxTicketsField,
+                sectionLabel("Percentage Discount (optional)"),
+                percentageField,
+                sectionLabel("Coupon Discount (optional)"),
+                couponCodeField, couponPctField, couponExpiryPicker,
+                savePoliciesBtn);
+        return card;
+    }
+
+    private void handleSavePolicies() {
+        Object eventIdObj   = UI.getCurrent().getSession().getAttribute("eventId");
+        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
+
+        if (eventIdObj == null) {
+            Notification.show("No event selected — create an event first",
+                    4000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            return;
+        }
+        if (companyIdObj == null) {
+            Notification.show("No company selected — navigate from your company page",
+                    4000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            return;
+        }
+
+        UUID eventId   = UUID.fromString(eventIdObj.toString());
+        int  companyId = Integer.parseInt(companyIdObj.toString());
+
+        try {
+            // ── Selling Policy (always) ──
+            SellingType sellingType = sellingTypeBox.getValue() != null
+                    ? sellingTypeBox.getValue() : SellingType.REGULAR;
+            policyRepo.savePolicy(new SellingPolicy(
+                    Math.abs(UUID.randomUUID().hashCode()),
+                    sellingType.name() + " selling policy",
+                    sellingType, eventId, companyId));
+
+            // ── Purchase Policy (if any restriction set) ──
+            Integer minAge     = minAgeField.getValue();
+            Integer minTickets = minTicketsField.getValue();
+            Integer maxTickets = maxTicketsField.getValue();
+            if (minAge != null || minTickets != null || maxTickets != null) {
+                PurchasePolicy pp = new PurchasePolicy(
+                        Math.abs(UUID.randomUUID().hashCode()),
+                        "Purchase restrictions", eventId, companyId);
+                if (minAge     != null && minAge     >= 0) pp.addRule(new MinAgeRule(minAge));
+                if (minTickets != null && minTickets >  0) pp.addRule(new MinTicketsRule(minTickets));
+                if (maxTickets != null && maxTickets >  0) pp.addRule(new MaxTicketsRule(maxTickets));
+                policyRepo.savePolicy(pp);
+            }
+
+            // ── Percentage Discount (if filled) ──
+            Double pct = percentageField.getValue();
+            if (pct != null && pct > 0) {
+                DiscountPolicy dp = new DiscountPolicy(
+                        Math.abs(UUID.randomUUID().hashCode()),
+                        pct + "% discount", eventId, companyId);
+                dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
+                policyRepo.savePolicy(dp);
+            }
+
+            // ── Coupon Discount (if code is provided) ──
+            String code = couponCodeField.getValue();
+            if (code != null && !code.isBlank()) {
+                Double cpct = couponPctField.getValue();
+                if (cpct == null || cpct <= 0) {
+                    Notification.show("Coupon percentage must be greater than 0",
+                            3000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
+                java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
+                        ? couponExpiryPicker.getValue().atTime(23, 59, 59) : null;
+                DiscountPolicy dp = new DiscountPolicy(
+                        Math.abs(UUID.randomUUID().hashCode()),
+                        "Coupon: " + code.trim().toUpperCase(), eventId, companyId);
+                dp.addRule(new CouponDiscountRule(cpct, code.trim().toUpperCase(), expiry));
+                policyRepo.savePolicy(dp);
+            }
+
+            Notification.show("Policies saved for event " + eventId,
+                    3000, Notification.Position.TOP_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+        } catch (RuntimeException ex) {
+            Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
     // ── Submit ───────────────────────────────────────────────────────────────
 
     private void handleCreate(
@@ -468,17 +658,16 @@ public class EventCreationView extends VerticalLayout {
             EventDto created = companyService.addEvent(token, companyId, dto);
 
             // Persist shows
-            Long memberId = companyService.getMemberIdByToken(token);
+            Long memberId = Long.valueOf(companyId);
             for (ShowDTO s : shows) {
                 java.util.Date showDate = s.showDate != null
                     ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
                     : null;
                 show newShow = new show(created.id, s.name, s.description, s.singer, showDate);
+                newShow.setAreas(buildAreas(s));
                 try {
                     eventService.addShowToEvent(created.id, newShow, memberId);
-                } catch (Exception ignored) {
-                    // show added to event even if area config fails separately
-                }
+                } catch (Exception ignored) {}
             }
 
             Notification.show("Event \"" + created.name + "\" created with " + shows.size() + " show(s)!",
@@ -533,5 +722,37 @@ card.addClassNames(LumoUtility.Padding.Vertical.XLARGE, LumoUtility.AlignSelf.ST
 
     private static String nullSafe(String s) {
         return s == null ? "" : s;
+    }
+
+    private static java.util.List<Area> buildAreas(ShowDTO s) {
+        java.util.List<Area> areas = new java.util.ArrayList<>();
+
+        if (s.standingCapacity > 0)
+            areas.add(new StandingArea("Standing Area", s.standingCapacity));
+
+        if (s.numBlocks > 0 && s.rowsPerBlock > 0 && s.seatsPerRow > 0) {
+            SeatedArea seated = new SeatedArea("Seated Area", s.numBlocks);
+            java.util.List<Block> blocks = new java.util.ArrayList<>();
+            long idSeq = 1;
+            for (int b = 0; b < s.numBlocks; b++) {
+                String blockLabel = String.valueOf((char) ('A' + b));
+                Block block = new Block(idSeq++, blockLabel, s.rowsPerBlock, seated);
+                java.util.List<Row> rows = new java.util.ArrayList<>();
+                for (int r = 0; r < s.rowsPerBlock; r++) {
+                    Row row = new Row(idSeq++, String.valueOf(r + 1), s.seatsPerRow, block);
+                    java.util.List<Seat> seats = new java.util.ArrayList<>();
+                    for (int seat = 1; seat <= s.seatsPerRow; seat++)
+                        seats.add(new Seat(idSeq++, String.valueOf(seat), row));
+                    row.setSeats(seats);
+                    rows.add(row);
+                }
+                block.setRows(rows);
+                blocks.add(block);
+            }
+            seated.setBlocks(blocks);
+            areas.add(seated);
+        }
+
+        return areas;
     }
 }

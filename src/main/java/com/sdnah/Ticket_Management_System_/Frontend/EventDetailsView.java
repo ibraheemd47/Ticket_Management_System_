@@ -1,6 +1,8 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -13,6 +15,28 @@ import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.CompositePurchaseRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import java.util.Optional;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
@@ -52,19 +76,29 @@ public class EventDetailsView extends VerticalLayout {
     record SeatData(long id, String label, boolean available) {}
     record AreaInfo(UUID id, String name, boolean isSeated,
                     int standingMax, int standingAvail, List<BlockData> blocks) {}
+    record CartEntry(String description, java.math.BigDecimal unitPrice, int quantity,
+                     boolean isSeated, UUID areaId, Long seatId) {
+        java.math.BigDecimal total() {
+            return unitPrice.multiply(java.math.BigDecimal.valueOf(quantity));
+        }
+    }
 
     private final EventService eventService;
     private final TicketService ticketService;
+    private final PolicyRepository policyRepo;
 
     // Areas preloaded during construction (while JPA session may be open)
     private final Map<UUID, List<Area>> showAreasCache = new HashMap<>();
 
     private UUID cachedEventId;
     private UUID cachedUserId;
+    private Event cachedEvent;
+    private List<show> cachedShows = new ArrayList<>();
 
-    public EventDetailsView(EventService eventService, TicketService ticketService) {
+    public EventDetailsView(EventService eventService, TicketService ticketService, PolicyRepository policyRepo) {
         this.eventService   = eventService;
         this.ticketService  = ticketService;
+        this.policyRepo     = policyRepo;
 
         setSizeFull();
         setPadding(false);
@@ -110,6 +144,9 @@ public class EventDetailsView extends VerticalLayout {
                 // lazy loading not available outside transaction — cache stays empty
             }
         }
+
+        cachedEvent = ev;
+        cachedShows = new ArrayList<>(shows);
 
         Div content = new Div(buildEventInfoCard(ev), buildShowsCard(shows));
         content.getStyle()
@@ -171,7 +208,21 @@ public class EventDetailsView extends VerticalLayout {
                 capitalize(ev.getEventType() != null ? ev.getEventType().name() : "—"),
                 "#e3f2fd", "#026cdf");
 
-        titleRow.add(name, typeBadge);
+        Div rightSide = new Div();
+        rightSide.getStyle().set("display", "flex").set("gap", "12px").set("align-items", "center");
+        rightSide.add(typeBadge);
+
+        if (isManagerOrOwner()) {
+            Button editBtn = new Button("Edit Event", e -> openEditDialog());
+            editBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            editBtn.getStyle()
+                    .set("background", "#026cdf")
+                    .set("color", "white")
+                    .set("font-weight", "700");
+            rightSide.add(editBtn);
+        }
+
+        titleRow.add(name, rightSide);
 
         Div details = new Div();
         details.getStyle()
@@ -196,6 +247,670 @@ public class EventDetailsView extends VerticalLayout {
         }
 
         return card;
+    }
+
+    // ── Manager check ────────────────────────────────────────────────────────
+
+    private boolean isManagerOrOwner() {
+        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
+        if (companyIdObj == null || cachedEvent == null) return false;
+        try {
+            Long companyId = Long.valueOf(companyIdObj.toString());
+            // Use companyId (plain column, no lazy-loading) instead of managerIds (ElementCollection)
+            return companyId.equals(cachedEvent.getCompanyId());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private Long getManagerId() {
+        Object obj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
+        return obj != null ? Long.valueOf(obj.toString()) : null;
+    }
+
+    // ── Edit dialog ──────────────────────────────────────────────────────────
+
+    private void openEditDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setWidth("700px");
+        dialog.setHeaderTitle("Edit Event");
+
+        Tab detailsTab  = new Tab("Details");
+        Tab showsTab    = new Tab("Shows");
+        Tab policiesTab = new Tab("Policies");
+        Tabs tabs = new Tabs(detailsTab, showsTab, policiesTab);
+        tabs.setWidthFull();
+
+        Div detailsSection  = buildEditDetailsSection(dialog);
+        Div showsSection    = buildEditShowsSection(dialog);
+        Div policiesSection = buildEditPoliciesSection();
+
+        showsSection.setVisible(false);
+        policiesSection.setVisible(false);
+
+        tabs.addSelectedChangeListener(e -> {
+            Tab sel = e.getSelectedTab();
+            detailsSection.setVisible(sel == detailsTab);
+            showsSection.setVisible(sel == showsTab);
+            policiesSection.setVisible(sel == policiesTab);
+        });
+
+        VerticalLayout body = new VerticalLayout(tabs, detailsSection, showsSection, policiesSection);
+        body.setPadding(false);
+        body.setSpacing(false);
+        body.setWidthFull();
+
+        dialog.add(body);
+        Button closeBtn = new Button("Close", e -> dialog.close());
+        closeBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        dialog.getFooter().add(closeBtn);
+        dialog.open();
+    }
+
+    // ── Edit details section ─────────────────────────────────────────────────
+
+    private Div buildEditDetailsSection(Dialog parent) {
+        Div section = new Div();
+        section.getStyle()
+                .set("padding", "16px 0")
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "12px");
+        section.setWidthFull();
+
+        TextField nameField = new TextField("Event Name");
+        nameField.setValue(cachedEvent.getName() != null ? cachedEvent.getName() : "");
+        nameField.setWidthFull();
+
+        TextField venueField = new TextField("Venue");
+        venueField.setValue(cachedEvent.getVenue() != null ? cachedEvent.getVenue() : "");
+        venueField.setWidthFull();
+
+        ComboBox<show_type> typeBox = new ComboBox<>("Event Type");
+        typeBox.setItems(show_type.values());
+        typeBox.setItemLabelGenerator(t -> capitalize(t.name()));
+        typeBox.setValue(cachedEvent.getEventType());
+        typeBox.setWidthFull();
+
+        DatePicker startPicker = new DatePicker("Start Date");
+        if (cachedEvent.getStartDate() != null)
+            startPicker.setValue(cachedEvent.getStartDate().toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDate());
+        startPicker.setWidthFull();
+
+        DatePicker endPicker = new DatePicker("End Date");
+        if (cachedEvent.getEndDate() != null)
+            endPicker.setValue(cachedEvent.getEndDate().toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDate());
+        endPicker.setWidthFull();
+
+        TextArea descField = new TextArea("Description");
+        descField.setValue(cachedEvent.getDescription() != null ? cachedEvent.getDescription() : "");
+        descField.setWidthFull();
+        descField.setMinHeight("80px");
+
+        Button saveBtn = new Button("Save Details", e -> {
+            String name = nameField.getValue();
+            if (name == null || name.isBlank()) { error("Name is required"); return; }
+            Long mgr = getManagerId();
+            if (mgr == null) { error("Session expired — please log in again"); return; }
+            UUID evId = cachedEvent.getEventId();
+            try {
+                eventService.editEventName(evId, name.trim(), mgr);
+                eventService.editEventVenue(evId, venueField.getValue().trim(), mgr);
+                if (typeBox.getValue() != null)
+                    eventService.editEventType(evId, typeBox.getValue(), mgr);
+                eventService.editEventDescription(evId, descField.getValue().trim(), mgr);
+
+                LocalDate s  = startPicker.getValue();
+                LocalDate en = endPicker.getValue();
+                Date startDate = s  != null ? Date.from(s.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+                Date endDate   = en != null ? Date.from(en.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+                eventService.editEventDates(evId, startDate, endDate, mgr);
+
+                Notification.show("Event details saved",
+                        3000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                UI.getCurrent().getPage().reload();
+            } catch (RuntimeException ex) {
+                Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveBtn.getStyle().set("background", "#026cdf").set("color", "white").set("font-weight", "700");
+
+        section.add(nameField, venueField, typeBox, startPicker, endPicker, descField, saveBtn);
+        return section;
+    }
+
+    // ── Edit shows section ────────────────────────────────────────────────────
+
+    private Div buildEditShowsSection(Dialog parent) {
+        Div section = new Div();
+        section.getStyle()
+                .set("padding", "16px 0")
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "12px");
+        section.setWidthFull();
+
+        Div listContainer = new Div();
+        listContainer.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "8px");
+        listContainer.setWidthFull();
+
+        Runnable[] refresh = {null};
+        refresh[0] = () -> {
+            listContainer.removeAll();
+            for (show s : cachedShows) {
+                Div row = new Div();
+                row.getStyle()
+                        .set("background", "#f8faff")
+                        .set("border", "1px solid #d0e4ff")
+                        .set("border-radius", "10px")
+                        .set("padding", "12px 16px")
+                        .set("display", "flex")
+                        .set("justify-content", "space-between")
+                        .set("align-items", "center");
+
+                Div info = new Div();
+                Span nameSpan   = new Span(nullSafe(s.getName()));
+                nameSpan.getStyle().set("font-weight", "700").set("font-size", "14px");
+                Span singerSpan = new Span(s.getSinger() != null ? "  •  " + s.getSinger() : "");
+                singerSpan.getStyle().set("color", "#666").set("font-size", "13px");
+                Span dateSpan   = new Span(s.getShowDate() != null ? "  •  " + DATE_FMT.format(s.getShowDate()) : "");
+                dateSpan.getStyle().set("color", "#888").set("font-size", "13px");
+                info.add(nameSpan, singerSpan, dateSpan);
+
+                Button editBtn = new Button("Edit", ev -> openEditShowDialog(s, refresh, parent));
+                editBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+                Button deleteBtn = new Button("Delete", ev -> {
+                    Long mgr = getManagerId();
+                    if (mgr == null) { error("Session expired"); return; }
+                    try {
+                        eventService.removeShowFromEvent(cachedEventId, s, mgr);
+                        cachedShows.remove(s);
+                        refresh[0].run();
+                    } catch (RuntimeException ex) {
+                        Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
+                                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    }
+                });
+                deleteBtn.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+
+                Div actions = new Div(editBtn, deleteBtn);
+                actions.getStyle().set("display", "flex").set("gap", "4px");
+                row.add(info, actions);
+                listContainer.add(row);
+            }
+        };
+        refresh[0].run();
+
+        Button addBtn = new Button("+ Add Show", e -> openEditShowDialog(null, refresh, parent));
+        addBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addBtn.getStyle().set("align-self", "flex-start");
+
+        section.add(listContainer, addBtn);
+        return section;
+    }
+
+    private void openEditShowDialog(show existing, Runnable[] refresh, Dialog parent) {
+        boolean isEdit = existing != null;
+        Dialog dialog = new Dialog();
+        dialog.setWidth("560px");
+        dialog.setHeaderTitle(isEdit ? "Edit Show" : "Add Show");
+
+        TextField nameField   = new TextField("Show Name");
+        nameField.setWidthFull();
+        TextField singerField = new TextField("Singer / Performer");
+        singerField.setWidthFull();
+        TextArea  descField   = new TextArea("Description");
+        descField.setWidthFull();
+        descField.setMinHeight("72px");
+        DatePicker datePicker = new DatePicker("Show Date");
+        datePicker.setWidthFull();
+
+        if (isEdit) {
+            nameField.setValue(nullSafe(existing.getName()));
+            singerField.setValue(existing.getSinger()     != null ? existing.getSinger()     : "");
+            descField.setValue(existing.getDescription()  != null ? existing.getDescription() : "");
+            if (existing.getShowDate() != null)
+                datePicker.setValue(existing.getShowDate().toInstant()
+                        .atZone(ZoneId.systemDefault()).toLocalDate());
+        }
+
+        Button saveBtn = new Button(isEdit ? "Save" : "Add", e -> {
+            String sName = nameField.getValue();
+            if (sName == null || sName.isBlank()) { error("Show name is required"); return; }
+            Long mgr = getManagerId();
+            if (mgr == null) { error("Session expired"); return; }
+            Date showDate = datePicker.getValue() != null
+                    ? Date.from(datePicker.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+            try {
+                if (isEdit) {
+                    eventService.removeShowFromEvent(cachedEventId, existing, mgr);
+                    cachedShows.remove(existing);
+                }
+                show newShow = new show(cachedEventId, sName.trim(),
+                        descField.getValue().trim(), singerField.getValue().trim(), showDate);
+                eventService.addShowToEvent(cachedEventId, newShow, mgr);
+                cachedShows.add(newShow);
+                refresh[0].run();
+                dialog.close();
+            } catch (RuntimeException ex) {
+                Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button cancelBtn = new Button("Cancel", e -> dialog.close());
+        cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        VerticalLayout body = new VerticalLayout(nameField, singerField, descField, datePicker);
+        body.setPadding(true);
+        body.setSpacing(true);
+        body.setWidthFull();
+        dialog.add(body);
+        dialog.getFooter().add(cancelBtn, saveBtn);
+        dialog.open();
+    }
+
+    // ── Edit policies section ─────────────────────────────────────────────────
+
+    private Div buildEditPoliciesSection() {
+        Div section = new Div();
+        section.setWidthFull();
+        section.getStyle()
+                .set("padding", "16px 0")
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "12px");
+
+        if (cachedEventId == null) {
+            Span msg = new Span("No event loaded.");
+            msg.getStyle().set("color", "#888").set("font-size", "14px");
+            section.add(msg);
+            return section;
+        }
+
+        Div listContainer = new Div();
+        listContainer.setWidthFull();
+        listContainer.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "8px");
+
+        Runnable[] refresh = {null};
+        refresh[0] = () -> {
+            listContainer.removeAll();
+            List<Policy> policies;
+            try {
+                policies = policyRepo.findByEventId(cachedEventId);
+            } catch (Exception ex) {
+                Span errSpan = new Span("Could not load policies: " + ex.getMessage());
+                errSpan.getStyle().set("color", "#c62828").set("font-size", "13px");
+                listContainer.add(errSpan);
+                return;
+            }
+            if (policies.isEmpty()) {
+                Span empty = new Span("No policies have been defined for this event yet.");
+                empty.getStyle().set("color", "#888").set("font-size", "14px").set("padding", "8px 0");
+                listContainer.add(empty);
+            } else {
+                for (Policy p : policies)
+                    listContainer.add(buildPolicyRow(p, refresh));
+            }
+        };
+        refresh[0].run();
+
+        Button addBtn = new Button("+ Add Policy", e -> openPolicyDialog(null, refresh));
+        addBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addBtn.getStyle().set("align-self", "flex-start").set("margin-top", "4px");
+
+        section.add(listContainer, addBtn);
+        return section;
+    }
+
+    private Div buildPolicyRow(Policy p, Runnable[] refresh) {
+        Div row = new Div();
+        row.setWidthFull();
+        row.getStyle()
+                .set("background", "#f8faff")
+                .set("border", "1px solid #d0e4ff")
+                .set("border-radius", "10px")
+                .set("padding", "12px 16px")
+                .set("display", "flex")
+                .set("justify-content", "space-between")
+                .set("align-items", "center");
+
+        // Left: type badge + text
+        String[] colors = policyTypeColors(p);
+        Span typeBadge  = badge(policyTypeName(p), colors[0], colors[1]);
+
+        Span descSpan = new Span(p.getDescription() != null ? p.getDescription() : "");
+        descSpan.getStyle().set("font-weight", "600").set("font-size", "14px").set("color", "#111");
+
+        Span summarySpan = new Span(policySummary(p));
+        summarySpan.getStyle()
+                .set("font-size", "12px").set("color", "#666")
+                .set("display", "block").set("margin-top", "2px");
+
+        Div textInfo = new Div(descSpan, summarySpan);
+
+        Div info = new Div();
+        info.getStyle().set("display", "flex").set("align-items", "center").set("gap", "12px");
+        info.add(typeBadge, textInfo);
+
+        // Right: Edit + Remove
+        Button editBtn = new Button("Edit", e -> openPolicyDialog(p, refresh));
+        editBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button removeBtn = new Button("Remove", ev -> {
+            try {
+                policyRepo.deleteByPolicyId(p.getPolicyId());
+                refresh[0].run();
+            } catch (Exception ex) {
+                error("Could not remove: " + ex.getMessage());
+            }
+        });
+        removeBtn.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+
+        Div actions = new Div(editBtn, removeBtn);
+        actions.getStyle().set("display", "flex").set("gap", "4px").set("flex-shrink", "0");
+
+        row.add(info, actions);
+        return row;
+    }
+
+    private void openPolicyDialog(Policy existing, Runnable[] refresh) {
+        boolean isEdit = existing != null;
+        Dialog dialog = new Dialog();
+        dialog.setWidth("520px");
+        dialog.setHeaderTitle(isEdit ? "Edit Policy" : "Add Policy");
+
+        // ── Type selector (locked when editing) ──
+        ComboBox<String> typeBox = new ComboBox<>("Policy Type");
+        typeBox.setItems("Selling", "Purchase", "Percentage Discount", "Coupon Discount");
+        typeBox.setWidthFull();
+        if (isEdit) typeBox.setEnabled(false);
+
+        // ── Selling fields ──
+        ComboBox<SellingType> sellingTypeBox = new ComboBox<>("Selling Type");
+        sellingTypeBox.setItems(SellingType.values());
+        sellingTypeBox.setItemLabelGenerator(t -> capitalize(t.name()));
+        sellingTypeBox.setValue(SellingType.REGULAR);
+        sellingTypeBox.setWidthFull();
+
+        // ── Purchase fields ──
+        IntegerField minAgeField = new IntegerField("Minimum Age");
+        minAgeField.setMin(0);
+        minAgeField.setPlaceholder("Leave empty = no restriction");
+        minAgeField.setWidthFull();
+
+        IntegerField minTicketsField = new IntegerField("Minimum Tickets per Purchase");
+        minTicketsField.setMin(1);
+        minTicketsField.setPlaceholder("Leave empty = no minimum");
+        minTicketsField.setWidthFull();
+
+        IntegerField maxTicketsField = new IntegerField("Maximum Tickets per Purchase");
+        maxTicketsField.setMin(1);
+        maxTicketsField.setPlaceholder("Leave empty = no limit");
+        maxTicketsField.setWidthFull();
+
+        // ── Percentage Discount fields ──
+        NumberField percentageField = new NumberField("Percentage Off (0–100)");
+        percentageField.setMin(0);
+        percentageField.setMax(100);
+        percentageField.setPlaceholder("e.g. 10");
+        percentageField.setWidthFull();
+
+        // ── Coupon Discount fields ──
+        TextField couponCodeField = new TextField("Coupon Code");
+        couponCodeField.setPlaceholder("e.g. SUMMER25");
+        couponCodeField.setWidthFull();
+
+        NumberField couponPctField = new NumberField("Percentage Off (0–100)");
+        couponPctField.setMin(0);
+        couponPctField.setMax(100);
+        couponPctField.setPlaceholder("e.g. 25");
+        couponPctField.setWidthFull();
+
+        DatePicker couponExpiryPicker = new DatePicker("Expiry Date (optional)");
+        couponExpiryPicker.setPlaceholder("Leave empty = never expires");
+        couponExpiryPicker.setWidthFull();
+
+        // ── Pre-fill when editing ──
+        if (isEdit) {
+            if (existing instanceof SellingPolicy sp) {
+                typeBox.setValue("Selling");
+                if (sp.getType() != null) sellingTypeBox.setValue(sp.getType());
+            } else if (existing instanceof PurchasePolicy pp) {
+                typeBox.setValue("Purchase");
+                extractMinAge(pp).ifPresent(minAgeField::setValue);
+                extractMinTickets(pp).ifPresent(minTicketsField::setValue);
+                extractMaxTickets(pp).ifPresent(maxTicketsField::setValue);
+            } else if (existing instanceof DiscountPolicy dp) {
+                if (dp.getRootRule() instanceof CouponDiscountRule cr) {
+                    typeBox.setValue("Coupon Discount");
+                    couponCodeField.setValue(cr.getCouponCode());
+                    couponPctField.setValue(cr.getPercentage());
+                    if (cr.getExpiry() != null)
+                        couponExpiryPicker.setValue(cr.getExpiry().toLocalDate());
+                } else {
+                    typeBox.setValue("Percentage Discount");
+                    if (dp.getRootRule() instanceof PercentageDiscountRule pdr)
+                        percentageField.setValue(pdr.getPercentage());
+                }
+            }
+        }
+
+        // ── Dynamic form area (swaps fields based on type) ──
+        Div formArea = new Div();
+        formArea.setWidthFull();
+        formArea.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "10px")
+                .set("margin-top", "4px");
+
+        Runnable updateForm = () -> {
+            formArea.removeAll();
+            String t = typeBox.getValue();
+            if ("Selling".equals(t)) {
+                formArea.add(sellingTypeBox);
+            } else if ("Purchase".equals(t)) {
+                formArea.add(
+                        editSectionLabel("At least one rule required"),
+                        minAgeField, minTicketsField, maxTicketsField);
+            } else if ("Percentage Discount".equals(t)) {
+                formArea.add(percentageField);
+            } else if ("Coupon Discount".equals(t)) {
+                formArea.add(
+                        editSectionLabel("Coupon details"),
+                        couponCodeField, couponPctField, couponExpiryPicker);
+            }
+        };
+        typeBox.addValueChangeListener(e -> updateForm.run());
+        updateForm.run();
+
+        // ── Save handler ──
+        Button saveBtn = new Button(isEdit ? "Save Changes" : "Add Policy", e -> {
+            String t = typeBox.getValue();
+            if (t == null || t.isBlank()) { error("Please select a policy type"); return; }
+            Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
+            if (companyIdObj == null) { error("No company session — please log in again"); return; }
+            int companyId = Integer.parseInt(companyIdObj.toString());
+            try {
+                if (isEdit) policyRepo.deleteByPolicyId(existing.getPolicyId());
+
+                switch (t) {
+                    case "Selling" -> {
+                        SellingType st = sellingTypeBox.getValue() != null
+                                ? sellingTypeBox.getValue() : SellingType.REGULAR;
+                        policyRepo.savePolicy(new SellingPolicy(
+                                Math.abs(UUID.randomUUID().hashCode()),
+                                st.name() + " selling policy", st, cachedEventId, companyId));
+                    }
+                    case "Purchase" -> {
+                        Integer minAge = minAgeField.getValue();
+                        Integer minTix = minTicketsField.getValue();
+                        Integer maxTix = maxTicketsField.getValue();
+                        if (minAge == null && minTix == null && maxTix == null) {
+                            error("At least one purchase restriction is required"); return;
+                        }
+                        PurchasePolicy pp = new PurchasePolicy(
+                                Math.abs(UUID.randomUUID().hashCode()),
+                                "Purchase restrictions", cachedEventId, companyId);
+                        if (minAge != null && minAge >= 0) pp.addRule(new MinAgeRule(minAge));
+                        if (minTix != null && minTix  > 0) pp.addRule(new MinTicketsRule(minTix));
+                        if (maxTix != null && maxTix  > 0) pp.addRule(new MaxTicketsRule(maxTix));
+                        policyRepo.savePolicy(pp);
+                    }
+                    case "Percentage Discount" -> {
+                        Double pct = percentageField.getValue();
+                        if (pct == null || pct <= 0) { error("Percentage must be greater than 0"); return; }
+                        DiscountPolicy dp = new DiscountPolicy(
+                                Math.abs(UUID.randomUUID().hashCode()),
+                                pct + "% discount", cachedEventId, companyId);
+                        dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
+                        policyRepo.savePolicy(dp);
+                    }
+                    case "Coupon Discount" -> {
+                        String code = couponCodeField.getValue();
+                        if (code == null || code.isBlank()) { error("Coupon code is required"); return; }
+                        Double pct = couponPctField.getValue();
+                        if (pct == null || pct <= 0) { error("Percentage must be greater than 0"); return; }
+                        java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
+                                ? couponExpiryPicker.getValue().atTime(23, 59, 59) : null;
+                        DiscountPolicy dp = new DiscountPolicy(
+                                Math.abs(UUID.randomUUID().hashCode()),
+                                "Coupon: " + code.trim().toUpperCase(), cachedEventId, companyId);
+                        dp.addRule(new CouponDiscountRule(pct, code.trim().toUpperCase(), expiry));
+                        policyRepo.savePolicy(dp);
+                    }
+                }
+
+                refresh[0].run();
+                dialog.close();
+                Notification.show(isEdit ? "Policy updated" : "Policy added",
+                        3000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (RuntimeException ex) {
+                error(ex.getMessage());
+            }
+        });
+        saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveBtn.getStyle().set("background", "#026cdf").set("color", "white").set("font-weight", "700");
+
+        Button cancelBtn = new Button("Cancel", e -> dialog.close());
+        cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        VerticalLayout body = new VerticalLayout(typeBox, formArea);
+        body.setPadding(true);
+        body.setSpacing(false);
+        body.getStyle().set("gap", "8px");
+        body.setWidthFull();
+
+        dialog.add(body);
+        dialog.getFooter().add(cancelBtn, saveBtn);
+        dialog.open();
+    }
+
+    // ── Policy display helpers ────────────────────────────────────────────────
+
+    private static String policyTypeName(Policy p) {
+        if (p instanceof SellingPolicy)  return "SELLING";
+        if (p instanceof PurchasePolicy) return "PURCHASE";
+        if (p instanceof DiscountPolicy dp) {
+            return dp.getRootRule() instanceof CouponDiscountRule ? "COUPON" : "DISCOUNT";
+        }
+        return "POLICY";
+    }
+
+    private static String[] policyTypeColors(Policy p) {
+        if (p instanceof SellingPolicy)  return new String[]{"#e3f2fd", "#026cdf"};
+        if (p instanceof PurchasePolicy) return new String[]{"#e8f5e9", "#2e7d32"};
+        if (p instanceof DiscountPolicy dp) {
+            return dp.getRootRule() instanceof CouponDiscountRule
+                    ? new String[]{"#f3e5f5", "#6a1b9a"}   // purple for coupon
+                    : new String[]{"#fff3e0", "#e65100"};   // orange for percentage
+        }
+        return new String[]{"#f5f5f5", "#555"};
+    }
+
+    private static String policySummary(Policy p) {
+        if (p instanceof SellingPolicy sp)
+            return "Selling type: " + (sp.getType() != null ? capitalize(sp.getType().name()) : "—");
+        if (p instanceof PurchasePolicy pp)
+            return summarizePurchaseRule(pp.getRootRule());
+        if (p instanceof DiscountPolicy dp) {
+            if (dp.getRootRule() instanceof CouponDiscountRule r) {
+                String base = r.getPercentage() + "% off — code: \"" + r.getCouponCode() + "\"";
+                return r.getExpiry() != null
+                        ? base + "  (expires " + r.getExpiry().toLocalDate() + ")"
+                        : base;
+            }
+            if (dp.getRootRule() instanceof PercentageDiscountRule r)
+                return r.getPercentage() + "% off";
+            return dp.getRootRule() != null ? dp.getRootRule().describe() : "No rules";
+        }
+        return p.getDescription() != null ? p.getDescription() : "";
+    }
+
+    private static String summarizePurchaseRule(PurchaseRule rule) {
+        if (rule == null)                     return "No restrictions";
+        if (rule instanceof MinAgeRule r)     return "Min age: " + r.getMinimumAge();
+        if (rule instanceof MinTicketsRule r) return "Min tickets: " + r.getMinTickets();
+        if (rule instanceof MaxTicketsRule r) return "Max tickets: " + r.getMaxTickets();
+        if (rule instanceof CompositePurchaseRule c)
+            return c.getRules().stream()
+                    .map(EventDetailsView::summarizePurchaseRule)
+                    .collect(java.util.stream.Collectors.joining("  •  "));
+        return rule.describe();
+    }
+
+    private static Optional<Integer> extractMinAge(PurchasePolicy pp) {
+        return extractPurchaseRule(pp.getRootRule(), MinAgeRule.class).map(MinAgeRule::getMinimumAge);
+    }
+
+    private static Optional<Integer> extractMinTickets(PurchasePolicy pp) {
+        return extractPurchaseRule(pp.getRootRule(), MinTicketsRule.class).map(MinTicketsRule::getMinTickets);
+    }
+
+    private static Optional<Integer> extractMaxTickets(PurchasePolicy pp) {
+        return extractPurchaseRule(pp.getRootRule(), MaxTicketsRule.class).map(MaxTicketsRule::getMaxTickets);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends PurchaseRule> Optional<T> extractPurchaseRule(PurchaseRule root, Class<T> type) {
+        if (root == null) return Optional.empty();
+        if (type.isInstance(root)) return Optional.of((T) root);
+        if (root instanceof CompositePurchaseRule c) {
+            for (PurchaseRule r : c.getRules()) {
+                Optional<T> found = extractPurchaseRule(r, type);
+                if (found.isPresent()) return found;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Span editSectionLabel(String text) {
+        Span s = new Span(text);
+        s.getStyle()
+                .set("font-weight", "700").set("font-size", "12px").set("color", "#026cdf")
+                .set("text-transform", "uppercase").set("letter-spacing", "0.05em")
+                .set("margin-top", "4px");
+        return s;
+    }
+
+    private static void error(String msg) {
+        Notification.show(msg, 3000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 
     // ── Shows card ───────────────────────────────────────────────────────────
@@ -361,7 +1076,7 @@ public class EventDetailsView extends VerticalLayout {
                     new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-10"),
                     new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-12"),
                     1L);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {} 
         return ev;
     }
 
@@ -469,11 +1184,10 @@ public class EventDetailsView extends VerticalLayout {
         return wrapper;
     }
 
-    // ── Seat selection dialog flow ────────────────────────────────────────────
+    // ── Seat / ticket selection dialog (multi-ticket + cart) ─────────────────
 
     private void openSeatDialog(show s) {
         List<AreaInfo> areas;
-
         if (cachedEventId != null && s.getShowid() != null) {
             try {
                 show full = eventService.loadShowFully(cachedEventId, s.getShowid());
@@ -487,122 +1201,275 @@ public class EventDetailsView extends VerticalLayout {
                 return;
             }
         } else {
-            areas = mockAreaInfoList(); // demo mode
+            areas = mockAreaInfoList();
         }
 
+        // ── Shared cart state ──
+        List<CartEntry>  cart            = new ArrayList<>();
+        Set<Long>        selectedSeatIds = new LinkedHashSet<>();
+        Runnable[]       cartRefresh     = {null};
+
         Dialog dialog = new Dialog();
-        dialog.setWidth("720px");
-        dialog.setHeaderTitle("Select Your Seat — " + nullSafe(s.getName()));
+        dialog.setWidth("980px");
+        dialog.setMaxHeight("92vh");
+        dialog.setHeaderTitle("Select Tickets — " + nullSafe(s.getName()));
 
+        // Left: wizard; Right: cart panel
         Div stepContent = new Div();
-        stepContent.setWidthFull();
-        stepContent.getStyle().set("min-height", "260px");
+        stepContent.getStyle()
+                .set("flex", "1").set("min-height", "320px").set("overflow-y", "auto");
 
-        VerticalLayout body = new VerticalLayout(stepContent);
-        body.setPadding(true);
-        body.setSpacing(false);
-        dialog.add(body);
+        Div cartPanel = buildCartPanel(cart, selectedSeatIds, s, dialog, cartRefresh);
 
+        Div bodyRow = new Div(stepContent, cartPanel);
+        bodyRow.getStyle()
+                .set("display", "flex").set("gap", "20px")
+                .set("align-items", "flex-start")
+                .set("padding", "8px 16px 16px 16px")
+                .set("width", "100%").set("box-sizing", "border-box");
+
+        dialog.add(bodyRow);
         Button closeBtn = new Button("Close", e -> dialog.close());
         closeBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         dialog.getFooter().add(closeBtn);
 
-        showAreaStep(dialog, stepContent, areas, s);
+        showAreaStep(dialog, stepContent, areas, s, cart, selectedSeatIds, cartRefresh);
         dialog.open();
     }
 
-    private void showAreaStep(Dialog dialog, Div stepContent, List<AreaInfo> areas, show s) {
-        // Skip area step when only one seated area
-        if (areas.size() == 1 && areas.get(0).isSeated()) {
-            showBlockStep(dialog, stepContent, areas.get(0), areas, s);
+    // ── Cart panel ────────────────────────────────────────────────────────────
+
+    private Div buildCartPanel(List<CartEntry> cart, Set<Long> selectedSeatIds,
+                               show s, Dialog parentDialog, Runnable[] cartRefreshRef) {
+        Div panel = new Div();
+        panel.getStyle()
+                .set("width", "290px").set("flex-shrink", "0")
+                .set("background", "#f8faff").set("border", "1px solid #d0e4ff")
+                .set("border-radius", "12px").set("padding", "16px")
+                .set("display", "flex").set("flex-direction", "column")
+                .set("gap", "8px").set("align-self", "stretch");
+
+        Span title = new Span("🛒  Cart");
+        title.getStyle().set("font-weight", "700").set("font-size", "15px").set("color", "#111");
+
+        Div itemList = new Div();
+        itemList.getStyle().set("display", "flex").set("flex-direction", "column")
+                .set("gap", "6px").set("flex", "1").set("min-height", "80px");
+
+        Div divider = new Div();
+        divider.getStyle().set("border-top", "1px solid #d0e4ff").set("margin", "4px 0");
+
+        Span totalSpan = new Span("Total: $0.00");
+        totalSpan.getStyle().set("font-weight", "700").set("font-size", "14px").set("color", "#111");
+
+        Button checkoutBtn = new Button("Proceed to Checkout →", e -> {
+            if (cart.isEmpty()) { error("Add at least one ticket first"); return; }
+            if (cachedUserId == null) {
+                Notification.show("Please log in to checkout",
+                        3000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                return;
+            }
+            List<String> ticketIds = new ArrayList<>();
+            List<java.util.Map<String, String>> checkoutItems = new ArrayList<>();
+            try {
+                for (CartEntry entry : cart) {
+                    java.util.Map<String, String> item = new java.util.LinkedHashMap<>();
+                    item.put("description", entry.description());
+                    item.put("unitPrice",   entry.unitPrice().toPlainString());
+                    item.put("quantity",    String.valueOf(entry.quantity()));
+                    checkoutItems.add(item);
+                    if (entry.isSeated()) {
+                        ticket t = eventService.reserveSeat(
+                                cachedEventId, s.getShowid(), entry.areaId(), entry.seatId(), cachedUserId);
+                        ticketIds.add(t.getTicketId().toString());
+                    } else {
+                        for (int i = 0; i < entry.quantity(); i++) {
+                            ticket t = eventService.reserveStanding(
+                                    cachedEventId, s.getShowid(), entry.areaId(), cachedUserId);
+                            ticketIds.add(t.getTicketId().toString());
+                        }
+                    }
+                }
+                var session = UI.getCurrent().getSession();
+                session.setAttribute("checkoutTicketIds", ticketIds);
+                session.setAttribute("checkoutItems",     checkoutItems);
+                session.setAttribute("checkoutUserId",    cachedUserId.toString());
+                session.setAttribute("checkoutShowName",  nullSafe(s.getName()));
+                session.setAttribute("checkoutEventId",   cachedEventId != null ? cachedEventId.toString() : "");
+                parentDialog.close();
+                UI.getCurrent().navigate("checkout");
+            } catch (RuntimeException ex) {
+                error("Reservation failed: " + ex.getMessage());
+            }
+        });
+        checkoutBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        checkoutBtn.getStyle()
+                .set("background", "#026cdf").set("color", "white")
+                .set("font-weight", "700").set("margin-top", "4px");
+        checkoutBtn.setEnabled(false);
+        checkoutBtn.setWidthFull();
+
+        cartRefreshRef[0] = () -> {
+            itemList.removeAll();
+            if (cart.isEmpty()) {
+                Span empty = new Span("No tickets selected yet.");
+                empty.getStyle().set("color", "#aaa").set("font-size", "13px").set("padding", "8px 0");
+                itemList.add(empty);
+                totalSpan.setText("Total: $0.00");
+                checkoutBtn.setEnabled(false);
+            } else {
+                java.math.BigDecimal total = java.math.BigDecimal.ZERO;
+                for (CartEntry entry : cart) {
+                    itemList.add(buildCartRow(entry, cart, selectedSeatIds, cartRefreshRef));
+                    total = total.add(entry.total());
+                }
+                totalSpan.setText("Total: $" + total.setScale(2, java.math.RoundingMode.HALF_UP));
+                checkoutBtn.setEnabled(true);
+            }
+        };
+        cartRefreshRef[0].run();
+
+        panel.add(title, itemList, divider, totalSpan, checkoutBtn);
+        return panel;
+    }
+
+    private Div buildCartRow(CartEntry entry, List<CartEntry> cart,
+                             Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
+        Div row = new Div();
+        row.getStyle()
+                .set("background", "white").set("border-radius", "8px")
+                .set("padding", "8px 10px").set("font-size", "13px")
+                .set("display", "flex").set("justify-content", "space-between")
+                .set("align-items", "flex-start").set("gap", "6px");
+
+        Div info = new Div();
+        Span desc = new Span(entry.description());
+        desc.getStyle().set("font-weight", "600").set("display", "block").set("color", "#111");
+        String priceText = "$" + entry.unitPrice().toPlainString()
+                + (entry.quantity() > 1
+                        ? " × " + entry.quantity() + " = $"
+                          + entry.total().setScale(2, java.math.RoundingMode.HALF_UP)
+                        : "");
+        Span price = new Span(priceText);
+        price.getStyle().set("font-size", "12px").set("color", "#666");
+        info.add(desc, price);
+
+        Button removeBtn = new Button("✕", e -> {
+            if (entry.isSeated() && entry.seatId() != null)
+                selectedSeatIds.remove(entry.seatId());
+            cart.remove(entry);
+            cartRefresh[0].run();
+        });
+        removeBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
+        removeBtn.getStyle().set("min-width", "0").set("padding", "0 6px");
+
+        row.add(info, removeBtn);
+        return row;
+    }
+
+    // ── Wizard steps ──────────────────────────────────────────────────────────
+
+    private void showAreaStep(Dialog dialog, Div stepContent, List<AreaInfo> areas, show s,
+                              List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
+        stepContent.removeAll();
+        if (areas.isEmpty()) {
+            Div msg = new Div();
+            msg.getStyle().set("padding", "24px 0").set("color", "#888")
+                    .set("font-size", "14px").set("text-align", "center");
+            msg.add(new Span("No areas have been configured for this show yet."));
+            stepContent.add(msg);
             return;
         }
-
-        stepContent.removeAll();
-        Span label = stepLabel("Choose an Area");
-        stepContent.add(label);
-
+        if (areas.size() == 1 && areas.get(0).isSeated()) {
+            showBlockStep(dialog, stepContent, areas.get(0), areas, s, cart, selectedSeatIds, cartRefresh);
+            return;
+        }
+        stepContent.add(stepLabel("Choose an Area"));
         Div grid = new Div();
         grid.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "10px");
-
         for (AreaInfo ai : areas) {
             if (ai.isSeated()) {
                 Button btn = new Button(ai.name() + " (Seated)",
-                        e -> showBlockStep(dialog, stepContent, ai, areas, s));
+                        e -> showBlockStep(dialog, stepContent, ai, areas, s, cart, selectedSeatIds, cartRefresh));
                 btn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
                 btn.setWidthFull();
                 grid.add(btn);
             } else {
-                grid.add(buildStandingAreaCard(ai, s, dialog));
+                grid.add(buildStandingAreaCard(ai, cart, cartRefresh));
             }
         }
         stepContent.add(grid);
     }
 
     private void showBlockStep(Dialog dialog, Div stepContent,
-                               AreaInfo area, List<AreaInfo> areas, show s) {
+                               AreaInfo area, List<AreaInfo> areas, show s,
+                               List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
         stepContent.removeAll();
-
-        if (areas.size() > 1) {
+        if (areas.size() > 1)
             stepContent.add(backBtn("← Areas",
-                    () -> showAreaStep(dialog, stepContent, areas, s)));
-        }
+                    () -> showAreaStep(dialog, stepContent, areas, s, cart, selectedSeatIds, cartRefresh)));
         stepContent.add(stepLabel(area.name() + " — Select a Block"));
 
         Div grid = new Div();
-        grid.getStyle()
-            .set("display", "grid")
-            .set("grid-template-columns", "repeat(auto-fill, minmax(150px, 1fr))")
-            .set("gap", "12px");
+        grid.getStyle().set("display", "grid")
+                .set("grid-template-columns", "repeat(auto-fill, minmax(140px, 1fr))").set("gap", "12px");
 
         for (int i = 0; i < area.blocks().size(); i++) {
             BlockData block = area.blocks().get(i);
             String color = BLOCK_COLORS[i % BLOCK_COLORS.length];
-
-            long total = block.rows().stream().mapToLong(r -> r.seats().size()).sum();
-            long avail = block.rows().stream()
-                .flatMap(r -> r.seats().stream()).filter(SeatData::available).count();
+            long total    = block.rows().stream().mapToLong(r -> r.seats().size()).sum();
+            long avail    = block.rows().stream().flatMap(r -> r.seats().stream())
+                                  .filter(SeatData::available).count();
+            long selected = block.rows().stream().flatMap(r -> r.seats().stream())
+                                  .filter(sd -> selectedSeatIds.contains(sd.id())).count();
 
             Div card = new Div();
-            card.getStyle()
-                .set("background", color).set("color", "white")
-                .set("border-radius", "12px").set("padding", "20px 12px")
-                .set("text-align", "center").set("cursor", "pointer")
-                .set("font-weight", "700").set("font-size", "16px").set("user-select", "none");
-
-            Span nameSpan = new Span("Block " + block.label());
-            Span availSpan = new Span(avail + "/" + total + " seats");
-            availSpan.getStyle().set("font-size", "12px").set("opacity", "0.85")
-                .set("display", "block").set("margin-top", "4px").set("font-weight", "400");
+            card.getStyle().set("background", color).set("color", "white")
+                    .set("border-radius", "12px").set("padding", "18px 10px")
+                    .set("text-align", "center").set("cursor", "pointer")
+                    .set("font-weight", "700").set("font-size", "15px").set("user-select", "none");
+            Span nameSpan  = new Span("Block " + block.label());
+            Span availSpan = new Span(avail + "/" + total + " avail");
+            availSpan.getStyle().set("font-size", "11px").set("opacity", "0.85")
+                    .set("display", "block").set("margin-top", "4px").set("font-weight", "400");
             card.add(nameSpan, availSpan);
-
+            if (selected > 0) {
+                Span selSpan = new Span("✓ " + selected + " in cart");
+                selSpan.getStyle().set("font-size", "10px").set("display", "block")
+                        .set("margin-top", "2px").set("color", "#ffe082");
+                card.add(selSpan);
+            }
             final BlockData b = block;
             card.addClickListener(e ->
-                showRowStep(dialog, stepContent, area, b, areas, s));
+                    showRowStep(dialog, stepContent, area, b, areas, s, cart, selectedSeatIds, cartRefresh));
             grid.add(card);
         }
         stepContent.add(grid);
     }
 
     private void showRowStep(Dialog dialog, Div stepContent,
-                             AreaInfo area, BlockData block, List<AreaInfo> areas, show s) {
+                             AreaInfo area, BlockData block, List<AreaInfo> areas, show s,
+                             List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
         stepContent.removeAll();
         stepContent.add(backBtn("← Blocks",
-                () -> showBlockStep(dialog, stepContent, area, areas, s)));
+                () -> showBlockStep(dialog, stepContent, area, areas, s, cart, selectedSeatIds, cartRefresh)));
         stepContent.add(stepLabel("Block " + block.label() + " — Select a Row"));
 
         Div rowFlex = new Div();
-        rowFlex.getStyle()
-            .set("display", "flex").set("flex-wrap", "wrap").set("gap", "8px").set("margin-top", "8px");
-
+        rowFlex.getStyle().set("display", "flex").set("flex-wrap", "wrap")
+                .set("gap", "8px").set("margin-top", "8px");
         for (RowData row : block.rows()) {
-            long avail = row.seats().stream().filter(SeatData::available).count();
-            Button btn = new Button("Row " + row.label() + "  (" + avail + " free)");
-            if (avail > 0) {
+            long avail    = row.seats().stream().filter(SeatData::available).count();
+            long selected = row.seats().stream().filter(sd -> selectedSeatIds.contains(sd.id())).count();
+            String lbl = "Row " + row.label() + "  (" + avail + " free"
+                    + (selected > 0 ? ", ✓ " + selected : "") + ")";
+            Button btn = new Button(lbl);
+            if (avail > 0 || selected > 0) {
                 btn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
                 final RowData r = row;
                 btn.addClickListener(e ->
-                    showSeatStep(dialog, stepContent, area, block, r, areas, s));
+                        showSeatStep(dialog, stepContent, area, block, r, areas, s, cart, selectedSeatIds, cartRefresh));
             } else {
                 btn.addThemeVariants(ButtonVariant.LUMO_ERROR);
                 btn.setEnabled(false);
@@ -613,143 +1480,131 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private void showSeatStep(Dialog dialog, Div stepContent,
-                              AreaInfo area, BlockData block, RowData row,
-                              List<AreaInfo> areas, show s) {
+                              AreaInfo area, BlockData block, RowData row, List<AreaInfo> areas, show s,
+                              List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
         stepContent.removeAll();
         stepContent.add(backBtn("← Rows",
-                () -> showRowStep(dialog, stepContent, area, block, areas, s)));
-        stepContent.add(stepLabel(
-                "Block " + block.label() + " › Row " + row.label() + " — Select a Seat"));
+                () -> showRowStep(dialog, stepContent, area, block, areas, s, cart, selectedSeatIds, cartRefresh)));
+        stepContent.add(stepLabel("Block " + block.label() + " › Row " + row.label()
+                + " — Click to select / deselect"));
 
-        // Legend
         Div legend = new Div();
-        legend.getStyle()
-            .set("display", "flex").set("gap", "16px")
-            .set("margin", "6px 0 14px 0").set("font-size", "13px").set("align-items", "center");
+        legend.getStyle().set("display", "flex").set("gap", "16px")
+                .set("margin", "6px 0 14px 0").set("font-size", "13px").set("align-items", "center");
         legend.add(legendDot("#4caf50", "Available"), legendDot("#ef5350", "Taken"),
                    legendDot("#026cdf", "Selected"));
         stepContent.add(legend);
 
-        Set<Div> availCircles = new LinkedHashSet<>();
         Div seatFlex = new Div();
         seatFlex.getStyle().set("display", "flex").set("flex-wrap", "wrap").set("gap", "8px");
 
         for (SeatData seat : row.seats()) {
+            boolean isSelected = selectedSeatIds.contains(seat.id());
+            String  bg = !seat.available() ? "#ef5350" : isSelected ? "#026cdf" : "#4caf50";
+
             Div circle = new Div();
             circle.getStyle()
-                .set("width", "44px").set("height", "44px")
-                .set("border-radius", "50%").set("display", "flex")
-                .set("align-items", "center").set("justify-content", "center")
-                .set("font-size", "12px").set("font-weight", "700").set("color", "white")
-                .set("background", seat.available() ? "#4caf50" : "#ef5350")
-                .set("cursor", seat.available() ? "pointer" : "default")
-                .set("user-select", "none");
+                    .set("width", "44px").set("height", "44px").set("border-radius", "50%")
+                    .set("display", "flex").set("align-items", "center").set("justify-content", "center")
+                    .set("font-size", "12px").set("font-weight", "700").set("color", "white")
+                    .set("background", bg)
+                    .set("cursor", seat.available() ? "pointer" : "default")
+                    .set("user-select", "none").set("transition", "background 0.15s");
             circle.add(new Span(seat.label()));
 
             if (seat.available()) {
-                availCircles.add(circle);
-                final SeatData chosen = seat;
-                circle.addClickListener(e -> {
-                    availCircles.forEach(c ->
-                        c.getStyle().set("background", "#4caf50").remove("transform"));
-                    circle.getStyle().set("background", "#026cdf").set("transform", "scale(1.15)");
-                    openSummaryDialog(area, block, row, chosen, s, dialog);
-                });
-            }
+    circle.addClickListener(e -> {
+        e.getSource().getElement().executeJs("event.stopPropagation();");
+
+        if (selectedSeatIds.contains(seat.id())) {
+            selectedSeatIds.remove(seat.id());
+
+            cart.removeIf(en ->
+        en.isSeated()
+                && en.seatId() != null
+                && en.seatId().equals(seat.id())
+);
+
+            circle.getStyle().set("background", "#4caf50");
+        } else {
+            selectedSeatIds.add(seat.id());
+
+            String desc = "Seated — Block " + block.label()
+                    + ", Row " + row.label()
+                    + ", Seat " + seat.label();
+
+            cart.add(new CartEntry(
+                    desc,
+                    new java.math.BigDecimal("50.00"),
+                    1,
+                    true,
+                    area.id(),
+                    seat.id()
+            ));
+
+            circle.getStyle().set("background", "#026cdf");
+        }
+
+        if (cartRefresh[0] != null) {
+            cartRefresh[0].run();
+        }
+    });
+}
             seatFlex.add(circle);
         }
         stepContent.add(seatFlex);
     }
 
-    private void openSummaryDialog(AreaInfo area, BlockData block, RowData row,
-                                   SeatData seat, show s, Dialog parentDialog) {
-        Dialog summary = new Dialog();
-        summary.setWidth("420px");
-        summary.setHeaderTitle("Confirm Reservation");
-
-        VerticalLayout body = new VerticalLayout();
-        body.setPadding(false);
-        body.setSpacing(false);
-        body.getStyle().set("gap", "6px");
-        body.add(
-            dialogRow("Show",  nullSafe(s.getName())),
-            dialogRow("Area",  area.name()),
-            dialogRow("Block", "Block " + block.label()),
-            dialogRow("Row",   "Row " + row.label()),
-            dialogRow("Seat",  seat.label()),
-            dialogRow("Price", "$50.00")
-        );
-        summary.add(body);
-
-        Button reserveBtn = new Button("Reserve Ticket", e -> {
-            UUID showId = s.getShowid();
-            if (cachedEventId == null || showId == null || cachedUserId == null) {
-                Notification.show("Please log in to reserve a ticket",
-                        3000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-                return;
-            }
-            try {
-                ticket t = eventService.reserveSeat(cachedEventId, showId,
-                        area.id(), seat.id(), cachedUserId);
-                summary.close();
-                parentDialog.close();
-                Notification.show("Ticket reserved! ID: " + t.getTicketId().toString().substring(0, 8),
-                        4000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            } catch (RuntimeException ex) {
-                Notification.show(ex.getMessage(), 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-        reserveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        Button backBtn = new Button("← Back", e -> summary.close());
-        backBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        summary.getFooter().add(backBtn, reserveBtn);
-        summary.open();
-    }
-
-    private Div buildStandingAreaCard(AreaInfo ai, show s, Dialog parentDialog) {
+    private Div buildStandingAreaCard(AreaInfo ai, List<CartEntry> cart, Runnable[] cartRefresh) {
         Div card = new Div();
         card.getStyle()
-            .set("background", "#f0f4ff").set("border-radius", "10px")
-            .set("padding", "16px 20px").set("display", "flex")
-            .set("justify-content", "space-between").set("align-items", "center");
+                .set("background", "#f0f4ff").set("border-radius", "10px")
+                .set("padding", "14px 18px").set("display", "flex")
+                .set("justify-content", "space-between").set("align-items", "center").set("gap", "12px");
 
         Div info = new Div();
         Span name = new Span(ai.name());
-        name.getStyle().set("font-weight", "700").set("font-size", "15px");
+        name.getStyle().set("font-weight", "700").set("font-size", "14px");
         boolean hasSpots = ai.standingAvail() > 0;
-        Span cap = new Span(ai.standingAvail() + " / " + ai.standingMax() + " spots — $30.00");
-        cap.getStyle().set("font-size", "13px")
-            .set("color", hasSpots ? "#2e7d32" : "#c62828")
-            .set("display", "block");
+        int maxQty = Math.max(1, Math.min(ai.standingAvail(), 20));
+        Span cap = new Span(ai.standingAvail() + " / " + ai.standingMax() + " spots — $30.00 each");
+        cap.getStyle().set("font-size", "12px").set("color", hasSpots ? "#2e7d32" : "#c62828")
+                .set("display", "block");
         info.add(name, cap);
 
-        Button btn = new Button("Reserve", e -> {
-            UUID showId = s.getShowid();
-            if (cachedEventId == null || showId == null || cachedUserId == null) {
-                Notification.show("Please log in to reserve a ticket",
-                        3000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-                return;
-            }
-            try {
-                ticket t = eventService.reserveStanding(cachedEventId, showId, ai.id(), cachedUserId);
-                parentDialog.close();
-                Notification.show("Standing ticket reserved! ID: " + t.getTicketId().toString().substring(0, 8),
-                        4000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            } catch (RuntimeException ex) {
-                Notification.show(ex.getMessage(), 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-        btn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        btn.setEnabled(hasSpots);
+        Div controls = new Div();
+        controls.getStyle().set("display", "flex").set("align-items", "center").set("gap", "8px");
 
-        card.add(info, btn);
+        IntegerField qtyField = new IntegerField();
+        qtyField.setMin(1);
+        qtyField.setMax(maxQty);
+        qtyField.setValue(1);
+        qtyField.setStepButtonsVisible(true);
+        qtyField.setWidth("96px");
+        qtyField.setEnabled(hasSpots);
+
+        Button addBtn = new Button("Add to Cart", e -> {
+            int qty = qtyField.getValue() != null ? qtyField.getValue() : 1;
+            boolean merged = false;
+            for (int i = 0; i < cart.size(); i++) {
+                CartEntry ex = cart.get(i);
+                if (!ex.isSeated() && ai.id().equals(ex.areaId())) {
+                    cart.set(i, new CartEntry(ex.description(), ex.unitPrice(),
+                            ex.quantity() + qty, false, ex.areaId(), null));
+                    merged = true;
+                    break;
+                }
+            }
+            if (!merged)
+                cart.add(new CartEntry(ai.name() + " (Standing)",
+                        new java.math.BigDecimal("30.00"), qty, false, ai.id(), null));
+            cartRefresh[0].run();
+        });
+        addBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addBtn.setEnabled(hasSpots);
+        controls.add(qtyField, addBtn);
+
+        card.add(info, controls);
         return card;
     }
 
