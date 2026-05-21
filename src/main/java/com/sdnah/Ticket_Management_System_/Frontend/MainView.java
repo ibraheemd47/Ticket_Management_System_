@@ -31,10 +31,11 @@ import com.vaadin.flow.router.Route;
 public class MainView extends VerticalLayout {
         private final EventService eventService;
         private final NotificationService notificationService;
-        private final IrepresnteUserService userService;
+        //private final IrepresnteUserService userService;
+        private final UserService userService;
 
         public MainView(EventService eventService, NotificationService notificationService,
-                        IrepresnteUserService userService) {
+                        UserService userService) {
                 this.eventService = eventService;
                 this.notificationService = notificationService;
                 this.userService = userService;
@@ -142,7 +143,7 @@ public class MainView extends VerticalLayout {
     
     // 2. Call your backend UserService logout function
     if (currentToken != null) {
-        ((UserService) userService).logout(currentToken); 
+        userService.logout(currentToken); 
         // Note: If your logout function takes a username instead of a token, 
         // pass the username here!
     }
@@ -193,7 +194,8 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
 
         eventGrid.setAllRowsVisible(true);
         eventGrid.getStyle().set("border-radius", "0 0 8px 8px");
-
+        container.add(headerContainer, eventGrid);
+        add(container);
                 // 3. Custom styled buttons for the blue background
                 HorizontalLayout authButtons = new HorizontalLayout();
         }
