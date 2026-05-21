@@ -15,11 +15,21 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import static com.vaadin.flow.data.binder.Result.error;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 
 @Route("company-create")
 
-public class CompanyCreationView extends VerticalLayout {
+public class CompanyCreationView extends VerticalLayout implements BeforeEnterObserver {
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (UI.getCurrent().getSession().getAttribute("token") == null) {
+            event.forwardTo(LoginView.class);
+        }
+    }
+
     private final company_managment_serivce companyService;
 
     public CompanyCreationView(company_managment_serivce companyService) {

@@ -58,11 +58,14 @@ public class MainView extends VerticalLayout {
     }
 
     /**
-     * Quick links to the three role-specific views. For now they're always
-     * visible so the team can click through during development; gate them on
-     * the user's role once auth + role wiring lands.
+     * Quick links to the role-specific views. Only rendered when the user is
+     * logged in — anonymous visitors have no reason to see these.
      */
     private void setupQuickAccessBar() {
+        if (UI.getCurrent().getSession().getAttribute("token") == null) {
+            return; // hide the entire bar for anonymous visitors
+        }
+
         HorizontalLayout bar = new HorizontalLayout();
         bar.setWidthFull();
         bar.setPadding(false);
