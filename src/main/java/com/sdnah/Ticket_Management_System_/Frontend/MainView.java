@@ -29,25 +29,25 @@ import com.vaadin.flow.router.Route;
 
 @Route("main") // Landing page
 public class MainView extends VerticalLayout {
-        private final EventService eventService;
-        private final NotificationService notificationService;
-        //private final IrepresnteUserService userService;
-        private final UserService userService;
+    private final EventService eventService;
+    private final NotificationService notificationService;
+    // private final IrepresnteUserService userService;
+    private final UserService userService;
 
-        public MainView(EventService eventService, NotificationService notificationService,
-                        UserService userService) {
-                this.eventService = eventService;
-                this.notificationService = notificationService;
-                this.userService = userService;
+    public MainView(EventService eventService, NotificationService notificationService,
+            UserService userService) {
+        this.eventService = eventService;
+        this.notificationService = notificationService;
+        this.userService = userService;
 
-                // 1. Match the overall page background and spacing from ProfileView
-                setSizeFull();
-                setPadding(false);
-                setSpacing(false);
+        // 1. Match the overall page background and spacing from ProfileView
+        setSizeFull();
+        setPadding(false);
+        setSpacing(false);
 
-                getStyle()
-                                .set("background", "#f4f4f4")
-                                .set("font-family", "Arial, sans-serif");
+        getStyle()
+                .set("background", "#f4f4f4")
+                .set("font-family", "Arial, sans-serif");
 
         setupHeader();
         setupQuickAccessBar(); // links to /queue, /manager/order, /company
@@ -77,9 +77,9 @@ public class MainView extends VerticalLayout {
                 .set("border-bottom", "1px solid #cdd9ec");
 
         bar.add(
-                quickLink("⏳  Waiting queue",     "queue"),
-                quickLink("📋  Manage an order",    "manager/order"),
-                quickLink("🏢  Manage company",     "company"),
+                quickLink("⏳  Waiting queue", "queue"),
+                quickLink("📋  Manage an order", "manager/order"),
+                quickLink("🏢  Manage company", "company"),
                 quickLink("Create New Company", "company-create"));
         add(bar);
     }
@@ -99,7 +99,7 @@ public class MainView extends VerticalLayout {
 
     private void setupHeader() {
         HorizontalLayout header = new HorizontalLayout();
-        
+
         header.getStyle()
                 .set("background", "#026cdf")
                 .set("padding", "20px 52px")
@@ -117,8 +117,8 @@ public class MainView extends VerticalLayout {
                 .set("cursor", "pointer");
         logo.addClickListener(e -> UI.getCurrent().navigate(MainView.class));
 
-       HorizontalLayout searchBarLayout = setupSearchBar();
-    searchBarLayout.getStyle().set("margin", "0 40px");
+        HorizontalLayout searchBarLayout = setupSearchBar();
+        searchBarLayout.getStyle().set("margin", "0 40px");
 
         HorizontalLayout authButtons = new HorizontalLayout();
 
@@ -139,34 +139,51 @@ public class MainView extends VerticalLayout {
             Button profileBtn = new Button("My Profile", e -> UI.getCurrent().navigate("profile"));
             profileBtn.getStyle().set("background", "white").set("color", "#026cdf")
                     .set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
-            
-           Button logoutBtn = new Button("Logout", e -> {
-    // 1. Get the current token from the session
-    String currentToken = (String) UI.getCurrent().getSession().getAttribute("token");
-    
-    // 2. Call your backend UserService logout function
-    if (currentToken != null) {
-        userService.logout(currentToken); 
-        // Note: If your logout function takes a username instead of a token, 
-        // pass the username here!
-    }
 
-    // 3. Clear the session attribute so the UI knows the user is logged out
-    UI.getCurrent().getSession().setAttribute("token", null);
+            String currentToken = (String) UI.getCurrent().getSession().getAttribute("token");
 
-    // 4. THE FIX: Reload the page to refresh the header buttons
-    UI.getCurrent().getPage().reload(); 
-});
+            // Admin button - only for system admins
+            if (currentToken != null && userService.isSystemAdmin(currentToken)) {
+                Button adminBtn = new Button("Admin Dashboard",
+                        e -> UI.getCurrent().navigate("admin"));
 
-logoutBtn.getStyle().set("background", "transparent").set("color", "white")
-        .set("border", "2px solid white").set("font-weight", "700")
-        .set("border-radius", "8px").set("cursor", "pointer");
+                adminBtn.getStyle()
+                        .set("background", "#111827")
+                        .set("color", "white")
+                        .set("font-weight", "700")
+                        .set("border-radius", "8px")
+                        .set("cursor", "pointer");
+
+                authButtons.add(adminBtn);
+            }
+
+            Button logoutBtn = new Button("Logout", e -> {
+                // 1. Get the current token from the session
+               // String currentToken = (String) UI.getCurrent().getSession().getAttribute("token");
+
+                // 2. Call your backend UserService logout function
+                if (currentToken != null) {
+                    userService.logout(currentToken);
+                    // Note: If your logout function takes a username instead of a token,
+                    // pass the username here!
+                }
+
+                // 3. Clear the session attribute so the UI knows the user is logged out
+                UI.getCurrent().getSession().setAttribute("token", null);
+
+                // 4. THE FIX: Reload the page to refresh the header buttons
+                UI.getCurrent().getPage().reload();
+            });
+
+            logoutBtn.getStyle().set("background", "transparent").set("color", "white")
+                    .set("border", "2px solid white").set("font-weight", "700")
+                    .set("border-radius", "8px").set("cursor", "pointer");
 
             authButtons.add(profileBtn, logoutBtn);
         }
-        
+
         header.add(logo, searchBarLayout, authButtons);
-        header.expand(searchBarLayout ); 
+        header.expand(searchBarLayout);
         add(header);
     }
 
@@ -193,15 +210,16 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
         try {
             List<Event> events = eventService.getAllEvents();
             eventGrid.setItems(events);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         eventGrid.setAllRowsVisible(true);
         eventGrid.getStyle().set("border-radius", "0 0 8px 8px");
         container.add(headerContainer, eventGrid);
         add(container);
-                // 3. Custom styled buttons for the blue background
-                HorizontalLayout authButtons = new HorizontalLayout();
-        }
+        // 3. Custom styled buttons for the blue background
+        HorizontalLayout authButtons = new HorizontalLayout();
+    }
 
     private void setupCompanySection() {
         Div container = createSectionContainer();
@@ -213,8 +231,8 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
         companyList.getStyle()
                 .set("background", "white")
                 .set("padding", "20px")
-                .set("border-radius", "0 0 8px 8px"); 
-        
+                .set("border-radius", "0 0 8px 8px");
+
         // Example Company Mock
         // companyList.add(new H3("LiveNation"), new H3("SeatGeek"), new H3("StubHub"));
 
@@ -233,16 +251,21 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
         artistList.getStyle()
                 .set("background", "white")
                 .set("padding", "40px 20px")
-                .set("border-radius", "0 0 8px 8px"); 
+                .set("border-radius", "0 0 8px 8px");
 
-        // Add the artists. Ensure you place the actual images in: src/main/resources/META-INF/resources/images/
-        // I am using external placeholder URLs temporarily so you can see the layout immediately
+        // Add the artists. Ensure you place the actual images in:
+        // src/main/resources/META-INF/resources/images/
+        // I am using external placeholder URLs temporarily so you can see the layout
+        // immediately
         artistList.add(
-            createArtistCard("Drake", "https://ui-avatars.com/api/?name=Drake&background=0D8ABC&color=fff&size=150"),
-            createArtistCard("J. Cole", "https://ui-avatars.com/api/?name=J+Cole&background=111827&color=fff&size=150"),
-            createArtistCard("Kendrick Lamar", "https://ui-avatars.com/api/?name=Kendrick+Lamar&background=E53E3E&color=fff&size=150"),
-            createArtistCard("The Weeknd", "https://ui-avatars.com/api/?name=The+Weeknd&background=D69E2E&color=fff&size=150")
-        );
+                createArtistCard("Drake",
+                        "https://ui-avatars.com/api/?name=Drake&background=0D8ABC&color=fff&size=150"),
+                createArtistCard("J. Cole",
+                        "https://ui-avatars.com/api/?name=J+Cole&background=111827&color=fff&size=150"),
+                createArtistCard("Kendrick Lamar",
+                        "https://ui-avatars.com/api/?name=Kendrick+Lamar&background=E53E3E&color=fff&size=150"),
+                createArtistCard("The Weeknd",
+                        "https://ui-avatars.com/api/?name=The+Weeknd&background=D69E2E&color=fff&size=150"));
 
         container.add(headerContainer, artistList);
         add(container);
@@ -274,7 +297,7 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
         artistName.getStyle().set("margin-top", "15px").set("color", "#111827");
 
         card.add(img, artistName);
-        
+
         // Navigation listener
         card.addClickListener(e -> {
             // e.g., UI.getCurrent().navigate("search?artist=" + name);
@@ -302,10 +325,9 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
         aboutSection.setWidth("50%");
         H2 aboutTitle = new H2("About VibePass");
         aboutTitle.getStyle().set("margin-top", "0").set("color", "white");
-        
+
         Paragraph aboutDesc = new Paragraph(
-            "VibePass is your ultimate gateway to live entertainment. We connect fans directly with the artists, teams, and events they love. Our mission is to provide a seamless, fair, and incredibly secure ticketing experience so you can focus on enjoying the show."
-        );
+                "VibePass is your ultimate gateway to live entertainment. We connect fans directly with the artists, teams, and events they love. Our mission is to provide a seamless, fair, and incredibly secure ticketing experience so you can focus on enjoying the show.");
         aboutDesc.getStyle().set("line-height", "1.6").set("color", "#9ca3af");
         aboutSection.add(aboutTitle, aboutDesc);
 
@@ -318,15 +340,14 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
         iconsLayout.setSpacing(true);
 
         iconsLayout.add(
-            createSocialIcon(VaadinIcon.MOBILE),
-            createSocialIcon(VaadinIcon.TWITTER),
-            createSocialIcon(VaadinIcon.FACEBOOK),
-            createSocialIcon(VaadinIcon.YOUTUBE)
-        );
+                createSocialIcon(VaadinIcon.MOBILE),
+                createSocialIcon(VaadinIcon.TWITTER),
+                createSocialIcon(VaadinIcon.FACEBOOK),
+                createSocialIcon(VaadinIcon.YOUTUBE));
 
         socialSection.add(socialTitle, iconsLayout);
         footer.add(aboutSection, socialSection);
-        
+
         add(footer);
     }
 
@@ -338,131 +359,133 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
                 .set("cursor", "pointer")
                 .set("width", "30px")
                 .set("height", "30px");
-        
+
         icon.addClickListener(e -> System.out.println("Social icon clicked!"));
         return icon;
     }
 
-   private HorizontalLayout setupSearchBar() {
-    // 1. Create the Filter Dropdown
-    Select<String> searchFilter = new Select<>();
-    searchFilter.setItems("All", "Event", "Area", "Company");
-    searchFilter.setValue("All"); // Set default selected value
-    searchFilter.getStyle().set("cursor", "pointer");
+    private HorizontalLayout setupSearchBar() {
+        // 1. Create the Filter Dropdown
+        Select<String> searchFilter = new Select<>();
+        searchFilter.setItems("All", "Event", "Area", "Company");
+        searchFilter.setValue("All"); // Set default selected value
+        searchFilter.getStyle().set("cursor", "pointer");
 
-    // 2. Create the Text Field (Your existing code)
-    TextField searchField = new TextField();
-    searchField.setPlaceholder("Search for artists, areas, and events...");
-    searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
-    searchField.setClearButtonVisible(true);
-    
-    // Make the text field take up the remaining space in the layout
-    searchField.setWidthFull(); 
+        // 2. Create the Text Field (Your existing code)
+        TextField searchField = new TextField();
+        searchField.setPlaceholder("Search for artists, areas, and events...");
+        searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
+        searchField.setClearButtonVisible(true);
 
-    // 3. Handle the Search Logic
-    searchField.setValueChangeMode(ValueChangeMode.LAZY);
-    searchField.addValueChangeListener(e -> {
-        String searchTerm = e.getValue();
-        String selectedCategory = searchFilter.getValue();
-        
-        System.out.println("Searching for: " + searchTerm + " in category: " + selectedCategory);
-        // TODO: Call your backend search logic using BOTH searchTerm and selectedCategory
-    });
+        // Make the text field take up the remaining space in the layout
+        searchField.setWidthFull();
 
-    // Optional: Also trigger a search if the user changes the filter dropdown while text is already entered
-    searchFilter.addValueChangeListener(e -> {
-        if (!searchField.isEmpty()) {
-            System.out.println("Filter changed, searching for: " + searchField.getValue() + " in category: " + e.getValue());
-            // TODO: Call your backend search logic here too
-        }
-    });
+        // 3. Handle the Search Logic
+        searchField.setValueChangeMode(ValueChangeMode.LAZY);
+        searchField.addValueChangeListener(e -> {
+            String searchTerm = e.getValue();
+            String selectedCategory = searchFilter.getValue();
 
-    // 4. Combine them into a single HorizontalLayout
-    HorizontalLayout searchLayout = new HorizontalLayout(searchFilter, searchField);
-    searchLayout.setWidth("50%"); // The 50% width goes on the container now
-    searchLayout.setAlignItems(Alignment.BASELINE); // Aligns them nicely on the bottom edge
-    searchLayout.setSpacing(false); // Set to true if you want a gap between them
-    
-    return searchLayout;
-}
+            System.out.println("Searching for: " + searchTerm + " in category: " + selectedCategory);
+            // TODO: Call your backend search logic using BOTH searchTerm and
+            // selectedCategory
+        });
 
-//     private Div createSectionContainer() {
-//         Div container = new Div();
-//         container.getStyle()
-//                 .set("padding", "40px 52px 0 52px") 
-//                 .set("width", "100%")
-//                 .set("box-sizing", "border-box");
-//         return container;
-//     }
+        // Optional: Also trigger a search if the user changes the filter dropdown while
+        // text is already entered
+        searchFilter.addValueChangeListener(e -> {
+            if (!searchField.isEmpty()) {
+                System.out.println(
+                        "Filter changed, searching for: " + searchField.getValue() + " in category: " + e.getValue());
+                // TODO: Call your backend search logic here too
+            }
+        });
 
-//                         authButtons.add(loginBtn, signupBtn);
-//                 } else {
+        // 4. Combine them into a single HorizontalLayout
+        HorizontalLayout searchLayout = new HorizontalLayout(searchFilter, searchField);
+        searchLayout.setWidth("50%"); // The 50% width goes on the container now
+        searchLayout.setAlignItems(Alignment.BASELINE); // Aligns them nicely on the bottom edge
+        searchLayout.setSpacing(false); // Set to true if you want a gap between them
 
-//         H2 header = new H2(titleText);
-//         header.getStyle()
-//                 .set("color", "white") // Fixed to white so it looks good on the blue background
-//                 .set("margin", "0")
-//                 .set("font-size", "22px");
+        return searchLayout;
+    }
 
-//                 NotificationBell notificationBell = new NotificationBell(notificationService, userService);
-//                         profileBtn.getStyle()
-//                                         .set("background", "white")
-//                                         .set("color", "#026cdf")
-//                                         .set("font-weight", "700")
-//                                         .set("border-radius", "8px")
-//                                         .set("cursor", "pointer");
+    // private Div createSectionContainer() {
+    // Div container = new Div();
+    // container.getStyle()
+    // .set("padding", "40px 52px 0 52px")
+    // .set("width", "100%")
+    // .set("box-sizing", "border-box");
+    // return container;
+    // }
 
-//                         Button logoutBtn = new Button("Logout", e -> {
-//                                 UI.getCurrent().getSession().setAttribute("token", null);
-//                                 UI.getCurrent().navigate("main");
-//                         });
+    // authButtons.add(loginBtn, signupBtn);
+    // } else {
 
-//                         logoutBtn.getStyle()
-//                                         .set("background", "transparent")
-//                                         .set("color", "white")
-//                                         .set("border", "2px solid white")
-//                                         .set("font-weight", "700")
-//                                         .set("border-radius", "8px")
-//                                         .set("cursor", "pointer");
+    // H2 header = new H2(titleText);
+    // header.getStyle()
+    // .set("color", "white") // Fixed to white so it looks good on the blue
+    // background
+    // .set("margin", "0")
+    // .set("font-size", "22px");
 
-//                         authButtons.add(notificationBell, profileBtn, logoutBtn);//<= to add if need in others
+    // NotificationBell notificationBell = new NotificationBell(notificationService,
+    // userService);
+    // profileBtn.getStyle()
+    // .set("background", "white")
+    // .set("color", "#026cdf")
+    // .set("font-weight", "700")
+    // .set("border-radius", "8px")
+    // .set("cursor", "pointer");
 
-//                         // authButtons.add(profileBtn, logoutBtn);
-                
-//                 header.add(logo, searchField, authButtons);
-//                 header.expand(searchField);
+    // Button logoutBtn = new Button("Logout", e -> {
+    // UI.getCurrent().getSession().setAttribute("token", null);
+    // UI.getCurrent().navigate("main");
+    // });
 
-//                 add(header);
-        
-private Div createSectionContainer() {
+    // logoutBtn.getStyle()
+    // .set("background", "transparent")
+    // .set("color", "white")
+    // .set("border", "2px solid white")
+    // .set("font-weight", "700")
+    // .set("border-radius", "8px")
+    // .set("cursor", "pointer");
+
+    // authButtons.add(notificationBell, profileBtn, logoutBtn);//<= to add if need
+    // in others
+
+    // // authButtons.add(profileBtn, logoutBtn);
+
+    // header.add(logo, searchField, authButtons);
+    // header.expand(searchField);
+
+    // add(header);
+
+    private Div createSectionContainer() {
         Div container = new Div();
         container.getStyle()
-                .set("padding", "40px 52px 0 52px") 
+                .set("padding", "40px 52px 0 52px")
                 .set("width", "100%")
                 .set("box-sizing", "border-box");
         return container;
     }
-      
 
-        // --- Helper Methods for Consistent Styling ---
+    // --- Helper Methods for Consistent Styling ---
 
+    private Div createBlueHeaderContainer(String titleText) {
+        Div headerContainer = new Div();
+        headerContainer.getStyle()
+                .set("background", "#026cdf")
+                .set("padding", "14px 24px")
+                .set("border-radius", "8px 8px 0 0");
 
-        private Div createBlueHeaderContainer(String titleText) {
-                Div headerContainer = new Div();
-                headerContainer.getStyle()
-                                .set("background", "#026cdf")
-                                .set("padding", "14px 24px")
-                                .set("border-radius", "8px 8px 0 0");
+        H2 header = new H2(titleText);
+        header.getStyle()
+                .set("color", "Black")
+                .set("margin", "0")
+                .set("font-size", "22px");
 
-                H2 header = new H2(titleText);
-                header.getStyle()
-                                .set("color", "Black")
-                                .set("margin", "0")
-                                .set("font-size", "22px");
-
-                headerContainer.add(header);
-                return headerContainer;
-        }
+        headerContainer.add(header);
+        return headerContainer;
+    }
 }
-
-
