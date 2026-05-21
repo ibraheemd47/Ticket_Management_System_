@@ -80,11 +80,11 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
 
         H2 logo = new H2("TICKET MANAGEMENT");
         logo.getStyle().set("margin", "0").set("font-size", "22px").set("font-weight", "900").set("cursor", "pointer");
-        logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("")));
+        logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
 
         Span back = new Span("← Back to Home");
         back.getStyle().set("cursor", "pointer").set("font-size", "14px").set("font-weight", "700");
-        back.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("")));
+        back.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
 
         topRow.add(logo, back);
 
@@ -108,6 +108,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 tab("Suspended", "suspended"),
                 tab("Companies", "companies"),
                 tab("Complaints", "complaints"),
+                tab("Messages","messages"),
                 tab("Analytics", "analytics"),
                 tab("Queues", "queues"),
                 tab("Purchase History", "purchases"));
@@ -139,6 +140,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
             case "suspended" -> content.add(buildSuspended());
             case "companies" -> content.add(buildCompanies());
             case "complaints" -> content.add(buildComplaints());
+            case "messages"   -> content.add(buildMessages());
             case "analytics" -> content.add(buildAnalytics());
             case "queues" -> content.add(buildQueues());
             case "purchases"  -> content.add(buildPurchaseHistory());
@@ -256,7 +258,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 return;
             }
             try {
-                // systemAdminService.removeMember(token, removeMemberID.getValue());
+                // systemAdminService.removeMember(token, removeUsername.getValue());
                 showSuccess("Member '" + removeUsername.getValue() + "' has been removed.");
                 removeUsername.clear();
             } catch (Exception ex) {
@@ -423,55 +425,131 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         return wrapper;
     }
 
-    // TAB: COMPLAINTS — II.6.3
+    // TAB: COMPLAINTS — II.6.3 
     private Div buildComplaints() {
         Div wrapper = new Div();
         wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
-        // View complaints
-        Div viewCard = actionCard("View Complaints",
-                "Browse submitted complaints from members regarding fake tickets, event issues or platform abuse.");
+        wrapper.add(buildViewComplaintsCard());
+        return wrapper;
+    }
+ 
+    private Div buildViewComplaintsCard() {
+        Div card = actionCard("View Complaints",
+                "Browse and respond to submitted complaints from members.");
+ 
+        Button loadBtn = actionButton("Load Complaints", "#026cdf");
+        Div resultArea = new Div();
+        resultArea.getStyle().set("margin-top", "16px").set("display", "flex")
+                .set("flex-direction", "column").set("gap", "12px");
+ 
+        // loadBtn.addClickListener(e -> {
+        //     resultArea.removeAll();
+        //     try {
+        //         var complaints = systemAdminService.getAllComplaints(token);
+        //         if (complaints.isEmpty()) { resultArea.add(new Paragraph("No complaints found.")); return; }
+ 
+        //         for (var c : complaints) {
+        //             Div complaintCard = new Div();
+        //             complaintCard.getStyle()
+        //                     .set("background", "white").set("border-radius", "8px")
+        //                     .set("padding", "16px").set("border", "1px solid #e5e7eb")
+        //                     .set("border-left", "4px solid #026cdf");
+ 
+        //             // שורה עליונה — subject + status + תאריך
+        //             Div topRow = new Div();
+        //             topRow.getStyle().set("display", "flex").set("justify-content", "space-between")
+        //                     .set("align-items", "center").set("margin-bottom", "6px");
+ 
+        //             Span subject = new Span("📋 " + c.getSubject());
+        //             subject.getStyle().set("font-weight", "700").set("font-size", "14px");
+ 
+        //             Span statusSpan = new Span(c.getStatus().toString());
+        //             statusSpan.getStyle()
+        //                     .set("font-size", "12px").set("font-weight", "600").set("padding", "2px 8px")
+        //                     .set("border-radius", "999px")
+        //                     .set("background", "RESOLVED".equals(c.getStatus().toString()) ? "#dcfce7" : "#fef9c3")
+        //                     .set("color", "RESOLVED".equals(c.getStatus().toString()) ? "#16a34a" : "#854d0e");
+ 
+        //             topRow.add(subject, statusSpan);
+ 
+        //             // reporter + תאריך
+        //             Paragraph meta = new Paragraph(
+        //                     "👤 " + c.getReporterMemberId() +
+        //                     (c.getCreatedAt() != null ? "  •  " + c.getCreatedAt().toLocalDate() : ""));
+        //             meta.getStyle().set("margin", "0 0 8px 0").set("font-size", "13px").set("color", "#6b7280");
+ 
+        //             // description
+        //             Paragraph desc = new Paragraph("📝 " + c.getDescription());
+        //             desc.getStyle().set("margin", "0 0 12px 0").set("font-size", "13px").set("color", "#374151");
+ 
+        //             // response + resolve
+        //             TextArea response = new TextArea("Admin Response");
+        //             response.setWidthFull();
+        //             response.setPlaceholder("Type your response...");
+        //             if (c.getAdminResponse() != null && !c.getAdminResponse().isBlank()) {
+        //                 response.setValue(c.getAdminResponse());
+        //                 response.setReadOnly(true);
+        //             }
+ 
+        //             Button resolveBtn = actionButton("Resolve", "#16a34a");
+        //             resolveBtn.setEnabled(c.getAdminResponse() == null || c.getAdminResponse().isBlank());
+        //             resolveBtn.addClickListener(re -> {
+        //                 if (response.isEmpty()) { showError("Please enter a response."); return; }
+        //                 try {
+        //                     // systemAdminService.resolveComplaint(token, c.getComplaintId(), response.getValue());
+        //                     showSuccess("Complaint resolved.");
+        //                     resolveBtn.setEnabled(false);
+        //                     response.setReadOnly(true);
+        //                     statusSpan.setText("RESOLVED");
+        //                     statusSpan.getStyle().set("background", "#dcfce7").set("color", "#16a34a");
+        //                 } catch (Exception ex) { showError(ex.getMessage()); }
+        //             });
+ 
+        //             complaintCard.add(topRow, meta, desc, response, resolveBtn);
+        //             resultArea.add(complaintCard);
+        //         }
+        //     } catch (Exception ex) { showError(ex.getMessage()); }
+        // });
+ 
+        card.add(loadBtn, resultArea);
+        return card;
+    }
+ 
 
-        Div placeholder2 = new Div();
-        placeholder2.getStyle()
-                .set("background", "#f9fafb")
-                .set("border", "1px dashed #d1d5db")
-                .set("border-radius", "8px")
-                .set("padding", "40px 24px")
-                .set("text-align", "center")
-                .set("margin-bottom", "16px");
-        Paragraph pt2 = new Paragraph("Complaint list will appear here after connecting the backend.");
-        pt2.getStyle().set("color", "#9ca3af").set("font-size", "14px").set("margin", "0");
-        placeholder2.add(pt2);
-        viewCard.add(placeholder2);
-        wrapper.add(viewCard);
-        // Send system message
-        Div msgCard = actionCard("Send System Message",
-                "Send an official system message to a member or production company. Use this for important platform notifications.");
-
-        TextField recipient = styledField("Username or Company ID");
+    // TAB: MESSAGES — II.6.3 Send System Message
+    private Div buildMessages() {
+        Div wrapper = new Div();
+        wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
+        wrapper.add(buildSendSystemMessageCard());
+        return wrapper;
+    }
+ 
+    private Div buildSendSystemMessageCard() {
+        Div card = actionCard("Send System Message",
+                "Send an official system message to a member. Use this for important platform notifications.");
+ 
+        TextField recipient = styledField("Recipient Username");
         TextArea message = new TextArea("Message");
         message.setWidthFull();
         message.setPlaceholder("Type your message here...");
         message.getStyle().set("margin-top", "12px");
+ 
         Button sendBtn = actionButton("Send Message", "#026cdf");
         sendBtn.addClickListener(e -> {
-            if (recipient.isEmpty() || message.isEmpty()) {
-                showError("Please fill in all fields.");
-                return;
-            }
+            if (recipient.isEmpty() || message.isEmpty()) { showError("Please fill in all fields."); return; }
             try {
-                notificationService.createNotification(recipient.getValue(), message.getValue(),
+                notificationService.createNotification(
+                        recipient.getValue(),
+                        message.getValue(),
                         NotificationType.SYSTEM_ANNOUNCEMENT);
                 showSuccess("Message sent to '" + recipient.getValue() + "'.");
                 recipient.clear();
                 message.clear();
-            } catch (Exception ex) {
-                showError(ex.getMessage());
-            }
+            } catch (Exception ex) { showError(ex.getMessage()); }
         });
-        msgCard.add(recipient, message, sendBtn);
-        wrapper.add(msgCard);
-        return wrapper;
+ 
+        card.add(recipient, message, sendBtn);
+        return card;
     }
 
     // TAB: ANALYTICS — II.6.5
