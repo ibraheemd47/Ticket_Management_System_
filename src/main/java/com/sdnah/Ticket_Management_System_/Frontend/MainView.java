@@ -5,6 +5,9 @@ import java.util.List;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+import com.sdnah.Ticket_Management_System_.Frontend.NotificationBell;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -26,21 +29,24 @@ import com.vaadin.flow.router.Route;
 
 @Route("main") // Landing page
 public class MainView extends VerticalLayout {
-    private final EventService eventService;
-    private final UserService userService;
+        private final EventService eventService;
+        private final NotificationService notificationService;
+        private final IrepresnteUserService userService;
 
-    public MainView(EventService eventService, UserService userService) {
-        this.eventService = eventService;
-        this.userService = userService;
+        public MainView(EventService eventService, NotificationService notificationService,
+                        IrepresnteUserService userService) {
+                this.eventService = eventService;
+                this.notificationService = notificationService;
+                this.userService = userService;
 
-        // 1. Match the overall page background and spacing from ProfileView
-        setSizeFull();
-        setPadding(false);
-        setSpacing(false);
+                // 1. Match the overall page background and spacing from ProfileView
+                setSizeFull();
+                setPadding(false);
+                setSpacing(false);
 
-        getStyle()
-                .set("background", "#f4f4f4")
-                .set("font-family", "Arial, sans-serif");
+                getStyle()
+                                .set("background", "#f4f4f4")
+                                .set("font-family", "Arial, sans-serif");
 
         setupHeader();
         setupQuickAccessBar(); // links to /queue, /manager/order, /company
@@ -136,7 +142,7 @@ public class MainView extends VerticalLayout {
     
     // 2. Call your backend UserService logout function
     if (currentToken != null) {
-        userService.logout(currentToken); 
+        ((UserService) userService).logout(currentToken); 
         // Note: If your logout function takes a username instead of a token, 
         // pass the username here!
     }
@@ -188,9 +194,9 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
         eventGrid.setAllRowsVisible(true);
         eventGrid.getStyle().set("border-radius", "0 0 8px 8px");
 
-        container.add(headerContainer, eventGrid);
-        add(container);
-    }
+                // 3. Custom styled buttons for the blue background
+                HorizontalLayout authButtons = new HorizontalLayout();
+        }
 
     private void setupCompanySection() {
         Div container = createSectionContainer();
@@ -375,7 +381,55 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
     return searchLayout;
 }
 
-    private Div createSectionContainer() {
+//     private Div createSectionContainer() {
+//         Div container = new Div();
+//         container.getStyle()
+//                 .set("padding", "40px 52px 0 52px") 
+//                 .set("width", "100%")
+//                 .set("box-sizing", "border-box");
+//         return container;
+//     }
+
+//                         authButtons.add(loginBtn, signupBtn);
+//                 } else {
+
+//         H2 header = new H2(titleText);
+//         header.getStyle()
+//                 .set("color", "white") // Fixed to white so it looks good on the blue background
+//                 .set("margin", "0")
+//                 .set("font-size", "22px");
+
+//                 NotificationBell notificationBell = new NotificationBell(notificationService, userService);
+//                         profileBtn.getStyle()
+//                                         .set("background", "white")
+//                                         .set("color", "#026cdf")
+//                                         .set("font-weight", "700")
+//                                         .set("border-radius", "8px")
+//                                         .set("cursor", "pointer");
+
+//                         Button logoutBtn = new Button("Logout", e -> {
+//                                 UI.getCurrent().getSession().setAttribute("token", null);
+//                                 UI.getCurrent().navigate("main");
+//                         });
+
+//                         logoutBtn.getStyle()
+//                                         .set("background", "transparent")
+//                                         .set("color", "white")
+//                                         .set("border", "2px solid white")
+//                                         .set("font-weight", "700")
+//                                         .set("border-radius", "8px")
+//                                         .set("cursor", "pointer");
+
+//                         authButtons.add(notificationBell, profileBtn, logoutBtn);//<= to add if need in others
+
+//                         // authButtons.add(profileBtn, logoutBtn);
+                
+//                 header.add(logo, searchField, authButtons);
+//                 header.expand(searchField);
+
+//                 add(header);
+        
+private Div createSectionContainer() {
         Div container = new Div();
         container.getStyle()
                 .set("padding", "40px 52px 0 52px") 
@@ -383,21 +437,27 @@ logoutBtn.getStyle().set("background", "transparent").set("color", "white")
                 .set("box-sizing", "border-box");
         return container;
     }
+      
 
-    private Div createBlueHeaderContainer(String titleText) {
-        Div headerContainer = new Div();
-        headerContainer.getStyle()
-                .set("background", "#026cdf")
-                .set("padding", "14px 24px")
-                .set("border-radius", "8px 8px 0 0");
+        // --- Helper Methods for Consistent Styling ---
 
-        H2 header = new H2(titleText);
-        header.getStyle()
-                .set("color", "white") // Fixed to white so it looks good on the blue background
-                .set("margin", "0")
-                .set("font-size", "22px");
 
-        headerContainer.add(header);
-        return headerContainer;
-    }
+        private Div createBlueHeaderContainer(String titleText) {
+                Div headerContainer = new Div();
+                headerContainer.getStyle()
+                                .set("background", "#026cdf")
+                                .set("padding", "14px 24px")
+                                .set("border-radius", "8px 8px 0 0");
+
+                H2 header = new H2(titleText);
+                header.getStyle()
+                                .set("color", "Black")
+                                .set("margin", "0")
+                                .set("font-size", "22px");
+
+                headerContainer.add(header);
+                return headerContainer;
+        }
 }
+
+

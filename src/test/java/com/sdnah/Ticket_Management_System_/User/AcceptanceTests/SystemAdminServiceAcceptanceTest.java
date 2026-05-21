@@ -14,14 +14,18 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ComplaintRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.Waiting_QueueRepository;
 
 @ExtendWith(MockitoExtension.class)
 class SystemAdminServiceAcceptanceTest {
@@ -36,9 +40,20 @@ class SystemAdminServiceAcceptanceTest {
 
     @Mock
     private SystemAdminRepository systemAdminRepository;
+    @Mock
+    private ComplaintRepository complaintRepository;
 
     @Mock
+    private PurchaseRepository purchaseRepository;
+    @Mock
+    private Waiting_QueueRepository waitingQueueRepository;
+    @Mock
     private UserService userService;
+    @Mock
+    private ComplaintRepository complaintRepo;
+    @Mock
+    private ComplaintService complaintService;
+
 
     @Spy
     private KeyedLock keyedLock = new KeyedLock();
@@ -54,7 +69,9 @@ class SystemAdminServiceAcceptanceTest {
         systemAdminService = new SystemAdminService(
                 userRepository,
                 systemAdminRepository,
-                userService,
+                purchaseRepository,
+                waitingQueueRepository,
+                userService,complaintRepository,complaintService,
                 keyedLock);
 
         adminMember = new System_admin(new Member(ADMIN_ID, "adminUser", "hash"), "System");

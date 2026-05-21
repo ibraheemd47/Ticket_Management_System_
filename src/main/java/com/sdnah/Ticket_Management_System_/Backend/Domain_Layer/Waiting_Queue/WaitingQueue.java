@@ -30,7 +30,8 @@ public class WaitingQueue {
 
     private int checkoutCapacityPerMinute;
 
-    protected WaitingQueue() {}
+    protected WaitingQueue() {
+    }
 
     public WaitingQueue(Long showId, int checkoutCapacityPerMinute) {
         this.showId = showId;
@@ -55,7 +56,8 @@ public class WaitingQueue {
 
     public int calculateEstimatedWaitTimeInMinutes(long userId) {
         int position = getPosition(userId);
-        if (position == -1) return 0;
+        if (position == -1)
+            return 0;
         return position / checkoutCapacityPerMinute;
     }
 
@@ -63,7 +65,8 @@ public class WaitingQueue {
         List<Long> admittedUsers = new ArrayList<>();
         LinkedList<QueueEntry> deque = new LinkedList<>(line);
         for (int i = 0; i < amountToAdmit; i++) {
-            if (deque.isEmpty()) break;
+            if (deque.isEmpty())
+                break;
             QueueEntry nextUser = deque.removeFirst();
             admittedUsers.add(nextUser.getUserId());
             logger.info("Admitted user {} from the queue.", nextUser.getUserId());
@@ -78,6 +81,33 @@ public class WaitingQueue {
         line.clear();
     }
 
-    public Long getShowId() { return showId; }
-    public int getTotalWaiting() { return line.size(); }
+    public Long getShowId() {
+        return showId;
+    }
+
+    public int getTotalWaiting() {
+        return line.size();
+    }
+
+    // additional function
+
+    public int getCheckoutCapacityPerMinute() {
+        return checkoutCapacityPerMinute;
+    }
+
+    public void increaseFlow(int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        checkoutCapacityPerMinute += amount;
+    }
+
+    public void decreaseFlow(int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        checkoutCapacityPerMinute = Math.max(1, checkoutCapacityPerMinute - amount);
+    }
 }
