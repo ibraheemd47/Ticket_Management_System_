@@ -167,6 +167,9 @@ public class SignUpView extends VerticalLayout {
         TextField email = new TextField("Email Address");
         email.setWidthFull();
 
+        TextField Age = new TextField("Age");
+        Age.setWidthFull();
+
         TextField phone = new TextField("Phone");
         phone.setWidthFull();
 
@@ -201,6 +204,11 @@ public class SignUpView extends VerticalLayout {
             String phoneRegex = "^05[0-8]\\d{7}$";
             if (!phone.getValue().matches(phoneRegex)) {
                 Notification.show("Invalid phone number. It must be exactly 10 digits and start with 050-058.");
+                return;
+            }
+            String AgeRegex = "^(1[89]|[2-9]\\d)$"; // Validates age between 18 and 99
+            if (!Age.getValue().matches(AgeRegex)) {
+                Notification.show("Invalid age. You must be at least 18 years old.");
                 return;
             }
 
@@ -245,7 +253,7 @@ public class SignUpView extends VerticalLayout {
 
         alreadyAccount.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("login")));
 
-        right.add(title, subtitle, nameLayout, username, email, phone, password, confirmPassword, signupButton, alreadyAccount);
+        right.add(title, subtitle, nameLayout, username, email, Age, phone, password, confirmPassword, signupButton, alreadyAccount);
         return right;
     }
 }
