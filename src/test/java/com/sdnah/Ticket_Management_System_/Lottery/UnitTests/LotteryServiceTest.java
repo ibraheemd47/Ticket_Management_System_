@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class LotteryServiceTest {
@@ -31,7 +32,7 @@ public class LotteryServiceTest {
     private Member ownerMember;
     private Member regularMember;
     private Company company;
-    private final int COMPANY_ID = 1;
+    private final UUID COMPANY_ID = UUID.randomUUID();
     private final UUID EVENT_ID = UUID.randomUUID();
 
     @BeforeEach

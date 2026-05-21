@@ -19,7 +19,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 public interface IEventRepository extends JpaRepository<Event, UUID> {
 
     // ── Derived queries (Spring Data auto-implements) ────────────────────────
-    List<Event> findByCompanyId(Long companyId);
+    List<Event> findByCompanyId(UUID companyId);
 
     List<Event> findByOwnerId(Long ownerId);
 

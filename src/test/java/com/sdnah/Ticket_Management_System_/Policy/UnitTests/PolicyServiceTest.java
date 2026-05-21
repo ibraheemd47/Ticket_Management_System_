@@ -41,7 +41,7 @@ class PolicyServiceTest {
 
     private PolicyService policyService;
 
-    private static final int  COMPANY_ID = 1;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
     private static final UUID EVENT_ID   = UUID.randomUUID();
     private static final String TOKEN    = "token";
 

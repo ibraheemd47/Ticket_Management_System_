@@ -36,7 +36,7 @@ class EventAcceptanceTest {
 
         private static final Long OWNER_ID = 1L;
         private static final Long MANAGER_ID = 2L;
-        private static final Long COMPANY_ID = 10L;
+        private static final UUID COMPANY_ID = UUID.randomUUID();
         private static final Long UNAUTHORIZED = 99L;
 
         @BeforeEach
@@ -389,7 +389,7 @@ class EventAcceptanceTest {
                 @DisplayName("Given company has no events, when fetching company events, then empty list is returned")
                 void givenCompanyHasNoEvents_WhenFetchingCompanyEvents_ThenEmptyListReturned() {
                         // Act
-                        List<Event> result = eventService.getEventsByCompany(999L);
+                        List<Event> result = eventService.getEventsByCompany(COMPANY_ID);
 
                         // Assert
                         assertThat(result).isEmpty();

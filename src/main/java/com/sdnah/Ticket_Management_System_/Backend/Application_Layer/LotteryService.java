@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -47,7 +48,7 @@ public class LotteryService {
     // UC II.3.6 — CREATE LOTTERY - COMPANY OWNER ONLY
     // =========================================================================
     @Transactional
-    public LotteryDTO createLottery(String actorToken, UUID eventId, int companyId,
+    public LotteryDTO createLottery(String actorToken, UUID eventId, UUID companyId,
                                     LocalDateTime registrationDeadline,
                                     LocalDateTime drawTime) {
         logger.info("Creating lottery for eventId={}, companyId={}", eventId, companyId);
@@ -135,9 +136,10 @@ public class LotteryService {
         return representUserService.requireMember(actorToken);
     }
 
-    private Company getCompanyOrThrow(int companyId) {
+    private Company getCompanyOrThrow(UUID companyId) {
         return companyRepository.findById(companyId)
-                .orElseThrow(() -> new IllegalArgumentException("Company not found: " + companyId));
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Company ID " + companyId + " not found."));
     }
 
     // =========================================================================

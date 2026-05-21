@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -50,7 +50,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private final company_managment_serivce companyService;
 
     private String token;
-    private int companyId;
+    private UUID companyId;
 
     private final Div tabContent = new Div();
     private final Tab eventsTab   = new Tab("Events");
@@ -86,7 +86,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             return;
         }
         this.token     = t.toString();
-        this.companyId = Integer.parseInt(c.toString());
+        this.companyId = UUID.fromString(c.toString());
 
         add(buildShell());
         renderEventsTab();

@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,8 +18,8 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
 @DisplayName("Member — Domain Unit Tests")
 class MemberTest {
 
-    private static final int COMPANY_ID = 1;
-    private static final int OTHER_COMPANY_ID = 2;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
+    private static final UUID OTHER_COMPANY_ID = UUID.randomUUID();
 
     @Test
     @DisplayName("Given valid data, when Member is constructed, then fields are initialized correctly")

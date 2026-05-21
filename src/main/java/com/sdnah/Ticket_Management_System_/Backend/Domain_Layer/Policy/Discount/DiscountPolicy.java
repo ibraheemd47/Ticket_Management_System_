@@ -20,7 +20,7 @@ public class DiscountPolicy extends Policy {
 
     protected DiscountPolicy() {}
 
-    public DiscountPolicy(int policyId, String description, UUID eventId, int companyId) {
+    public DiscountPolicy(int policyId, String description, UUID eventId, UUID companyId) {
         super(policyId, description, eventId, companyId);
     }
 

@@ -3,6 +3,7 @@ package com.sdnah.Ticket_Management_System_.Backend.DTOs.Company;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 
@@ -10,12 +11,12 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyP
 
 public class CompanyRolesViewDTO {
 
-    private final int companyId;
+    private UUID companyId;
     private final String founderId;
     private final List<String> ownerIds;
     private final Map<String, Set<CompanyPermission>> managerPermissions;
 
-    public CompanyRolesViewDTO(int companyId,
+    public CompanyRolesViewDTO(UUID companyId,
                                String founderId,
                                List<String> ownerIds,
                                Map<String, Set<CompanyPermission>> managerPermissions) {
@@ -25,7 +26,7 @@ public class CompanyRolesViewDTO {
         this.managerPermissions = managerPermissions;
     }
 
-    public int getCompanyId() {
+    public UUID getCompanyId() {
         return companyId;
     }
 

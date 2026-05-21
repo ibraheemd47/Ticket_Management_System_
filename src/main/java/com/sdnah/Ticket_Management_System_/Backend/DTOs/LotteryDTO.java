@@ -9,7 +9,7 @@ public class LotteryDTO {
 
     private UUID id;
     private UUID eventId;
-    private int companyId;
+    private UUID companyId;
     private LocalDateTime registrationDeadline;
     private LocalDateTime drawTime;
     private LotteryStatus status;
@@ -17,7 +17,7 @@ public class LotteryDTO {
 
     public LotteryDTO() {}
 
-    public LotteryDTO(UUID id, UUID eventId, int companyId,
+    public LotteryDTO(UUID id, UUID eventId, UUID companyId,
                       LocalDateTime registrationDeadline,
                       LocalDateTime drawTime,
                       LotteryStatus status,
@@ -37,8 +37,8 @@ public class LotteryDTO {
     public UUID getEventId() { return eventId; }
     public void setEventId(UUID eventId) { this.eventId = eventId; }
 
-    public int getCompanyId() { return companyId; }
-    public void setCompanyId(int companyId) { this.companyId = companyId; }
+    public UUID getCompanyId() { return companyId; }
+    public void setCompanyId(UUID companyId) { this.companyId = companyId; }
 
     public LocalDateTime getRegistrationDeadline() { return registrationDeadline; }
     public void setRegistrationDeadline(LocalDateTime registrationDeadline) { this.registrationDeadline = registrationDeadline; }

@@ -3,6 +3,7 @@ package com.sdnah.Ticket_Management_System_.User.UnitTests;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +13,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ManagerPerm
 
 class CompanyRoleAssignmentTest {
 
-    private static final int COMPANY_ID = 1;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
     private static final String APPOINTED_BY = "m1";
 
     @Test

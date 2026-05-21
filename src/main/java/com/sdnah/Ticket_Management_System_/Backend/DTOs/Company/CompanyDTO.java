@@ -1,14 +1,16 @@
 package com.sdnah.Ticket_Management_System_.Backend.DTOs.Company;
 
+import java.util.UUID;
+
 public class CompanyDTO {
 
-    private final int companyId;
+    private final UUID companyId;
     private final String companyName;
     private final boolean isOpen;
     private final double rating;
     private final String logoURL;
 
-    public CompanyDTO(int companyId,
+    public CompanyDTO(UUID companyId,
                       String companyName,
                       boolean isOpen,
                       double rating,
@@ -20,7 +22,7 @@ public class CompanyDTO {
         this.logoURL = logoURL;
     }
 
-    public int getCompanyId() {
+    public UUID getCompanyId() {
         return companyId;
     }
 

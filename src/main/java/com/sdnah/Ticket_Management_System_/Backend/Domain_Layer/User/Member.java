@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.UserDTO;
 
@@ -179,19 +180,19 @@ public class Member {
         companyRoles.add(assignment);
     }
 
-    public Optional<CompanyRoleAssignment> getRoleInCompany(int companyId) {
+    public Optional<CompanyRoleAssignment> getRoleInCompany(UUID companyId) {
         return companyRoles.stream()
-                .filter(r -> r.getCompanyId() == companyId)
+                .filter(r -> r.getCompanyId().equals(companyId))
                 .findFirst();
     }
 
-    public boolean isOwnerInCompany(int companyId) {
+    public boolean isOwnerInCompany(UUID companyId) {
         return getRoleInCompany(companyId)
                 .map(CompanyRoleAssignment::isOwner)
                 .orElse(false);
     }
 
-    public boolean isManagerInCompany(int companyId) {
+    public boolean isManagerInCompany(UUID companyId) {
         return getRoleInCompany(companyId)
                 .map(CompanyRoleAssignment::isManager)
                 .orElse(false);
