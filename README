@@ -1,0 +1,110 @@
+# Ticket Management System
+
+A Spring Boot web application for managing support tickets with real-time updates using WebSocket, security features with JWT authentication, and a Vaadin-based user interface.
+
+## Technologies
+
+- **Framework**: Spring Boot 3.3.5
+- **Java Version**: 21
+- **UI Framework**: Vaadin 24.5.1
+- **Database**: H2 (embedded)
+- **Authentication**: JWT (JSON Web Tokens)
+- **Security**: Spring Security
+- **Build Tool**: Maven
+- **Real-time Communication**: WebSocket
+
+## Prerequisites
+
+- **Java 21** or higher
+- **Maven 3.6+** (or use the included Maven wrapper)
+- **Git**
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd Ticket_Management_System_
+```
+
+### 2. Build the Project
+
+Using Maven wrapper (no need to install Maven separately):
+
+```bash
+# On Windows
+mvn clean install
+
+# On Linux/macOS
+./mvn clean install
+```
+
+Or if you have Maven installed:
+
+```bash
+mvn clean install
+```
+
+## Running the Application
+
+### Option 1: Using Maven
+
+```bash
+# On Windows
+mvn spring-boot:run
+
+`
+
+
+
+### Option 3: Using IDE
+
+If you're using IntelliJ IDEA, Eclipse, or VS Code:
+
+1. Open the project folder
+2. Let IDE load Maven dependencies
+3. Find the main application class (with `@SpringBootApplication`)
+4. Right-click and select **Run** or press `Ctrl+Shift+F10` (IntelliJ)
+
+## Configuration
+
+The application uses default configuration from `application.properties` or `application.yml` in `src/main/resources/`.
+
+### Key Configurations:
+- **Port**: `8080` (default)
+- **Database**: H2 in-memory database (configurable)
+- **JWT Secret**: Configure in application properties
+- **WebSocket**: Enabled by default
+
+## Accessing the Application
+
+Once the application is running:
+
+1. Open your browser
+2. Navigate to: `http://localhost:8080`
+3. You should see the Vaadin web interface
+
+## Features
+
+- **User Authentication**: JWT-based authentication with Spring Security
+- **Ticket Management**: Create, view, update, and delete support tickets
+- **Real-time Updates**: WebSocket integration for live notifications
+- **Email Support**: Configured for email notifications (configure SMTP settings)
+- **Web-based UI**: Vaadin framework for responsive UI
+
+## Project Structure
+
+```
+src/
+├── main/
+│   ├── java/
+│   │   └── com/sdnah/
+│   │       └── [Application classes]
+│   └── resources/
+│       ├── application.properties
+│       └── templates/
+└── test/
+    └── [Test classes]
+```
+

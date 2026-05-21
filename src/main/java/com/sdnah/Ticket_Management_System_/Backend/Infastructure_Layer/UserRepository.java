@@ -1,9 +1,11 @@
 package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.UserDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 
 public interface UserRepository extends JpaRepository<Member, String> {
@@ -13,4 +15,5 @@ public interface UserRepository extends JpaRepository<Member, String> {
 	Optional<Member> findByEmail(String email);
 	
 	Member findByMemberId(String memberId);
+	// List<M> getAllmembers();
 } 

@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.UserDTO;
+
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
@@ -95,6 +97,15 @@ public class Member {
         this.verified = false;
         this.role = UserRole.MEMBER;
         this.companyRoles = new HashSet<>();
+    }
+
+    public UserDTO toUserDTO() {
+        UserDTO dto = new UserDTO( );
+        dto.setMemberId(this.memberId);
+        dto.setUsername(this.username);
+        dto.setEmail(this.email);
+        dto.setActive(this.active);
+        return dto;
     }
 
     public String getMemberId() {
