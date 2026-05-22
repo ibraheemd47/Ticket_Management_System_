@@ -1,4 +1,5 @@
 package com.sdnah.Ticket_Management_System_.Backend.DTOs;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 public class ShowDTO {
@@ -16,6 +17,10 @@ public class ShowDTO {
     public int numBlocks;
     public int rowsPerBlock;
     public int seatsPerRow;
+
+    // Ticket prices
+    public BigDecimal seatedPrice   = new BigDecimal("50.00");  // default fallback
+    public BigDecimal standingPrice = new BigDecimal("30.00");  // default fallback
 
     public ShowDTO(UUID EventId, String name, String description, String singer, LocalDate showDate) {
         this.eventId = EventId;

@@ -78,26 +78,35 @@ public class EventService {
         return eventRepository.saveAndFlush(event);
     }
 
-    public void deleteEvent(UUID eventId, Long ownerId) {
+    /**
+     * Permanently deletes an event and everything under it:
+     * tickets → shows/areas → event.
+     */
+    public void deleteEvent(UUID eventId, Long managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
                         .orElseThrow(() -> new RuntimeException("Event not found"));
 
-                logger.info("Deleting event {}", eventId);
-                event.delete(ownerId);
+                // Delete all tickets for every show first (satisfies FK constraints)
+                for (show s : event.getShows()) {
+                    if (s.getShowid() != null) {
+                        List<ticket> tickets = ticketRepository.findByShowId(s.getShowid());
+                        if (!tickets.isEmpty()) {
+                            ticketRepository.deleteAll(tickets);
+                            ticketRepository.flush();
+                            logger.info("Deleted {} ticket(s) for show {} during event deletion",
+                                    tickets.size(), s.getShowid());
+                        }
+                    }
+                }
 
-            //notify all buyers that the event was cancelled
-            notifyEventBuyers(
-                    event.getEventId(),
-                    event.getName(),
-                    true
-            );
-
-            eventRepository.delete(event);
-            eventRepository.flush();
-                        });
-                    });
+                // Now delete the event — JPA cascades handle shows, areas, blocks, rows, seats
+                eventRepository.delete(event);
+                eventRepository.flush();
+                logger.info("Event {} deleted by manager {}", eventId, managerId);
+            });
+        });
     }
 
     // ── Shows ────────────────────────────────────────────────────────────────
@@ -119,6 +128,18 @@ public class EventService {
     public void removeShowFromEvent(UUID eventId, show showToRemove, Long managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
+
+                // Delete all tickets for this show first to satisfy the FK constraint
+                if (showToRemove.getShowid() != null) {
+                    List<ticket> showTickets = ticketRepository.findByShowId(showToRemove.getShowid());
+                    if (!showTickets.isEmpty()) {
+                        ticketRepository.deleteAll(showTickets);
+                        ticketRepository.flush();
+                        logger.info("Deleted {} ticket(s) for show {} before removing it",
+                                showTickets.size(), showToRemove.getShowid());
+                    }
+                }
+
                 Event event = eventRepository.findById(eventId)
                         .orElseThrow(() -> new RuntimeException("Event not found"));
 
@@ -131,6 +152,47 @@ public class EventService {
                 }
 
                 eventRepository.saveAndFlush(event);
+            });
+        });
+    }
+
+    /** Returns the number of tickets that exist for a given show (for UI confirmation dialogs). */
+    public int countTicketsForShow(UUID showId) {
+        return ticketRepository.findByShowId(showId).size();
+    }
+
+    /**
+     * Updates only the basic fields of an existing show (name, description, singer, date,
+     * seatedPrice, standingPrice) without touching its areas or seats.
+     * This avoids referential-integrity violations caused by deleting seats that tickets
+     * still reference.
+     */
+    public void updateShowBasicFields(UUID eventId, UUID showId,
+                                      String name, String description,
+                                      String singer, Date showDate,
+                                      BigDecimal seatedPrice, BigDecimal standingPrice,
+                                      Long managerId) {
+        keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
+            transactionTemplate.executeWithoutResult(status -> {
+                Event event = eventRepository.findById(eventId)
+                        .orElseThrow(() -> new RuntimeException("Event not found"));
+
+                show target = event.getShows().stream()
+                        .filter(s -> showId.equals(s.getShowid()))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("Show not found in event"));
+
+                target.setName(name);
+                target.setDescription(description);
+                target.setSinger(singer);
+                target.setShowDate(showDate);
+                target.setSeatedPrice(seatedPrice);
+                target.setStandingPrice(standingPrice);
+
+                logger.info("Updated basic fields of show {} in event {} by manager {}",
+                        showId, eventId, managerId);
+
+                eventRepository.save(event);
             });
         });
     }
@@ -441,8 +503,9 @@ public class EventService {
                     .orElseThrow(() -> new RuntimeException("Area not found"));
             show s = eventRepository.getShowDetails(eventId, showId)
                     .orElseThrow(() -> new RuntimeException("Show not found"));
+            BigDecimal seatedPrice = s.getSeatedPrice() != null ? s.getSeatedPrice() : new BigDecimal("50.00");
             ticket t = new ticket(UUID.randomUUID(), showId, seat, area,
-                    s.getShowDate(), new BigDecimal("50.00"));
+                    s.getShowDate(), seatedPrice);
             t.lockInCart(userId);
             logger.info("Generated and reserved seated ticket for seat {} by user {}", seatId, userId);
             return ticketRepository.save(t);
@@ -466,7 +529,8 @@ public class EventService {
                 throw new RuntimeException("No standing spots available");
             show s = eventRepository.getShowDetails(eventId, showId)
                     .orElseThrow(() -> new RuntimeException("Show not found"));
-            ticket t = new ticket(UUID.randomUUID(), showId, area, s.getShowDate(), new BigDecimal("30.00"));
+            BigDecimal standingPrice = s.getStandingPrice() != null ? s.getStandingPrice() : new BigDecimal("30.00");
+            ticket t = new ticket(UUID.randomUUID(), showId, area, s.getShowDate(), standingPrice);
             t.lockInCart(userId);
             logger.info("Generated and reserved standing ticket for area {} by user {}", areaId, userId);
             return ticketRepository.save(t);

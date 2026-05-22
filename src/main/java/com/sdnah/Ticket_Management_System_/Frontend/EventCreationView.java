@@ -287,6 +287,13 @@ public class EventCreationView extends VerticalLayout {
             details.add(seatsRow);
         }
 
+        String priceText = buildPriceText(s);
+        if (!priceText.isEmpty()) {
+            Div priceRow = showInfoRow("Prices", priceText);
+            priceRow.getStyle().set("grid-column", "1 / -1");
+            details.add(priceRow);
+        }
+
         card.add(topRow, details);
         return card;
     }
@@ -304,6 +311,17 @@ public class EventCreationView extends VerticalLayout {
               .append(s.rowsPerBlock).append("R × ")
               .append(s.seatsPerRow).append("S = ")
               .append(s.totalSeatedCapacity());
+        }
+        return sb.toString();
+    }
+
+    private static String buildPriceText(ShowDTO s) {
+        StringBuilder sb = new StringBuilder();
+        if (s.standingCapacity > 0 && s.standingPrice != null)
+            sb.append("Standing: $").append(s.standingPrice.toPlainString());
+        if (s.numBlocks > 0 && s.seatedPrice != null) {
+            if (sb.length() > 0) sb.append("  |  ");
+            sb.append("Seated: $").append(s.seatedPrice.toPlainString());
         }
         return sb.toString();
     }
@@ -342,6 +360,11 @@ public class EventCreationView extends VerticalLayout {
         standingCapField.setPlaceholder("0 = no standing area");
         standingCapField.setWidthFull();
 
+        NumberField standingPriceField = new NumberField("Standing Ticket Price ($)");
+        standingPriceField.setMin(0);
+        standingPriceField.setPlaceholder("e.g. 30");
+        standingPriceField.setWidthFull();
+
         // ── Seated area ──
         TextField blocksField   = new TextField("Number of Blocks");
         blocksField.setPlaceholder("e.g. 5");
@@ -355,6 +378,11 @@ public class EventCreationView extends VerticalLayout {
         seatsField.setPlaceholder("e.g. 20");
         seatsField.setWidthFull();
 
+        NumberField seatedPriceField = new NumberField("Seated Ticket Price ($)");
+        seatedPriceField.setMin(0);
+        seatedPriceField.setPlaceholder("e.g. 50");
+        seatedPriceField.setWidthFull();
+
         if (isEdit) {
             nameField.setValue(nullSafe(existing.name));
             singerField.setValue(nullSafe(existing.singer));
@@ -365,6 +393,8 @@ public class EventCreationView extends VerticalLayout {
             if (existing.numBlocks > 0)    blocksField.setValue(String.valueOf(existing.numBlocks));
             if (existing.rowsPerBlock > 0) rowsField.setValue(String.valueOf(existing.rowsPerBlock));
             if (existing.seatsPerRow > 0)  seatsField.setValue(String.valueOf(existing.seatsPerRow));
+            if (existing.standingPrice != null) standingPriceField.setValue(existing.standingPrice.doubleValue());
+            if (existing.seatedPrice   != null) seatedPriceField.setValue(existing.seatedPrice.doubleValue());
         }
 
         Button saveBtn = new Button(isEdit ? "Save" : "Add", e -> {
@@ -388,6 +418,11 @@ public class EventCreationView extends VerticalLayout {
                 return;
             }
 
+            java.math.BigDecimal sPriceSeated   = seatedPriceField.getValue()   != null
+                    ? java.math.BigDecimal.valueOf(seatedPriceField.getValue())   : new java.math.BigDecimal("50.00");
+            java.math.BigDecimal sPriceStanding = standingPriceField.getValue() != null
+                    ? java.math.BigDecimal.valueOf(standingPriceField.getValue()) : new java.math.BigDecimal("30.00");
+
             if (isEdit) {
                 existing.name            = name.trim();
                 existing.singer          = singerField.getValue().trim();
@@ -397,6 +432,8 @@ public class EventCreationView extends VerticalLayout {
                 existing.numBlocks       = numBlocks;
                 existing.rowsPerBlock    = rowsPerBlock;
                 existing.seatsPerRow     = seatsPerRow;
+                existing.seatedPrice     = sPriceSeated;
+                existing.standingPrice   = sPriceStanding;
             } else {
                 ShowDTO dto = new ShowDTO(null, name.trim(),
                         descField.getValue().trim(), singerField.getValue().trim(),
@@ -405,6 +442,8 @@ public class EventCreationView extends VerticalLayout {
                 dto.numBlocks        = numBlocks;
                 dto.rowsPerBlock     = rowsPerBlock;
                 dto.seatsPerRow      = seatsPerRow;
+                dto.seatedPrice      = sPriceSeated;
+                dto.standingPrice    = sPriceStanding;
                 shows.add(dto);
             }
 
@@ -419,9 +458,9 @@ public class EventCreationView extends VerticalLayout {
         VerticalLayout body = new VerticalLayout(
                 nameField, singerField, descField, datePicker,
                 sectionLabel("Standing Area"),
-                standingCapField,
+                standingCapField, standingPriceField,
                 sectionLabel("Seated Area"),
-                blocksField, rowsField, seatsField
+                blocksField, rowsField, seatsField, seatedPriceField
         );
         body.setPadding(true);
         body.setSpacing(true);
@@ -665,6 +704,8 @@ public class EventCreationView extends VerticalLayout {
                     : null;
                 show newShow = new show(created.id, s.name, s.description, s.singer, showDate);
                 newShow.setAreas(buildAreas(s));
+                newShow.setSeatedPrice(s.seatedPrice);
+                newShow.setStandingPrice(s.standingPrice);
                 try {
                     eventService.addShowToEvent(created.id, newShow, memberId);
                 } catch (Exception ignored) {}

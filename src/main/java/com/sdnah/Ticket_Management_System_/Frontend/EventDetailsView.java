@@ -219,7 +219,13 @@ public class EventDetailsView extends VerticalLayout {
                     .set("background", "#026cdf")
                     .set("color", "white")
                     .set("font-weight", "700");
-            rightSide.add(editBtn);
+
+            Button deleteEventBtn = new Button("Delete Event", e -> openDeleteEventConfirm());
+            deleteEventBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            deleteEventBtn.getStyle()
+                    .set("font-weight", "700");
+
+            rightSide.add(editBtn, deleteEventBtn);
         }
 
         titleRow.add(name, rightSide);
@@ -428,18 +434,7 @@ public class EventDetailsView extends VerticalLayout {
                 Button editBtn = new Button("Edit", ev -> openEditShowDialog(s, refresh, parent));
                 editBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-                Button deleteBtn = new Button("Delete", ev -> {
-                    Long mgr = getManagerId();
-                    if (mgr == null) { error("Session expired"); return; }
-                    try {
-                        eventService.removeShowFromEvent(cachedEventId, s, mgr);
-                        cachedShows.remove(s);
-                        refresh[0].run();
-                    } catch (RuntimeException ex) {
-                        Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                                .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                    }
-                });
+                Button deleteBtn = new Button("Delete", ev -> openDeleteShowConfirm(s));
                 deleteBtn.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
 
                 Div actions = new Div(editBtn, deleteBtn);
@@ -461,63 +456,350 @@ public class EventDetailsView extends VerticalLayout {
     private void openEditShowDialog(show existing, Runnable[] refresh, Dialog parent) {
         boolean isEdit = existing != null;
         Dialog dialog = new Dialog();
-        dialog.setWidth("560px");
+        dialog.setWidth("620px");
         dialog.setHeaderTitle(isEdit ? "Edit Show" : "Add Show");
 
-        TextField nameField   = new TextField("Show Name");
-        nameField.setWidthFull();
-        TextField singerField = new TextField("Singer / Performer");
-        singerField.setWidthFull();
-        TextArea  descField   = new TextArea("Description");
-        descField.setWidthFull();
+        // ── Basic info ────────────────────────────────────────────────────────
+        TextField  nameField   = new TextField("Show Name");         nameField.setWidthFull();
+        TextField  singerField = new TextField("Singer / Performer"); singerField.setWidthFull();
+        TextArea   descField   = new TextArea("Description");         descField.setWidthFull();
         descField.setMinHeight("72px");
-        DatePicker datePicker = new DatePicker("Show Date");
-        datePicker.setWidthFull();
+        DatePicker datePicker  = new DatePicker("Show Date");         datePicker.setWidthFull();
 
+        // ── Standing area ─────────────────────────────────────────────────────
+        IntegerField standingCapField = new IntegerField("Capacity");
+        standingCapField.setMin(0);
+        standingCapField.setPlaceholder("0 = no standing area");
+        standingCapField.setWidthFull();
+
+        NumberField standingPriceField = new NumberField("Ticket Price ($)");
+        standingPriceField.setMin(0);
+        standingPriceField.setPlaceholder("e.g. 30");
+        standingPriceField.setWidthFull();
+
+        // ── Seated area ───────────────────────────────────────────────────────
+        IntegerField blocksField = new IntegerField("Number of Blocks");
+        blocksField.setMin(0);
+        blocksField.setPlaceholder("e.g. 5");
+        blocksField.setWidthFull();
+
+        IntegerField rowsField = new IntegerField("Rows per Block");
+        rowsField.setMin(0);
+        rowsField.setPlaceholder("e.g. 10");
+        rowsField.setWidthFull();
+
+        IntegerField seatsField = new IntegerField("Seats per Row");
+        seatsField.setMin(0);
+        seatsField.setPlaceholder("e.g. 20");
+        seatsField.setWidthFull();
+
+        NumberField seatedPriceField = new NumberField("Ticket Price ($)");
+        seatedPriceField.setMin(0);
+        seatedPriceField.setPlaceholder("e.g. 50");
+        seatedPriceField.setWidthFull();
+
+        // ── Pre-fill when editing ─────────────────────────────────────────────
         if (isEdit) {
             nameField.setValue(nullSafe(existing.getName()));
-            singerField.setValue(existing.getSinger()     != null ? existing.getSinger()     : "");
-            descField.setValue(existing.getDescription()  != null ? existing.getDescription() : "");
+            singerField.setValue(nullSafe(existing.getSinger()));
+            descField.setValue(nullSafe(existing.getDescription()));
             if (existing.getShowDate() != null)
                 datePicker.setValue(existing.getShowDate().toInstant()
                         .atZone(ZoneId.systemDefault()).toLocalDate());
+            if (existing.getStandingPrice() != null)
+                standingPriceField.setValue(existing.getStandingPrice().doubleValue());
+            if (existing.getSeatedPrice() != null)
+                seatedPriceField.setValue(existing.getSeatedPrice().doubleValue());
         }
 
-        Button saveBtn = new Button(isEdit ? "Save" : "Add", e -> {
+        // ── Save ──────────────────────────────────────────────────────────────
+        Button saveBtn = new Button(isEdit ? "Save" : "Add Show", e -> {
             String sName = nameField.getValue();
             if (sName == null || sName.isBlank()) { error("Show name is required"); return; }
             Long mgr = getManagerId();
-            if (mgr == null) { error("Session expired"); return; }
+            if (mgr == null) { error("Session expired — please log in again"); return; }
+
+            java.math.BigDecimal seatedPrice = seatedPriceField.getValue() != null
+                    ? java.math.BigDecimal.valueOf(seatedPriceField.getValue())
+                    : new java.math.BigDecimal("50.00");
+            java.math.BigDecimal standingPrice = standingPriceField.getValue() != null
+                    ? java.math.BigDecimal.valueOf(standingPriceField.getValue())
+                    : new java.math.BigDecimal("30.00");
+
             Date showDate = datePicker.getValue() != null
-                    ? Date.from(datePicker.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+                    ? Date.from(datePicker.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
+                    : null;
+
             try {
                 if (isEdit) {
-                    eventService.removeShowFromEvent(cachedEventId, existing, mgr);
-                    cachedShows.remove(existing);
+                    // ── Edit: update fields in place — never delete seats ─────
+                    eventService.updateShowBasicFields(
+                            cachedEventId, existing.getShowid(),
+                            sName.trim(), descField.getValue().trim(),
+                            singerField.getValue().trim(), showDate,
+                            seatedPrice, standingPrice, mgr);
+
+                    // Reflect changes locally so the list in the Edit dialog updates
+                    existing.setName(sName.trim());
+                    existing.setDescription(descField.getValue().trim());
+                    existing.setSinger(singerField.getValue().trim());
+                    existing.setShowDate(showDate);
+                    existing.setSeatedPrice(seatedPrice);
+                    existing.setStandingPrice(standingPrice);
+
+                } else {
+                    // ── Add: validate areas and create the new show ───────────
+                    int standingCap  = standingCapField.getValue()  != null ? standingCapField.getValue()  : 0;
+                    int numBlocks    = blocksField.getValue()        != null ? blocksField.getValue()        : 0;
+                    int rowsPerBlock = rowsField.getValue()          != null ? rowsField.getValue()          : 0;
+                    int seatsPerRow  = seatsField.getValue()         != null ? seatsField.getValue()         : 0;
+
+                    if (standingCap == 0 && numBlocks == 0) {
+                        error("Add at least one area (standing or seated)"); return;
+                    }
+                    boolean hasSeated = numBlocks > 0 || rowsPerBlock > 0 || seatsPerRow > 0;
+                    if (hasSeated && (numBlocks <= 0 || rowsPerBlock <= 0 || seatsPerRow <= 0)) {
+                        error("Seated area requires Blocks, Rows per Block, and Seats per Row all > 0"); return;
+                    }
+
+                    show newShow = new show(cachedEventId, sName.trim(),
+                            descField.getValue().trim(), singerField.getValue().trim(), showDate);
+                    newShow.setAreas(buildShowAreas(standingCap, numBlocks, rowsPerBlock, seatsPerRow));
+                    newShow.setSeatedPrice(seatedPrice);
+                    newShow.setStandingPrice(standingPrice);
+
+                    eventService.addShowToEvent(cachedEventId, newShow, mgr);
+                    cachedShows.add(newShow);
                 }
-                show newShow = new show(cachedEventId, sName.trim(),
-                        descField.getValue().trim(), singerField.getValue().trim(), showDate);
-                eventService.addShowToEvent(cachedEventId, newShow, mgr);
-                cachedShows.add(newShow);
+
                 refresh[0].run();
                 dialog.close();
+
+                Notification.show(isEdit ? "Show updated!" : "Show added!",
+                        2500, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+                UI.getCurrent().getPage().reload();
+
             } catch (RuntimeException ex) {
                 Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveBtn.getStyle().set("background", "#026cdf").set("color", "white").set("font-weight", "700");
 
         Button cancelBtn = new Button("Cancel", e -> dialog.close());
         cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        VerticalLayout body = new VerticalLayout(nameField, singerField, descField, datePicker);
+        // Area fields are only relevant when adding a new show.
+        // Editing cannot change areas because existing tickets reference their seats.
+        VerticalLayout body;
+        if (isEdit) {
+            Span areaNote = new Span("ℹ Areas cannot be changed after a show is created.");
+            areaNote.getStyle()
+                    .set("font-size", "13px").set("color", "#888")
+                    .set("font-style", "italic").set("margin-top", "4px");
+            body = new VerticalLayout(
+                    nameField, singerField, descField, datePicker,
+                    showSectionLabel("Ticket Prices"),
+                    standingPriceField, seatedPriceField,
+                    areaNote
+            );
+        } else {
+            body = new VerticalLayout(
+                    nameField, singerField, descField, datePicker,
+                    showSectionLabel("Standing Area"),
+                    standingCapField, standingPriceField,
+                    showSectionLabel("Seated Area"),
+                    blocksField, rowsField, seatsField, seatedPriceField
+            );
+        }
         body.setPadding(true);
         body.setSpacing(true);
         body.setWidthFull();
+
         dialog.add(body);
         dialog.getFooter().add(cancelBtn, saveBtn);
         dialog.open();
+    }
+
+    /** Confirmation dialog before deleting a show — warns about ticket count. */
+    private void openDeleteShowConfirm(show s) {
+        Long mgr = getManagerId();
+        if (mgr == null) { error("Session expired"); return; }
+
+        int ticketCount = 0;
+        try {
+            if (s.getShowid() != null)
+                ticketCount = eventService.countTicketsForShow(s.getShowid());
+        } catch (Exception ignored) {}
+
+        Dialog confirm = new Dialog();
+        confirm.setHeaderTitle("Delete Show");
+
+        VerticalLayout body = new VerticalLayout();
+        body.setSpacing(false);
+        body.setPadding(false);
+        body.getStyle().set("gap", "12px");
+
+        Paragraph msg = new Paragraph(
+                "Are you sure you want to permanently delete \"" + nullSafe(s.getName()) + "\"?");
+        msg.getStyle().set("margin", "0").set("font-weight", "600");
+
+        body.add(msg);
+
+        if (ticketCount > 0) {
+            Paragraph warning = new Paragraph(
+                    "⚠ This show has " + ticketCount + " ticket(s) that will also be deleted.");
+            warning.getStyle()
+                    .set("margin", "0")
+                    .set("color", "#c62828")
+                    .set("font-size", "14px");
+            body.add(warning);
+        }
+
+        confirm.add(body);
+
+        final int finalTicketCount = ticketCount;
+        Button confirmBtn = new Button("Yes, Delete", e -> {
+            try {
+                eventService.removeShowFromEvent(cachedEventId, s, mgr);
+                cachedShows.remove(s);
+                confirm.close();
+                Notification.show(
+                        "Show deleted" + (finalTicketCount > 0
+                                ? " along with " + finalTicketCount + " ticket(s)." : "."),
+                        3000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                UI.getCurrent().getPage().reload();
+            } catch (RuntimeException ex) {
+                Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        confirmBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        confirmBtn.getStyle().set("font-weight", "700");
+
+        Button cancelBtn = new Button("Cancel", e -> confirm.close());
+        cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        confirm.getFooter().add(cancelBtn, confirmBtn);
+        confirm.open();
+    }
+
+    /** Confirmation dialog before deleting the entire event. */
+    private void openDeleteEventConfirm() {
+        Long mgr = getManagerId();
+        if (mgr == null) { error("Session expired"); return; }
+
+        // Count total tickets across all shows
+        int totalTickets = 0;
+        for (show s : cachedShows) {
+            try {
+                if (s.getShowid() != null)
+                    totalTickets += eventService.countTicketsForShow(s.getShowid());
+            } catch (Exception ignored) {}
+        }
+        int totalShows = cachedShows.size();
+
+        Dialog confirm = new Dialog();
+        confirm.setHeaderTitle("Delete Event");
+
+        VerticalLayout body = new VerticalLayout();
+        body.setSpacing(false);
+        body.setPadding(false);
+        body.getStyle().set("gap", "12px");
+
+        Paragraph msg = new Paragraph(
+                "Are you sure you want to permanently delete \"" + nullSafe(cachedEvent.getName()) + "\"?");
+        msg.getStyle().set("margin", "0").set("font-weight", "600");
+        body.add(msg);
+
+        if (totalShows > 0 || totalTickets > 0) {
+            String detail = "⚠ This will also delete " + totalShows + " show(s)";
+            if (totalTickets > 0) detail += " and " + totalTickets + " ticket(s)";
+            detail += ". This action cannot be undone.";
+            Paragraph warning = new Paragraph(detail);
+            warning.getStyle()
+                    .set("margin", "0")
+                    .set("color", "#c62828")
+                    .set("font-size", "14px");
+            body.add(warning);
+        }
+
+        confirm.add(body);
+
+        final int finalTickets = totalTickets;
+        Button confirmBtn = new Button("Yes, Delete Event", e -> {
+            try {
+                eventService.deleteEvent(cachedEventId, mgr);
+                confirm.close();
+                Notification.show(
+                        "Event deleted" + (finalTickets > 0
+                                ? " along with " + finalTickets + " ticket(s)." : "."),
+                        3000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                UI.getCurrent().navigate("company");
+            } catch (RuntimeException ex) {
+                Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        confirmBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        confirmBtn.getStyle().set("font-weight", "700");
+
+        Button cancelBtn = new Button("Cancel", e -> confirm.close());
+        cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        confirm.getFooter().add(cancelBtn, confirmBtn);
+        confirm.open();
+    }
+
+    /** Builds Area objects from raw capacity / layout numbers. */
+    private static List<Area> buildShowAreas(int standingCap,
+                                             int numBlocks, int rowsPerBlock, int seatsPerRow) {
+        List<Area> areas = new ArrayList<>();
+
+        if (standingCap > 0)
+            areas.add(new StandingArea("Standing Area", standingCap));
+
+        if (numBlocks > 0 && rowsPerBlock > 0 && seatsPerRow > 0) {
+            SeatedArea seated = new SeatedArea("Seated Area", numBlocks);
+            List<Block> blocks = new ArrayList<>();
+            long idSeq = 1;
+            for (int b = 0; b < numBlocks; b++) {
+                String blockLabel = String.valueOf((char) ('A' + b));
+                Block block = new Block(idSeq++, blockLabel, rowsPerBlock, seated);
+                List<Row> rows = new ArrayList<>();
+                for (int r = 0; r < rowsPerBlock; r++) {
+                    Row row = new Row(idSeq++, String.valueOf(r + 1), seatsPerRow, block);
+                    List<Seat> seats = new ArrayList<>();
+                    for (int s = 1; s <= seatsPerRow; s++)
+                        seats.add(new Seat(idSeq++, String.valueOf(s), row));
+                    row.setSeats(seats);
+                    rows.add(row);
+                }
+                block.setRows(rows);
+                blocks.add(block);
+            }
+            seated.setBlocks(blocks);
+            areas.add(seated);
+        }
+
+        return areas;
+    }
+
+    private static Span showSectionLabel(String text) {
+        Span s = new Span(text);
+        s.getStyle()
+                .set("font-weight", "700")
+                .set("font-size", "13px")
+                .set("color", "#026cdf")
+                .set("text-transform", "uppercase")
+                .set("letter-spacing", "0.05em")
+                .set("margin-top", "8px");
+        return s;
     }
 
     // ── Edit policies section ─────────────────────────────────────────────────
@@ -918,13 +1200,36 @@ public class EventDetailsView extends VerticalLayout {
     private Div buildShowsCard(List<show> shows) {
         Div card = card();
 
+        Div titleRow = new Div();
+        titleRow.getStyle()
+                .set("display", "flex")
+                .set("justify-content", "space-between")
+                .set("align-items", "center")
+                .set("margin-bottom", "16px");
+
         H2 title = new H2("Shows");
-        title.getStyle().set("margin", "0 0 16px 0").set("font-size", "20px").set("color", "#111");
+        title.getStyle().set("margin", "0").set("font-size", "20px").set("color", "#111");
+        titleRow.add(title);
+
+        if (isManagerOrOwner()) {
+            Button addShowBtn = new Button("+ Add Show", e -> {
+                Runnable[] refresh = {() -> UI.getCurrent().getPage().reload()};
+                openEditShowDialog(null, refresh, null);
+            });
+            addShowBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            addShowBtn.getStyle()
+                    .set("background", "#026cdf")
+                    .set("color", "white")
+                    .set("font-weight", "700");
+            titleRow.add(addShowBtn);
+        }
+
+        card.add(titleRow);
 
         if (shows == null || shows.isEmpty()) {
             Paragraph empty = new Paragraph("No shows have been added to this event yet.");
             empty.getStyle().set("color", "#888");
-            card.add(title, empty);
+            card.add(empty);
             return card;
         }
 
@@ -940,14 +1245,30 @@ public class EventDetailsView extends VerticalLayout {
             return areas.isEmpty() ? "—" : avail + " / " + total;
         }).setHeader("Available Seats").setFlexGrow(1);
         grid.addComponentColumn(s -> {
+            Div actions = new Div();
+            actions.getStyle().set("display", "flex").set("gap", "6px").set("align-items", "center");
+
             Button detailsBtn = new Button("Details", e -> openShowDetailsDialog(s));
             detailsBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            actions.add(detailsBtn);
 
             Button seatBtn = new Button("Select Seat", e -> openSeatDialog(s));
             seatBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            actions.add(seatBtn);
 
-            Div actions = new Div(detailsBtn, seatBtn);
-            actions.getStyle().set("display", "flex").set("gap", "6px");
+            if (isManagerOrOwner()) {
+                Runnable[] refresh = {() -> UI.getCurrent().getPage().reload()};
+
+                Button editBtn = new Button("Edit", e -> openEditShowDialog(s, refresh, null));
+                editBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                editBtn.getStyle().set("color", "#026cdf");
+
+                Button deleteBtn = new Button("Delete", e -> openDeleteShowConfirm(s));
+                deleteBtn.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+
+                actions.add(editBtn, deleteBtn);
+            }
+
             return actions;
         }).setHeader("").setAutoWidth(true);
 
@@ -955,7 +1276,7 @@ public class EventDetailsView extends VerticalLayout {
         grid.setAllRowsVisible(true);
         grid.setWidthFull();
 
-        card.add(title, grid);
+        card.add(grid);
         return card;
     }
 
@@ -1396,7 +1717,9 @@ public class EventDetailsView extends VerticalLayout {
                 btn.setWidthFull();
                 grid.add(btn);
             } else {
-                grid.add(buildStandingAreaCard(ai, cart, cartRefresh));
+                java.math.BigDecimal stPrice = s.getStandingPrice() != null
+                        ? s.getStandingPrice() : new java.math.BigDecimal("30.00");
+                grid.add(buildStandingAreaCard(ai, cart, cartRefresh, stPrice));
             }
         }
         stepContent.add(grid);
@@ -1533,9 +1856,11 @@ public class EventDetailsView extends VerticalLayout {
                     + ", Row " + row.label()
                     + ", Seat " + seat.label();
 
+            java.math.BigDecimal seatPrice = s.getSeatedPrice() != null
+                    ? s.getSeatedPrice() : new java.math.BigDecimal("50.00");
             cart.add(new CartEntry(
                     desc,
-                    new java.math.BigDecimal("50.00"),
+                    seatPrice,
                     1,
                     true,
                     area.id(),
@@ -1555,7 +1880,8 @@ public class EventDetailsView extends VerticalLayout {
         stepContent.add(seatFlex);
     }
 
-    private Div buildStandingAreaCard(AreaInfo ai, List<CartEntry> cart, Runnable[] cartRefresh) {
+    private Div buildStandingAreaCard(AreaInfo ai, List<CartEntry> cart, Runnable[] cartRefresh,
+                                      java.math.BigDecimal standingPrice) {
         Div card = new Div();
         card.getStyle()
                 .set("background", "#f0f4ff").set("border-radius", "10px")
@@ -1567,7 +1893,8 @@ public class EventDetailsView extends VerticalLayout {
         name.getStyle().set("font-weight", "700").set("font-size", "14px");
         boolean hasSpots = ai.standingAvail() > 0;
         int maxQty = Math.max(1, Math.min(ai.standingAvail(), 20));
-        Span cap = new Span(ai.standingAvail() + " / " + ai.standingMax() + " spots — $30.00 each");
+        String priceLabel = "$" + standingPrice.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
+        Span cap = new Span(ai.standingAvail() + " / " + ai.standingMax() + " spots — " + priceLabel + " each");
         cap.getStyle().set("font-size", "12px").set("color", hasSpots ? "#2e7d32" : "#c62828")
                 .set("display", "block");
         info.add(name, cap);
@@ -1597,7 +1924,7 @@ public class EventDetailsView extends VerticalLayout {
             }
             if (!merged)
                 cart.add(new CartEntry(ai.name() + " (Standing)",
-                        new java.math.BigDecimal("30.00"), qty, false, ai.id(), null));
+                        standingPrice, qty, false, ai.id(), null));
             cartRefresh[0].run();
         });
         addBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
