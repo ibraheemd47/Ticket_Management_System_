@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +31,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepos
 class CompanyRoleServiceAcceptanceTest {
 
     private static final String VALID_TOKEN = "valid-token";
-    private static final int COMPANY_ID = 1;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
     private static final String OWNER_ID = "owner-1";
     private static final String TARGET_ID = "target-1";
     private static final String MANAGER_ID = "manager-1";

@@ -16,7 +16,7 @@ public class Lottery {
     private UUID id;
 
     private UUID eventId;
-    private int companyId;
+    private UUID companyId;
 
     private LocalDateTime registrationDeadline;
     private LocalDateTime drawTime;
@@ -35,11 +35,11 @@ public class Lottery {
 
     protected Lottery() {}
 
-    public Lottery(UUID eventId, int companyId,
+    public Lottery(UUID eventId, UUID companyId,
                    LocalDateTime registrationDeadline,
                    LocalDateTime drawTime) {
         if (eventId == null) throw new IllegalArgumentException("eventId cannot be null");
-        if (companyId <= 0) throw new IllegalArgumentException("companyId must be positive");
+        if (companyId ==null) throw new IllegalArgumentException("companyId must be positive");
         if (registrationDeadline == null) throw new IllegalArgumentException("registrationDeadline cannot be null");
         if (drawTime == null) throw new IllegalArgumentException("drawTime cannot be null");
         if (!drawTime.isAfter(registrationDeadline)) throw new IllegalArgumentException("drawTime must be after registrationDeadline");
@@ -99,7 +99,7 @@ public class Lottery {
     // Getters
     public UUID getId() { return id; }
     public UUID getEventId() { return eventId; }
-    public int getCompanyId() { return companyId; }
+    public UUID getCompanyId() { return companyId; }
     public LocalDateTime getRegistrationDeadline() { return registrationDeadline; }
     public LocalDateTime getDrawTime() { return drawTime; }
     public LotteryStatus getStatus() { return status; }

@@ -101,7 +101,7 @@ public class UserService implements IrepresnteUserService {
 
     public void validateCompanyRoleRequest(CompanyRoleAssignment assignment) {
         logger.debug("Validating company role request for companyId={}", assignment.getCompanyId());
-        if (assignment.getCompanyId() <= 0) {
+        if (assignment.getCompanyId() ==null) {
             logger.error("Company role validation failed: missing company id");
             throw new RuntimeException("Company id cannot be empty");
         }
@@ -394,7 +394,7 @@ public class UserService implements IrepresnteUserService {
                 member.isVerified());
     }
 
-    public Member requireOwner(String tokenValue, int companyId) {
+    public Member requireOwner(String tokenValue, UUID companyId) {
         Member member = getMemberByToken(tokenValue);
 
         if (!member.isOwnerInCompany(companyId)) {
@@ -405,7 +405,7 @@ public class UserService implements IrepresnteUserService {
         return member;
     }
 
-    public Member requireManager(String tokenValue, int companyId) {
+    public Member requireManager(String tokenValue, UUID companyId) {
         Member member = getMemberByToken(tokenValue);
 
         if (!member.isManagerInCompany(companyId) && !member.isOwnerInCompany(companyId)) {

@@ -43,7 +43,8 @@ public class LotteryAcceptanceTest {
     private Member regularMember;
     private Company company;
 
-    private static final int COMPANY_ID = 1;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
+    private static final UUID NON_EXISTENT_COMPANY_ID = UUID.randomUUID();
     private static final UUID EVENT_ID = UUID.randomUUID();
     private static final String OWNER_TOKEN = "owner-token";
     private static final String MEMBER_TOKEN = "member-token";
@@ -124,11 +125,11 @@ public class LotteryAcceptanceTest {
     @DisplayName("Given non-existent company, when creating lottery, then exception is thrown")
     void givenNonExistentCompany_WhenCreatingLottery_ThenExceptionIsThrown() {
         when(representUserService.requireMember(OWNER_TOKEN)).thenReturn(ownerMember);
-        when(companyRepository.findById(99)).thenReturn(Optional.empty());
+        when(companyRepository.findById(NON_EXISTENT_COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () ->
                 lotteryService.createLottery(
-                        OWNER_TOKEN, EVENT_ID, 99,
+                        OWNER_TOKEN, EVENT_ID, NON_EXISTENT_COMPANY_ID,
                         LocalDateTime.now().plusDays(1),
                         LocalDateTime.now().plusDays(2)));
     }

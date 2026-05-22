@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CompanyAuthorizationDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
@@ -76,42 +76,44 @@ public class company_managment_serivce {
 
     // --- II.3.2: Open Production Company (Triggered by II.1.1) ---
     @Transactional
-    public void openCompany(String actorToken, int companyId, String name) {
+    public UUID openCompany(String actorToken, String name) {
         try {
             Member actor = getActorFromToken(actorToken);
             companyAuthorizationDomainService.assertCanOpenCompany(actor);
 
-            logger.info("Opening company. companyId={}, founderId={}", companyId, actor.getMemberId());
+            logger.info("Opening company. founderId={}", actor.getMemberId());
 
-            if (companyRepository.existsById(companyId)) {
-                throw new IllegalStateException("Company ID already exists.");
-            }
+            Company newCompany = new Company(name, actor.getMemberId());
+            Company savedCompany = companyRepository.save(newCompany);
 
-            Company newCompany = new Company(companyId, name, actor.getMemberId());
-            companyRepository.save(newCompany);
             actor.addCompanyRole(new CompanyRoleAssignment(
-                    companyId,
+                    savedCompany.getCompanyId(),
                     actor.getMemberId(),
                     CompanyRoleType.OWNER,
-                    Set.of()));
+                    Set.of()
+            ));
+
             userRepository.save(actor);
 
-            logger.info("Company opened successfully. companyId={}", companyId);
+            logger.info("Company opened successfully. companyId={}", savedCompany.getCompanyId());
+
+            return savedCompany.getCompanyId();
+
         } catch (Exception e) {
-            logger.error("Failed to open company. companyId={}, error={}", companyId, e.getMessage());
+            logger.error("Failed to open company. name={}, error={}", name, e.getMessage());
             throw e;
         }
     }
 
     // --- II.4.1: Manage Events (Add/Remove) ---
     @Transactional
-    public EventDto addEvent(String actorToken, int companyId, EventDto dto) {
+    public EventDto addEvent(String actorToken, UUID companyId, EventDto dto) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
         company.validateActionPermission(actor.getMemberId(), CompanyPermission.MANAGE_EVENTS);
 
-        Event event = new Event(dto.name, dto.eventType, Long.valueOf(companyId), Long.valueOf(actor.getMemberId()));
+        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(actor.getMemberId()));
         Event savedEvent = eventRepository.save(event);
 
         company.addEventId(actor.getMemberId(), savedEvent.getEventId());
@@ -126,14 +128,14 @@ public class company_managment_serivce {
     }
 
     @Transactional
-    public void removeEvent(String actorToken, int companyId, UUID eventId) {
+    public void removeEvent(String actorToken, UUID companyId, UUID eventId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NoSuchElementException("Event ID " + eventId + " not found."));
 
-        if (!Objects.equals(event.getCompanyId(), Long.valueOf(companyId))) {
+        if (!Objects.equals(event.getCompanyId(), companyId)) {
             throw new IllegalArgumentException("Event does not belong to this company.");
         }
 
@@ -143,7 +145,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.3:not for this version
-    // public void updateCompanyPolicies(int actingUserId, int companyId, int
+    // public void updateCompanyPolicies(int actingUserId, UUID companyId, int
     // newPolicyId) {
     // Company company = getCompanyOrThrow(companyId);
 
@@ -157,7 +159,7 @@ public class company_managment_serivce {
 
     // --- II.4.4: Communication ---
     /** Use Case II.4.4: Receive and respond to inquiries */
-    public void respondToInquiry(String actorToken, int companyId, int inquiryId, String response) {
+    public void respondToInquiry(String actorToken, UUID companyId, int inquiryId, String response) {
         try {
             Member actor = getActorFromToken(actorToken);
             Company company = getCompanyOrThrow(companyId);
@@ -176,7 +178,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.5: View Company Purchase and Order History ---
-    public List<Integer> getPurchaseHistory(String actorToken, int companyId) {
+    public List<Integer> getPurchaseHistory(String actorToken, UUID companyId) {
         try {
             Member actor = getActorFromToken(actorToken);
             Company company = getCompanyOrThrow(companyId);
@@ -194,7 +196,7 @@ public class company_managment_serivce {
         }
     }
 
-    public List<Integer> getOrderHistory(String actorToken, int companyId) {
+    public List<Integer> getOrderHistory(String actorToken, UUID companyId) {
         try {
             Member actor = getActorFromToken(actorToken);
             Company company = getCompanyOrThrow(companyId);
@@ -214,7 +216,7 @@ public class company_managment_serivce {
 
     // --- II.4.6: Reporting ---
     /** Use Case II.4.6: Generate sales report including subtree data */
-    public void generateSalesReport(String actorToken, int companyId) {
+    public void generateSalesReport(String actorToken, UUID companyId) {
         try {
             Member actor = getActorFromToken(actorToken);
             Company company = getCompanyOrThrow(companyId);
@@ -232,7 +234,7 @@ public class company_managment_serivce {
 
     // --- II.4.7: View and Appoint Company Managers ---
     @Transactional
-    public void appointManager(String actorToken, int companyId, String newManagerId,
+    public void appointManager(String actorToken, UUID companyId, String newManagerId,
             Set<CompanyPermission> permissions) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -259,7 +261,7 @@ public class company_managment_serivce {
     }
 
     // // --- II.4.13 & II.4.14: Set Company Status (Open/Close) ---
-    // public void setCompanyStatus(int actingUserId, int companyId, boolean open) {
+    // public void setCompanyStatus(int actingUserId, UUID companyId, boolean open) {
     // Company company = getCompanyOrThrow(companyId);
     // if (company.getCompanyFounderId() != actingUserId) {
     // throw new SecurityException("Only the founder can open or close the
@@ -271,7 +273,7 @@ public class company_managment_serivce {
 
     // --- II.4.8: Appoint Additional Company Owner ---
     @Transactional
-    public void appointAdditionalOwner(String actorToken, int companyId, String newOwnerId) {
+    public void appointAdditionalOwner(String actorToken, UUID companyId, String newOwnerId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -297,7 +299,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.9: Remove Company Owner Appointment ---
-    public void removeOwnerAppointment(String actorToken, int companyId, String targetOwnerId) {
+    public void removeOwnerAppointment(String actorToken, UUID companyId, String targetOwnerId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -314,7 +316,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.10: Resign from Ownership ---
-    public void resignOwnership(String actorToken, int companyId) {
+    public void resignOwnership(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -323,7 +325,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.11: Modify Manager Permissions ---
-    public void modifyManagerPermissions(String actorToken, int companyId, String managerId,
+    public void modifyManagerPermissions(String actorToken, UUID companyId, String managerId,
             Set<CompanyPermission> updatedPermissions) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -341,7 +343,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.12: Remove Manager Appointment ---
-    public void removeManagerAppointment(String actorToken, int companyId, String managerId) {
+    public void removeManagerAppointment(String actorToken, UUID companyId, String managerId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -358,7 +360,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.13: Suspend / Close Production Company ---
-    public boolean closeCompany(String actorToken, int companyId) {
+    public boolean closeCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -378,7 +380,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.14: Reopen Production Company ---
-    public boolean reopenCompany(String actorToken, int companyId) {
+    public boolean reopenCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -398,7 +400,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.15: View Roles and Permissions ---
-    public CompanyRolesViewDTO viewRolesAndPermissions(String actorToken, int companyId) {
+    public CompanyRolesViewDTO viewRolesAndPermissions(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -414,7 +416,7 @@ public class company_managment_serivce {
 
     // --- II.6.1: Close Production Company by System Admin ---
     @Transactional
-    public boolean adminCloseCompany(String actorToken, int companyId) {
+    public boolean adminCloseCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 
@@ -447,7 +449,7 @@ public class company_managment_serivce {
     // throw new SecurityException("Unauthorized action for user " + userId + ".");
     // }
 
-    private Company getCompanyOrThrow(int companyId) {
+    private Company getCompanyOrThrow(UUID companyId) {
         return companyRepository.findById(companyId)
                 .orElseThrow(() -> new NoSuchElementException("Company ID " + companyId + " not found."));
     }
@@ -472,7 +474,7 @@ public class company_managment_serivce {
                 .toList();
     }
 
-    public List<UUID> getAllEventsByCompany(int companyId) {
+    public List<UUID> getAllEventsByCompany(UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         return company.getAssociatedEventIds();
     }
@@ -508,19 +510,19 @@ public class company_managment_serivce {
                 event.getVenue());
     }
 
-    public String getCompanyLogoURL(int companyId) {
+    public String getCompanyLogoURL(UUID companyId) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new IllegalArgumentException("Company not found"));
 
         return company.getLogoURL();
     }
 
-    public String getCompanyDetails(int companyId) {
+    public String getCompanyDetails(UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         return company.getFullDetails();
     }
 
-    public void deleteCompany(String actorToken, int companyId) {
+    public void deleteCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
 

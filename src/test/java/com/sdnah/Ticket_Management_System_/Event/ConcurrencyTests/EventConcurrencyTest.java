@@ -73,7 +73,7 @@ class EventConcurrencyTest {
         return outcome;
     }
 
-    private Event createBasicEvent(String name, Long companyId, Long ownerId) {
+    private Event createBasicEvent(String name, UUID companyId, Long ownerId) {
         EventDto dto = new EventDto();
         dto.name = name;
         dto.eventType = show_type.CONFERENCE;
@@ -85,7 +85,7 @@ class EventConcurrencyTest {
     @DisplayName("Concurrent assignManager on same manager: only one succeeds")
     void concurrentAssignManager_SameManager_OnlyOneSucceeds() throws Exception {
         // Arrange
-        Long companyId = 1L;
+        UUID companyId = UUID.randomUUID();
         Long ownerId = 10L;
         Long managerId = 20L;
 
@@ -115,7 +115,7 @@ class EventConcurrencyTest {
     @DisplayName("Concurrent transferOwnership to same new owner: final owner is correct")
     void concurrentTransferOwnership_SameNewOwner_FinalOwnerIsCorrect() throws Exception {
         // Arrange
-        Long companyId = 1L;
+        UUID companyId = UUID.randomUUID();
         Long currentOwnerId = 10L;
         Long newOwnerId = 20L;
 
@@ -140,7 +140,7 @@ class EventConcurrencyTest {
     @DisplayName("Concurrent addReview by same user: only one review entry remains")
     void concurrentAddReview_SameUser_OnlyOneReviewEntryRemains() throws Exception {
         // Arrange
-        Long companyId = 1L;
+        UUID companyId = UUID.randomUUID();
         Long ownerId = 10L;
         UUID userId = UUID.randomUUID();
 
@@ -164,7 +164,7 @@ class EventConcurrencyTest {
     void concurrentCreateEvent_DifferentEvents_AllSucceed() throws Exception {
         // Arrange
         int threads = 20;
-        Long companyId = 1L;
+        UUID companyId = UUID.randomUUID();
         Long ownerId = 10L;
 
         // Act

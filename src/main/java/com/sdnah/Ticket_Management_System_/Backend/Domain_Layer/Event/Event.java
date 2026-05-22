@@ -40,7 +40,7 @@ public class Event {
     private UUID eventId;
 
     private String name;
-    private Long companyId;
+    private UUID companyId;
     private Long ownerId;
 
     @ElementCollection
@@ -67,7 +67,7 @@ public class Event {
 
     protected Event() {}
 
-    public Event(String name, show_type eventType, Long companyId, Long ownerId) {
+    public Event(String name, show_type eventType, UUID companyId, Long ownerId) {
         this.eventId = UUID.randomUUID();
         this.name = name;
         this.eventType = eventType;
@@ -83,8 +83,8 @@ public class Event {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public Long getCompanyId() { return companyId; }
-    public void setCompanyId(Long companyId) { this.companyId = companyId; }
+    public UUID getCompanyId() { return companyId; }
+    public void setCompanyId(UUID companyId) { this.companyId = companyId; }
 
     public Long getOwnerId() { return ownerId; }
     public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }

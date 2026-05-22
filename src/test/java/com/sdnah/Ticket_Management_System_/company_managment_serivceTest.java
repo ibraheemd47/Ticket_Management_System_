@@ -2,7 +2,7 @@ package com.sdnah.Ticket_Management_System_;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
@@ -35,7 +35,7 @@ class company_managment_serivceTest {
     private IrepresnteUserService representUserService;
     private NotificationService notificationService;
 
-    private static final int COMPANY_ID = 1;
+    private UUID companyId;
 
     private static final String FOUNDER = "100";
     private static final String OWNER = "200";
@@ -67,10 +67,12 @@ class company_managment_serivceTest {
             representUserService,
             notificationService);
 
-        Company company = new Company(COMPANY_ID, "Main Company", FOUNDER);
+        Company company = new Company("Main Company", FOUNDER);
+        companyId = company.getCompanyId();
+        
 
-        when(repo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
-        when(repo.existsById(COMPANY_ID)).thenReturn(true);
+        when(repo.findById(companyId)).thenReturn(Optional.of(company));
+        when(repo.existsById(companyId)).thenReturn(true);
         when(repo.findAll()).thenReturn(List.of(company));
         when(repo.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -87,36 +89,38 @@ class company_managment_serivceTest {
 
     @Test
     void GivenNewCompany_WhenOpenCompany_ThenCompanySaved() {
-        when(repo.existsById(2)).thenReturn(false);
+        UUID createdCompanyId = service.openCompany(FOUNDER_TOKEN, "New Company");
 
-        service.openCompany(FOUNDER_TOKEN, 2, "New Company");
+        assertNotNull(createdCompanyId);
 
-        verify(repo).save(argThat(company -> company.getCompanyId() == 2
-                && company.getCompanyName().equals("New Company")
-                && company.getCompanyFounderId().equals(FOUNDER)));
+        verify(repo).save(argThat(company ->
+                company.getCompanyId() != null
+                        && company.getCompanyName().equals("New Company")
+                        && company.getCompanyFounderId().equals(FOUNDER)
+        ));
     }
 
-    @Test
-    void GivenExistingCompanyId_WhenOpenCompany_ThenFail() {
-        assertThrows(IllegalStateException.class,
-                () -> service.openCompany(FOUNDER_TOKEN, COMPANY_ID, "Duplicate"));
-    }
+    // @Test
+    // void GivenExistingCompanyId_WhenOpenCompany_ThenFail() {
+    //     assertThrows(IllegalStateException.class,
+    //             () -> service.openCompany(FOUNDER_TOKEN, "Duplicate"));
+    // }
 
     @Test
     void GivenInvalidCompanyData_WhenOpenCompany_ThenFail() {
         assertAll(
+                // () -> assertThrows(IllegalArgumentException.class,
+                //         () -> service.openCompany(FOUNDER_TOKEN, "A")),
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> service.openCompany(FOUNDER_TOKEN, 0, "Bad")),
+                        () -> service.openCompany(FOUNDER_TOKEN, "")),
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> service.openCompany(FOUNDER_TOKEN, 2, "")),
-                () -> assertThrows(IllegalArgumentException.class,
-                        () -> service.openCompany(FOUNDER_TOKEN, 2, null)));
+                        () -> service.openCompany(FOUNDER_TOKEN, null)));
     }
 
     @Test
     void GivenOpenAndClosedCompanies_WhenGetActiveCompanies_ThenOnlyOpenReturned() {
-        Company mainCompany = new Company(COMPANY_ID, "Main Company", FOUNDER);
-        Company closedCompany = new Company(2, "Closed Company", FOUNDER);
+        Company mainCompany = new Company( "Main Company", FOUNDER);
+        Company closedCompany = new Company("Closed Company", FOUNDER);
 
         closedCompany.closeCompany(FOUNDER);
 
@@ -125,7 +129,7 @@ class company_managment_serivceTest {
         List<CompanyDTO> active = service.getActiveCompanies();
 
         assertEquals(1, active.size());
-        assertEquals(COMPANY_ID, active.get(0).getCompanyId());
+        assertEquals(mainCompany.getCompanyId(), active.get(0).getCompanyId());
         assertEquals("Main Company", active.get(0).getCompanyName());
         assertTrue(active.get(0).isOpen());
     }
@@ -133,13 +137,13 @@ class company_managment_serivceTest {
     @Test
     void GivenFounder_WhenAddEvent_ThenEventAdded() {
         EventDto dto = eventDto("Event10");
-        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(FOUNDER));
+        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER));
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
-        EventDto saved = service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
+        EventDto saved = service.addEvent(FOUNDER_TOKEN, companyId, dto);
 
-        assertTrue(repo.findById(COMPANY_ID).orElseThrow().getAssociatedEventIds().contains(saved.id));
+        assertTrue(repo.findById(companyId).orElseThrow().getAssociatedEventIds().contains(saved.id));
     }
 
     @Test
@@ -147,44 +151,47 @@ class company_managment_serivceTest {
         EventDto dto = eventDto("Event10");
 
         assertThrows(RuntimeException.class,
-                () -> service.addEvent(USER_TOKEN, COMPANY_ID, dto));
+                () -> service.addEvent(USER_TOKEN, companyId, dto));
     }
 
     @Test
     void GivenMissingCompany_WhenAddEvent_ThenFail() {
         EventDto dto = eventDto("Event10");
+        UUID missingCompanyId = UUID.randomUUID();
+
+        when(repo.findById(missingCompanyId)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class,
-                () -> service.addEvent(FOUNDER_TOKEN, 999, dto));
+                () -> service.addEvent(FOUNDER_TOKEN, missingCompanyId, dto));
     }
 
     @Test
     void GivenDuplicateEvent_WhenAddEvent_ThenFail() {
         EventDto dto = eventDto("Event10");
-        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(FOUNDER));
+        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER));
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
-        service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
+        service.addEvent(FOUNDER_TOKEN, companyId, dto);
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto));
+                () -> service.addEvent(FOUNDER_TOKEN, companyId, dto));
     }
 
     @Test
     void GivenExistingEvent_WhenRemoveEvent_ThenEventRemoved() {
         EventDto dto = eventDto("Event10");
-        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(FOUNDER));
+        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER));
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
-        EventDto saved = service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
+        EventDto saved = service.addEvent(FOUNDER_TOKEN, companyId, dto);
 
         when(eventRepository.findById(saved.id)).thenReturn(Optional.of(event));
 
-        service.removeEvent(FOUNDER_TOKEN, COMPANY_ID, saved.id);
+        service.removeEvent(FOUNDER_TOKEN, companyId, saved.id);
 
-        assertFalse(repo.findById(COMPANY_ID).orElseThrow().getAssociatedEventIds().contains(saved.id));
+        assertFalse(repo.findById(companyId).orElseThrow().getAssociatedEventIds().contains(saved.id));
         verify(eventRepository).delete(event);
     }
 
@@ -195,32 +202,32 @@ class company_managment_serivceTest {
         when(eventRepository.findById(missingEventId)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class,
-                () -> service.removeEvent(FOUNDER_TOKEN, COMPANY_ID, missingEventId));
+                () -> service.removeEvent(FOUNDER_TOKEN, companyId, missingEventId));
     }
 
     @Test
     void GivenUnauthorizedUser_WhenRemoveEvent_ThenFail() {
         EventDto dto = eventDto("Event10");
-        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(FOUNDER));
+        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER));
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
-        EventDto saved = service.addEvent(FOUNDER_TOKEN, COMPANY_ID, dto);
+        EventDto saved = service.addEvent(FOUNDER_TOKEN, companyId, dto);
         when(eventRepository.findById(saved.id)).thenReturn(Optional.of(event));
 
         assertThrows(RuntimeException.class,
-                () -> service.removeEvent(USER_TOKEN, COMPANY_ID, saved.id));
+                () -> service.removeEvent(USER_TOKEN, companyId, saved.id));
     }
 
     @Test
     void GivenFounder_WhenAppointManager_ThenManagerAdded() {
         service.appointManager(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
-        assertTrue(repo.findById(COMPANY_ID).orElseThrow().isManager(MANAGER));
+        assertTrue(repo.findById(companyId).orElseThrow().isManager(MANAGER));
     }
 
     @Test
@@ -228,7 +235,7 @@ class company_managment_serivceTest {
         assertThrows(RuntimeException.class,
                 () -> service.appointManager(
                         USER_TOKEN,
-                        COMPANY_ID,
+                        companyId,
                         MANAGER,
                         EnumSet.of(CompanyPermission.MANAGE_EVENTS)));
     }
@@ -237,119 +244,119 @@ class company_managment_serivceTest {
     void GivenManager_WhenAddEventWithPermission_ThenSuccess() {
         service.appointManager(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
         EventDto dto = eventDto("Event20");
-        Event event = new Event(dto.name, dto.eventType, Long.valueOf(COMPANY_ID), Long.valueOf(MANAGER));
+        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(MANAGER));
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
-        EventDto saved = service.addEvent(MANAGER_TOKEN, COMPANY_ID, dto);
+        EventDto saved = service.addEvent(MANAGER_TOKEN, companyId, dto);
 
-        assertTrue(repo.findById(COMPANY_ID).orElseThrow().getAssociatedEventIds().contains(saved.id));
+        assertTrue(repo.findById(companyId).orElseThrow().getAssociatedEventIds().contains(saved.id));
     }
 
     @Test
     void GivenManagerWithoutPermission_WhenAddEvent_ThenFail() {
         service.appointManager(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.VIEW_HISTORY));
 
         EventDto dto = eventDto("Event20");
 
         assertThrows(RuntimeException.class,
-                () -> service.addEvent(MANAGER_TOKEN, COMPANY_ID, dto));
+                () -> service.addEvent(MANAGER_TOKEN, companyId, dto));
     }
 
     @Test
     void GivenFounder_WhenAppointAdditionalOwner_ThenOwnerAdded() {
-        service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.appointAdditionalOwner(FOUNDER_TOKEN, companyId, OWNER);
 
-        assertTrue(repo.findById(COMPANY_ID).orElseThrow().isOwner(OWNER));
+        assertTrue(repo.findById(companyId).orElseThrow().isOwner(OWNER));
     }
 
     @Test
     void GivenNonOwner_WhenAppointAdditionalOwner_ThenFail() {
         assertThrows(RuntimeException.class,
-                () -> service.appointAdditionalOwner(USER_TOKEN, COMPANY_ID, OWNER));
+                () -> service.appointAdditionalOwner(USER_TOKEN, companyId, OWNER));
     }
 
     @Test
     void GivenExistingOwner_WhenAppointAdditionalOwner_ThenFail() {
-        service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.appointAdditionalOwner(FOUNDER_TOKEN, companyId, OWNER);
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER));
+                () -> service.appointAdditionalOwner(FOUNDER_TOKEN, companyId, OWNER));
     }
 
     @Test
     void GivenOwner_WhenRemoveOwnerAppointment_ThenOwnerRemoved() {
-        service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.appointAdditionalOwner(FOUNDER_TOKEN, companyId, OWNER);
 
-        service.removeOwnerAppointment(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.removeOwnerAppointment(FOUNDER_TOKEN, companyId, OWNER);
 
-        assertFalse(repo.findById(COMPANY_ID).orElseThrow().isOwner(OWNER));
+        assertFalse(repo.findById(companyId).orElseThrow().isOwner(OWNER));
     }
 
     @Test
     void GivenFounderTarget_WhenRemoveOwnerAppointment_ThenFail() {
-        service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.appointAdditionalOwner(FOUNDER_TOKEN, companyId, OWNER);
 
         assertThrows(RuntimeException.class,
-                () -> service.removeOwnerAppointment(OWNER_TOKEN, COMPANY_ID, FOUNDER));
+                () -> service.removeOwnerAppointment(OWNER_TOKEN, companyId, FOUNDER));
     }
 
     @Test
     void GivenOwner_WhenResignOwnership_ThenOwnerRemoved() {
-        service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.appointAdditionalOwner(FOUNDER_TOKEN, companyId, OWNER);
 
-        service.resignOwnership(OWNER_TOKEN, COMPANY_ID);
+        service.resignOwnership(OWNER_TOKEN, companyId);
 
-        assertFalse(repo.findById(COMPANY_ID).orElseThrow().isOwner(OWNER));
+        assertFalse(repo.findById(companyId).orElseThrow().isOwner(OWNER));
     }
 
     @Test
     void GivenFounder_WhenResignOwnership_ThenFail() {
         assertThrows(RuntimeException.class,
-                () -> service.resignOwnership(FOUNDER_TOKEN, COMPANY_ID));
+                () -> service.resignOwnership(FOUNDER_TOKEN, companyId));
     }
 
     @Test
     void GivenOwner_WhenModifyManagerPermissions_ThenPermissionsChanged() {
         service.appointManager(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
         service.modifyManagerPermissions(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.VIEW_HISTORY));
 
-        Company c = repo.findById(COMPANY_ID).orElseThrow();
+        Company c = repo.findById(companyId).orElseThrow();
         assertFalse(c.managerHasPermission(MANAGER, CompanyPermission.MANAGE_EVENTS));
         assertTrue(c.managerHasPermission(MANAGER, CompanyPermission.VIEW_HISTORY));
     }
 
     @Test
     void GivenWrongOwner_WhenModifyManagerPermissions_ThenFail() {
-        service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.appointAdditionalOwner(FOUNDER_TOKEN, companyId, OWNER);
         service.appointManager(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
         assertThrows(RuntimeException.class,
                 () -> service.modifyManagerPermissions(
                         OWNER_TOKEN,
-                        COMPANY_ID,
+                        companyId,
                         MANAGER,
                         EnumSet.of(CompanyPermission.VIEW_HISTORY)));
     }
@@ -358,76 +365,76 @@ class company_managment_serivceTest {
     void GivenOwner_WhenRemoveManagerAppointment_ThenManagerRemoved() {
         service.appointManager(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
-        service.removeManagerAppointment(FOUNDER_TOKEN, COMPANY_ID, MANAGER);
+        service.removeManagerAppointment(FOUNDER_TOKEN, companyId, MANAGER);
 
-        assertFalse(repo.findById(COMPANY_ID).orElseThrow().isManager(MANAGER));
+        assertFalse(repo.findById(companyId).orElseThrow().isManager(MANAGER));
     }
 
     @Test
     void GivenRemovedManager_WhenAddEvent_ThenFail() {
         service.appointManager(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
-        service.removeManagerAppointment(FOUNDER_TOKEN, COMPANY_ID, MANAGER);
+        service.removeManagerAppointment(FOUNDER_TOKEN, companyId, MANAGER);
 
         EventDto dto = eventDto("Event30");
 
         assertThrows(RuntimeException.class,
-                () -> service.addEvent(MANAGER_TOKEN, COMPANY_ID, dto));
+                () -> service.addEvent(MANAGER_TOKEN, companyId, dto));
     }
 
     @Test
     void GivenFounder_WhenCloseCompany_ThenCompanyClosed() {
-        boolean result = service.closeCompany(FOUNDER_TOKEN, COMPANY_ID);
+        boolean result = service.closeCompany(FOUNDER_TOKEN, companyId);
 
         assertTrue(result);
-        assertFalse(repo.findById(COMPANY_ID).orElseThrow().isOpen());
+        assertFalse(repo.findById(companyId).orElseThrow().isOpen());
     }
 
     @Test
     void GivenNonFounder_WhenCloseCompany_ThenFail() {
         assertThrows(RuntimeException.class,
-                () -> service.closeCompany(USER_TOKEN, COMPANY_ID));
+                () -> service.closeCompany(USER_TOKEN, companyId));
     }
 
     @Test
     void GivenAlreadyClosedCompany_WhenCloseCompany_ThenReturnFalse() {
-        service.closeCompany(FOUNDER_TOKEN, COMPANY_ID);
+        service.closeCompany(FOUNDER_TOKEN, companyId);
 
-        boolean result = service.closeCompany(FOUNDER_TOKEN, COMPANY_ID);
+        boolean result = service.closeCompany(FOUNDER_TOKEN, companyId);
 
         assertFalse(result);
     }
 
     @Test
     void GivenClosedCompany_WhenReopenCompany_ThenCompanyOpen() {
-        service.closeCompany(FOUNDER_TOKEN, COMPANY_ID);
+        service.closeCompany(FOUNDER_TOKEN, companyId);
 
-        boolean result = service.reopenCompany(FOUNDER_TOKEN, COMPANY_ID);
+        boolean result = service.reopenCompany(FOUNDER_TOKEN, companyId);
 
         assertTrue(result);
-        assertTrue(repo.findById(COMPANY_ID).orElseThrow().isOpen());
+        assertTrue(repo.findById(companyId).orElseThrow().isOpen());
     }
 
     @Test
     void GivenNonFounder_WhenReopenCompany_ThenFail() {
-        service.closeCompany(FOUNDER_TOKEN, COMPANY_ID);
+        service.closeCompany(FOUNDER_TOKEN, companyId);
 
         assertThrows(RuntimeException.class,
-                () -> service.reopenCompany(USER_TOKEN, COMPANY_ID));
+                () -> service.reopenCompany(USER_TOKEN, companyId));
     }
 
     @Test
     void GivenNonOwner_WhenViewRolesAndPermissions_ThenFail() {
         assertThrows(RuntimeException.class,
-                () -> service.viewRolesAndPermissions(USER_TOKEN, COMPANY_ID));
+                () -> service.viewRolesAndPermissions(USER_TOKEN, companyId));
     }
 
     private void mockMember(String tokenValue, String memberId) {
@@ -448,16 +455,16 @@ class company_managment_serivceTest {
 
     @Test
     void GivenSystemAdmin_WhenAdminCloseCompany_ThenCompanyClosedAndRolesCleared() {
-        service.appointAdditionalOwner(FOUNDER_TOKEN, COMPANY_ID, OWNER);
+        service.appointAdditionalOwner(FOUNDER_TOKEN, companyId, OWNER);
         service.appointManager(
                 FOUNDER_TOKEN,
-                COMPANY_ID,
+                companyId,
                 MANAGER,
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
-        boolean result = service.adminCloseCompany(ADMIN_TOKEN, COMPANY_ID);
+        boolean result = service.adminCloseCompany(ADMIN_TOKEN, companyId);
 
-        Company company = repo.findById(COMPANY_ID).orElseThrow();
+        Company company = repo.findById(companyId).orElseThrow();
 
         assertTrue(result);
         assertFalse(company.isOpen());
@@ -469,14 +476,14 @@ class company_managment_serivceTest {
     @Test
     void GivenNonAdmin_WhenAdminCloseCompany_ThenFail() {
         assertThrows(RuntimeException.class,
-                () -> service.adminCloseCompany(USER_TOKEN, COMPANY_ID));
+                () -> service.adminCloseCompany(USER_TOKEN, companyId));
     }
 
     @Test
     void GivenAlreadyClosedCompany_WhenAdminCloseCompany_ThenReturnFalse() {
-        service.adminCloseCompany(ADMIN_TOKEN, COMPANY_ID);
+        service.adminCloseCompany(ADMIN_TOKEN, companyId);
 
-        boolean result = service.adminCloseCompany(ADMIN_TOKEN, COMPANY_ID);
+        boolean result = service.adminCloseCompany(ADMIN_TOKEN, companyId);
 
         assertFalse(result);
     }

@@ -3,6 +3,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +40,7 @@ public class CompanyRoleService {
         this.notificationService = notificationService;
     }
 
-    public void assignOwner(String actorToken, int companyId, String newOwnerId) {
+    public void assignOwner(String actorToken, UUID companyId, String newOwnerId) {
         logger.info("Assign owner request received, companyId={}, newOwnerId={}", companyId, newOwnerId);
 
         Member actor = userService.getMemberByToken(actorToken);
@@ -78,7 +79,7 @@ public class CompanyRoleService {
         });
     }
 
-    public void assignManager(String actorToken, int companyId, String managerId) {
+    public void assignManager(String actorToken, UUID companyId, String managerId) {
         logger.info("Assign manager request received, companyId={}, managerId={}", companyId, managerId);
 
         Member actor = userService.getMemberByToken(actorToken);
@@ -117,7 +118,7 @@ public class CompanyRoleService {
         });
     }
 
-    public void removeOwner(String actorToken, int companyId, String ownerId) {
+    public void removeOwner(String actorToken, UUID companyId, String ownerId) {
         logger.info("Remove owner request received, companyId={}, ownerId={}", companyId, ownerId);
 
         Member actor = userService.getMemberByToken(actorToken);
@@ -156,7 +157,7 @@ public class CompanyRoleService {
         });
     }
 
-    public void addManagerPermission(String actorToken, int companyId, String managerId,
+    public void addManagerPermission(String actorToken, UUID companyId, String managerId,
             ManagerPermission permission) {
         logger.info("Add manager permission request received, companyId={}, managerId={}, permission={}",
                 companyId, managerId, permission);
@@ -201,7 +202,7 @@ public class CompanyRoleService {
         });
     }
 
-    public void removeManagerPermission(String actorToken, int companyId, String managerId,
+    public void removeManagerPermission(String actorToken, UUID companyId, String managerId,
             ManagerPermission permission) {
         logger.info("Remove manager permission request received, companyId={}, managerId={}, permission={}",
                 companyId, managerId, permission);
@@ -247,7 +248,7 @@ public class CompanyRoleService {
         });
     }
 
-    public boolean hasManagerPermission(String managerId, int companyId, ManagerPermission permission) {
+    public boolean hasManagerPermission(String managerId, UUID companyId, ManagerPermission permission) {
         logger.debug("Check manager permission, managerId={}, companyId={}, permission={}",
                 managerId, companyId, permission);
 
@@ -276,7 +277,7 @@ public class CompanyRoleService {
         return result;
     }
 
-    public Optional<CompanyRoleAssignment> getRoleInCompany(String memberId, int companyId) {
+    public Optional<CompanyRoleAssignment> getRoleInCompany(String memberId, UUID companyId) {
         logger.debug("Get role in company, memberId={}, companyId={}", memberId, companyId);
 
         Member target = userRepository.findById(memberId)
@@ -291,7 +292,7 @@ public class CompanyRoleService {
         return role;
     }
 
-    public boolean isOwnerInCompany(String memberId, int companyId) {
+    public boolean isOwnerInCompany(String memberId, UUID companyId) {
         logger.debug("Check isOwner, memberId={}, companyId={}", memberId, companyId);
 
         Member target = userRepository.findById(memberId)
@@ -305,7 +306,7 @@ public class CompanyRoleService {
         return result;
     }
 
-    public boolean isManagerInCompany(String memberId, int companyId) {
+    public boolean isManagerInCompany(String memberId, UUID companyId) {
         logger.debug("Check isManager, memberId={}, companyId={}", memberId, companyId);
 
         Member target = userRepository.findById(memberId)

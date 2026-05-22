@@ -49,7 +49,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Add discount rule to EVENT policy
     // =========================================================================
-    public void addDiscountRuleToEvent(String actorToken, int companyId,
+    public void addDiscountRuleToEvent(String actorToken, UUID companyId,
                                        UUID eventId, DiscountRule newRule) {
         logger.info("Add discount rule to event, companyId={}, eventId={}", companyId, eventId);
 
@@ -70,7 +70,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Add discount rule to COMPANY policy (no eventId needed)
     // =========================================================================
-    public void addDiscountRuleToCompany(String actorToken, int companyId, DiscountRule newRule) {
+    public void addDiscountRuleToCompany(String actorToken, UUID companyId, DiscountRule newRule) {
         logger.info("Add discount rule to company, companyId={}", companyId);
 
         Member  actor   = getActorFromToken(actorToken);
@@ -90,7 +90,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Set discount rules for EVENT policy
     // =========================================================================
-    public void setDiscountRulesForEvent(String actorToken, int companyId, UUID eventId,
+    public void setDiscountRulesForEvent(String actorToken, UUID companyId, UUID eventId,
                                           List<DiscountRule> rules, boolean isAdditive) {
         logger.info("Set discount rules for event, companyId={}, eventId={}", companyId, eventId);
 
@@ -111,7 +111,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Set discount rules for COMPANY policy
     // =========================================================================
-    public void setDiscountRulesForCompany(String actorToken, int companyId,
+    public void setDiscountRulesForCompany(String actorToken, UUID companyId,
                                             List<DiscountRule> rules, boolean isAdditive) {
         logger.info("Set discount rules for company, companyId={}", companyId);
 
@@ -132,7 +132,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Add purchase rule to EVENT policy
     // =========================================================================
-    public void addPurchaseRuleToEvent(String actorToken, int companyId,
+    public void addPurchaseRuleToEvent(String actorToken, UUID companyId,
                                        UUID eventId, PurchaseRule newRule) {
         logger.info("Add purchase rule to event, companyId={}, eventId={}", companyId, eventId);
 
@@ -153,7 +153,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Add purchase rule to COMPANY policy
     // =========================================================================
-    public void addPurchaseRuleToCompany(String actorToken, int companyId, PurchaseRule newRule) {
+    public void addPurchaseRuleToCompany(String actorToken, UUID companyId, PurchaseRule newRule) {
         logger.info("Add purchase rule to company, companyId={}", companyId);
 
         Member  actor   = getActorFromToken(actorToken);
@@ -173,7 +173,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Set purchase rules for EVENT / COMPANY policy
     // =========================================================================
-    public void setPurchaseRulesForEvent(String actorToken, int companyId, UUID eventId,
+    public void setPurchaseRulesForEvent(String actorToken, UUID companyId, UUID eventId,
                                           List<PurchaseRule> rules, PurchasePolicy.Operator operator) {
         logger.info("Set purchase rules for event, companyId={}, eventId={}", companyId, eventId);
 
@@ -191,7 +191,7 @@ public class PolicyService {
         logger.info("Purchase rules set for event, eventId={}", eventId);
     }
 
-    public void setPurchaseRulesForCompany(String actorToken, int companyId,
+    public void setPurchaseRulesForCompany(String actorToken, UUID companyId,
                                             List<PurchaseRule> rules, PurchasePolicy.Operator operator) {
         logger.info("Set purchase rules for company, companyId={}", companyId);
 
@@ -213,7 +213,7 @@ public class PolicyService {
     // Private helpers — find with event→company fallback
     // =========================================================================
 
-    private Optional<DiscountPolicy> findDiscountPolicy(int companyId, UUID eventId) {
+    private Optional<DiscountPolicy> findDiscountPolicy(UUID companyId, UUID eventId) {
         if (eventId != null) {
             Optional<DiscountPolicy> ep = findDiscountPolicyByEventId(eventId);
             if (ep.isPresent()) return ep;
@@ -221,7 +221,7 @@ public class PolicyService {
         return findDiscountPolicyByCompanyId(companyId);
     }
 
-    private Optional<PurchasePolicy> findPurchasePolicy(int companyId, UUID eventId) {
+    private Optional<PurchasePolicy> findPurchasePolicy(UUID companyId, UUID eventId) {
         if (eventId != null) {
             Optional<PurchasePolicy> ep = findPurchasePolicyByEventId(eventId);
             if (ep.isPresent()) return ep;
@@ -229,7 +229,7 @@ public class PolicyService {
         return findPurchasePolicyByCompanyId(companyId);
     }
 
-    private Optional<SellingPolicy> findSellingPolicy(int companyId, UUID eventId) {
+    private Optional<SellingPolicy> findSellingPolicy(UUID companyId, UUID eventId) {
         if (eventId != null) {
             Object result = policyRepo.findSellingPolicyByEventId(eventId);
             Optional<SellingPolicy> ep = toOptional(result);
@@ -243,7 +243,7 @@ public class PolicyService {
         return toOptional(result);
     }
 
-    private Optional<DiscountPolicy> findDiscountPolicyByCompanyId(int companyId) {
+    private Optional<DiscountPolicy> findDiscountPolicyByCompanyId(UUID companyId) {
         return policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId);
     }
 
@@ -252,7 +252,7 @@ public class PolicyService {
         return toOptional(result);
     }
 
-    private Optional<PurchasePolicy> findPurchasePolicyByCompanyId(int companyId) {
+    private Optional<PurchasePolicy> findPurchasePolicyByCompanyId(UUID companyId) {
         return policyRepo.findPurchasePolicyByCompanyIdAndEventIdIsNull(companyId);
     }
 
@@ -275,7 +275,7 @@ public class PolicyService {
         return representUserService.requireMember(actorToken);
     }
 
-    private Company getCompanyOrThrow(int companyId) {
+    private Company getCompanyOrThrow(UUID companyId) {
         return companyRepo.findById(companyId)
                 .orElseThrow(() -> new NoSuchElementException(
                         "Company ID " + companyId + " not found."));

@@ -60,7 +60,7 @@ public class EventService {
 
     // ── Creation / Deletion ──────────────────────────────────────────────────
 
-    public Event createEvent(EventDto dto, Long companyId, Long ownerId) {
+    public Event createEvent(EventDto dto, UUID companyId, Long ownerId) {
         Event event = new Event(dto.name, dto.eventType, companyId, ownerId);
         return eventRepository.saveAndFlush(event);
     }
@@ -297,7 +297,7 @@ public class EventService {
         return eventRepository.findAllEvents();
     }
 
-    public List<Event> getEventsByCompany(Long companyId) {
+    public List<Event> getEventsByCompany(UUID companyId) {
         logger.info("Retrieving events for company {}", companyId);
         return eventRepository.findByCompanyId(companyId);
     }

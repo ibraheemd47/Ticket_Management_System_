@@ -38,7 +38,7 @@ public class LotteryConcurrencyTest {
     @Autowired private company_managment_serivce companyService;
 
     private String ownerToken;
-    private int companyId;
+    private UUID companyId;
     private UUID eventId;
     private UUID lotteryId;
 
@@ -50,24 +50,31 @@ public class LotteryConcurrencyTest {
 
     @BeforeEach
     void setUp() {
-        eventId   = UUID.randomUUID();
-        companyId = Math.abs(UUID.randomUUID().hashCode() % 10000) + 1;
+        eventId = UUID.randomUUID();
 
         String ownerId = userService.register(
                 "owner_" + UUID.randomUUID(), "123456",
                 "owner" + UUID.randomUUID() + "@test.com",
                 "0501234567", VerificationMethod.EMAIL);
-        String ownerUsername = userRepository.findById(ownerId).orElseThrow().getUsername();
+
+        String ownerUsername = userRepository.findById(ownerId)
+                .orElseThrow()
+                .getUsername();
+
         userService.verifyAccount(ownerUsername, "123456");
         ownerToken = userService.login(ownerUsername, "123456");
 
-        // שם ייחודי לכל טסט
-        companyService.openCompany(ownerToken, companyId, "Test Company " + UUID.randomUUID());
+        companyId = companyService.openCompany(
+                ownerToken,
+                "Test Company " + UUID.randomUUID());
 
         LotteryDTO dto = lotteryService.createLottery(
-                ownerToken, eventId, companyId,
+                ownerToken,
+                eventId,
+                companyId,
                 LocalDateTime.now().plusDays(1),
                 LocalDateTime.now().plusDays(2));
+
         lotteryId = dto.getId();
     }
 
