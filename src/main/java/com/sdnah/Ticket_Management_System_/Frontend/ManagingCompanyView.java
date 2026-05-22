@@ -6,12 +6,24 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -53,6 +65,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     private final company_managment_serivce companyService;
     private final UserService userService;
+    private final PolicyService policyService;
 
     private String token;
     private int companyId;
@@ -63,9 +76,11 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private final Tab policiesTab = new Tab("Policies");
 
     public ManagingCompanyView(company_managment_serivce companyService,
-                               UserService userService) {
+                               UserService userService,
+                               PolicyService policyService) {
         this.companyService = companyService;
         this.userService = userService;
+        this.policyService = policyService;
 
         setSizeFull();
         setPadding(false);
@@ -419,30 +434,155 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private void renderPoliciesTab() {
         tabContent.removeAll();
 
-        // Placeholder. The Composite-pattern policy editor lives on main; wire
-        // this tab to PolicyService once the API is merged here. UI shape:
-        //   - Purchase policy: tree of predicates with AND/OR group nodes.
-        //   - Discount policy: list of rules (simple / conditional / coupon)
-        //                      with composition mode (MAX vs SUM).
-        Div placeholder = new Div();
-        placeholder.getStyle()
-                .set("padding", "32px")
-                .set("text-align", "center")
-                .set("color", "#666");
+        Div wrap = new Div();
+        wrap.getStyle().set("display", "grid")
+                .set("grid-template-columns", "1fr 1fr")
+                .set("gap", "24px");
 
-        H2 t = new H2("Policies (coming up)");
-        t.getStyle().set("margin", "0 0 8px 0").set("color", "#333");
+        wrap.add(buildDiscountEditor(), buildPurchaseEditor());
 
-        Paragraph p1 = new Paragraph(
-                "The discount + purchase policy editor will plug in here once the policy API is available on this branch.");
-        Paragraph p2 = new Paragraph(
-                "Will support: simple, conditional, and coupon discounts; AND/OR composition of purchase rules.");
+        Paragraph note = new Paragraph(
+                "Rules are added to the company-wide policy. " +
+                "Event-specific overrides live on the Event details page.");
+        note.getStyle().set("color", "#666").set("margin-top", "16px");
 
-        Button refresh = new Button("Reload policies", e -> renderPoliciesTab());
-        refresh.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        tabContent.add(wrap, note);
+    }
 
-        placeholder.add(t, p1, p2, refresh);
-        tabContent.add(placeholder);
+    // ── Policies → Discount editor ──────────────────────────────────────────
+
+    private Component buildDiscountEditor() {
+        Div card = policyCard("Add a discount rule");
+
+        Select<String> type = new Select<>();
+        type.setLabel("Rule type");
+        type.setItems("Percentage", "Conditional (min qty)", "Coupon code");
+        type.setValue("Percentage");
+
+        NumberField percent = new NumberField("Percentage (0–100)");
+        percent.setValue(10.0);
+        percent.setMin(0); percent.setMax(100); percent.setStep(1);
+
+        IntegerField minQty = new IntegerField("Min tickets");
+        minQty.setValue(2);
+        minQty.setMin(1);
+        minQty.setVisible(false);
+
+        TextField code = new TextField("Coupon code");
+        code.setVisible(false);
+
+        TextField description = new TextField("Description (optional)");
+
+        type.addValueChangeListener(e -> {
+            minQty.setVisible("Conditional (min qty)".equals(e.getValue()));
+            code.setVisible("Coupon code".equals(e.getValue()));
+        });
+
+        Button add = new Button("Add discount rule", ev -> {
+            try {
+                DiscountRule rule = buildDiscountRule(
+                        type.getValue(), percent.getValue(), minQty.getValue(),
+                        code.getValue(), description.getValue());
+                policyService.addDiscountRuleToCompany(token, companyId, rule);
+                Notification.show("Discount rule added", 2500, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (RuntimeException ex) {
+                Notification.show("Couldn't add: " + ex.getMessage(),
+                                3500, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        card.add(type, percent, minQty, code, description, add);
+        return card;
+    }
+
+    private DiscountRule buildDiscountRule(String type, Double percent, Integer minQty,
+                                           String code, String description) {
+        double p = percent == null ? 0.0 : percent;
+        String desc = (description == null || description.isBlank())
+                ? defaultDiscountDescription(type, p) : description;
+        return switch (type) {
+            case "Conditional (min qty)" -> new QuantityConditionalDiscountRule(
+                    minQty == null ? 1 : minQty, p);
+            case "Coupon code"           -> {
+                if (code == null || code.isBlank())
+                    throw new IllegalArgumentException("Coupon code required");
+                yield new CouponDiscountRule(p, code.trim());
+            }
+            default                      -> new PercentageDiscountRule(p, desc);
+        };
+    }
+
+    private String defaultDiscountDescription(String type, double percent) {
+        return "%.0f%% %s".formatted(percent,
+                type == null ? "discount" : type.toLowerCase() + " discount");
+    }
+
+    // ── Policies → Purchase editor ──────────────────────────────────────────
+
+    private Component buildPurchaseEditor() {
+        Div card = policyCard("Add a purchase rule");
+
+        Select<String> type = new Select<>();
+        type.setLabel("Rule type");
+        type.setItems("Minimum age", "Max tickets per order", "Min tickets per order");
+        type.setValue("Minimum age");
+
+        IntegerField value = new IntegerField("Value");
+        value.setValue(18);
+        value.setMin(1);
+
+        type.addValueChangeListener(e -> {
+            // sane default for each rule type
+            switch (e.getValue()) {
+                case "Minimum age"             -> value.setValue(18);
+                case "Max tickets per order"   -> value.setValue(5);
+                case "Min tickets per order"   -> value.setValue(2);
+                default -> {}
+            }
+        });
+
+        Button add = new Button("Add purchase rule", ev -> {
+            try {
+                PurchaseRule rule = buildPurchaseRule(type.getValue(), value.getValue());
+                policyService.addPurchaseRuleToCompany(token, companyId, rule);
+                Notification.show("Purchase rule added", 2500, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (RuntimeException ex) {
+                Notification.show("Couldn't add: " + ex.getMessage(),
+                                3500, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        card.add(type, value, add);
+        return card;
+    }
+
+    private PurchaseRule buildPurchaseRule(String type, Integer value) {
+        int v = value == null ? 0 : value;
+        if (v <= 0) throw new IllegalArgumentException("Value must be positive");
+        return switch (type) {
+            case "Max tickets per order" -> new MaxTicketsRule(v);
+            case "Min tickets per order" -> new MinTicketsRule(v);
+            default                      -> new MinAgeRule(v);
+        };
+    }
+
+    private Div policyCard(String title) {
+        Div card = new Div();
+        card.getStyle()
+                .set("padding", "20px")
+                .set("background", "#f9fbff")
+                .set("border", "1px solid #e3eaf5")
+                .set("border-radius", "12px");
+        H2 t = new H2(title);
+        t.getStyle().set("margin", "0 0 12px 0").set("font-size", "18px");
+        card.add(t);
+        return card;
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
