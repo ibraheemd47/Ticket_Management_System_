@@ -1,12 +1,20 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -34,6 +42,9 @@ import com.vaadin.flow.router.Route;
 public class OrderDetailsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final ActiveOrderService orderService;
+    private final TicketService ticketService;
+    private final UserService userService;
+    private final EventService eventService;
 
     private String selectedTab = "active"; // default to "active" (was "past" before)
     private String token;
@@ -41,8 +52,14 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
     private static final DateTimeFormatter DATE_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    public OrderDetailsView(ActiveOrderService orderService) {
+    public OrderDetailsView(ActiveOrderService orderService,
+                            TicketService ticketService,
+                            UserService userService,
+                            EventService eventService) {
         this.orderService = orderService;
+        this.ticketService = ticketService;
+        this.userService = userService;
+        this.eventService = eventService;
 
         setSizeFull();
         setPadding(false);
@@ -92,9 +109,12 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
         }
 
         if (orders == null || orders.isEmpty()) {
-            return emptyStateCard(
+            Div card = emptyStateCard(
                     "No active orders",
-                    "Active orders you reserve or start purchasing will appear here.");
+                    "Reserved orders awaiting checkout will appear here. " +
+                    "Already paid? Check the Past Orders tab.");
+            card.add(buildReserveTestOrderButton());
+            return card;
         }
 
         Grid<OrderDTO> grid = new Grid<>(OrderDTO.class, false);
@@ -126,33 +146,152 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
     }
 
     private Div renderPastOrders() {
-        List<PurchaseDTO> purchases;
-        try {
-            purchases = orderService.getPurchaseHistory(token);
-        } catch (RuntimeException ex) {
-            return errorCard("Couldn't load your purchase history: " + ex.getMessage());
-        }
+        // Two sources of past orders in this codebase:
+        //  1) Purchase rows from ActiveOrderService.checkout (currently not used
+        //     by any UI — kept for forward compatibility).
+        //  2) ticket rows owned by the user (the actual checkout path that
+        //     CheckoutView uses today via TicketService.confirmPurchase).
+        // Show both; tickets are the realistic source for now.
+        List<PurchaseDTO> purchases = safeList(() -> orderService.getPurchaseHistory(token));
+        List<ticket> tickets        = safeList(() -> {
+            UUID ownerId = resolveOwnerUuid();
+            return ownerId == null ? List.<ticket>of() : ticketService.getTicketsByOwner(ownerId);
+        });
 
-        if (purchases == null || purchases.isEmpty()) {
+        if ((purchases == null || purchases.isEmpty())
+                && (tickets == null || tickets.isEmpty())) {
             return emptyStateCard(
                     "No past orders",
                     "Tickets you bought before will automatically appear here.");
         }
 
-        Grid<PurchaseDTO> grid = new Grid<>(PurchaseDTO.class, false);
-        grid.addColumn(p -> shortId(p.getPurchaseId())).setHeader("Purchase").setAutoWidth(true);
-        grid.addColumn(p -> shortId(p.getOrderId())).setHeader("Order").setAutoWidth(true);
-        grid.addColumn(p -> p.getTicketCodes() == null ? 0 : p.getTicketCodes().size())
-                .setHeader("Tickets").setAutoWidth(true);
-        grid.addColumn(p -> "$" + p.getFinalPrice()).setHeader("Paid").setAutoWidth(true);
-        grid.addColumn(p -> p.getPurchasedAt() == null ? "—" : p.getPurchasedAt().format(DATE_FMT))
-                .setHeader("Purchased").setAutoWidth(true);
+        Div container = new Div();
+        container.getStyle().set("display", "grid").set("gap", "20px");
 
-        grid.setItems(purchases);
-        grid.setAllRowsVisible(true);
-        grid.setWidthFull();
+        if (tickets != null && !tickets.isEmpty()) {
+            Grid<ticket> ticketGrid = new Grid<>(ticket.class, false);
+            ticketGrid.addColumn(t -> shortId(t.getTicketId())).setHeader("Ticket").setAutoWidth(true);
+            ticketGrid.addColumn(t -> shortId(t.getShowId())).setHeader("Show").setAutoWidth(true);
+            ticketGrid.addColumn(t -> t.getSeat() == null ? "General admission"
+                                                          : "Seat " + t.getSeat().getSeatNumber())
+                    .setHeader("Seat").setAutoWidth(true);
+            ticketGrid.addColumn(t -> t.getStatus() == null ? "—" : t.getStatus().name())
+                    .setHeader("Status").setAutoWidth(true);
+            ticketGrid.addColumn(t -> t.getPrice() == null ? "—" : "$" + t.getPrice())
+                    .setHeader("Paid").setAutoWidth(true);
+            ticketGrid.addColumn(t -> t.getShowDate() == null ? "—" : t.getShowDate().toString())
+                    .setHeader("Show date").setAutoWidth(true);
+            ticketGrid.setItems(tickets);
+            ticketGrid.setAllRowsVisible(true);
+            ticketGrid.setWidthFull();
+            container.add(wrapInCard(ticketGrid, "Tickets you own (" + tickets.size() + ")"));
+        }
 
-        return wrapInCard(grid, "Your past orders (" + purchases.size() + ")");
+        if (purchases != null && !purchases.isEmpty()) {
+            Grid<PurchaseDTO> grid = new Grid<>(PurchaseDTO.class, false);
+            grid.addColumn(p -> shortId(p.getPurchaseId())).setHeader("Purchase").setAutoWidth(true);
+            grid.addColumn(p -> shortId(p.getOrderId())).setHeader("Order").setAutoWidth(true);
+            grid.addColumn(p -> p.getTicketCodes() == null ? 0 : p.getTicketCodes().size())
+                    .setHeader("Tickets").setAutoWidth(true);
+            grid.addColumn(p -> "$" + p.getFinalPrice()).setHeader("Paid").setAutoWidth(true);
+            grid.addColumn(p -> p.getPurchasedAt() == null ? "—" : p.getPurchasedAt().format(DATE_FMT))
+                    .setHeader("Purchased").setAutoWidth(true);
+            grid.setItems(purchases);
+            grid.setAllRowsVisible(true);
+            grid.setWidthFull();
+            container.add(wrapInCard(grid, "Purchase records (" + purchases.size() + ")"));
+        }
+
+        Div outer = new Div(container);
+        outer.setWidthFull();
+        outer.getStyle().set("padding", "40px 24px").set("background", "#f4f4f4");
+        return outer;
+    }
+
+    /**
+     * Dev-only button: reserves a sample ActiveOrder via the backend so we can
+     * exercise the ManagerOrderDetails view without a real seat-selection UI.
+     * Uses the first event in the DB and a randomly-generated "seat". Remove
+     * once the reservation flow is wired through from EventDetailsView.
+     */
+    private Div buildReserveTestOrderButton() {
+        Div wrap = new Div();
+        wrap.getStyle()
+                .set("margin-top", "12px")
+                .set("padding", "10px 18px")
+                .set("background", "#fff8e1")
+                .set("border", "1px dashed #c8a13a")
+                .set("border-radius", "8px")
+                .set("font-size", "12px")
+                .set("color", "#7a5b00");
+
+        Paragraph label = new Paragraph("Dev helper — there's no seat-selection UI yet, click below to reserve a sample order:");
+        label.getStyle().set("margin", "0 0 8px 0");
+
+        Button btn = new Button("Reserve a sample order", e -> reserveSampleOrder());
+        btn.getStyle()
+                .set("background", "#026cdf").set("color", "white")
+                .set("font-weight", "700").set("padding", "8px 22px")
+                .set("border-radius", "8px");
+
+        wrap.add(label, btn);
+        return wrap;
+    }
+
+    private void reserveSampleOrder() {
+        List<Event> events;
+        try {
+            events = eventService.getAllEvents();
+        } catch (RuntimeException ex) {
+            Notification.show("Couldn't list events: " + ex.getMessage(),
+                            4000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+        if (events == null || events.isEmpty()) {
+            Notification.show("No events in the DB — ask whoever owns event-creation to add one first",
+                            4000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+        UUID eventId = events.get(0).getEventId();
+        SeatRequest seat = new SeatRequest(
+                UUID.randomUUID().toString(),   // fresh ticket id → not already locked
+                1L,
+                UUID.randomUUID(),
+                new BigDecimal("30"));
+
+        try {
+            OrderDTO created = orderService.reserveTickets(token, eventId, List.of(seat));
+            Notification.show("Reserved order " + shortId(created.getOrderId()) + " — refreshing",
+                            2500, Notification.Position.TOP_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            getUI().ifPresent(ui -> ui.getPage().reload());
+        } catch (RuntimeException ex) {
+            Notification.show("Reserve failed: " + ex.getMessage(),
+                            5000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    /** Resolve the current user's memberId (a String) and turn it into a UUID
+     *  so we can look up the tickets they own via TicketService. */
+    private UUID resolveOwnerUuid() {
+        try {
+            String memberId = userService.getMemberByToken(token).getMemberId();
+            return UUID.fromString(memberId);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private static <T> List<T> safeList(java.util.concurrent.Callable<List<T>> fetch) {
+        try {
+            List<T> r = fetch.call();
+            return r == null ? List.<T>of() : r;
+        } catch (Exception ex) {
+            return List.<T>of();
+        }
     }
 
     // ── Card wrappers ────────────────────────────────────────────────────────
