@@ -19,7 +19,7 @@ import static org.mockito.Mockito.*;
 public class LotteryTest {
 
     private UUID eventId;
-    private int companyId;
+    private UUID companyId;
     private LocalDateTime deadline;
     private LocalDateTime drawTime;
     private LotteryAuthDomainService lotteryAuth;
@@ -31,7 +31,7 @@ public class LotteryTest {
     @BeforeEach
     void setUp() {
         eventId = UUID.randomUUID();
-        companyId = 1;
+        companyId = UUID.randomUUID();;
         deadline = LocalDateTime.now().plusDays(1);
         drawTime = LocalDateTime.now().plusDays(2);
         lotteryAuth = new LotteryAuthDomainService();
@@ -69,7 +69,7 @@ public class LotteryTest {
     @Test
     void givenInvalidCompanyId_WhenCreatingLottery_ThenIllegalArgumentExceptionIsThrown() {
         assertThrows(IllegalArgumentException.class,
-                () -> new Lottery(eventId, 0, deadline, drawTime));
+                () -> new Lottery(eventId, null, deadline, drawTime));
     }
 
     @Test

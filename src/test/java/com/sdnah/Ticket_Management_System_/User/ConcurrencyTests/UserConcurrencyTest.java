@@ -154,9 +154,9 @@ class UserConcurrencyTest {
     @DisplayName("Concurrent assignOwner on same target: only one role is persisted")
     void concurrentAssignOwner_SameTarget_OnlyOneSucceeds() throws Exception {
         // Arrange
-        int companyId = Math.abs(UUID.randomUUID().hashCode());
-        if (companyId == 0) {
-            companyId = 1;
+        UUID companyId = UUID.randomUUID();
+        if (companyId == null) {
+            companyId = UUID.randomUUID();
         }
 
         String ownerUsername = "ownerUser_" + UUID.randomUUID();
@@ -185,7 +185,7 @@ class UserConcurrencyTest {
 
         String ownerToken = userService.login(ownerUsername, "password123");
 
-        final int finalCompanyId = companyId;
+        final UUID finalCompanyId = companyId;
 
         // Act
         Outcome outcome = runConcurrently(15,
@@ -201,7 +201,7 @@ class UserConcurrencyTest {
         assertTrue(reloaded.isOwnerInCompany(finalCompanyId));
 
         long ownerRoles = reloaded.getCompanyRoles().stream()
-                .filter(r -> r.getCompanyId() == finalCompanyId && r.isOwner())
+                .filter(r -> r.getCompanyId().equals(finalCompanyId) && r.isOwner())
                 .count();
 
         assertEquals(1, ownerRoles, "must end with exactly one OWNER role for that company");

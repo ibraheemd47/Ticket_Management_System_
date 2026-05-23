@@ -20,9 +20,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.support.TransactionTemplate;
 
+
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
@@ -73,6 +75,9 @@ class EndToEndFlowTest {
 
     @Autowired
     private TransactionTemplate txTemplate;
+
+    @Autowired
+     private company_managment_serivce companyService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -153,9 +158,13 @@ class EndToEndFlowTest {
         assertTrue(userRepository.findByUsername(ownerUsername).orElseThrow().isLoggedin());
 
         // -------- 3. The owner creates a new event --------
+       UUID companyId = companyService.openCompany(
+        ownerToken,
+        "Concert Company");
+
         Event event = eventService.createEvent(
                 new EventDto(null, "End-to-End Concert", null, show_type.PERFORMANCE, "Tel Aviv"),
-                500L,
+                companyId,
                 999L); // companyId / eventOwnerId can be independent of the Member memberId
 
         assertNotNull(event.getEventId());
@@ -299,9 +308,18 @@ class EndToEndFlowTest {
     @Test
     @DisplayName("Owner can edit the event after creation and the change is visible to a browsing buyer")
     void ownerEditsEvent_BuyerSeesUpdatedDetails() {
+        String ownerUsername = "editor_" + UUID.randomUUID();
+        registerAndVerify(ownerUsername, "secret123", ownerUsername + "@example.com");
+
+        String ownerToken = userService.login(ownerUsername, "secret123");
+
+        UUID companyId = companyService.openCompany(
+                ownerToken,
+                "Festival Company");
+
         Event event = eventService.createEvent(
                 new EventDto(null, "Initial Title", null, show_type.FESTIVAL, "Haifa"),
-                501L,
+                companyId,
                 111L);
 
         eventService.editEventName(event.getEventId(), "Final Title", 111L);

@@ -2,8 +2,9 @@ package com.sdnah.Ticket_Management_System_;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
@@ -14,7 +15,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.*;
 public class CompanyAcceptanceTest {
 
     private CompanyRepository companyRepository;
-    private Map<Integer, Company> companies;
+    private Map<UUID, Company> companies;
     private company_managment_serivce companyService;
 
     private UserRepository userRepository;
@@ -72,23 +72,23 @@ public class CompanyAcceptanceTest {
             return company;
         });
 
-        when(companyRepository.findById(anyInt())).thenAnswer(invocation -> {
-            int companyId = invocation.getArgument(0);
+        when(companyRepository.findById(any(UUID.class))).thenAnswer(invocation -> {
+            UUID companyId = invocation.getArgument(0);
             return Optional.ofNullable(companies.get(companyId));
         });
 
-        when(companyRepository.existsById(anyInt())).thenAnswer(invocation -> {
-            int companyId = invocation.getArgument(0);
+        when(companyRepository.existsById(any(UUID.class))).thenAnswer(invocation -> {
+            UUID companyId = invocation.getArgument(0);
             return companies.containsKey(companyId);
         });
 
         when(companyRepository.findAll()).thenAnswer(invocation -> new ArrayList<>(companies.values()));
 
         doAnswer(invocation -> {
-            int companyId = invocation.getArgument(0);
+            UUID companyId = invocation.getArgument(0);
             companies.remove(companyId);
             return null;
-        }).when(companyRepository).deleteById(anyInt());
+        }).when(companyRepository).deleteById(any(UUID.class));
 
         when(userRepository.save(any(Member.class))).thenAnswer(invocation -> {
             Member member = invocation.getArgument(0);
@@ -117,11 +117,12 @@ public class CompanyAcceptanceTest {
         });
 
         companyService = new company_managment_serivce(
-            companyRepository,
-            userRepository,
-            eventRepository,
-            representUserService,
-            notificationService);
+                companyRepository,
+                userRepository,
+                eventRepository,
+                representUserService,
+                notificationService
+        );
 
         mockMember(FOUNDER_ID, "founder", FOUNDER_TOKEN);
         mockMember(USER_200_ID, "user200", USER_200_TOKEN);
@@ -144,14 +145,13 @@ public class CompanyAcceptanceTest {
         when(representUserService.requireMember(tokenValue)).thenReturn(member);
     }
 
-    // II.3.2 Open Production Company
     @Test
     void openProductionCompanySuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "LiveNation");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "LiveNation");
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
 
-        assertEquals(1, company.getCompanyId());
+        assertEquals(companyId, company.getCompanyId());
         assertEquals("LiveNation", company.getCompanyName());
         assertTrue(company.isOpen());
         assertEquals(FOUNDER_ID, company.getCompanyFounderId());
@@ -161,41 +161,43 @@ public class CompanyAcceptanceTest {
     @Test
     void openProductionCompanyWithMissingDetails() {
         assertThrows(RuntimeException.class,
-                () -> companyService.openCompany(FOUNDER_TOKEN, 1, ""));
+                () -> companyService.openCompany(FOUNDER_TOKEN, ""));
     }
 
     @Test
-    void openProductionCompanyWithDuplicateIdentity() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "LiveNation");
+    void openTwoCompaniesSuccessfully() {
+        UUID companyA = companyService.openCompany(FOUNDER_TOKEN, "LiveNation");
+        UUID companyB = companyService.openCompany(USER_200_TOKEN, "AnotherCompany");
 
-        assertThrows(IllegalStateException.class,
-                () -> companyService.openCompany(USER_200_TOKEN, 1, "AnotherCompany"));
+        assertNotEquals(companyA, companyB);
+        assertTrue(companyRepository.findById(companyA).isPresent());
+        assertTrue(companyRepository.findById(companyB).isPresent());
     }
 
-    // II.2.1 View Active Production Companies and Their Events
     @Test
     void viewActiveProductionCompaniesAndEventsSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.openCompany(USER_200_TOKEN, 2, "CompanyB");
+        UUID companyB = companyService.openCompany(USER_200_TOKEN, "CompanyB");
+        UUID companyA = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         EventDto dto1 = new EventDto(null, "Event1", null, show_type.CONFERENCE, "Venue");
         EventDto dto2 = new EventDto(null, "Event2", null, show_type.CONFERENCE, "Venue");
 
-        EventDto saved1 = companyService.addEvent(FOUNDER_TOKEN, 1, dto1);
-        EventDto saved2 = companyService.addEvent(FOUNDER_TOKEN, 1, dto2);
+        EventDto saved1 = companyService.addEvent(FOUNDER_TOKEN, companyA, dto1);
+        EventDto saved2 = companyService.addEvent(FOUNDER_TOKEN, companyA, dto2);
 
         List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
 
         assertEquals(2, activeCompanies.size());
 
-        CompanyDTO companyA = activeCompanies.stream()
-                .filter(c -> c.getCompanyId() == 1)
+        CompanyDTO companyADto = activeCompanies.stream()
+                .filter(c -> c.getCompanyId().equals(companyA))
                 .findFirst()
                 .orElseThrow();
 
-        assertEquals("CompanyA", companyA.getCompanyName());
+        assertEquals("CompanyA", companyADto.getCompanyName());
+        assertTrue(activeCompanies.stream().anyMatch(c -> c.getCompanyId().equals(companyB)));
 
-        List<UUID> companyAEvents = companyService.getAllEventsByCompany(1);
+        List<UUID> companyAEvents = companyService.getAllEventsByCompany(companyA);
 
         assertEquals(2, companyAEvents.size());
         assertTrue(companyAEvents.contains(saved1.id));
@@ -212,38 +214,37 @@ public class CompanyAcceptanceTest {
 
     @Test
     void noEventsForActiveProductionCompany() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         List<CompanyDTO> activeCompanies = companyService.getActiveCompanies();
 
         assertEquals(1, activeCompanies.size());
-        assertEquals(1, activeCompanies.get(0).getCompanyId());
+        assertEquals(companyId, activeCompanies.get(0).getCompanyId());
 
-        List<UUID> events = companyService.getAllEventsByCompany(1);
+        List<UUID> events = companyService.getAllEventsByCompany(companyId);
         assertNotNull(events);
         assertTrue(events.isEmpty());
     }
 
-    // II.4.1 Manage Events and Ticket Inventory
     @Test
     void addEventSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
-        EventDto saved = companyService.addEvent(FOUNDER_TOKEN, 1, dto);
+        EventDto saved = companyService.addEvent(FOUNDER_TOKEN, companyId, dto);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         assertTrue(company.getAssociatedEventIds().contains(saved.id));
     }
 
     @Test
     void removeEventSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
-        EventDto saved = companyService.addEvent(FOUNDER_TOKEN, 1, dto);
+        EventDto saved = companyService.addEvent(FOUNDER_TOKEN, companyId, dto);
 
-        Event event = new Event(dto.name, dto.eventType, 1L, Long.valueOf(FOUNDER_ID));
+        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER_ID));
         try {
             var field = Event.class.getDeclaredField("eventId");
             field.setAccessible(true);
@@ -254,9 +255,9 @@ public class CompanyAcceptanceTest {
 
         when(eventRepository.findById(saved.id)).thenReturn(Optional.of(event));
 
-        companyService.removeEvent(FOUNDER_TOKEN, 1, saved.id);
+        companyService.removeEvent(FOUNDER_TOKEN, companyId, saved.id);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         assertFalse(company.getAssociatedEventIds().contains(saved.id));
         verify(eventRepository).delete(event);
     }
@@ -264,34 +265,34 @@ public class CompanyAcceptanceTest {
     @Test
     void companyNotFoundWhenManagingEvents() {
         EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
+        UUID missingCompanyId = UUID.randomUUID();
 
         assertThrows(RuntimeException.class,
-                () -> companyService.addEvent(FOUNDER_TOKEN, 999, dto));
+                () -> companyService.addEvent(FOUNDER_TOKEN, missingCompanyId, dto));
     }
 
     @Test
     void userNotOwnerWhenManagingEvents() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.addEvent(USER_200_TOKEN, 1, dto));
+                () -> companyService.addEvent(USER_200_TOKEN, companyId, dto));
     }
 
-    // II.4.5 View Company Purchase and Order History
     @Test
     void purchaseHistoryDisplayedSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         company.addPurchaseRecord(11);
         company.addPurchaseRecord(12);
         company.addOrderRecord(21);
         companyRepository.save(company);
 
-        List<Integer> purchaseHistory = companyService.getPurchaseHistory(FOUNDER_TOKEN, 1);
-        List<Integer> orderHistory = companyService.getOrderHistory(FOUNDER_TOKEN, 1);
+        List<Integer> purchaseHistory = companyService.getPurchaseHistory(FOUNDER_TOKEN, companyId);
+        List<Integer> orderHistory = companyService.getOrderHistory(FOUNDER_TOKEN, companyId);
 
         assertEquals(2, purchaseHistory.size());
         assertEquals(1, orderHistory.size());
@@ -301,10 +302,10 @@ public class CompanyAcceptanceTest {
 
     @Test
     void noHistoryFound() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
-        List<Integer> purchaseHistory = companyService.getPurchaseHistory(FOUNDER_TOKEN, 1);
-        List<Integer> orderHistory = companyService.getOrderHistory(FOUNDER_TOKEN, 1);
+        List<Integer> purchaseHistory = companyService.getPurchaseHistory(FOUNDER_TOKEN, companyId);
+        List<Integer> orderHistory = companyService.getOrderHistory(FOUNDER_TOKEN, companyId);
 
         assertTrue(purchaseHistory.isEmpty());
         assertTrue(orderHistory.isEmpty());
@@ -312,24 +313,23 @@ public class CompanyAcceptanceTest {
 
     @Test
     void userNotAuthorizedToViewHistory() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.getPurchaseHistory(USER_200_TOKEN, 1));
+                () -> companyService.getPurchaseHistory(USER_200_TOKEN, companyId));
     }
 
-    // II.4.7 Appoint Company Manager
     @Test
     void managerAppointedSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         companyService.appointManager(
                 FOUNDER_TOKEN,
-                1,
+                companyId,
                 USER_200_ID,
                 Set.of(CompanyPermission.MANAGE_EVENTS, CompanyPermission.VIEW_HISTORY));
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
 
         assertTrue(company.getManagers().contains(USER_200_ID));
         assertTrue(company.getManagerPermissionsView().get(USER_200_ID)
@@ -340,117 +340,118 @@ public class CompanyAcceptanceTest {
 
     @Test
     void nomineeAlreadyManagerOrOwner() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, companyId, USER_200_ID,
+                Set.of(CompanyPermission.MANAGE_EVENTS));
 
         assertThrows(RuntimeException.class,
                 () -> companyService.appointManager(
-                        FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.VIEW_HISTORY)));
+                        FOUNDER_TOKEN, companyId, USER_200_ID,
+                        Set.of(CompanyPermission.VIEW_HISTORY)));
 
         assertThrows(RuntimeException.class,
                 () -> companyService.appointManager(
-                        FOUNDER_TOKEN, 1, FOUNDER_ID, Set.of(CompanyPermission.MANAGE_EVENTS)));
+                        FOUNDER_TOKEN, companyId, FOUNDER_ID,
+                        Set.of(CompanyPermission.MANAGE_EVENTS)));
     }
 
     @Test
     void userNotAuthorizedToAppointManager() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
                 () -> companyService.appointManager(
-                        USER_300_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS)));
+                        USER_300_TOKEN, companyId, USER_200_ID,
+                        Set.of(CompanyPermission.MANAGE_EVENTS)));
     }
 
-    // II.4.8 Appoint Additional Company Owner
     @Test
     void ownerAppointedSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
-        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, companyId, USER_201_ID);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         assertTrue(company.getOwnerIds().contains(USER_201_ID));
     }
 
     @Test
     void nomineeAlreadyOwner() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, companyId, USER_201_ID);
 
         assertThrows(RuntimeException.class,
-                () -> companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID));
+                () -> companyService.appointAdditionalOwner(FOUNDER_TOKEN, companyId, USER_201_ID));
     }
 
-    // II.4.9 Remove Company Owner Appointment
     @Test
     void ownerRemovedSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, companyId, USER_201_ID);
 
-        companyService.removeOwnerAppointment(FOUNDER_TOKEN, 1, USER_201_ID);
+        companyService.removeOwnerAppointment(FOUNDER_TOKEN, companyId, USER_201_ID);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         assertFalse(company.getOwnerIds().contains(USER_201_ID));
     }
 
     @Test
     void targetOwnerNotFound() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.removeOwnerAppointment(FOUNDER_TOKEN, 1, USER_999_ID));
+                () -> companyService.removeOwnerAppointment(FOUNDER_TOKEN, companyId, USER_999_ID));
     }
 
     @Test
     void userNotAuthorizedToRemoveOwner() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, companyId, USER_201_ID);
 
         assertThrows(RuntimeException.class,
-                () -> companyService.removeOwnerAppointment(USER_300_TOKEN, 1, USER_201_ID));
+                () -> companyService.removeOwnerAppointment(USER_300_TOKEN, companyId, USER_201_ID));
     }
 
-    // II.4.10 Resign from Ownership
     @Test
     void ownershipResignedSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, companyId, USER_201_ID);
 
-        companyService.resignOwnership(USER_201_TOKEN, 1);
+        companyService.resignOwnership(USER_201_TOKEN, companyId);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         assertFalse(company.getOwnerIds().contains(USER_201_ID));
     }
 
     @Test
     void founderAttemptsResignation() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.resignOwnership(FOUNDER_TOKEN, 1));
+                () -> companyService.resignOwnership(FOUNDER_TOKEN, companyId));
     }
 
     @Test
     void userNotOwnerResignationDenied() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.resignOwnership(USER_999_TOKEN, 1));
+                () -> companyService.resignOwnership(USER_999_TOKEN, companyId));
     }
 
-    // II.4.11 Modify Manager Permissions
     @Test
     void successfulPermissionUpdate() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, companyId, USER_200_ID,
+                Set.of(CompanyPermission.MANAGE_EVENTS));
 
         companyService.modifyManagerPermissions(
                 FOUNDER_TOKEN,
-                1,
+                companyId,
                 USER_200_ID,
                 Set.of(CompanyPermission.VIEW_HISTORY, CompanyPermission.RESPOND_TO_INQUIRIES));
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         Set<CompanyPermission> updated = company.getManagerPermissionsView().get(USER_200_ID);
 
         assertTrue(updated.contains(CompanyPermission.VIEW_HISTORY));
@@ -460,147 +461,146 @@ public class CompanyAcceptanceTest {
 
     @Test
     void unauthorizedUpdate() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, companyId, USER_200_ID,
+                Set.of(CompanyPermission.MANAGE_EVENTS));
 
         assertThrows(RuntimeException.class,
                 () -> companyService.modifyManagerPermissions(
                         USER_300_TOKEN,
-                        1,
+                        companyId,
                         USER_200_ID,
                         Set.of(CompanyPermission.VIEW_HISTORY)));
     }
 
     @Test
     void wrongManagerPermissionUpdate() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
                 () -> companyService.modifyManagerPermissions(
                         FOUNDER_TOKEN,
-                        1,
+                        companyId,
                         USER_999_ID,
                         Set.of(CompanyPermission.VIEW_HISTORY)));
     }
 
-    // II.4.12 Remove Manager Appointment
     @Test
     void successfulManagerRemoval() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, companyId, USER_200_ID,
+                Set.of(CompanyPermission.MANAGE_EVENTS));
 
-        companyService.removeManagerAppointment(FOUNDER_TOKEN, 1, USER_200_ID);
+        companyService.removeManagerAppointment(FOUNDER_TOKEN, companyId, USER_200_ID);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         assertFalse(company.getManagers().contains(USER_200_ID));
         assertFalse(company.getManagerPermissionsView().containsKey(USER_200_ID));
     }
 
     @Test
     void unauthorizedManagerRemoval() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointManager(FOUNDER_TOKEN, 1, USER_200_ID, Set.of(CompanyPermission.MANAGE_EVENTS));
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointManager(FOUNDER_TOKEN, companyId, USER_200_ID,
+                Set.of(CompanyPermission.MANAGE_EVENTS));
 
         assertThrows(RuntimeException.class,
-                () -> companyService.removeManagerAppointment(USER_300_TOKEN, 1, USER_200_ID));
+                () -> companyService.removeManagerAppointment(USER_300_TOKEN, companyId, USER_200_ID));
     }
 
     @Test
     void wrongManagerRemoval() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.removeManagerAppointment(FOUNDER_TOKEN, 1, USER_999_ID));
+                () -> companyService.removeManagerAppointment(FOUNDER_TOKEN, companyId, USER_999_ID));
     }
 
-    // II.4.13 Suspend / Close Production Company
     @Test
     void successfulClosure() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
-        boolean changed = companyService.closeCompany(FOUNDER_TOKEN, 1);
+        boolean changed = companyService.closeCompany(FOUNDER_TOKEN, companyId);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         assertTrue(changed);
         assertFalse(company.isOpen());
     }
 
     @Test
     void unauthorizedClosure() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.closeCompany(USER_300_TOKEN, 1));
+                () -> companyService.closeCompany(USER_300_TOKEN, companyId));
     }
 
     @Test
     void alreadyClosed() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.closeCompany(FOUNDER_TOKEN, 1);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.closeCompany(FOUNDER_TOKEN, companyId);
 
-        boolean changedAgain = companyService.closeCompany(FOUNDER_TOKEN, 1);
+        boolean changedAgain = companyService.closeCompany(FOUNDER_TOKEN, companyId);
 
         assertFalse(changedAgain);
     }
 
-    // II.4.14 Reopen Production Company
     @Test
     void successfulReopen() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.closeCompany(FOUNDER_TOKEN, 1);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.closeCompany(FOUNDER_TOKEN, companyId);
 
-        boolean changed = companyService.reopenCompany(FOUNDER_TOKEN, 1);
+        boolean changed = companyService.reopenCompany(FOUNDER_TOKEN, companyId);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
         assertTrue(changed);
         assertTrue(company.isOpen());
     }
 
     @Test
     void unauthorizedReopen() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.closeCompany(FOUNDER_TOKEN, 1);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.closeCompany(FOUNDER_TOKEN, companyId);
 
         assertThrows(RuntimeException.class,
-                () -> companyService.reopenCompany(USER_300_TOKEN, 1));
+                () -> companyService.reopenCompany(USER_300_TOKEN, companyId));
     }
 
     @Test
     void alreadyActive() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
-        boolean changed = companyService.reopenCompany(FOUNDER_TOKEN, 1);
+        boolean changed = companyService.reopenCompany(FOUNDER_TOKEN, companyId);
 
         assertFalse(changed);
     }
 
-    // II.4.15 View Roles and Permissions
     @Test
     void viewRolesAndPermissionsSuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, companyId, USER_201_ID);
         companyService.appointManager(
                 FOUNDER_TOKEN,
-                1,
+                companyId,
                 USER_200_ID,
                 Set.of(CompanyPermission.MANAGE_EVENTS, CompanyPermission.VIEW_HISTORY));
 
-        CompanyRolesViewDTO rolesView = companyService.viewRolesAndPermissions(FOUNDER_TOKEN, 1);
+        CompanyRolesViewDTO rolesView = companyService.viewRolesAndPermissions(FOUNDER_TOKEN, companyId);
 
-        assertEquals(1, rolesView.getCompanyId());
+        assertEquals(companyId, rolesView.getCompanyId());
         assertEquals(FOUNDER_ID, rolesView.getFounderId());
         assertTrue(rolesView.getOwnerIds().contains(FOUNDER_ID));
         assertTrue(rolesView.getOwnerIds().contains(USER_201_ID));
         assertTrue(rolesView.getManagerPermissions().containsKey(USER_200_ID));
-        assertTrue(rolesView.getManagerPermissions().get(USER_200_ID)   
+        assertTrue(rolesView.getManagerPermissions().get(USER_200_ID)
                 .contains(CompanyPermission.MANAGE_EVENTS));
     }
 
     @Test
     void emptyRolesDisplayed() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
-        CompanyRolesViewDTO rolesView = companyService.viewRolesAndPermissions(FOUNDER_TOKEN, 1);
+        CompanyRolesViewDTO rolesView = companyService.viewRolesAndPermissions(FOUNDER_TOKEN, companyId);
 
         assertNotNull(rolesView);
         assertTrue(rolesView.getManagerPermissions().isEmpty());
@@ -608,35 +608,34 @@ public class CompanyAcceptanceTest {
 
     @Test
     void unauthorizedAccessToRolesView() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.viewRolesAndPermissions(USER_300_TOKEN, 1));
+                () -> companyService.viewRolesAndPermissions(USER_300_TOKEN, companyId));
     }
 
     @Test
     void crossCompanyAccessDenied() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.openCompany(USER_200_TOKEN, 2, "CompanyB");
+        companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        UUID companyB = companyService.openCompany(USER_200_TOKEN, "CompanyB");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.viewRolesAndPermissions(FOUNDER_TOKEN, 2));
+                () -> companyService.viewRolesAndPermissions(FOUNDER_TOKEN, companyB));
     }
 
-    // II.6.1 Close Production Company by System Admin
     @Test
     void systemAdminClosesProductionCompanySuccessfully() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.appointAdditionalOwner(FOUNDER_TOKEN, 1, USER_201_ID);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.appointAdditionalOwner(FOUNDER_TOKEN, companyId, USER_201_ID);
         companyService.appointManager(
                 FOUNDER_TOKEN,
-                1,
+                companyId,
                 USER_200_ID,
                 Set.of(CompanyPermission.MANAGE_EVENTS));
 
-        boolean changed = companyService.adminCloseCompany(ADMIN_TOKEN, 1);
+        boolean changed = companyService.adminCloseCompany(ADMIN_TOKEN, companyId);
 
-        Company company = companyRepository.findById(1).orElseThrow();
+        Company company = companyRepository.findById(companyId).orElseThrow();
 
         assertTrue(changed);
         assertFalse(company.isOpen());
@@ -647,18 +646,18 @@ public class CompanyAcceptanceTest {
 
     @Test
     void nonAdminCannotCloseProductionCompanyAsSystemAdmin() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
 
         assertThrows(RuntimeException.class,
-                () -> companyService.adminCloseCompany(USER_300_TOKEN, 1));
+                () -> companyService.adminCloseCompany(USER_300_TOKEN, companyId));
     }
 
     @Test
     void systemAdminCloseAlreadyClosedCompanyReturnsFalse() {
-        companyService.openCompany(FOUNDER_TOKEN, 1, "CompanyA");
-        companyService.adminCloseCompany(ADMIN_TOKEN, 1);
+        UUID companyId = companyService.openCompany(FOUNDER_TOKEN, "CompanyA");
+        companyService.adminCloseCompany(ADMIN_TOKEN, companyId);
 
-        boolean changedAgain = companyService.adminCloseCompany(ADMIN_TOKEN, 1);
+        boolean changedAgain = companyService.adminCloseCompany(ADMIN_TOKEN, companyId);
 
         assertFalse(changedAgain);
     }

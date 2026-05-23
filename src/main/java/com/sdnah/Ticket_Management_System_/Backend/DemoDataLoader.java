@@ -31,7 +31,7 @@ public class DemoDataLoader implements CommandLineRunner {
     private static final String DEMO_PASSWORD = "123456";
     private static final String DEMO_EMAIL = "zaz@test.com";
     private static final String DEMO_PHONE = "0500000000";
-    private static final int DEMO_COMPANY_ID = 1;
+    private static final UUID DEMO_COMPANY_ID = UUID.randomUUID();
 
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
@@ -92,15 +92,14 @@ public class DemoDataLoader implements CommandLineRunner {
         }
 
         Company company = new Company(
-                DEMO_COMPANY_ID,
                 "Demo Concerts Company",
                 demoUser.getMemberId()
         );
 
-        companyRepository.save(company);
+        company = companyRepository.save(company);
 
         demoUser.addCompanyRole(new CompanyRoleAssignment(
-                DEMO_COMPANY_ID,
+                company.getCompanyId(),
                 demoUser.getMemberId(),
                 CompanyRoleType.OWNER,
                 Set.of()
@@ -119,7 +118,7 @@ public class DemoDataLoader implements CommandLineRunner {
         Event event1 = new Event(
                 "Demo Rock Concert",
                 show_type.PERFORMANCE,
-                Long.valueOf(DEMO_COMPANY_ID),
+                DEMO_COMPANY_ID,
                 Long.valueOf(1)
         );
 
@@ -130,7 +129,7 @@ public class DemoDataLoader implements CommandLineRunner {
         Event event2 = new Event(
                 "Demo Tech Conference",
                 show_type.CONFERENCE,
-                Long.valueOf(DEMO_COMPANY_ID),
+                DEMO_COMPANY_ID,
                 Long.valueOf(1)
         );
 

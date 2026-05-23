@@ -18,7 +18,7 @@ class EventTest {
 
     private Event event;
     private final Long OWNER_ID = 100L;
-    private final Long COMPANY_ID = 500L;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
     private final Long MANAGER_ID = 200L;
     private final Long UNAUTHORIZED_USER = 999L;
 

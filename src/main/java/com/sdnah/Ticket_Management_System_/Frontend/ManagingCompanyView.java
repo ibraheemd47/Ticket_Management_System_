@@ -68,7 +68,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private final PolicyService policyService;
 
     private String token;
-    private int companyId;
+    private UUID companyId;
 
     private final Div tabContent = new Div();
     private final Tab eventsTab   = new Tab("Events");

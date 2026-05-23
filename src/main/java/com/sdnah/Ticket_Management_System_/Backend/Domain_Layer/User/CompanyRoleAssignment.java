@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -15,7 +16,7 @@ import jakarta.persistence.Enumerated;
 public class CompanyRoleAssignment {
 
     @Column(name = "company_id", nullable = false)
-    private Integer companyId;
+    private UUID companyId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role_type", nullable = false)
@@ -32,10 +33,10 @@ public class CompanyRoleAssignment {
         this.permissions = new HashSet<>();
     }
 
-    public CompanyRoleAssignment(int companyId, String appointedByMemberId, CompanyRoleType roleType,
+    public CompanyRoleAssignment(UUID companyId, String appointedByMemberId, CompanyRoleType roleType,
             Set<ManagerPermission> permissions) {
 
-        if (companyId <= 0) {
+        if (companyId == null) {
             throw new IllegalArgumentException("companyId must be positive");
         }
 
@@ -65,7 +66,7 @@ public class CompanyRoleAssignment {
         return roleType == CompanyRoleType.MANAGER;
     }
 
-    public int getCompanyId() {
+    public UUID getCompanyId() {
         if (companyId == null) {
             throw new IllegalStateException("companyId is missing");
         }

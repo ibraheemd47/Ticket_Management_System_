@@ -7,8 +7,9 @@ import jakarta.persistence.*;
 @Table(name = "companies")
 public class Company {
 
-     @Id
-    private int companyId;
+    @Id
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private UUID companyId;
 
     @Column(nullable = false, unique = true)
     private String companyName;
@@ -55,12 +56,11 @@ public class Company {
     // required by JPA
     }
 
-    public Company(int companyId, String companyName, String companyFounderId) {
-        validatePositiveId(companyId, "company id");
+    public Company(String companyName, String companyFounderId) {
         validateNonBlank(companyName, "company name");
         validateNonBlank(companyFounderId, "founder id");
 
-        this.companyId = companyId;
+        this.companyId = UUID.randomUUID();
         this.companyName = companyName.trim();
         this.companyFounderId = companyFounderId.trim();
         this.isOpen = true;
@@ -388,7 +388,7 @@ public class Company {
         return true;
     }
 
-    public int getCompanyId() {
+    public UUID getCompanyId() {
         return companyId;
     }
 

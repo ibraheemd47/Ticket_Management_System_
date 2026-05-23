@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SellingPolicyTest {
 
     private static final UUID EVENT_ID = UUID.randomUUID();
+    private static final UUID COMPANY_ID = UUID.randomUUID();
 
     @Test
     void GivenRegularSellingPolicy_WhenGuestSelectsTickets_ThenReturnTrue() {
@@ -21,7 +22,7 @@ class SellingPolicyTest {
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
                 EVENT_ID,
-                1
+                COMPANY_ID
         );
 
         assertTrue(policy.isSelectionAllowed(false));
@@ -34,7 +35,7 @@ class SellingPolicyTest {
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
                 EVENT_ID,
-                1
+                COMPANY_ID
         );
 
         assertTrue(policy.isSelectionAllowed(true));
@@ -47,7 +48,7 @@ class SellingPolicyTest {
                 "Lottery",
                 SellingPolicy.SellingType.LOTTERY,
                 EVENT_ID,
-                1
+                COMPANY_ID
         );
 
         assertFalse(policy.isSelectionAllowed(false));
@@ -60,7 +61,7 @@ class SellingPolicyTest {
                 "Lottery",
                 SellingPolicy.SellingType.LOTTERY,
                 EVENT_ID,
-                1
+                COMPANY_ID
         );
 
         assertTrue(policy.isSelectionAllowed(true));
@@ -73,7 +74,7 @@ class SellingPolicyTest {
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
                 EVENT_ID,
-                1
+                COMPANY_ID
         );
 
         policy.setType(SellingPolicy.SellingType.LOTTERY);

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -53,7 +54,7 @@ class UserServiceAcceptanceTest {
     private static final String VALID_PHONE = "0501234567";
     private static final String MEMBER_ID = "m-001";
     private static final String TOKEN_VALUE = "jwt-token";
-    private static final int COMPANY_ID = 1;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {

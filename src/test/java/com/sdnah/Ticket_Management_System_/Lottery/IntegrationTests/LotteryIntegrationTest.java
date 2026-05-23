@@ -37,19 +37,22 @@ public class LotteryIntegrationTest {
 
     private String ownerToken;
     private String memberToken;
-    private int companyId;
+    private UUID companyId;
     private UUID eventId;
 
     @BeforeEach
-    void setUp() {
-        eventId   = UUID.randomUUID();
-        companyId = Math.abs(UUID.randomUUID().hashCode() % 10000) + 1;
+        void setUp() {
+        eventId = UUID.randomUUID();
 
         String ownerId = userService.register(
                 "owner_" + UUID.randomUUID(), "123456",
                 "owner" + UUID.randomUUID() + "@test.com",
                 "0501234567", VerificationMethod.EMAIL);
-        String ownerUsername = userRepository.findById(ownerId).orElseThrow().getUsername();
+
+        String ownerUsername = userRepository.findById(ownerId)
+                .orElseThrow()
+                .getUsername();
+
         userService.verifyAccount(ownerUsername, "123456");
         ownerToken = userService.login(ownerUsername, "123456");
 
@@ -57,12 +60,16 @@ public class LotteryIntegrationTest {
                 "member_" + UUID.randomUUID(), "123456",
                 "member" + UUID.randomUUID() + "@test.com",
                 "0501234568", VerificationMethod.EMAIL);
-        String memberUsername = userRepository.findById(memberId).orElseThrow().getUsername();
+
+        String memberUsername = userRepository.findById(memberId)
+                .orElseThrow()
+                .getUsername();
+
         userService.verifyAccount(memberUsername, "123456");
         memberToken = userService.login(memberUsername, "123456");
 
-        companyService.openCompany(ownerToken, companyId, "Test Company");
-    }
+        companyId = companyService.openCompany(ownerToken, "Test Company");
+        }
 
     @Test
     @DisplayName("Given owner token, when creating lottery, then lottery is persisted in DB")

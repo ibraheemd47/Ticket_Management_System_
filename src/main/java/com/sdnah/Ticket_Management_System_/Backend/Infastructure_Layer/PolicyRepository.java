@@ -24,9 +24,9 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer> {
     Optional<SellingPolicy>  findSellingPolicyByEventId(UUID eventId);
  
     // ── By companyId (company-scoped policy, eventId = null) ──────────────────
-    Optional<DiscountPolicy> findDiscountPolicyByCompanyIdAndEventIdIsNull(int companyId);
-    Optional<PurchasePolicy> findPurchasePolicyByCompanyIdAndEventIdIsNull(int companyId);
-    Optional<SellingPolicy>  findSellingPolicyByCompanyIdAndEventIdIsNull(int companyId);
+    Optional<DiscountPolicy> findDiscountPolicyByCompanyIdAndEventIdIsNull(UUID companyId);
+    Optional<PurchasePolicy> findPurchasePolicyByCompanyIdAndEventIdIsNull(UUID companyId);
+    Optional<SellingPolicy>  findSellingPolicyByCompanyIdAndEventIdIsNull(UUID companyId);
  
     // ── Delete ────────────────────────────────────────────────────────────────
     void deleteByPolicyId(int policyId);

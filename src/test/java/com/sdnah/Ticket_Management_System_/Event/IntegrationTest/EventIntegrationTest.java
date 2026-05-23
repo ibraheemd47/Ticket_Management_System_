@@ -41,8 +41,8 @@ class EventIntegrationTest {
     private static final Long OTHER_OWNER_ID = 101L;
     private static final Long MANAGER_ID = 200L;
     private static final Long SECOND_MANAGER_ID = 201L;
-    private static final Long COMPANY_ID = 500L;
-    private static final Long OTHER_COMPANY_ID = 501L;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
+    private static final UUID OTHER_COMPANY_ID = UUID.randomUUID();
 
     @Autowired
     private EventService eventService;

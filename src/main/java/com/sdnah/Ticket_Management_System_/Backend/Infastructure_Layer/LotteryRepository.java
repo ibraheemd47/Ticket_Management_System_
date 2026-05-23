@@ -13,5 +13,5 @@ public interface LotteryRepository extends JpaRepository<Lottery, UUID> {
 
     List<Lottery> findByEventId(UUID eventId);
 
-    List<Lottery> findByCompanyId(int companyId);
+    List<Lottery> findByCompanyId(UUID companyId);
 }

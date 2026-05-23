@@ -28,7 +28,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRep
 @ActiveProfiles("test")
 class PolicyServiceIntegrationTest {
 
-    private static final int COMPANY_ID = 1;
+    private static final UUID COMPANY_ID = UUID.randomUUID();
 
     @Autowired private PolicyRepository policyRepository;
 

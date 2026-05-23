@@ -32,7 +32,7 @@ public class PurchasePolicy extends Policy {
 
     protected PurchasePolicy() {}
 
-    public PurchasePolicy(int policyId, String description, UUID eventId, int companyId) {
+    public PurchasePolicy(int policyId, String description, UUID eventId, UUID companyId) {
         super(policyId, description, eventId, companyId);
     }
 

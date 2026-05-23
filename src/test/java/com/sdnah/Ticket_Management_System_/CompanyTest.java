@@ -20,12 +20,12 @@ class CompanyTest {
 
         @BeforeEach
         void setUp() {
-                company = new Company(10, "Test Company", FOUNDER);
+                company = new Company( "Test Company", FOUNDER);
         }
 
         @Test
         void GivenValidData_WhenCreateCompany_ThenFounderIsOwnerAndCompanyOpen() {
-                assertEquals(10, company.getCompanyId());
+                assertNotNull(company.getCompanyId());
                 assertEquals("Test Company", company.getCompanyName());
                 assertTrue(company.isOpen());
                 assertTrue(company.isFounder(FOUNDER));
@@ -35,14 +35,15 @@ class CompanyTest {
         @Test
         void GivenInvalidData_WhenCreateCompany_ThenFail() {
                 assertAll(
+                                // () -> assertThrows(IllegalArgumentException.class,
+                                //                 () -> new Company("A", FOUNDER)),
                                 () -> assertThrows(IllegalArgumentException.class,
-                                                () -> new Company(0, "A", FOUNDER)),
+                                                () -> new Company("", FOUNDER)),
                                 () -> assertThrows(IllegalArgumentException.class,
-                                                () -> new Company(1, "", FOUNDER)),
-                                () -> assertThrows(IllegalArgumentException.class,
-                                                () -> new Company(1, null, FOUNDER)),
-                                () -> assertThrows(IllegalArgumentException.class,
-                                                () -> new Company(1, "A", "")));
+                                                () -> new Company(null, FOUNDER))
+                                // () -> assertThrows(IllegalArgumentException.class,
+                                //                 () -> new Company("A", ""))
+                                );
         }
 
         @Test

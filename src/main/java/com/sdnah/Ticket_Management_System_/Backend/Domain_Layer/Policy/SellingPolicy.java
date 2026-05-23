@@ -24,7 +24,7 @@ public class SellingPolicy extends Policy {
         // JPA
     }
 
-    public SellingPolicy(int policyId, String description, SellingType type, UUID eventId, int companyId) {
+    public SellingPolicy(int policyId, String description, SellingType type, UUID eventId, UUID companyId) {
         super(policyId, description, eventId, companyId);
 
         if (type == null) {
