@@ -494,4 +494,15 @@ public class SystemAdminService {
         requireAdmin(token);
         complaintService.resolveComplaint(token, complaintId, adminResponse);
     }
+
+    public String getMemberIdByUsername(String token, String value) {
+        requireAdmin(token);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        String cleanValue = value.trim();
+        Member member = userRepository.findByUsername(cleanValue)
+                .orElseThrow(() -> new IllegalArgumentException("Member not found"));
+        return member.getMemberId();
+    }
 }

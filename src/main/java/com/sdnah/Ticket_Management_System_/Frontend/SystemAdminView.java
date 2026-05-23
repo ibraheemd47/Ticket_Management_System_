@@ -554,8 +554,9 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 return;
             }
             try {
+                String memberId = systemAdminService.getMemberIdByUsername(token, recipient.getValue());
                 notificationService.createNotification(
-                        recipient.getValue(),
+                        memberId,
                         message.getValue(),
                         NotificationType.SYSTEM_ANNOUNCEMENT);
                 showSuccess("Message sent to '" + recipient.getValue() + "'.");
