@@ -556,6 +556,19 @@ public class company_managment_serivce {
         companyRepository.deleteById(companyId);
     }
 
+
+    //search company using key word
+    public List<CompanyDTO> searchCompaniesByKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+        return companyRepository.findByCompanyNameContainingIgnoreCase(keyword.trim())
+                .stream()
+                .filter(Company::isOpen)
+                .map(this::toDTO)
+                .toList();
+    }
+
     // helper for dtos
     private CompanyDTO toDTO(Company company) {
         return new CompanyDTO(
