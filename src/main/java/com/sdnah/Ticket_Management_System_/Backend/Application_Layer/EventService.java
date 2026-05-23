@@ -400,7 +400,7 @@ public class EventService {
         return new ArrayList<>(event.getManagerIds());
     }
 
-    // ── Search ───────────────────────────────────────────────────────────────
+    // // ── Search ───────────────────────────────────────────────────────────────
 
     public List<Event> searchEventsByName(String name) {
         logger.info("Searching events by name: {}", name);
@@ -411,6 +411,7 @@ public class EventService {
         logger.info("Searching events by type: {}", eventType);
         return eventRepository.searchEventsByType(eventType);
     }
+
 
     public List<Event> searchEventsBySingerName(String singerName) {
         logger.info("Searching events by singer: {}", singerName);
@@ -582,5 +583,108 @@ public class EventService {
                         );
                     }
                 });
+    }
+
+    // ── Search ───────────────────────────────────────────────────────────────
+
+    // search by event name (matches name, case-insensitive substring)
+    public List<EventDto> searchEventByName(String name) {
+        logger.info("Searching events by name: {}", name);
+        if (name == null || name.isBlank()) return List.of();
+        String kw = name.toLowerCase().trim();
+        return eventRepository.findAll().stream()
+                .filter(e -> e.getName() != null && e.getName().toLowerCase().contains(kw))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // search by description only
+    public List<EventDto> searchEventsByDescription(String description) {
+        logger.info("Searching events by description: {}", description);
+        if (description == null || description.isBlank()) return List.of();
+        String d = description.toLowerCase().trim();
+        return eventRepository.findAll().stream()
+                .filter(e -> e.getDescription() != null && e.getDescription().toLowerCase().contains(d))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // search by category / event type
+    public List<EventDto> searchEventsByCategory(show_type category) {
+        logger.info("Searching events by category: {}", category);
+        if (category == null) return List.of();
+        return eventRepository.findAll().stream()
+                .filter(e -> category.equals(e.getEventType()))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // search by start date (events starting on or after this date)
+    public List<EventDto> searchEventsByStartDate(Date startDate) {
+        logger.info("Searching events by start date: {}", startDate);
+        if (startDate == null) return List.of();
+        return eventRepository.findAll().stream()
+                .filter(e -> e.getStartDate() != null && !e.getStartDate().before(startDate))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // search by end date (events ending on or before this date)
+    public List<EventDto> searchEventsByEndDate(Date endDate) {
+        logger.info("Searching events by end date: {}", endDate);
+        if (endDate == null) return List.of();
+        return eventRepository.findAll().stream()
+                .filter(e -> e.getEndDate() != null && !e.getEndDate().after(endDate))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // search by date range
+    public List<EventDto> searchEventsByDateRange(Date fromDate, Date toDate) {
+        logger.info("Searching events by date range: {} to {}", fromDate, toDate);
+        return eventRepository.findAll().stream()
+                .filter(e -> e.getStartDate() != null)
+                .filter(e -> fromDate == null || !e.getStartDate().before(fromDate))
+                .filter(e -> toDate   == null || !e.getStartDate().after(toDate))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // search by venue (substring match, case-insensitive)
+    public List<EventDto> searchEventsByVenue(String venue) {
+        logger.info("Searching events by venue: {}", venue);
+        if (venue == null || venue.isBlank()) return List.of();
+        String v = venue.toLowerCase().trim();
+        return eventRepository.findAll().stream()
+                .filter(e -> e.getVenue() != null && e.getVenue().toLowerCase().contains(v))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // search by minimum event rating (average of user reviews, 1-5)
+    public List<EventDto> searchEventsByMinRating(double minRating) {
+        logger.info("Searching events by min rating: {}", minRating);
+        return eventRepository.findAll().stream()
+                .filter(e -> averageEventRating(e) >= minRating)
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // ── private helpers ──────────────────────────────────────────────────────
+
+    private double averageEventRating(Event e) {
+        Map<UUID, Integer> reviews = e.getReviews();
+        if (reviews == null || reviews.isEmpty()) return 0.0;
+        return reviews.values().stream().mapToInt(Integer::intValue).average().orElse(0.0);
+    }
+
+    private EventDto toEventDto(Event e) {
+        return new EventDto(
+                e.getEventId(),
+                e.getName(),
+                e.getStartDate() == null ? null : e.getStartDate().toString(),
+                e.getEventType(),
+                e.getVenue()
+        );
     }
 }

@@ -15,6 +15,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CompanyAuthoriza
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.AuthToken;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
@@ -613,4 +614,127 @@ public class company_managment_serivce {
         }
     }
 
+
+    // ─────────── Company-scoped searches (UC 3b) ───────────
+
+    //BY DESCRIPTION
+    public List<EventDto> searchEventsInCompanyByDescription(String companyName, String description) {
+        if (description == null || description.isBlank()) return List.of();
+        String d = description.toLowerCase().trim();
+        return eventsOfCompanyByName(companyName)
+                .filter(e -> e.getDescription() != null && e.getDescription().toLowerCase().contains(d))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+
+    //BY KEYWORD (name or description)
+    public List<EventDto> searchEventsInCompanyByKeyword(String companyName, String keyword) {
+        if (keyword == null || keyword.isBlank()) return List.of();
+        String kw = keyword.toLowerCase().trim();
+        return eventsOfCompanyByName(companyName)
+                .filter(e -> (e.getName() != null && e.getName().toLowerCase().contains(kw))
+                        || (e.getDescription() != null && e.getDescription().toLowerCase().contains(kw)))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    //BY DATE RANGE
+    public List<EventDto> searchEventsInCompanyByDateRange(String companyName, Date fromDate, Date toDate) {
+        return eventsOfCompanyByName(companyName)
+                .filter(e -> e.getStartDate() != null)
+                .filter(e -> fromDate == null || !e.getStartDate().before(fromDate))
+                .filter(e -> toDate   == null || !e.getStartDate().after(toDate))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    //BY CATEGORY
+    public List<EventDto> searchEventsInCompanyByCategory(String companyName, show_type category) {
+        if (category == null) return List.of();
+        return eventsOfCompanyByName(companyName)
+                .filter(e -> category.equals(e.getEventType()))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    //BY START DATE
+    public List<EventDto> searchEventsInCompanyByStartDate(String companyName, Date startDate) {
+        if (startDate == null) return List.of();
+        return eventsOfCompanyByName(companyName)
+                .filter(e -> e.getStartDate() != null && !e.getStartDate().before(startDate))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    //BY END DATE
+    public List<EventDto> searchEventsInCompanyByEndDate(String companyName, Date endDate) {
+        if (endDate == null) return List.of();
+        return eventsOfCompanyByName(companyName)
+                .filter(e -> e.getEndDate() != null && !e.getEndDate().after(endDate))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // BY VENUE
+    public List<EventDto> searchEventsInCompanyByVenue(String companyName, String venue) {
+        if (venue == null || venue.isBlank()) return List.of();
+        String v = venue.toLowerCase().trim();
+        return eventsOfCompanyByName(companyName)
+                .filter(e -> e.getVenue() != null && e.getVenue().toLowerCase().contains(v))
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // BY RATING
+    public List<EventDto> searchEventsInCompanyByMinRating(String companyName, double minRating) {
+        return eventsOfCompanyByName(companyName)
+                .filter(e -> averageEventRating(e) >= minRating)
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    // BY company name only (no additional filters)
+    public List<EventDto> getAllEventsByCompanyName(String companyName) {
+        if (companyName == null || companyName.isBlank()) return List.of();
+        return companyRepository.findAll().stream()
+                .filter(Company::isOpen)
+                .filter(company -> company.matchesName(companyName))
+                .flatMap(company -> company.getAssociatedEventIds().stream())
+                .map(id -> eventRepository.findById(id).orElse(null))
+                .filter(Objects::nonNull)
+                .map(this::toEventDto)
+                .toList();
+    }
+
+    
+
+
+    // ─────────── private helpers ───────────
+    private double averageEventRating(Event e) {
+        Map<UUID, Integer> reviews = e.getReviews();
+        if (reviews == null || reviews.isEmpty()) return 0.0;
+        return reviews.values().stream().mapToInt(Integer::intValue).average().orElse(0.0);
+    }
+    
+    // stream of all events belonging to companies matching the given name
+    private java.util.stream.Stream<Event> eventsOfCompanyByName(String companyName) {
+        if (companyName == null || companyName.isBlank()) {
+            return java.util.stream.Stream.empty();
+        }
+        return companyRepository.findAll().stream()
+                .filter(Company::isOpen)
+                .filter(company -> company.matchesName(companyName))
+                .flatMap(company -> company.getAssociatedEventIds().stream())
+                .map(id -> eventRepository.findById(id).orElse(null))
+                .filter(Objects::nonNull);
+    }
+    private EventDto toEventDto(Event e) {
+        java.time.LocalDate start = e.getStartDate() == null ? null
+                : e.getStartDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        java.time.LocalDate end = e.getEndDate() == null ? null
+                : e.getEndDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        return new EventDto(e.getEventId(), e.getName(), start, end,
+                e.getEventType(), e.getVenue(), null);
+    }
 }

@@ -53,6 +53,7 @@ public class Event {
     private String venue;
     private String description;
 
+    
     @ElementCollection
     @CollectionTable(name = "event_reviews", joinColumns = @JoinColumn(name = "event_id"))
     @MapKeyColumn(name = "user_id")
