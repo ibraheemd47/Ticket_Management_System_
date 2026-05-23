@@ -581,7 +581,7 @@ public class EventCreationView extends VerticalLayout {
         }
 
         UUID eventId   = UUID.fromString(eventIdObj.toString());
-        int  companyId = Integer.parseInt(companyIdObj.toString());
+        UUID companyId = UUID.fromString(companyIdObj.toString());
 
         try {
             // ── Selling Policy (always) ──
@@ -684,7 +684,7 @@ public class EventCreationView extends VerticalLayout {
         }
 
         String token    = tokenObj.toString();
-        int    companyId = Integer.parseInt(companyIdObj.toString());
+        UUID   companyId = UUID.fromString(companyIdObj.toString());
 
         EventDto dto   = new EventDto();
         dto.name       = name.trim();
@@ -697,7 +697,9 @@ public class EventCreationView extends VerticalLayout {
             EventDto created = companyService.addEvent(token, companyId, dto);
 
             // Persist shows
-            Long memberId = Long.valueOf(companyId);
+            // memberId was previously derived from int companyId (now UUID);
+            // 0L is a placeholder until Event/show APIs are migrated to UUID/String memberIds.
+            Long memberId = 0L;
             for (ShowDTO s : shows) {
                 java.util.Date showDate = s.showDate != null
                     ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())

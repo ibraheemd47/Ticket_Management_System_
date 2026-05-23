@@ -8,8 +8,8 @@ import java.util.UUID;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
@@ -107,7 +107,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             add(buildCompanyChooser());
             return;
         }
-        this.companyId = Integer.parseInt(c.toString());
+        this.companyId = UUID.fromString(c.toString());
         add(buildShell());
         renderEventsTab();
     }
@@ -185,8 +185,8 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     /** Cross-reference the member's roles with the active-companies list to get names. */
     private List<CompanyRow> resolveMyCompanies(Member me) {
-        Set<Integer> myCompanyIds = new java.util.HashSet<>();
-        Map<Integer, String> roleByCompany = new java.util.HashMap<>();
+        Set<UUID> myCompanyIds = new java.util.HashSet<>();
+        Map<UUID, String> roleByCompany = new java.util.HashMap<>();
         for (CompanyRoleAssignment a : me.getCompanyRoles()) {
             myCompanyIds.add(a.getCompanyId());
             // First role wins if there are duplicates.
@@ -196,7 +196,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
         // Best available source for company names today; switch to a dedicated
         // "find by ids" query if/when one is added.
-        Map<Integer, String> nameById = new java.util.HashMap<>();
+        Map<UUID, String> nameById = new java.util.HashMap<>();
         try {
             for (CompanyDTO dto : companyService.getActiveCompanies()) {
                 nameById.put(dto.getCompanyId(), dto.getCompanyName());
@@ -206,18 +206,18 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         }
 
         List<CompanyRow> out = new java.util.ArrayList<>();
-        for (Integer cid : myCompanyIds) {
+        for (UUID cid : myCompanyIds) {
             out.add(new CompanyRow(cid, nameById.get(cid), roleByCompany.get(cid)));
         }
-        out.sort((a, b) -> Integer.compare(a.companyId, b.companyId));
+        out.sort((a, b) -> a.companyId.compareTo(b.companyId));
         return out;
     }
 
     private static final class CompanyRow {
-        final int companyId;
+        final UUID companyId;
         final String name;
         final String role;
-        CompanyRow(int companyId, String name, String role) {
+        CompanyRow(UUID companyId, String name, String role) {
             this.companyId = companyId;
             this.name = name;
             this.role = role;

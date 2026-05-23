@@ -1026,7 +1026,7 @@ public class EventDetailsView extends VerticalLayout {
             if (t == null || t.isBlank()) { error("Please select a policy type"); return; }
             Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
             if (companyIdObj == null) { error("No company session — please log in again"); return; }
-            int companyId = Integer.parseInt(companyIdObj.toString());
+            UUID companyId = UUID.fromString(companyIdObj.toString());
             try {
                 if (isEdit) policyRepo.deleteByPolicyId(existing.getPolicyId());
 
@@ -1387,7 +1387,8 @@ public class EventDetailsView extends VerticalLayout {
     // ── Mock data ────────────────────────────────────────────────────────────
 
     private static Event mockEvent() {
-        Event ev = new Event("Summer Music Festival 2025", show_type.FESTIVAL, 1L, 1L);
+        Event ev = new Event("Summer Music Festival 2025", show_type.FESTIVAL,
+                UUID.fromString("00000000-0000-0000-0000-000000000001"), 1L);
         ev.editVenue("BGU Amphitheatre, Beer-Sheva", 1L);
         ev.editDescription(
                 "A three-day outdoor festival featuring top local and international artists across multiple stages.",

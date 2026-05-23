@@ -166,13 +166,15 @@ public class CompanyCreationView extends VerticalLayout implements BeforeEnterOb
         String token = tokenObj.toString();
 
         try {
-            companyService.openCompany(token, companyId, companyName.trim());
+            // openCompany was migrated: it no longer takes a caller-supplied
+            // companyId — the backend generates a UUID and returns it.
+            java.util.UUID newCompanyId = companyService.openCompany(token, companyName.trim());
 
             Notification.show("Company \"" + companyName.trim() + "\" created successfully!",
                     3000, Notification.Position.TOP_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
-            UI.getCurrent().getSession().setAttribute("managingCompanyId", companyId);
+            UI.getCurrent().getSession().setAttribute("managingCompanyId", newCompanyId);
 
             UI.getCurrent().navigate("company");
 

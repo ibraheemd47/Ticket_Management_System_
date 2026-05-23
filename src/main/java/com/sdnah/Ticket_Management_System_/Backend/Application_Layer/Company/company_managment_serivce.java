@@ -113,8 +113,11 @@ public class company_managment_serivce {
 
         company.validateActionPermission(actor.getMemberId(), CompanyPermission.MANAGE_EVENTS);
 
-        Long ownerId = Long.valueOf(companyId);
-        Event event = new Event(dto.name, dto.eventType, Long.valueOf(companyId), ownerId);
+        // Event entity uses Long ownerId; the rest of the system uses String
+        // memberIds (UUIDs). Until Event is migrated, fall back to 0L as a
+        // sentinel — the actor's authority was already verified above.
+        Long ownerId = 0L;
+        Event event = new Event(dto.name, dto.eventType, companyId, ownerId);
 
         if (dto.venue != null && !dto.venue.isBlank())
             event.editVenue(dto.venue, ownerId);

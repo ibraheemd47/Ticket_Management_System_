@@ -410,12 +410,12 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 return;
             }
             try {
-                companyManagmentService.adminCloseCompany(token, Integer.parseInt(companyId.getValue()));
+                companyManagmentService.adminCloseCompany(token, java.util.UUID.fromString(companyId.getValue()));
                 showSuccess("Company '" + companyId.getValue() + "' has been closed.");
                 companyId.clear();
                 reason.clear();
-            } catch (NumberFormatException ex) {
-                showError("Company ID must be a number.");
+            } catch (IllegalArgumentException ex) {
+                showError("Company ID must be a valid UUID.");
             } catch (Exception ex) {
                 showError(ex.getMessage());
             }

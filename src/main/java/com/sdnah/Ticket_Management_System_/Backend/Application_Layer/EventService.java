@@ -88,6 +88,11 @@ public class EventService {
                 Event event = eventRepository.findById(eventId)
                         .orElseThrow(() -> new RuntimeException("Event not found"));
 
+                // Verify caller is the owner (delegates to the domain check). This was
+                // accidentally dropped during the company-id UUID refactor; the
+                // tests in EventAcceptanceTest / EventIntegrationTest expect it.
+                event.delete(managerId);
+
                 // Delete all tickets for every show first (satisfies FK constraints)
                 for (show s : event.getShows()) {
                     if (s.getShowid() != null) {
