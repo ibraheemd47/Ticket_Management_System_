@@ -47,7 +47,7 @@ public class LotteryIntegrationTest {
         String ownerId = userService.register(
                 "owner_" + UUID.randomUUID(), "123456",
                 "owner" + UUID.randomUUID() + "@test.com",
-                "0501234567", VerificationMethod.EMAIL);
+                "0501234567", 19 , VerificationMethod.EMAIL);
 
         String ownerUsername = userRepository.findById(ownerId)
                 .orElseThrow()
@@ -59,7 +59,7 @@ public class LotteryIntegrationTest {
         String memberId = userService.register(
                 "member_" + UUID.randomUUID(), "123456",
                 "member" + UUID.randomUUID() + "@test.com",
-                "0501234568", VerificationMethod.EMAIL);
+                "0501234568", 19, VerificationMethod.EMAIL);
 
         String memberUsername = userRepository.findById(memberId)
                 .orElseThrow()

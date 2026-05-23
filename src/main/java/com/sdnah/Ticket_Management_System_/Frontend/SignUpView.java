@@ -225,6 +225,7 @@ public class SignUpView extends VerticalLayout {
                         password.getValue(),
                         email.getValue(),
                         phone.getValue(),
+                        Integer.parseInt(Age.getValue()),
                         VerificationMethod.EMAIL
                 );
 

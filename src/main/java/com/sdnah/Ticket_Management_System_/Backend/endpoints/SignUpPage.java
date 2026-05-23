@@ -26,6 +26,7 @@ public class SignUpPage {
                     request.getPassword(),
                     request.getEmail(),
                     request.getPhone(),
+                    19,
                     request.getVerificationMethod());
 
             return ResponseEntity.ok(

@@ -40,7 +40,7 @@ class UserServiceIntegrationTest {
                 "mostafa",
                 "123456",
                 "mostafa@test.com",
-                "0501234567",
+                "0501234567", 19,
                 VerificationMethod.EMAIL);
 
         // Assert
@@ -60,7 +60,7 @@ class UserServiceIntegrationTest {
                 "mostafa",
                 "123456",
                 "mostafa@test.com",
-                "0501234567",
+                "0501234567", 19,
                 VerificationMethod.EMAIL);
 
         userService.verifyAccount("mostafa", "123456");
@@ -87,7 +87,7 @@ class UserServiceIntegrationTest {
                 "mostafa",
                 "123456",
                 "mostafa@test.com",
-                "0501234567",
+                "0501234567", 19,
                 VerificationMethod.EMAIL);
 
         userService.verifyAccount("mostafa", "123456");
@@ -111,7 +111,7 @@ class UserServiceIntegrationTest {
                 "mostafa",
                 "123456",
                 "mostafa@test.com",
-                "0501234567",
+                "0501234567", 19,
                 VerificationMethod.EMAIL);
 
         userService.verifyAccount("mostafa", "123456");
@@ -134,7 +134,7 @@ class UserServiceIntegrationTest {
                 "mostafa",
                 "123456",
                 "mostafa@test.com",
-                "0501234567",
+                "0501234567", 19,
                 VerificationMethod.EMAIL);
 
         // Act

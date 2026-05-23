@@ -55,6 +55,7 @@ public class Member {
     private String city;
     private String country;
     private LocalDate birthDate;
+    private int age;
     // Fields for verification process
     private String verificationCode;
     private LocalDateTime verificationCodeExpiresAt;
@@ -121,6 +122,13 @@ public class Member {
         return username;
     }
 
+    public void setAge(int age) {
+        this.age = age;
+    }
+
+     public int getAge() {
+        return age;
+    }
     public void setUsername(String username) {
         this.username = username;
     }

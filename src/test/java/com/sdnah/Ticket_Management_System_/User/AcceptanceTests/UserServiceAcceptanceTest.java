@@ -73,7 +73,7 @@ class UserServiceAcceptanceTest {
         when(passwordHasher.hash(VALID_PASSWORD)).thenReturn("hashed-pw");
 
         String memberId = userService.register(
-                VALID_USERNAME, VALID_PASSWORD, VALID_EMAIL, VALID_PHONE, VerificationMethod.EMAIL);
+                VALID_USERNAME, VALID_PASSWORD, VALID_EMAIL, VALID_PHONE, 19, VerificationMethod.EMAIL);
 
         assertNotNull(memberId);
         verify(userRepository).save(any(Member.class));
@@ -87,7 +87,7 @@ class UserServiceAcceptanceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> userService.register(
-                        VALID_USERNAME, VALID_PASSWORD, VALID_EMAIL, VALID_PHONE, VerificationMethod.EMAIL));
+                        VALID_USERNAME, VALID_PASSWORD, VALID_EMAIL, VALID_PHONE, 19, VerificationMethod.EMAIL));
 
         assertEquals("Username already exists", ex.getMessage());
         verify(userRepository, never()).save(any());
@@ -98,7 +98,7 @@ class UserServiceAcceptanceTest {
     void givenShortPassword_WhenUserRegisters_ThenExceptionIsThrown() {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> userService.register(
-                        VALID_USERNAME, "123", VALID_EMAIL, VALID_PHONE, VerificationMethod.EMAIL));
+                        VALID_USERNAME, "123", VALID_EMAIL, VALID_PHONE, 19, VerificationMethod.EMAIL));
 
         assertEquals("Password must contain at least 6 characters", ex.getMessage());
     }
@@ -108,7 +108,7 @@ class UserServiceAcceptanceTest {
     void givenInvalidEmail_WhenUserRegisters_ThenInvalidInputExceptionIsThrown() {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> userService.register(
-                        VALID_USERNAME, VALID_PASSWORD, "bad-email", VALID_PHONE, VerificationMethod.EMAIL));
+                        VALID_USERNAME, VALID_PASSWORD, "bad-email", VALID_PHONE, 19, VerificationMethod.EMAIL));
 
         assertEquals("Invalid input data", ex.getMessage());
     }

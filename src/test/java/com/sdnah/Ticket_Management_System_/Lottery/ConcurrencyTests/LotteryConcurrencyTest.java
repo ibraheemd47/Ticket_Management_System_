@@ -55,7 +55,7 @@ public class LotteryConcurrencyTest {
         String ownerId = userService.register(
                 "owner_" + UUID.randomUUID(), "123456",
                 "owner" + UUID.randomUUID() + "@test.com",
-                "0501234567", VerificationMethod.EMAIL);
+                "0501234567",19, VerificationMethod.EMAIL);
 
         String ownerUsername = userRepository.findById(ownerId)
                 .orElseThrow()
@@ -111,7 +111,7 @@ public class LotteryConcurrencyTest {
         String memberId = userService.register(
                 "member_" + UUID.randomUUID(), "123456",
                 "member" + UUID.randomUUID() + "@test.com",
-                "0501234568", VerificationMethod.EMAIL);
+                "0501234568", 19, VerificationMethod.EMAIL);
         String memberUsername = userRepository.findById(memberId).orElseThrow().getUsername();
         userService.verifyAccount(memberUsername, "123456");
         String memberToken = userService.login(memberUsername, "123456");
@@ -135,7 +135,7 @@ public class LotteryConcurrencyTest {
             String id = userService.register(
                     "member_" + UUID.randomUUID(), "123456",
                     "member" + UUID.randomUUID() + "@test.com",
-                    "0501234568", VerificationMethod.EMAIL);
+                    "0501234568", 19, VerificationMethod.EMAIL);
             String username = userRepository.findById(id).orElseThrow().getUsername();
             userService.verifyAccount(username, "123456");
             String token = userService.login(username, "123456");

@@ -100,7 +100,7 @@ class EndToEndFlowTest {
      */
     private UUID registerAndVerify(String username, String password, String email) {
         String memberId = userService.register(
-                username, password, email, "0501234567", VerificationMethod.EMAIL);
+                username, password, email, "0501234567", 19 ,VerificationMethod.EMAIL);
 
         Member persisted = userRepository.findByUsername(username).orElseThrow();
         // VerificationEmail stores the code on the member; in test mode any non-empty
@@ -222,7 +222,7 @@ class EndToEndFlowTest {
     void loginRejected_WhenAccountNotYetVerified() {
         String username = "unverified_" + UUID.randomUUID();
         userService.register(username, "secret123", username + "@example.com",
-                "0501234567", VerificationMethod.EMAIL);
+                "0501234567", 19, VerificationMethod.EMAIL);
 
         // No verifyAccount call — login must fail.
         assertThrows(RuntimeException.class,

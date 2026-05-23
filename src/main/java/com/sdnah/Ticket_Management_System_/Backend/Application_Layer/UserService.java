@@ -214,7 +214,7 @@ public class UserService implements IrepresnteUserService {
     public String register(String username,
             String password,
             String email,
-            String phone,
+            String phone,int age,
             VerificationMethod verificationMethod) {
         logger.info("Register with verification requested for username={}, method={}", username, verificationMethod);
         //////// validation/////////////////////////
@@ -238,6 +238,7 @@ public class UserService implements IrepresnteUserService {
             Member member = new Member(memberId, username, passwordHash);
             member.setEmail(email);
             member.setPhone(phone);
+            member.setAge(age);
             member.setVerified(false);
             member.logout();
 
