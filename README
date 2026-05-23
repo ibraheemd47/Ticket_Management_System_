@@ -48,25 +48,13 @@ mvn clean install
 
 ## Running the Application
 
-### Option 1: Using Maven
+###  Using Maven
 
 ```bash
 # On Windows
 mvn spring-boot:run
 
-`
-
-
-
-### Option 3: Using IDE
-
-If you're using IntelliJ IDEA, Eclipse, or VS Code:
-
-1. Open the project folder
-2. Let IDE load Maven dependencies
-3. Find the main application class (with `@SpringBootApplication`)
-4. Right-click and select **Run** or press `Ctrl+Shift+F10` (IntelliJ)
-
+````
 ## Configuration
 
 The application uses default configuration from `application.properties` or `application.yml` in `src/main/resources/`.
