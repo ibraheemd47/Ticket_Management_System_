@@ -515,12 +515,12 @@ public class company_managment_serivce {
                 .toList();
     }
 
-    public List<Company> searchByCompanyName(String companyName) {
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
-                .filter(company -> company.matchesName(companyName))
-                .toList();
-    }
+    // public List<Company> searchByCompanyName(String companyName) {
+    //     return companyRepository.findAll().stream()
+    //             .filter(Company::isOpen)
+    //             .filter(company -> company.matchesName(companyName))
+    //             .toList();
+    // }
 
     public EventDto getEventDetails(UUID eventId) {
         Event event = eventRepository.findById(eventId)
@@ -716,7 +716,7 @@ public class company_managment_serivce {
         if (reviews == null || reviews.isEmpty()) return 0.0;
         return reviews.values().stream().mapToInt(Integer::intValue).average().orElse(0.0);
     }
-    
+
     // stream of all events belonging to companies matching the given name
     private java.util.stream.Stream<Event> eventsOfCompanyByName(String companyName) {
         if (companyName == null || companyName.isBlank()) {
