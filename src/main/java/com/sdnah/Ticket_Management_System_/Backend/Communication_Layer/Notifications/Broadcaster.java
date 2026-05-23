@@ -36,6 +36,7 @@ public class Broadcaster {
     }
 
     public boolean broadcast(String recipientMemberId, NotificationDTO notification) {
+        System.out.println("Attempting to broadcast notification to memberId: " + recipientMemberId);
         if (recipientMemberId == null || recipientMemberId.isBlank()) {
             throw new IllegalArgumentException("recipientMemberId cannot be null or blank");
         }
@@ -45,14 +46,17 @@ public class Broadcaster {
         }
 
         String cleanRecipient = recipientMemberId.trim();
+        System.out.println("Cleaned recipientMemberId: " + cleanRecipient);
         if(cleanRecipient==null||cleanRecipient.isEmpty()) {
             throw new IllegalArgumentException("recipientMemberId cannot be empty or whitespace");
         }
 
         if (!connectedUserRegistry.isConnected(cleanRecipient)) {
+            System.out.println("Member ID " + cleanRecipient + " is not connected.");
             return false;
         }
 
+        System.out.println("Broadcasting notification to memberId: " + cleanRecipient);
         messagingTemplate.convertAndSendToUser(
                 cleanRecipient,
                 NOTIFICATION_DESTINATION,

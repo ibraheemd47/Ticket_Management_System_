@@ -445,7 +445,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         loadBtn.addClickListener(e -> {
             resultArea.removeAll();
             try {
-                var complaints = systemAdminService.getAllComplaints(token);
+                var complaints = systemAdminService.getAllSystemComplaintst(token);
                 if (complaints.isEmpty()) {
                     resultArea.add(new Paragraph("No complaints found."));
                     return;

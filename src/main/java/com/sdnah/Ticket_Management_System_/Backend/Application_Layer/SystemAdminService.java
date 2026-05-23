@@ -480,6 +480,13 @@ public class SystemAdminService {
         requireAdmin(token);
         return complaintService.getUserComplaints(token);
     }
+    public List<ComplaintDTO> getAllSystemComplaintst(String token) {
+        requireAdmin(token);
+
+        return complaintRepository.findAll().stream()
+                .map(ComplaintDTO::new)
+                .toList();
+    }
 
     // מענה לתלונה — II.6.3
     @Transactional
