@@ -39,11 +39,12 @@ public class ComplaintService {
     @Transactional
     public UUID createComplaint(String token, CreateComplaintDTO complaint_request) {
         String user_id = userService.requireMemberId(token);
-        Complaint complaint = new Complaint(complaint_request.getSubject(),
+        Complaint complaint = new Complaint(
+                user_id,
+                complaint_request.getSubject(),
                 complaint_request.getDescription(),
                 complaint_request.getTargetType(),
-                complaint_request.getTargetId(),
-                user_id);
+                complaint_request.getTargetId());
         complaintRepository.save(complaint);
         return complaint.getComplaintId();
     }

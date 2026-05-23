@@ -174,12 +174,13 @@ public class MainView extends VerticalLayout {
                 // 4. THE FIX: Reload the page to refresh the header buttons
                 UI.getCurrent().getPage().reload();
             });
+            NotificationBell notifcation_bell = new NotificationBell(notificationService, userService);
 
             logoutBtn.getStyle().set("background", "transparent").set("color", "white")
                     .set("border", "2px solid white").set("font-weight", "700")
                     .set("border-radius", "8px").set("cursor", "pointer");
 
-            authButtons.add(profileBtn, logoutBtn);
+            authButtons.add( notifcation_bell, profileBtn, logoutBtn);
         }
 
         header.add(logo, searchBarLayout, authButtons);

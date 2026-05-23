@@ -2,24 +2,51 @@ package com.sdnah.Ticket_Management_System_.Backend;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PasswordHasher;
+
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
+
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
+
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
+
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
+
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ManagerPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Complaint;
+
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Waiting_Queue.WaitingQueue;
+
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ComplaintRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.Waiting_QueueRepository;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -27,26 +54,41 @@ import java.util.UUID;
 @Profile("dev")
 public class DemoDataLoader implements CommandLineRunner {
 
-    private static final String DEMO_USERNAME = "zaz";
-    private static final String DEMO_PASSWORD = "123456";
-    private static final String DEMO_EMAIL = "zaz@test.com";
-    private static final String DEMO_PHONE = "0500000000";
-    private static final UUID DEMO_COMPANY_ID = UUID.randomUUID();
+    private static final String PASSWORD = "123456";
+
+    private static final long EVENT_OWNER_ID = 1001L;
+    private static final long EVENT_MANAGER_ID = 1002L;
 
     private final UserRepository userRepository;
+    private final SystemAdminRepository systemAdminRepository;
     private final CompanyRepository companyRepository;
     private final IEventRepository eventRepository;
+    private final Waiting_QueueRepository waitingQueueRepository;
+    private final PurchaseRepository purchaseRepository;
+    private final ActiveOrderRepository activeOrderRepository;
+    private final ComplaintRepository complaintRepository;
     private final PasswordHasher passwordHasher;
     private final NotificationService notificationService;
 
     public DemoDataLoader(UserRepository userRepository,
+                          SystemAdminRepository systemAdminRepository,
                           CompanyRepository companyRepository,
                           IEventRepository eventRepository,
+                          Waiting_QueueRepository waitingQueueRepository,
+                          PurchaseRepository purchaseRepository,
+                          ActiveOrderRepository activeOrderRepository,
+                          ComplaintRepository complaintRepository,
                           PasswordHasher passwordHasher,
                           NotificationService notificationService) {
+
         this.userRepository = userRepository;
+        this.systemAdminRepository = systemAdminRepository;
         this.companyRepository = companyRepository;
         this.eventRepository = eventRepository;
+        this.waitingQueueRepository = waitingQueueRepository;
+        this.purchaseRepository = purchaseRepository;
+        this.activeOrderRepository = activeOrderRepository;
+        this.complaintRepository = complaintRepository;
         this.passwordHasher = passwordHasher;
         this.notificationService = notificationService;
     }
@@ -54,125 +96,586 @@ public class DemoDataLoader implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        Member demoUser = createDemoUserIfMissing();
+        System.out.println("========== Loading full DEV demo data ==========");
 
-        Company demoCompany = createDemoCompanyIfMissing(demoUser);
-        createDemoEventsIfMissing(demoUser, demoCompany);
-        createDemoNotificationsIfMissing(demoUser);
+        Member admin = createSystemAdminIfMissing();
+        Member owner = createMemberIfMissing("demo-owner-id", "owner_demo", "Owner", "Demo", "owner@test.com");
+        Member coOwner = createMemberIfMissing("demo-co-owner-id", "co_owner_demo", "Co", "Owner", "coowner@test.com");
+        Member manager = createMemberIfMissing("demo-manager-id", "manager_demo", "Manager", "Demo", "manager@test.com");
+        Member limitedManager = createMemberIfMissing("demo-limited-manager-id", "limited_manager_demo", "Limited", "Manager", "limited@test.com");
+        Member buyer = createMemberIfMissing("demo-buyer-id", "buyer_demo", "Buyer", "Demo", "buyer@test.com");
+        Member buyer2 = createMemberIfMissing("demo-buyer2-id", "buyer2_demo", "Second", "Buyer", "buyer2@test.com");
+        Member user = createMemberIfMissing("demo-user-id", "user_demo", "Regular", "User", "user@test.com");
+        Member suspended = createSuspendedMemberIfMissing();
 
-        System.out.println("Demo data loaded:");
-        System.out.println("username = " + DEMO_USERNAME);
-        System.out.println("password = " + DEMO_PASSWORD);
-        System.out.println("memberId = " + demoUser.getMemberId());
-    }
+        Company concerts = createCompanyIfMissing("Demo Concerts Company", owner);
+        Company conferences = createCompanyIfMissing("Demo Conferences Company", owner);
 
-    private Member createDemoUserIfMissing() {
-        if (userRepository.existsByUsername(DEMO_USERNAME)) {
-            return userRepository.findByUsername(DEMO_USERNAME)
-                    .orElseThrow(() -> new IllegalStateException("Demo user exists but could not be loaded"));
-        }
+        connectCompanyRoles(concerts, owner, coOwner, manager, limitedManager);
+        connectCompanyRoles(conferences, owner, coOwner, manager, limitedManager);
 
-        String memberId = UUID.randomUUID().toString();
-        String passwordHash = passwordHasher.hash(DEMO_PASSWORD);
-
-        Member member = new Member(memberId, DEMO_USERNAME, passwordHash);
-        member.setEmail(DEMO_EMAIL);
-        member.setPhone(DEMO_PHONE);
-        member.setVerified(true);
-        member.setActive(true);
-        member.logout();
-
-        return userRepository.save(member);
-    }
-
-    private Company createDemoCompanyIfMissing(Member demoUser) {
-        if (companyRepository.existsById(DEMO_COMPANY_ID)) {
-            return companyRepository.findById(DEMO_COMPANY_ID)
-                    .orElseThrow(() -> new IllegalStateException("Demo company exists but could not be loaded"));
-        }
-
-        Company company = new Company(
-                "Demo Concerts Company",
-                demoUser.getMemberId()
+        Event rockFestival = createEventIfMissing(
+                "Demo Rock Festival",
+                show_type.FESTIVAL,
+                concerts,
+                EVENT_OWNER_ID,
+                "Demo Arena",
+                "Large demo festival with multiple shows."
         );
 
-        company = companyRepository.save(company);
-
-        demoUser.addCompanyRole(new CompanyRoleAssignment(
-                company.getCompanyId(),
-                demoUser.getMemberId(),
-                CompanyRoleType.OWNER,
-                Set.of()
-        ));
-
-        userRepository.save(demoUser);
-
-        return company;
-    }
-
-    private void createDemoEventsIfMissing(Member demoUser, Company company) {
-        if (!company.getAssociatedEventIds().isEmpty()) {
-            return;
-        }
-
-        Event event1 = new Event(
-                "Demo Rock Concert",
-                show_type.PERFORMANCE,
-                DEMO_COMPANY_ID,
-                Long.valueOf(1)
-        );
-
-        event1.editDescription("A demo rock concert used for frontend testing.", Long.valueOf(1));
-        event1.editVenue("Demo Arena", Long.valueOf(1));
-        event1.editDates(daysFromNow(7), daysFromNow(7), Long.valueOf(1));
-
-        Event event2 = new Event(
+        Event techConference = createEventIfMissing(
                 "Demo Tech Conference",
                 show_type.CONFERENCE,
-                DEMO_COMPANY_ID,
-                Long.valueOf(1)
+                conferences,
+                EVENT_OWNER_ID,
+                "Demo Convention Center",
+                "Technology conference demo event."
         );
 
-        event2.editDescription("A demo technology conference used for frontend testing.", Long.valueOf(1));
-        event2.editVenue("Demo Convention Center", Long.valueOf(1));
-        event2.editDates(daysFromNow(14), daysFromNow(14), Long.valueOf(1));
+        Event theaterShow = createEventIfMissing(
+                "Demo Theater Performance",
+                show_type.PERFORMANCE,
+                concerts,
+                EVENT_OWNER_ID,
+                "Demo Theater Hall",
+                "Performance demo event."
+        );
 
-        Event savedEvent1 = eventRepository.save(event1);
-        Event savedEvent2 = eventRepository.save(event2);
+        addShowsIfMissing(rockFestival);
+        addShowsIfMissing(techConference);
+        addShowsIfMissing(theaterShow);
 
-        company.addEventId(demoUser.getMemberId(), savedEvent1.getEventId());
-        company.addEventId(demoUser.getMemberId(), savedEvent2.getEventId());
+        createQueuesIfMissing();
 
-        companyRepository.save(company);
+        createPurchasesIfMissing(buyer, buyer2, rockFestival, techConference);
+        createActiveOrdersIfMissing(buyer2, theaterShow);
+
+        createComplaintsIfMissing(buyer, buyer2, user, suspended);
+
+        createNotificationsIfMissing(admin, owner, coOwner, manager, limitedManager, buyer, buyer2, user, suspended);
+
+        printCredentials();
+
+        System.out.println("========== Full DEV demo data loaded ==========");
     }
 
-    private void createDemoNotificationsIfMissing(Member demoUser) {
-        if (!notificationService.getNotificationsForUser(demoUser.getMemberId()).isEmpty()) {
+    private Member createMemberIfMissing(String memberId,
+                                         String username,
+                                         String firstName,
+                                         String lastName,
+                                         String email) {
+
+        return userRepository.findByUsername(username)
+                .orElseGet(() -> {
+                    Member member = new Member(memberId, username, passwordHasher.hash(PASSWORD));
+
+                    member.setFirstName(firstName);
+                    member.setLastName(lastName);
+                    member.setEmail(email);
+                    member.setPhone("0500000000");
+                    member.setAddress("Demo Street 1");
+                    member.setCity("Beer Sheva");
+                    member.setCountry("Israel");
+                    member.setBirthDate(LocalDate.of(2000, 1, 1));
+                    member.setAge(26);
+                    member.setVerified(true);
+                    member.setActive(true);
+                    member.logout();
+
+                    return userRepository.saveAndFlush(member);
+                });
+    }
+
+    private Member createSystemAdminIfMissing() {
+        Optional<Member> existing = userRepository.findByUsername("admin_demo");
+
+        if (existing.isPresent()) {
+            Member member = existing.get();
+
+            if (!systemAdminRepository.existsByMemberId(member.getMemberId())) {
+                throw new IllegalStateException(
+                        "User admin_demo exists but is not a System_admin. Delete this demo user or use a clean DB."
+                );
+            }
+
+            return member;
+        }
+
+        Member baseAdmin = new Member(
+                "demo-admin-id",
+                "admin_demo",
+                passwordHasher.hash(PASSWORD)
+        );
+
+        baseAdmin.setFirstName("Admin");
+        baseAdmin.setLastName("Demo");
+        baseAdmin.setEmail("admin@test.com");
+        baseAdmin.setPhone("0509999999");
+        baseAdmin.setVerified(true);
+        baseAdmin.setActive(true);
+        baseAdmin.logout();
+
+        System_admin admin = new System_admin(baseAdmin, "DemoDataLoader");
+
+        return systemAdminRepository.saveAndFlush(admin);
+    }
+
+    private Member createSuspendedMemberIfMissing() {
+        Member suspended = createMemberIfMissing(
+                "demo-suspended-id",
+                "suspended_demo",
+                "Suspended",
+                "User",
+                "suspended@test.com"
+        );
+
+        if (!suspended.isSuspended()) {
+            suspended.suspend(LocalDateTime.now().plusDays(7));
+            suspended.logout();
+            userRepository.saveAndFlush(suspended);
+        }
+
+        return suspended;
+    }
+
+    private Company createCompanyIfMissing(String name, Member founder) {
+        return companyRepository.findAll()
+                .stream()
+                .filter(company -> company.getCompanyName().equals(name))
+                .findFirst()
+                .orElseGet(() -> {
+                    Company company = new Company(name, founder.getMemberId());
+                    company.setLogoURL("https://example.com/demo-logo.png");
+                    company.updateRating(4.5);
+                    return companyRepository.saveAndFlush(company);
+                });
+    }
+
+    private void connectCompanyRoles(Company company,
+                                     Member owner,
+                                     Member coOwner,
+                                     Member manager,
+                                     Member limitedManager) {
+
+        if (!company.isOwner(coOwner.getMemberId())) {
+            company.appointAdditionalOwner(owner.getMemberId(), coOwner.getMemberId());
+        }
+
+        if (!company.isManager(manager.getMemberId())) {
+            company.appointManager(
+                    owner.getMemberId(),
+                    manager.getMemberId(),
+                    Set.of(
+                            CompanyPermission.MANAGE_EVENTS,
+                            CompanyPermission.VIEW_HISTORY,
+                            CompanyPermission.RESPOND_TO_INQUIRIES,
+                            CompanyPermission.VIEW_ROLES
+                    )
+            );
+        }
+
+        if (!company.isManager(limitedManager.getMemberId())) {
+            company.appointManager(
+                    owner.getMemberId(),
+                    limitedManager.getMemberId(),
+                    Set.of(
+                            CompanyPermission.VIEW_HISTORY,
+                            CompanyPermission.VIEW_ROLES
+                    )
+            );
+        }
+
+        companyRepository.saveAndFlush(company);
+
+        addMemberRoleIfMissing(
+                owner,
+                new CompanyRoleAssignment(
+                        company.getCompanyId(),
+                        owner.getMemberId(),
+                        CompanyRoleType.OWNER,
+                        Set.of()
+                )
+        );
+
+        addMemberRoleIfMissing(
+                coOwner,
+                new CompanyRoleAssignment(
+                        company.getCompanyId(),
+                        owner.getMemberId(),
+                        CompanyRoleType.OWNER,
+                        Set.of()
+                )
+        );
+
+        addMemberRoleIfMissing(
+                manager,
+                new CompanyRoleAssignment(
+                        company.getCompanyId(),
+                        owner.getMemberId(),
+                        CompanyRoleType.MANAGER,
+                        Set.of(
+                                ManagerPermission.ADD_PRODUCT,
+                                ManagerPermission.REMOVE_PRODUCT,
+                                ManagerPermission.UPDATE_PRODUCT,
+                                ManagerPermission.VIEW_PURCHASE_HISTORY,
+                                ManagerPermission.REPLY_TO_MESSAGES
+                        )
+                )
+        );
+
+        addMemberRoleIfMissing(
+                limitedManager,
+                new CompanyRoleAssignment(
+                        company.getCompanyId(),
+                        owner.getMemberId(),
+                        CompanyRoleType.MANAGER,
+                        Set.of(
+                                ManagerPermission.VIEW_STORE_INFO,
+                                ManagerPermission.VIEW_PURCHASE_HISTORY
+                        )
+                )
+        );
+    }
+
+    private void addMemberRoleIfMissing(Member member, CompanyRoleAssignment assignment) {
+        boolean exists = member.getCompanyRoles()
+                .stream()
+                .anyMatch(role ->
+                        role.getCompanyId().equals(assignment.getCompanyId())
+                                && role.getRoleType() == assignment.getRoleType()
+                );
+
+        if (!exists) {
+            member.addCompanyRole(assignment);
+            userRepository.saveAndFlush(member);
+        }
+    }
+
+    private Event createEventIfMissing(String name,
+                                       show_type type,
+                                       Company company,
+                                       Long ownerId,
+                                       String venue,
+                                       String description) {
+
+        Event event = eventRepository.findAll()
+                .stream()
+                .filter(existing -> existing.getName().equals(name))
+                .findFirst()
+                .orElseGet(() -> {
+                    Event created = new Event(name, type, company.getCompanyId(), ownerId);
+
+                    created.editVenue(venue, ownerId);
+                    created.editDescription(description, ownerId);
+                    created.editDates(daysFromNow(7), daysFromNow(8), ownerId);
+
+                    Event saved = eventRepository.saveAndFlush(created);
+
+                    if (!company.getAssociatedEventIds().contains(saved.getEventId())) {
+                        company.addEventId(company.getCompanyFounderId(), saved.getEventId());
+                        companyRepository.saveAndFlush(company);
+                    }
+
+                    return saved;
+                });
+
+        if (!event.getManagerIds().contains(EVENT_MANAGER_ID)) {
+            event.addManager(EVENT_MANAGER_ID, ownerId);
+            eventRepository.saveAndFlush(event);
+        }
+
+        return event;
+    }
+
+    private void addShowsIfMissing(Event event) {
+        if (event.getShows() != null && !event.getShows().isEmpty()) {
             return;
         }
 
-        notificationService.createNotification(
-                demoUser.getMemberId(),
-                "Welcome zaz! This is your first demo notification.",
-                NotificationType.GENERIC
+        show opening = new show(
+                event.getEventId(),
+                event.getName() + " - Opening Show",
+                "Opening show for demo testing.",
+                "Demo Artist A",
+                daysFromNow(7)
         );
 
-        notificationService.createNotification(
-                demoUser.getMemberId(),
-                "Demo notification system is working.",
-                NotificationType.SYSTEM_ANNOUNCEMENT
+        opening.setAreas(List.of(
+                new Area("VIP"),
+                new Area("Regular"),
+                new Area("Student")
+        ));
+
+        show evening = new show(
+                event.getEventId(),
+                event.getName() + " - Evening Show",
+                "Evening show for demo testing.",
+                "Demo Artist B",
+                daysFromNow(8)
         );
 
-        notificationService.createNotification(
-                demoUser.getMemberId(),
-                "You are the owner of Demo Concerts Company.",
-                NotificationType.OWNER_APPOINTED
+        evening.setAreas(List.of(
+                new Area("Front Area"),
+                new Area("Middle Area"),
+                new Area("Back Area")
+        ));
+
+        event.addShow(opening, EVENT_OWNER_ID);
+        event.addShow(evening, EVENT_OWNER_ID);
+
+        eventRepository.saveAndFlush(event);
+    }
+
+    private void createQueuesIfMissing() {
+        createQueueIfMissing(9001L, 50, List.of(10001L, 10002L, 10003L, 10004L));
+        createQueueIfMissing(9002L, 30, List.of(10005L, 10006L, 10007L));
+        createQueueIfMissing(9003L, 10, List.of(10008L));
+    }
+
+    private void createQueueIfMissing(Long queueId, int capacityPerMinute, List<Long> userIds) {
+        if (waitingQueueRepository.existsById(queueId)) {
+            return;
+        }
+
+        WaitingQueue queue = new WaitingQueue(queueId, capacityPerMinute);
+
+        for (Long userId : userIds) {
+            queue.joinQueue(userId);
+        }
+
+        waitingQueueRepository.save(queue);
+    }
+
+    private void createPurchasesIfMissing(Member buyer,
+                                          Member buyer2,
+                                          Event event1,
+                                          Event event2) {
+
+        if (purchaseRepository.findByBuyerId(buyer.getMemberId()).isEmpty()) {
+            Purchase purchase1 = createPurchaseFromDemoOrder(
+                    buyer.getMemberId(),
+                    event1.getEventId(),
+                    "VIP"
+            );
+
+            purchaseRepository.save(purchase1);
+        }
+
+        if (purchaseRepository.findByBuyerId(buyer2.getMemberId()).isEmpty()) {
+            Purchase purchase2 = createPurchaseFromDemoOrder(
+                    buyer2.getMemberId(),
+                    event2.getEventId(),
+                    "Regular"
+            );
+
+            purchaseRepository.save(purchase2);
+        }
+    }
+
+    private Purchase createPurchaseFromDemoOrder(String buyerId, UUID eventId, String areaName) {
+        UUID areaId = UUID.randomUUID();
+
+        ActiveOrder order = new ActiveOrder(buyerId, eventId, 15);
+
+        order.addTicket(
+                areaName + "-DEMO-TICKET-001",
+                1L,
+                areaId,
+                BigDecimal.valueOf(120.00),
+                new Lock(areaName + "-DEMO-TICKET-001", buyerId, LocalDateTime.now().plusMinutes(15))
         );
+
+        order.addTicket(
+                areaName + "-DEMO-TICKET-002",
+                2L,
+                areaId,
+                BigDecimal.valueOf(180.00),
+                new Lock(areaName + "-DEMO-TICKET-002", buyerId, LocalDateTime.now().plusMinutes(15))
+        );
+
+        order.markCompleted();
+
+        return new Purchase(order);
+    }
+
+    private void createActiveOrdersIfMissing(Member buyer, Event event) {
+        if (!activeOrderRepository.findPendingOrdersByBuyer(buyer.getMemberId()).isEmpty()) {
+            return;
+        }
+
+        UUID areaId = UUID.randomUUID();
+
+        ActiveOrder activeOrder = new ActiveOrder(
+                buyer.getMemberId(),
+                event.getEventId(),
+                20
+        );
+
+        activeOrder.addTicket(
+                "ACTIVE-DEMO-TICKET-001",
+                10L,
+                areaId,
+                BigDecimal.valueOf(99.90),
+                new Lock("ACTIVE-DEMO-TICKET-001", buyer.getMemberId(), LocalDateTime.now().plusMinutes(20))
+        );
+
+        activeOrderRepository.save(activeOrder);
+    }
+
+    private void createComplaintsIfMissing(Member buyer,
+                                           Member buyer2,
+                                           Member user,
+                                           Member suspended) {
+
+        if (complaintRepository.findByReporterMemberId(buyer.getMemberId()).isEmpty()) {
+            Complaint openComplaint = new Complaint(
+                    buyer.getMemberId(),
+                    "Problem with purchased ticket",
+                    "I bought a ticket but I want the system admin to check it.",
+                    "PURCHASE",
+                    "Demo purchase"
+            );
+
+            complaintRepository.save(openComplaint);
+        }
+
+        if (complaintRepository.findByReporterMemberId(buyer2.getMemberId()).isEmpty()) {
+            Complaint inProgressComplaint = new Complaint(
+                    buyer2.getMemberId(),
+                    "Event information looks wrong",
+                    "The event details look inconsistent.",
+                    "EVENT",
+                    "Demo Tech Conference"
+            );
+
+            inProgressComplaint.markInProgress();
+            complaintRepository.save(inProgressComplaint);
+        }
+
+        if (complaintRepository.findByReporterMemberId(user.getMemberId()).isEmpty()) {
+            Complaint resolvedComplaint = new Complaint(
+                    user.getMemberId(),
+                    "Question about account",
+                    "I had a question and admin already handled it.",
+                    "USER",
+                    user.getMemberId()
+            );
+
+            resolvedComplaint.resolve("Checked by demo admin. No further action needed.");
+            complaintRepository.save(resolvedComplaint);
+        }
+
+        if (complaintRepository.findByReporterMemberId(suspended.getMemberId()).isEmpty()) {
+            Complaint rejectedComplaint = new Complaint(
+                    suspended.getMemberId(),
+                    "Suspension complaint",
+                    "I want to appeal my suspension.",
+                    "USER",
+                    suspended.getMemberId()
+            );
+
+            rejectedComplaint.reject("Rejected in demo data.");
+            complaintRepository.save(rejectedComplaint);
+        }
+    }
+
+    private void createNotificationsIfMissing(Member admin,
+                                              Member owner,
+                                              Member coOwner,
+                                              Member manager,
+                                              Member limitedManager,
+                                              Member buyer,
+                                              Member buyer2,
+                                              Member user,
+                                              Member suspended) {
+
+        createNotificationsForUserIfMissing(admin.getMemberId(), List.of(
+                message("System dashboard demo data is ready.", NotificationType.SYSTEM_ANNOUNCEMENT),
+                message("There are demo complaints waiting for review.", NotificationType.GENERIC)
+        ));
+
+        createNotificationsForUserIfMissing(owner.getMemberId(), List.of(
+                message("You are owner of the demo companies.", NotificationType.OWNER_APPOINTED),
+                message("Demo manager was assigned to your company.", NotificationType.MANAGER_APPOINTED),
+                message("Demo company has new events.", NotificationType.PRODUCER_MESSAGE)
+        ));
+
+        createNotificationsForUserIfMissing(coOwner.getMemberId(), List.of(
+                message("You were appointed as co-owner.", NotificationType.OWNER_APPOINTED),
+                message("You can manage demo company roles.", NotificationType.ROLE_CHANGED)
+        ));
+
+        createNotificationsForUserIfMissing(manager.getMemberId(), List.of(
+                message("You were appointed as manager with full permissions.", NotificationType.MANAGER_APPOINTED),
+                message("Your permissions were updated.", NotificationType.PERMISSIONS_CHANGED)
+        ));
+
+        createNotificationsForUserIfMissing(limitedManager.getMemberId(), List.of(
+                message("You were appointed as limited manager.", NotificationType.MANAGER_APPOINTED)
+        ));
+
+        createNotificationsForUserIfMissing(buyer.getMemberId(), List.of(
+                message("Your demo purchase was completed successfully.", NotificationType.PURCHASE_SUCCESS),
+                message("Welcome buyer_demo. Notification bell is ready.", NotificationType.GENERIC)
+        ));
+
+        createNotificationsForUserIfMissing(buyer2.getMemberId(), List.of(
+                message("You have an active demo order.", NotificationType.ORDER_EXPIRY_WARNING),
+                message("Your second demo purchase was completed.", NotificationType.PURCHASE_SUCCESS)
+        ));
+
+        createNotificationsForUserIfMissing(user.getMemberId(), List.of(
+                message("Welcome user_demo.", NotificationType.GENERIC),
+                message("You can submit complaints and browse events.", NotificationType.SYSTEM_ANNOUNCEMENT)
+        ));
+
+        createNotificationsForUserIfMissing(suspended.getMemberId(), List.of(
+                message("Your account is suspended in demo data.", NotificationType.SYSTEM_ANNOUNCEMENT)
+        ));
+    }
+
+    private DemoNotification message(String text, NotificationType type) {
+        return new DemoNotification(text, type);
+    }
+
+    private void createNotificationsForUserIfMissing(String memberId, List<DemoNotification> notifications) {
+        if (!notificationService.getNotificationsForUser(memberId).isEmpty()) {
+            return;
+        }
+
+        for (DemoNotification notification : notifications) {
+            notificationService.createNotification(
+                    memberId,
+                    notification.message(),
+                    notification.type()
+            );
+        }
     }
 
     private Date daysFromNow(int days) {
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.DAY_OF_MONTH, days);
         return calendar.getTime();
+    }
+
+    private void printCredentials() {
+        System.out.println();
+        System.out.println("Demo users, password for all = " + PASSWORD);
+        System.out.println("admin_demo");
+        System.out.println("owner_demo");
+        System.out.println("co_owner_demo");
+        System.out.println("manager_demo");
+        System.out.println("limited_manager_demo");
+        System.out.println("buyer_demo");
+        System.out.println("buyer2_demo");
+        System.out.println("user_demo");
+        System.out.println("suspended_demo");
+        System.out.println();
+        System.out.println("Demo queue IDs:");
+        System.out.println("9001, 9002, 9003");
+        System.out.println();
+    }
+
+    private record DemoNotification(String message, NotificationType type) {
     }
 }
