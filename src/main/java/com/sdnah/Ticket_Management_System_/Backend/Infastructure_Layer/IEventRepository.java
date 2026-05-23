@@ -25,6 +25,8 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
 
     List<Event> findByOwnerId(Long ownerId);
 
+    List<Event> findByNameContainingIgnoreCase(String keyword);
+
     // ── Custom JPQL queries ──────────────────────────────────────────────────
     @Query("SELECT e FROM Event e")
     List<Event> findAllEvents();

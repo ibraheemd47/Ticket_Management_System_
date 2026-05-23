@@ -542,6 +542,24 @@ public class EventService {
         });
     }
 
+
+    //search evet using keyword
+    public List<EventDto> searchEventsByKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+        return eventRepository.findByNameContainingIgnoreCase(keyword.trim())
+                .stream()
+                .map(event -> new EventDto(
+                        event.getEventId(),
+                        event.getName(),
+                        event.getStartDate() == null ? null : event.getStartDate().toString(),
+                        event.getEventType(),
+                        event.getVenue()
+                ))
+                .toList();
+    }
+
     //helper function
     private void notifyEventBuyers(UUID eventId,
                                String eventName,
