@@ -1,7 +1,9 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -50,6 +52,10 @@ public class ActiveOrderService {
     private final OrderActionLogRepository actionLogRepo;
     private IrepresnteUserService represnteUserService;
     private final NotificationService notificationService;
+    // עולה בכל שריון מוצלח, מתאפס כל דקה
+    private final AtomicInteger reservationsLastMinute = new AtomicInteger(0);
+    // snapshot של הדקה הקודמת — זה מה שה-UI מציג
+    private final AtomicInteger reservationRateSnapshot = new AtomicInteger(0);
 
     @Autowired  
     private LotteryRepository lotteryRepository;
@@ -120,6 +126,7 @@ public class ActiveOrderService {
             ticketDomainService.lockAllTickets(order, reservedTicketIds);
             orderPolicyDomainService.validateAndApplyDiscounts(order, null);
             orderRepo.save(order);
+            reservationsLastMinute.incrementAndGet();//new for Reservation Rate
             logger.info("Reservation completed successfully order {}", order.getId());
             return OrderMapper.toDTO(order);
         } catch (Exception e) {
@@ -310,6 +317,25 @@ public class ActiveOrderService {
         return result;
     }
 
+    // מספר הזמנות פעילות כרגע
+    public int getActiveOrdersCount() {
+        return (int) orderRepo.findAll().stream()
+                .filter(o -> !o.isExpired())
+                .count();
+    }
+ 
+    // מספר רכישות שהושלמו היום
+    public int getPurchasesTodayCount() {
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        return (int) purchaseRepo.findAll().stream()
+                .filter(p -> p.getPurchasedAt() != null && p.getPurchasedAt().isAfter(startOfDay))
+                .count();
+    }
+    // קצב שריונות בדקה האחרונה
+    public int getReservationRate() {
+        return reservationRateSnapshot.get();
+    }
+
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void releaseExpiredOrders() {
@@ -322,6 +348,9 @@ public class ActiveOrderService {
         } catch (Exception e) {
             logger.error("releaseExpiredOrders FAILED | error={}", e.getMessage());
         }
+        // II.6.5 — מעדכן snapshot של קצב השריונות ומאפס את המונה
+        reservationRateSnapshot.set(reservationsLastMinute.getAndSet(0));
+        logger.info("Reservation rate updated. rate={}/min", reservationRateSnapshot.get());
     }
 
     private ActiveOrder findValidOrder(UUID orderId, String buyerId) {

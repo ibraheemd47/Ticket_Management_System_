@@ -121,9 +121,48 @@
             </plugin>
             
             <plugin>
-                <groupId>com.vaadin</groupId>
-                <artifactId>vaadin-maven-plugin</artifactId>
-                <version>${vaadin.version}</version>
+    <groupId>com.vaadin</groupId>
+    <artifactId>vaadin-maven-plugin</artifactId>
+    <version>${vaadin.version}</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-frontend</goal>
+                <goal>build-frontend</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+
+            <!-- Coverage reporting (issue #91). Runs automatically with `mvn test`;
+                 the HTML report lands in target/site/jacoco/index.html. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>jacoco-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <excludes>
+                        <!-- Vaadin views are exercised manually, not via unit tests -->
+                        <exclude>com/sdnah/Ticket_Management_System_/Frontend/**</exclude>
+                        <!-- DTOs / generated boilerplate -->
+                        <exclude>com/sdnah/Ticket_Management_System_/Backend/DTOs/**</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
         </plugins>
     </build>

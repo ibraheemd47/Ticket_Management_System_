@@ -107,7 +107,15 @@ public class Factory {
                         com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod.EMAIL
                 );
 
-                System.out.println("   ✓ Test user created");
+                // Auto-verify so the user can log in immediately without the email flow
+                userRepository.findByUsername("testuser").ifPresent(member -> {
+                    String code = member.getVerificationCode();
+                    if (code != null) {
+                        userService.verifyAccount("testuser", code);
+                    }
+                });
+
+                System.out.println("   ✓ Test user ready  →  username: testuser   password: 123456");
             } else {
                 System.out.println("   ✓ Users already exist");
             }

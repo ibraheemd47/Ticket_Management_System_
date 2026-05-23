@@ -59,31 +59,83 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         Object t = UI.getCurrent().getSession().getAttribute(SESSION_TOKEN);
-        Object o = UI.getCurrent().getSession().getAttribute(SESSION_ORDER_ID);
-
         if (t == null) {
             event.forwardTo(LoginView.class);
             return;
         }
+        this.token = t.toString();
+
+        Object o = UI.getCurrent().getSession().getAttribute(SESSION_ORDER_ID);
         if (o == null) {
-            Notification.show("No order selected", 3000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            event.forwardTo("main");
+            add(orderPickerCard());
             return;
         }
-        this.token   = t.toString();
-        this.orderId = UUID.fromString(o.toString());
-
         try {
-            this.order = orderService.getOrderById(orderId, token);
+            this.orderId = UUID.fromString(o.toString());
+            this.order   = orderService.getOrderById(orderId, token);
             add(buildContent(order));
+        } catch (IllegalArgumentException badUuid) {
+            add(orderPickerCard("Invalid order id: " + o));
         } catch (RuntimeException ex) {
-            Notification.show("Couldn't load order: " + ex.getMessage(), 4000,
-                            Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            event.forwardTo("main");
+            add(orderPickerCard("Couldn't load order: " + ex.getMessage()));
         }
     }
+
+    /** Fallback when no order id is set — lets the user paste one and load it. */
+    private Div orderPickerCard() {
+        return orderPickerCard(null);
+    }
+    private Div orderPickerCard(String errorMsg) {
+        Div card = new Div();
+        card.getStyle()
+                .set("max-width", "560px")
+                .set("margin", "60px auto")
+                .set("padding", "32px")
+                .set("background", "white")
+                .set("border-radius", "16px")
+                .set("box-shadow", "0 6px 20px rgba(0,0,0,0.06)")
+                .set("text-align", "center");
+
+        H1 t = new H1("Open an order");
+        t.getStyle().set("margin", "0 0 8px 0").set("color", "#333");
+
+        Paragraph d = new Paragraph(
+                "Paste an order UUID below to inspect it. " +
+                "(Once the orders dashboard is wired up, you'll arrive here with the id pre-set.)");
+        d.getStyle().set("color", "#666").set("margin", "0 0 16px 0");
+
+        com.vaadin.flow.component.textfield.TextField input =
+                new com.vaadin.flow.component.textfield.TextField();
+        input.setPlaceholder("00000000-0000-0000-0000-000000000000");
+        input.setWidthFull();
+
+        Button go = new Button("Open order", e -> {
+            String v = input.getValue();
+            if (v == null || v.isBlank()) {
+                Notification.show("Paste an order id first", 2500, Notification.Position.MIDDLE);
+                return;
+            }
+            UI.getCurrent().getSession().setAttribute(SESSION_ORDER_ID, v.trim());
+            UI.getCurrent().getPage().reload();
+        });
+        go.getStyle()
+                .set("background", "#026cdf").set("color", "white")
+                .set("font-weight", "700").set("padding", "10px 22px")
+                .set("border-radius", "8px").set("margin-top", "12px");
+
+        if (errorMsg != null) {
+            Paragraph err = new Paragraph(errorMsg);
+            err.getStyle().set("color", "#c62828").set("font-weight", "600");
+            card.add(t, d, input, go, err);
+        } else {
+            card.add(t, d, input, go);
+        }
+
+        Div outer = new Div(card);
+        outer.setWidthFull();
+        return outer;
+    }
+
 
     // ── Layout ───────────────────────────────────────────────────────────────
 

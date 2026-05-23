@@ -426,6 +426,10 @@ public class UserService implements IrepresnteUserService {
 
         return member;
     }
+    public boolean isSystemAdmin(String tokenValue) {
+        Member member = getMemberByToken(tokenValue);
+        return member.isSystemAdmin();
+    }
 
     public String getMemberIdByToken(String tokenValue) {
         return getMemberByToken(tokenValue).getMemberId();

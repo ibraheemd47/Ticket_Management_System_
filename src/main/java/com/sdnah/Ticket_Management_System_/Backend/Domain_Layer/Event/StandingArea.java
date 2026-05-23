@@ -17,7 +17,9 @@ public class StandingArea extends Area {
     @Transient
     private LinkedList<ticket> areaMap;
     
-    protected StandingArea() {}
+    protected StandingArea() {
+        this.areaMap = new LinkedList<>();
+    }
 
     public StandingArea(String name, int maxCapacity) {
         super(name);

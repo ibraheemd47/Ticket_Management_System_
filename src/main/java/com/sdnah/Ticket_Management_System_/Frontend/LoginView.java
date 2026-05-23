@@ -178,11 +178,19 @@ public class LoginView extends VerticalLayout {
                         password.getValue()
                 );
 
-                System.out.println("Login successful, token: " + token);
+                // Resolve the real member UUID from the token (not the Vaadin component id)
+                String memberId = userService.getMemberIdByToken(token);
+
                 getUI().ifPresent(ui -> ui.getSession().setAttribute("token", token));
+                getUI().ifPresent(ui -> ui.getSession().setAttribute("userId", memberId));
 
                 Notification.show("Login successful");
-                getUI().ifPresent(ui -> ui.navigate("main"));
+                
+                if(userService.isSystemAdmin(token)) {
+                    getUI().ifPresent(ui -> ui.navigate("admin"));
+                } else {
+                    getUI().ifPresent(ui -> ui.navigate("main"));
+                }
 
             } catch (Exception ex) {
                 Notification.show(ex.getMessage());

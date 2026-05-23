@@ -11,7 +11,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Seat;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 
@@ -83,4 +85,10 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
 
     @Query("SELECT m FROM Event e JOIN e.managerIds m WHERE e.eventId = :eventId")
     List<UUID> getManagerIdsForEvent(@Param("eventId") UUID eventId);
+
+    @Query("SELECT a FROM Area a WHERE a.id = :areaId")
+    Optional<Area> findAreaById(@Param("areaId") UUID areaId);
+
+    @Query("SELECT s FROM Seat s WHERE s.id = :seatId")
+    Optional<Seat> findSeatById(@Param("seatId") Long seatId);
 }

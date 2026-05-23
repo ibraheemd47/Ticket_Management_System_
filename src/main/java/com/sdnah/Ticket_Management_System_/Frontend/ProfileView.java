@@ -7,10 +7,12 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 
 @Route("profile")
-public class ProfileView extends VerticalLayout {
+public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
 
     public ProfileView() {
         setSizeFull();
@@ -23,6 +25,14 @@ public class ProfileView extends VerticalLayout {
 
         add(createHeader());
         add(createProfileContent());
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        Object token = event.getUI().getSession().getAttribute("token");
+        if (token == null) {
+            event.rerouteTo("login");
+        }
     }
 
     private Div createHeader() {
@@ -42,7 +52,10 @@ public class ProfileView extends VerticalLayout {
         logo.getStyle()
                 .set("margin", "0")
                 .set("font-size", "24px")
-                .set("font-weight", "900");
+                .set("font-weight", "900")
+                .set("cursor", "pointer");
+
+        logo.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("main")));
 
         Div nav = new Div();
         nav.getStyle()
@@ -51,7 +64,6 @@ public class ProfileView extends VerticalLayout {
                 .set("align-items", "center");
 
         Span home = createNavItem("Home", "main");
-        
 
         Span account = new Span("👤 My Account");
         account.getStyle().set("font-weight", "700");
@@ -101,19 +113,18 @@ public class ProfileView extends VerticalLayout {
                 .set("font-size", "38px")
                 .set("color", "#111827");
 
-        Paragraph subtitle = new Paragraph(
-                "Manage your account and view your order history."
-        );
+        Paragraph subtitle = new Paragraph("Manage your account and view your order history.");
         subtitle.getStyle()
                 .set("color", "#6b7280")
                 .set("font-size", "16px")
                 .set("margin", "14px 0 34px 0")
                 .set("line-height", "1.5");
 
+        Button myDetails = createMainButton("My Details", "profile-details");
         Button myOrders = createMainButton("My Orders", "orders?tab=active");
         Button browseEvents = createSecondaryButton("Browse Events", "main");
 
-        card.add(avatar, title, subtitle, myOrders, browseEvents);
+        card.add(avatar, title, subtitle, myDetails, myOrders, browseEvents);
         wrapper.add(card);
 
         return wrapper;
@@ -126,9 +137,7 @@ public class ProfileView extends VerticalLayout {
                 .set("cursor", "pointer")
                 .set("font-weight", "700");
 
-        item.addClickListener(e ->
-                getUI().ifPresent(ui -> ui.navigate(route))
-        );
+        item.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate(route)));
 
         return item;
     }
@@ -143,11 +152,10 @@ public class ProfileView extends VerticalLayout {
                 .set("margin-bottom", "16px")
                 .set("font-weight", "700")
                 .set("padding", "14px")
-                .set("border-radius", "8px");
+                .set("border-radius", "8px")
+                .set("cursor", "pointer");
 
-        button.addClickListener(e ->
-                getUI().ifPresent(ui -> ui.navigate(route))
-        );
+        button.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate(route)));
 
         return button;
     }
@@ -162,11 +170,10 @@ public class ProfileView extends VerticalLayout {
                 .set("color", "#026cdf")
                 .set("font-weight", "700")
                 .set("padding", "14px")
-                .set("border-radius", "8px");
+                .set("border-radius", "8px")
+                .set("cursor", "pointer");
 
-        button.addClickListener(e ->
-                getUI().ifPresent(ui -> ui.navigate(route))
-        );
+        button.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate(route)));
 
         return button;
     }

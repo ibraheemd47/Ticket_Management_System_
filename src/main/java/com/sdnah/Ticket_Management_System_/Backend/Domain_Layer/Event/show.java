@@ -15,6 +15,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Transient;
+import java.math.BigDecimal;
 
 @Entity
 public class show {
@@ -41,6 +42,8 @@ public class show {
     private String name;
     private String description;
     private String singer;
+    private BigDecimal seatedPrice;
+    private BigDecimal standingPrice;
 
     public show(UUID EventId,String name , String description,String singer , Date showDate) {
       this.showid= UUID.randomUUID(); 
@@ -100,6 +103,18 @@ public class show {
     }
     public void setSinger(String singer) {
         this.singer = singer;
+    }
+    public BigDecimal getSeatedPrice() {
+        return seatedPrice;
+    }
+    public void setSeatedPrice(BigDecimal seatedPrice) {
+        this.seatedPrice = seatedPrice;
+    }
+    public BigDecimal getStandingPrice() {
+        return standingPrice;
+    }
+    public void setStandingPrice(BigDecimal standingPrice) {
+        this.standingPrice = standingPrice;
     }
 
     @Override

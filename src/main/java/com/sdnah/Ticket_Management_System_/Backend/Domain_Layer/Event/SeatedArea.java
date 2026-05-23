@@ -36,5 +36,8 @@ public class SeatedArea extends Area {
         logger.info("Retrieving blocks for seated area {}", this.getId());
         return blocks.toArray(new Block[0]);
     }
-    
+
+    public void setBlocks(List<Block> blocks) {
+        this.blocks = blocks != null ? blocks : new ArrayList<>();
+    }
 }
