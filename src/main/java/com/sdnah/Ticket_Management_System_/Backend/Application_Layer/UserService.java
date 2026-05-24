@@ -86,6 +86,7 @@ public class UserService implements IrepresnteUserService {
         }
 
         Member member = getMemberByToken(tokenValue);
+    
         member.logout();
         userRepository.save(member);
 
