@@ -4,6 +4,7 @@ import java.util.Date;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import javax.annotation.meta.When;
 
@@ -250,10 +251,47 @@ public class MainView extends VerticalLayout {
                 .set("border-radius", "0 0 8px 8px");
 
         // Example Company Mock
-        // companyList.add(new H3("LiveNation"), new H3("SeatGeek"), new H3("StubHub"));
+         companyList.add(companyService.getActiveCompanies().stream().map(c -> {
+            VerticalLayout companyCard = new VerticalLayout();
+            companyCard.setAlignItems(Alignment.CENTER);
+            companyCard.setPadding(false);
+            companyCard.setSpacing(false);
+            companyCard.getStyle()
+                    .set("width", "150px")
+                    .set("cursor", "pointer")
+                    .set("transition", "transform 0.2s");
+
+            // Hover effect
+            companyCard.getElement().addEventListener("mouseover",
+                    e -> companyCard.getStyle().set("transform", "scale(1.05)"));
+            companyCard.getElement().addEventListener("mouseout",
+                    e -> companyCard.getStyle().set("transform", "scale(1)"));
+
+            Image logo = new Image(c.getLogoURL() != null ? c.getLogoURL() : "https://via.placeholder.com/100?text=No+Logo",
+                    c.getCompanyName());
+            logo.setWidth("80px");
+            logo.setHeight("80px");
+            logo.getStyle()
+                    .set("border-radius", "50%")
+                    .set("object-fit", "cover")
+                    .set("box-shadow", "0 4px 10px rgba(0,0,0,0.1)");
+
+            H3 name = new H3(c.getCompanyName());
+            name.getStyle().set("margin-top", "10px").set("color", "#111827");
+
+            companyCard.add(logo, name);
+            companyCard.addClickListener(e -> {
+                UI.getCurrent().getSession().setAttribute("companyId", c.getCompanyId().toString());
+                UI.getCurrent().navigate("company");
+            });
+
+            return companyCard;
+
+        }).collect(Collectors.toList()));
 
         container.add(headerContainer, companyList);
         add(container);
+        
     }
 
     // --- NEW: Hottest Artists Section ---
