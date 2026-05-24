@@ -57,6 +57,16 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
             event.rerouteTo("login");
             return;
         }
+        // Role guard: only system admins may view this page.
+        try {
+            systemAdminService.requireAdmin(token);
+        } catch (RuntimeException denied) {
+            Notification.show("You don't have permission to view the admin console.",
+                            4000, Notification.Position.TOP_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            event.forwardTo("main");
+            return;
+        }
         var params = event.getLocation().getQueryParameters().getParameters();
         if (params.containsKey("tab") && !params.get("tab").isEmpty())
             selectedTab = params.get("tab").get(0);

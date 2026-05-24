@@ -8,7 +8,6 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -150,17 +149,6 @@ public class SignUpView extends VerticalLayout {
                 .set("line-height", "1.5")
                 .set("margin-bottom", "20px");
 
-        HorizontalLayout nameLayout = new HorizontalLayout();
-        nameLayout.setWidthFull();
-
-        TextField firstName = new TextField("First Name");
-        firstName.setWidthFull();
-
-        TextField lastName = new TextField("Last Name");
-        lastName.setWidthFull();
-
-        nameLayout.add(firstName, lastName);
-
         TextField username = new TextField("Username");
         username.setWidthFull();
 
@@ -193,8 +181,7 @@ public class SignUpView extends VerticalLayout {
 
         signupButton.addClickListener(event -> {
             // 1. Check for empty fields
-            if (firstName.isEmpty() || lastName.isEmpty() || username.isEmpty()
-                    || email.isEmpty() || phone.isEmpty()
+            if (username.isEmpty() || email.isEmpty() || phone.isEmpty()
                     || password.isEmpty() || confirmPassword.isEmpty()) {
                 Notification.show("Please fill in all fields.");
                 return;
@@ -254,7 +241,7 @@ public class SignUpView extends VerticalLayout {
 
         alreadyAccount.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("login")));
 
-        right.add(title, subtitle, nameLayout, username, email, Age, phone, password, confirmPassword, signupButton, alreadyAccount);
+        right.add(title, subtitle, username, email, Age, phone, password, confirmPassword, signupButton, alreadyAccount);
         return right;
     }
 }
