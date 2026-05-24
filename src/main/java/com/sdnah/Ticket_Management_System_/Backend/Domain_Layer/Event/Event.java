@@ -223,4 +223,8 @@ public class Event {
         long millisInWeek = 7 * 24 * 60 * 60 * 1000L;
         return (showDate.getTime() / millisInWeek) == (now.getTime() / millisInWeek);
     }
+
+    public String getPhotoUrl() {
+        return "https://example.com/default-event-photo.jpg";
+    }
 }
