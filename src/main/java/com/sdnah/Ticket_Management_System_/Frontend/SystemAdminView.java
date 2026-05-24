@@ -158,6 +158,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
 
         Div usersListCard = actionCard("Registered Users",
                 "All registered members on the platform.");
+        usersListCard.getStyle().set("min-width", "600px");        
         Div tableArea = new Div();
         tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
 
@@ -347,10 +348,12 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 .set("display", "flex")
                 .set("gap", "24px")
                 .set("align-items", "flex-start")
-                .set("width", "100%");
+                .set("width", "100%")
+                .set("flex-wrap", "wrap");
         // LEFT SIDE — companies list
         Div companiesListCard = actionCard("Active Production Companies",
                 "All active production companies on the platform.");
+        companiesListCard.getStyle().set("min-width", "600px");        
         Div tableArea = new Div();
         tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
 
@@ -886,7 +889,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         Div row = new Div();
         row.getStyle()
                 .set("display", "grid")
-                .set("grid-template-columns", "2fr 1fr 2fr 1fr")
+                .set("grid-template-columns", "2fr 2fr 2fr 1fr")
                 .set("background", bg).set("color", color)
                 .set("border-radius", "6px").set("padding", "10px 12px")
                 .set("font-size", "13px").set("margin-bottom", "2px");
