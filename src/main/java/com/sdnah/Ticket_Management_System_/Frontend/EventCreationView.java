@@ -49,10 +49,20 @@ import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
-//need to add the area type for the show creartion and add the policy for selling ot discount on events / shows 
+//need to add the area type for the show creartion and add the policy for selling ot discount on events / shows
 @Route("event-create")
-public class EventCreationView extends VerticalLayout {
+public class EventCreationView extends VerticalLayout implements BeforeEnterObserver {
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        Object token = UI.getCurrent().getSession().getAttribute("token");
+        if (token == null) {
+            event.forwardTo(LoginView.class);
+        }
+    }
 
     private final company_managment_serivce companyService;
     private final EventService eventService;
