@@ -1,16 +1,29 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.util.Date;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import javax.annotation.meta.When;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.CompanyRoleService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.Notification;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Frontend.NotificationBell;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -26,19 +39,22 @@ import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.spring.VaadinConfigurationProperties.React;
 
-@Route("main") // Landing page
+@Route("main")
 public class MainView extends VerticalLayout {
     private final EventService eventService;
     private final NotificationService notificationService;
     // private final IrepresnteUserService userService;
     private final UserService userService;
+    private final company_managment_serivce companyService;
 
     public MainView(EventService eventService, NotificationService notificationService,
-            UserService userService) {
+            UserService userService,company_managment_serivce companyService) {
         this.eventService = eventService;
         this.notificationService = notificationService;
         this.userService = userService;
+        this.companyService = companyService;
 
         // 1. Match the overall page background and spacing from ProfileView
         setSizeFull();
@@ -117,7 +133,7 @@ public class MainView extends VerticalLayout {
                 .set("cursor", "pointer");
         logo.addClickListener(e -> UI.getCurrent().navigate(MainView.class));
 
-        HorizontalLayout searchBarLayout = setupSearchBar();
+        VerticalLayout searchBarLayout = setupSearchBar();
         searchBarLayout.getStyle().set("margin", "0 40px");
 
         HorizontalLayout authButtons = new HorizontalLayout();
@@ -235,10 +251,47 @@ public class MainView extends VerticalLayout {
                 .set("border-radius", "0 0 8px 8px");
 
         // Example Company Mock
-        // companyList.add(new H3("LiveNation"), new H3("SeatGeek"), new H3("StubHub"));
+         companyList.add(companyService.getActiveCompanies().stream().map(c -> {
+            VerticalLayout companyCard = new VerticalLayout();
+            companyCard.setAlignItems(Alignment.CENTER);
+            companyCard.setPadding(false);
+            companyCard.setSpacing(false);
+            companyCard.getStyle()
+                    .set("width", "150px")
+                    .set("cursor", "pointer")
+                    .set("transition", "transform 0.2s");
+
+            // Hover effect
+            companyCard.getElement().addEventListener("mouseover",
+                    e -> companyCard.getStyle().set("transform", "scale(1.05)"));
+            companyCard.getElement().addEventListener("mouseout",
+                    e -> companyCard.getStyle().set("transform", "scale(1)"));
+
+            Image logo = new Image(c.getLogoURL() != null ? c.getLogoURL() : "https://via.placeholder.com/100?text=No+Logo",
+                    c.getCompanyName());
+            logo.setWidth("80px");
+            logo.setHeight("80px");
+            logo.getStyle()
+                    .set("border-radius", "50%")
+                    .set("object-fit", "cover")
+                    .set("box-shadow", "0 4px 10px rgba(0,0,0,0.1)");
+
+            H3 name = new H3(c.getCompanyName());
+            name.getStyle().set("margin-top", "10px").set("color", "#111827");
+
+            companyCard.add(logo, name);
+            companyCard.addClickListener(e -> {
+                UI.getCurrent().getSession().setAttribute("companyId", c.getCompanyId().toString());
+                UI.getCurrent().navigate("company");
+            });
+
+            return companyCard;
+
+        }).collect(Collectors.toList()));
 
         container.add(headerContainer, companyList);
         add(container);
+        
     }
 
     // --- NEW: Hottest Artists Section ---
@@ -365,51 +418,186 @@ public class MainView extends VerticalLayout {
         return icon;
     }
 
-    private HorizontalLayout setupSearchBar() {
-        // 1. Create the Filter Dropdown
-        Select<String> searchFilter = new Select<>();
-        searchFilter.setItems("All", "Event", "Area", "Company");
-        searchFilter.setValue("All"); // Set default selected value
-        searchFilter.getStyle().set("cursor", "pointer");
 
-        // 2. Create the Text Field (Your existing code)
-        TextField searchField = new TextField();
-        searchField.setPlaceholder("Search for artists, areas, and events...");
-        searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
-        searchField.setClearButtonVisible(true);
+private VerticalLayout setupSearchBar() {
+    VerticalLayout searchWrapper = new VerticalLayout();
+    searchWrapper.setPadding(false);
+    searchWrapper.setSpacing(false);
+    searchWrapper.setAlignItems(Alignment.CENTER);
+    searchWrapper.getStyle().set("max-width", "850px").set("flex-grow", "1");
 
-        // Make the text field take up the remaining space in the layout
-        searchField.setWidthFull();
+    // 1. Filter Pills (Event, Company, Venue)
+    HorizontalLayout pills = new HorizontalLayout();
+    pills.setSpacing(true);
+    pills.getStyle().set("margin-bottom", "10px");
 
-        // 3. Handle the Search Logic
-        searchField.setValueChangeMode(ValueChangeMode.LAZY);
-        searchField.addValueChangeListener(e -> {
-            String searchTerm = e.getValue();
-            String selectedCategory = searchFilter.getValue();
+    Button eventPill = createPill("Event", VaadinIcon.TICKET);
+    Button companyPill = createPill("Company", VaadinIcon.OFFICE);
+    Button venuePill = createPill("Venue", VaadinIcon.MAP_MARKER);
 
-            System.out.println("Searching for: " + searchTerm + " in category: " + selectedCategory);
-            // TODO: Call your backend search logic using BOTH searchTerm and
-            // selectedCategory
-        });
+    pills.add(eventPill, companyPill, venuePill);
 
-        // Optional: Also trigger a search if the user changes the filter dropdown while
-        // text is already entered
-        searchFilter.addValueChangeListener(e -> {
-            if (!searchField.isEmpty()) {
-                System.out.println(
-                        "Filter changed, searching for: " + searchField.getValue() + " in category: " + e.getValue());
-                // TODO: Call your backend search logic here too
+    // 2. The Main White Search Box (Rounded)
+    HorizontalLayout searchBox = new HorizontalLayout();
+    searchBox.setWidthFull();
+    searchBox.setDefaultVerticalComponentAlignment(Alignment.CENTER);
+    searchBox.getStyle()
+            .set("background", "white")
+            .set("border-radius", "50px") // Fully rounded like Tailwind full
+            .set("padding", "6px 8px 6px 24px")
+            .set("box-shadow", "0 4px 15px rgba(0,0,0,0.15)");
+
+    TextField searchInput = new TextField();
+    searchInput.setPrefixComponent(VaadinIcon.SEARCH.create());
+    searchInput.setWidthFull();
+    // Remove the default Vaadin grey border to make it look flush
+    searchInput.getStyle()
+            .set("--vaadin-input-field-border-width", "0")
+            .set("background", "transparent");
+
+    // Divider line
+    Div divider = new Div();
+    divider.getStyle()
+            .set("width", "1px")
+            .set("height", "30px")
+            .set("background", "#e5e7eb")
+            .set("margin", "0 10px");
+
+    DatePicker startDate = new DatePicker();
+    startDate.setPlaceholder("Start date");
+    startDate.setWidth("140px");
+    startDate.getStyle().set("--vaadin-input-field-border-width", "0");
+
+    DatePicker endDate = new DatePicker();
+    endDate.setPlaceholder("End date");
+    endDate.setWidth("140px");
+    endDate.getStyle().set("--vaadin-input-field-border-width", "0");
+
+    Button searchBtn = new Button("Search");
+    searchBtn.getStyle()
+            .set("background", "#026cdf") // Gradient/Brand color
+            .set("color", "white")
+            .set("border-radius", "50px")
+            .set("padding", "0 28px")
+            .set("height", "44px")
+            .set("font-weight", "bold")
+            .set("cursor", "pointer");
+
+    searchBox.add(searchInput, divider, startDate, endDate, searchBtn);
+
+    // 3. State Management (Mimicking React's useState)
+    AtomicReference<String> activeFilter = new AtomicReference<>("Event");
+
+    Runnable updateUI = () -> {
+        // Reset all pills to transparent
+        eventPill.getStyle().set("background", "transparent").set("color", "white");
+        companyPill.getStyle().set("background", "transparent").set("color", "white");
+        venuePill.getStyle().set("background", "transparent").set("color", "white");
+
+        String current = activeFilter.get();
+
+        if (current.equals("Event")) {
+            eventPill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
+            searchInput.setPlaceholder("Search concerts, shows, sports...");
+            divider.setVisible(true);
+            startDate.setVisible(true);
+            endDate.setVisible(true);
+        } else if (current.equals("Company")) {
+            companyPill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
+            searchInput.setPlaceholder("Search promoters, organizers...");
+            divider.setVisible(true);
+            startDate.setVisible(true);
+            endDate.setVisible(true);
+        } else if (current.equals("Venue")) {
+            venuePill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
+            searchInput.setPlaceholder("Search arenas, theaters, clubs...");
+            // Venues don't use dates, so hide them!
+            divider.setVisible(false);
+            startDate.setVisible(false);
+            endDate.setVisible(false);
+        }
+    };
+
+    // Attach click listeners to pills
+    eventPill.addClickListener(e -> { activeFilter.set("Event"); updateUI.run(); });
+    companyPill.addClickListener(e -> { activeFilter.set("Company"); updateUI.run(); });
+    venuePill.addClickListener(e -> { activeFilter.set("Venue"); updateUI.run(); });
+
+    // Initialize the default state
+    updateUI.run();
+
+    // 4. Submit Search
+    searchBtn.addClickListener(e -> {
+        Date start = startDate.getValue() != null ? Date.from(startDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+        Date end = endDate.getValue() != null ? Date.from(endDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+        
+        performModernSearch(activeFilter.get(), searchInput.getValue(), start, end);
+    });
+
+    searchWrapper.add(pills, searchBox);
+    return searchWrapper;
+}
+
+// Helper to style the tab pills
+private Button createPill(String text, VaadinIcon icon) {
+    Button btn = new Button(text, icon.create());
+    btn.getStyle()
+            .set("background", "transparent")
+            .set("color", "white")
+            .set("border", "none")
+            .set("font-weight", "600")
+            .set("padding", "6px 16px")
+            .set("cursor", "pointer");
+    return btn;
+}
+private void performModernSearch(String filterMode, String query, Date startDate, Date endDate) {
+    String text = query != null ? query.trim() : "";
+    List<EventDto> results = null;
+
+    try {
+        if (filterMode.equals("Event")) {
+            // Search globally for events
+            if (!text.isEmpty()) {
+                results = eventService.searchEventByName(text);
+            } else if (startDate != null && endDate != null) {
+                results = eventService.searchEventsByDateRange(startDate, endDate);
+            } else if (startDate != null) {
+                results = eventService.searchEventsByStartDate(startDate);
+            } else if (endDate != null) {
+                results = eventService.searchEventsByEndDate(endDate);
             }
-        });
+        } 
+        else if (filterMode.equals("Company")) {
+            // Search inside a specific company
+            if (!text.isEmpty()) {
+                if (startDate != null && endDate != null) {
+                    results = companyService.searchEventsInCompanyByDateRange(text, startDate, endDate);
+                } else if (startDate != null) {
+                    results = companyService.searchEventsInCompanyByStartDate(text, startDate);
+                } else if (endDate != null) {
+                    results = companyService.searchEventsInCompanyByEndDate(text, endDate);
+                } else {
+                    results = companyService.searchEventsInCompanyByKeyword(text, text); 
+                }
+            }
+        } 
+        else if (filterMode.equals("Venue")) {
+            // Search venues
+            if (!text.isEmpty()) {
+                results = eventService.searchEventsByVenue(text);
+            }
+        }
 
-        // 4. Combine them into a single HorizontalLayout
-        HorizontalLayout searchLayout = new HorizontalLayout(searchFilter, searchField);
-        searchLayout.setWidth("50%"); // The 50% width goes on the container now
-        searchLayout.setAlignItems(Alignment.BASELINE); // Aligns them nicely on the bottom edge
-        searchLayout.setSpacing(false); // Set to true if you want a gap between them
+        // --- Handle UI Updates ---
+        if (results != null) {
+            System.out.println("Search successful! Found " + results.size() + " events.");
+            // eventGrid.setItems(results); // Update your grid here!
+        }
 
-        return searchLayout;
+    } catch (Exception ex) {
+        System.err.println("Search Error: " + ex.getMessage());
     }
+}
 
     // private Div createSectionContainer() {
     // Div container = new Div();
