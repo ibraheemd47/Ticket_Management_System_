@@ -53,11 +53,11 @@ class CheckoutDomainServiceTest {
         ticketDomainService = new Ticket_Domain_Service(ticketRepo);
         service = new CheckoutDomainService(payment, tickets, ticketDomainService);
 
-        order = new ActiveOrder("buyer-1", UUID.randomUUID(), 30);
+        order = new ActiveOrder(UUID.randomUUID().toString(), UUID.randomUUID(), 30);
         UUID ticketId = UUID.randomUUID();
         String ticketIdString = ticketId.toString();
         Area area = new Area("GA");
-        Lock lock = new Lock(ticketIdString, "buyer-1", order.getExpiresAt());
+        Lock lock = new Lock(ticketIdString, UUID.randomUUID().toString(), order.getExpiresAt());
         order.addTicket(ticketIdString, 1L, area.getId(), BigDecimal.TEN, lock);
 
         details = mock(PaymentDetails.class);

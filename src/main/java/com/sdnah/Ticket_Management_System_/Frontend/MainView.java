@@ -1,5 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
@@ -25,9 +26,14 @@ import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.Route;
 
 @Route("main")
@@ -37,6 +43,8 @@ public class MainView extends VerticalLayout {
     // private final IrepresnteUserService userService;
     private final UserService userService;
     private final company_managment_serivce companyService;
+    private Grid<EventDto> eventGrid;
+private List<EventDto> allEventDtos;
 
     public MainView(EventService eventService, NotificationService notificationService,
             UserService userService,company_managment_serivce companyService) {
@@ -197,15 +205,15 @@ public class MainView extends VerticalLayout {
         Div container = createSectionContainer();
         Div headerContainer = createBlueHeaderContainer("Upcoming Events");
 
-        Grid<Event> eventGrid = new Grid<>(Event.class, false);
-        eventGrid.addColumn(Event::getName).setHeader("Event Name").setFlexGrow(2);
-        eventGrid.addColumn(ev -> ev.getVenue() != null ? ev.getVenue() : "—")
+        eventGrid = new Grid<>(EventDto.class, false);
+        eventGrid.addColumn(ev -> ev.name).setHeader("Event Name").setFlexGrow(2);
+        eventGrid.addColumn(ev -> ev.venue != null ? ev.venue : "—")
                 .setHeader("Venue").setFlexGrow(2);
-        eventGrid.addColumn(ev -> ev.getEventType() != null ? ev.getEventType().name() : "—")
+        eventGrid.addColumn(ev -> ev.eventType != null ? ev.eventType.name() : "—")
                 .setHeader("Type").setFlexGrow(1);
         eventGrid.addComponentColumn(ev -> {
             Button btn = new Button("View Event", e -> {
-                UI.getCurrent().getSession().setAttribute("eventId", ev.getEventId().toString());
+                UI.getCurrent().getSession().setAttribute("eventId", ev.id.toString());
                 UI.getCurrent().navigate("EventDetails");
             });
             btn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -214,8 +222,31 @@ public class MainView extends VerticalLayout {
         }).setHeader("").setAutoWidth(true);
 
         try {
-            List<Event> events = eventService.getAllEvents();
-            eventGrid.setItems(events);
+           List<Event> events = eventService.getAllEvents();
+           
+           allEventDtos = events.stream()
+    .map(ev -> {
+        LocalDate start = ev.getStartDate().toInstant()
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate();
+
+        LocalDate end = ev.getEndDate().toInstant()
+                          .atZone(ZoneId.systemDefault())
+                          .toLocalDate();
+
+        return new EventDto(
+            ev.getEventId(),
+            ev.getName(),
+            start,
+            end,
+            ev.getEventType(),
+            ev.getVenue(),
+            ev.getPhotoUrl()
+        );
+    })
+    .collect(Collectors.toList());
+
+eventGrid.setItems(allEventDtos);
         } catch (Exception ignored) {
         }
 
@@ -415,7 +446,6 @@ private VerticalLayout setupSearchBar() {
     searchWrapper.setAlignItems(Alignment.CENTER);
     searchWrapper.getStyle().set("max-width", "850px").set("flex-grow", "1");
 
-    // 1. Filter Pills (Event, Company, Venue)
     HorizontalLayout pills = new HorizontalLayout();
     pills.setSpacing(true);
     pills.getStyle().set("margin-bottom", "10px");
@@ -426,25 +456,23 @@ private VerticalLayout setupSearchBar() {
 
     pills.add(eventPill, companyPill, venuePill);
 
-    // 2. The Main White Search Box (Rounded)
     HorizontalLayout searchBox = new HorizontalLayout();
     searchBox.setWidthFull();
     searchBox.setDefaultVerticalComponentAlignment(Alignment.CENTER);
     searchBox.getStyle()
             .set("background", "white")
-            .set("border-radius", "50px") // Fully rounded like Tailwind full
+            .set("border-radius", "50px")
             .set("padding", "6px 8px 6px 24px")
             .set("box-shadow", "0 4px 15px rgba(0,0,0,0.15)");
 
     TextField searchInput = new TextField();
     searchInput.setPrefixComponent(VaadinIcon.SEARCH.create());
     searchInput.setWidthFull();
-    // Remove the default Vaadin grey border to make it look flush
+    searchInput.setValueChangeMode(ValueChangeMode.EAGER);
     searchInput.getStyle()
             .set("--vaadin-input-field-border-width", "0")
             .set("background", "transparent");
 
-    // Divider line
     Div divider = new Div();
     divider.getStyle()
             .set("width", "1px")
@@ -462,9 +490,21 @@ private VerticalLayout setupSearchBar() {
     endDate.setWidth("140px");
     endDate.getStyle().set("--vaadin-input-field-border-width", "0");
 
+    searchInput.addValueChangeListener(e -> {
+        String value = e.getValue() != null ? e.getValue().trim() : "";
+
+        if (value.isEmpty()
+                && startDate.getValue() == null
+                && endDate.getValue() == null
+                && eventGrid != null
+                && allEventDtos != null) {
+            eventGrid.setItems(allEventDtos);
+        }
+    });
+
     Button searchBtn = new Button("Search");
     searchBtn.getStyle()
-            .set("background", "#026cdf") // Gradient/Brand color
+            .set("background", "#026cdf")
             .set("color", "white")
             .set("border-radius", "50px")
             .set("padding", "0 28px")
@@ -474,11 +514,9 @@ private VerticalLayout setupSearchBar() {
 
     searchBox.add(searchInput, divider, startDate, endDate, searchBtn);
 
-    // 3. State Management (Mimicking React's useState)
     AtomicReference<String> activeFilter = new AtomicReference<>("Event");
 
     Runnable updateUI = () -> {
-        // Reset all pills to transparent
         eventPill.getStyle().set("background", "transparent").set("color", "white");
         companyPill.getStyle().set("background", "transparent").set("color", "white");
         venuePill.getStyle().set("background", "transparent").set("color", "white");
@@ -500,26 +538,38 @@ private VerticalLayout setupSearchBar() {
         } else if (current.equals("Venue")) {
             venuePill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
             searchInput.setPlaceholder("Search arenas, theaters, clubs...");
-            // Venues don't use dates, so hide them!
             divider.setVisible(false);
             startDate.setVisible(false);
             endDate.setVisible(false);
         }
     };
 
-    // Attach click listeners to pills
-    eventPill.addClickListener(e -> { activeFilter.set("Event"); updateUI.run(); });
-    companyPill.addClickListener(e -> { activeFilter.set("Company"); updateUI.run(); });
-    venuePill.addClickListener(e -> { activeFilter.set("Venue"); updateUI.run(); });
+    eventPill.addClickListener(e -> {
+        activeFilter.set("Event");
+        updateUI.run();
+    });
 
-    // Initialize the default state
+    companyPill.addClickListener(e -> {
+        activeFilter.set("Company");
+        updateUI.run();
+    });
+
+    venuePill.addClickListener(e -> {
+        activeFilter.set("Venue");
+        updateUI.run();
+    });
+
     updateUI.run();
 
-    // 4. Submit Search
     searchBtn.addClickListener(e -> {
-        Date start = startDate.getValue() != null ? Date.from(startDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
-        Date end = endDate.getValue() != null ? Date.from(endDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
-        
+        Date start = startDate.getValue() != null
+                ? Date.from(startDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
+                : null;
+
+        Date end = endDate.getValue() != null
+                ? Date.from(endDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
+                : null;
+
         performModernSearch(activeFilter.get(), searchInput.getValue(), start, end);
     });
 
@@ -544,8 +594,14 @@ private void performModernSearch(String filterMode, String query, Date startDate
     List<EventDto> results = null;
 
     try {
+        if (text.isEmpty() && startDate == null && endDate == null) {
+            if (allEventDtos != null) {
+                eventGrid.setItems(allEventDtos);
+            }
+            return;
+        }
+
         if (filterMode.equals("Event")) {
-            // Search globally for events
             if (!text.isEmpty()) {
                 results = eventService.searchEventByName(text);
             } else if (startDate != null && endDate != null) {
@@ -555,9 +611,7 @@ private void performModernSearch(String filterMode, String query, Date startDate
             } else if (endDate != null) {
                 results = eventService.searchEventsByEndDate(endDate);
             }
-        } 
-        else if (filterMode.equals("Company")) {
-            // Search inside a specific company
+        } else if (filterMode.equals("Company")) {
             if (!text.isEmpty()) {
                 if (startDate != null && endDate != null) {
                     results = companyService.searchEventsInCompanyByDateRange(text, startDate, endDate);
@@ -566,25 +620,29 @@ private void performModernSearch(String filterMode, String query, Date startDate
                 } else if (endDate != null) {
                     results = companyService.searchEventsInCompanyByEndDate(text, endDate);
                 } else {
-                    results = companyService.searchEventsInCompanyByKeyword(text, text); 
+                    results = companyService.searchEventsInCompanyByKeyword(text, text);
                 }
             }
-        } 
-        else if (filterMode.equals("Venue")) {
-            // Search venues
+        } else if (filterMode.equals("Venue")) {
             if (!text.isEmpty()) {
                 results = eventService.searchEventsByVenue(text);
             }
         }
 
-        // --- Handle UI Updates ---
-        if (results != null) {
-            System.out.println("Search successful! Found " + results.size() + " events.");
-            // eventGrid.setItems(results); // Update your grid here!
+        if (results != null && !results.isEmpty()) {
+            eventGrid.setItems(results);
+        } else {
+            eventGrid.setItems();
+            Notification.show("No events were found matching your search.", 4000, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
         }
 
     } catch (Exception ex) {
+        Notification.show("Search Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+
         System.err.println("Search Error: " + ex.getMessage());
+        ex.printStackTrace();
     }
 }
 

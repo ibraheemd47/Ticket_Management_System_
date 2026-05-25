@@ -57,6 +57,16 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
             event.rerouteTo("login");
             return;
         }
+        // Role guard: only system admins may view this page.
+        try {
+            systemAdminService.requireAdmin(token);
+        } catch (RuntimeException denied) {
+            Notification.show("You don't have permission to view the admin console.",
+                            4000, Notification.Position.TOP_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            event.forwardTo("main");
+            return;
+        }
         var params = event.getLocation().getQueryParameters().getParameters();
         if (params.containsKey("tab") && !params.get("tab").isEmpty())
             selectedTab = params.get("tab").get(0);
@@ -158,6 +168,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
 
         Div usersListCard = actionCard("Registered Users",
                 "All registered members on the platform.");
+        usersListCard.getStyle().set("min-width", "600px");        
         Div tableArea = new Div();
         tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
 
@@ -347,10 +358,12 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 .set("display", "flex")
                 .set("gap", "24px")
                 .set("align-items", "flex-start")
-                .set("width", "100%");
+                .set("width", "100%")
+                .set("flex-wrap", "wrap");
         // LEFT SIDE — companies list
         Div companiesListCard = actionCard("Active Production Companies",
                 "All active production companies on the platform.");
+        companiesListCard.getStyle().set("min-width", "600px");        
         Div tableArea = new Div();
         tableArea.getStyle().set("margin-top", "16px").set("width", "100%");
 
@@ -886,7 +899,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         Div row = new Div();
         row.getStyle()
                 .set("display", "grid")
-                .set("grid-template-columns", "2fr 1fr 2fr 1fr")
+                .set("grid-template-columns", "2fr 2fr 2fr 1fr")
                 .set("background", bg).set("color", color)
                 .set("border-radius", "6px").set("padding", "10px 12px")
                 .set("font-size", "13px").set("margin-bottom", "2px");

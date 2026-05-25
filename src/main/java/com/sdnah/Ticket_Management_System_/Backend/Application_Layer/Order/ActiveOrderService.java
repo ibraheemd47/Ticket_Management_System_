@@ -117,7 +117,9 @@ public class ActiveOrderService {
             logger.warn("User {} already has an active order for event {}", buyerId, eventId);
             throw new IllegalStateException("Active order already exists");
         }
+        logger.info("Creating new order for user {} and event {}", buyerId, eventId);
         ActiveOrder order = new ActiveOrder(buyerId, eventId, TTL_MINUTES);
+
         try {
             List<Boolean> lockedStatuses = seats.stream().map(seat -> orderRepo.isTicketLocked(seat.getTicketId()))
                     .collect(Collectors.toList());
@@ -130,7 +132,7 @@ public class ActiveOrderService {
             logger.info("Reservation completed successfully order {}", order.getId());
             return OrderMapper.toDTO(order);
         } catch (Exception e) {
-            logger.error("reserveTickets FAILED rollback done userToken={}", userToken);
+            logger.error("reserveTickets FAILED rollback done userToken={}", userToken , e);
             throw e;
         }
     }
