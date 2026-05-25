@@ -114,34 +114,34 @@ public class ActiveOrderService {
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
         logger.info("Starting ticket reservation for userToken {} event {}", userToken, eventId);
         String buyerId = represnteUserService.requireMemberId(userToken);
-var existingOrder = orderRepo.findActiveOrder(buyerId, eventId);
+    var existingOrder = orderRepo.findActiveOrder(buyerId, eventId);
 
-if (existingOrder.isPresent()) {
+    if (existingOrder.isPresent()) {
 
-    ActiveOrder order = existingOrder.get();
+        ActiveOrder order = existingOrder.get();
 
-    for (SeatRequest seat : seats) {
+        for (SeatRequest seat : seats) {
 
-        boolean isLocked = orderRepo.isTicketLocked(seat.getTicketId());
+            boolean isLocked = orderRepo.isTicketLocked(seat.getTicketId());
 
-        String ticketId = order.addTicketToOrder(
-                seat,
-                buyerId,
-                isLocked
+            String ticketId = order.addTicketToOrder(
+                    seat,
+                    buyerId,
+                    isLocked
+            );
+
+            ticketDomainService.lockAllTickets(order, List.of(ticketId));
+        }
+
+        orderPolicyDomainService.validateAndApplyDiscounts(
+                order,
+                order.getAppliedCouponCode()
         );
 
-        ticketDomainService.lockAllTickets(order, List.of(ticketId));
+        orderRepo.save(order);
+
+        return OrderMapper.toDTO(order);
     }
-
-    orderPolicyDomainService.validateAndApplyDiscounts(
-            order,
-            order.getAppliedCouponCode()
-    );
-
-    orderRepo.save(order);
-
-    return OrderMapper.toDTO(order);
-}
         logger.info("Creating new order for user {} and event {}", buyerId, eventId);
         ActiveOrder order = new ActiveOrder(buyerId, eventId, TTL_MINUTES);
 
