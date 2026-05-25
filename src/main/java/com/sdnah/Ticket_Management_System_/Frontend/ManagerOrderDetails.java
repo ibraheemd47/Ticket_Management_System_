@@ -157,7 +157,7 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
         Span back = new Span("⟵ Back");
         back.getStyle().set("cursor", "pointer").set("font-weight", "700");
         back.addClickListener(e ->
-                UI.getCurrent().navigate("orders?tab=active"));
+        UI.getCurrent().navigate("orders?tab=active"));
 
         header.add(logo, back);
         return header;

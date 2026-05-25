@@ -11,29 +11,30 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import jakarta.transaction.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CheckoutDomainService;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderActionLog;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentDetails;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Ticket_Domain_Service;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+
+import jakarta.transaction.Transactional;
 
 @Service
 @Transactional
@@ -113,10 +114,34 @@ public class ActiveOrderService {
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
         logger.info("Starting ticket reservation for userToken {} event {}", userToken, eventId);
         String buyerId = represnteUserService.requireMemberId(userToken);
-        if (orderRepo.findActiveOrder(buyerId, eventId).isPresent()) {
-            logger.warn("User {} already has an active order for event {}", buyerId, eventId);
-            throw new IllegalStateException("Active order already exists");
+    var existingOrder = orderRepo.findActiveOrder(buyerId, eventId);
+
+    if (existingOrder.isPresent()) {
+
+        ActiveOrder order = existingOrder.get();
+
+        for (SeatRequest seat : seats) {
+
+            boolean isLocked = orderRepo.isTicketLocked(seat.getTicketId());
+
+            String ticketId = order.addTicketToOrder(
+                    seat,
+                    buyerId,
+                    isLocked
+            );
+
+            ticketDomainService.lockAllTickets(order, List.of(ticketId));
         }
+
+        orderPolicyDomainService.validateAndApplyDiscounts(
+                order,
+                order.getAppliedCouponCode()
+        );
+
+        orderRepo.save(order);
+
+        return OrderMapper.toDTO(order);
+    }
         logger.info("Creating new order for user {} and event {}", buyerId, eventId);
         ActiveOrder order = new ActiveOrder(buyerId, eventId, TTL_MINUTES);
 
