@@ -170,6 +170,20 @@ private List<EventDto> allEventDtos;
                 authButtons.add(adminBtn);
             }
 
+            Button complaintBtn = new Button("File Complaint",
+                     e -> UI.getCurrent().navigate("complaints"));
+
+            complaintBtn.getStyle()
+                    .set("background", "white")
+                    .set("color", "#026cdf")
+                    .set("font-weight", "700")
+                    .set("border-radius", "8px")
+                    .set("cursor", "pointer");
+                    
+                authButtons.add(complaintBtn);    
+
+
+
             Button logoutBtn = new Button("Logout", e -> {
                 // 1. Get the current token from the session
                // String currentToken = (String) UI.getCurrent().getSession().getAttribute("token");
