@@ -105,17 +105,16 @@ public class DemoDataLoader implements CommandLineRunner {
                 System.out.println("========== Loading full DEV demo data ==========");
 
                 Member admin = createSystemAdminIfMissing();
-                Member owner = createMemberIfMissing("demo-owner-id", "owner_demo", "Owner", "Demo", "owner@test.com");
-                Member coOwner = createMemberIfMissing("demo-co-owner-id", "co_owner_demo", "Co", "Owner",
+                Member owner = createMemberIfMissing(UUID.randomUUID().toString(), "owner_demo", "Owner", "Demo", "owner@test.com");
+                Member coOwner = createMemberIfMissing(UUID.randomUUID().toString(), "co_owner_demo", "Co", "Owner",
                                 "coowner@test.com");
-                Member manager = createMemberIfMissing("demo-manager-id", "manager_demo", "Manager", "Demo",
+                Member manager = createMemberIfMissing(UUID.randomUUID().toString(), "manager_demo", "Manager", "Demo",
                                 "manager@test.com");
-                Member limitedManager = createMemberIfMissing("demo-limited-manager-id", "limited_manager_demo",
-                                "Limited", "Manager", "limited@test.com");
-                Member buyer = createMemberIfMissing("demo-buyer-id", "buyer_demo", "Buyer", "Demo", "buyer@test.com");
-                Member buyer2 = createMemberIfMissing("demo-buyer2-id", "buyer2_demo", "Second", "Buyer",
+                Member limitedManager = createMemberIfMissing(UUID.randomUUID().toString(), "limited_manager_demo","Limited", "Manager", "limited@test.com");
+                Member buyer = createMemberIfMissing(UUID.randomUUID().toString(), "buyer_demo", "Buyer", "Demo", "buyer@test.com");
+                Member buyer2 = createMemberIfMissing(UUID.randomUUID().toString(), "buyer2_demo", "Second", "Buyer",
                                 "buyer2@test.com");
-                Member user = createMemberIfMissing("demo-user-id", "user_demo", "Regular", "User", "user@test.com");
+                Member user = createMemberIfMissing(UUID.randomUUID().toString(), "user_demo", "RegularUser", "User", "user@test.com");
                 Member suspended = createSuspendedMemberIfMissing();
 
                 Company concerts = createCompanyIfMissing("Demo Concerts Company", owner);
@@ -209,7 +208,7 @@ public class DemoDataLoader implements CommandLineRunner {
                 }
 
                 Member baseAdmin = new Member(
-                                "demo-admin-id",
+                                UUID.randomUUID().toString(),
                                 "admin_demo",
                                 passwordHasher.hash(PASSWORD));
 
@@ -228,7 +227,7 @@ public class DemoDataLoader implements CommandLineRunner {
 
         private Member createSuspendedMemberIfMissing() {
                 Member suspended = createMemberIfMissing(
-                                "demo-suspended-id",
+                                UUID.randomUUID().toString(),
                                 "suspended_demo",
                                 "Suspended",
                                 "User",
@@ -699,14 +698,14 @@ public class DemoDataLoader implements CommandLineRunner {
                 ActiveOrder order = new ActiveOrder(buyerId, eventId, 15);
 
                 order.addTicket(
-                                areaName + "-DEMO-TICKET-001",
+                                UUID.randomUUID().toString(),
                                 1L,
                                 areaId,
                                 BigDecimal.valueOf(120.00),
                                 new Lock(areaName + "-DEMO-TICKET-001", buyerId, LocalDateTime.now().plusMinutes(15)));
 
                 order.addTicket(
-                                areaName + "-DEMO-TICKET-002",
+                                UUID.randomUUID().toString(),
                                 2L,
                                 areaId,
                                 BigDecimal.valueOf(180.00),
@@ -730,11 +729,11 @@ public class DemoDataLoader implements CommandLineRunner {
                                 20);
 
                 activeOrder.addTicket(
-                                "ACTIVE-DEMO-TICKET-001",
+                                UUID.randomUUID().toString(),
                                 10L,
                                 areaId,
                                 BigDecimal.valueOf(99.90),
-                                new Lock("ACTIVE-DEMO-TICKET-001", buyer.getMemberId(),
+                                new Lock(UUID.randomUUID().toString(), buyer.getMemberId(),
                                                 LocalDateTime.now().plusMinutes(20)));
 
                 activeOrderRepository.save(activeOrder);

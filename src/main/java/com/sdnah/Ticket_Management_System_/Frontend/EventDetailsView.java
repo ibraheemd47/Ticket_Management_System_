@@ -15,6 +15,9 @@ import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
@@ -65,19 +68,29 @@ import com.vaadin.flow.router.Route;
 @Route("EventDetails")
 public class EventDetailsView extends VerticalLayout {
 
+    private final ActiveOrderService orderService;
+
     private static final SimpleDateFormat DATE_FMT = new SimpleDateFormat("MMM d, yyyy");
     private static final String[] BLOCK_COLORS = {
-        "#1565c0", "#283593", "#0277bd", "#00838f", "#2e7d32", "#558b2f", "#6a1b9a"
+            "#1565c0", "#283593", "#0277bd", "#00838f", "#2e7d32", "#558b2f", "#6a1b9a"
     };
 
     // ── Seat-map data records (no JPA lazy-load risk in the view) ─────────────
-    record BlockData(long id, String label, List<RowData> rows) {}
-    record RowData(long id, String label, List<SeatData> seats) {}
-    record SeatData(long id, String label, boolean available) {}
+    record BlockData(long id, String label, List<RowData> rows) {
+    }
+
+    record RowData(long id, String label, List<SeatData> seats) {
+    }
+
+    record SeatData(long id, String label, boolean available) {
+    }
+
     record AreaInfo(UUID id, String name, boolean isSeated,
-                    int standingMax, int standingAvail, List<BlockData> blocks) {}
+            int standingMax, int standingAvail, List<BlockData> blocks) {
+    }
+
     record CartEntry(String description, java.math.BigDecimal unitPrice, int quantity,
-                     boolean isSeated, UUID areaId, Long seatId) {
+            boolean isSeated, UUID areaId, Long seatId) {
         java.math.BigDecimal total() {
             return unitPrice.multiply(java.math.BigDecimal.valueOf(quantity));
         }
@@ -95,10 +108,12 @@ public class EventDetailsView extends VerticalLayout {
     private Event cachedEvent;
     private List<show> cachedShows = new ArrayList<>();
 
-    public EventDetailsView(EventService eventService, TicketService ticketService, PolicyRepository policyRepo) {
-        this.eventService   = eventService;
-        this.ticketService  = ticketService;
-        this.policyRepo     = policyRepo;
+    public EventDetailsView(EventService eventService, TicketService ticketService, PolicyRepository policyRepo,
+            ActiveOrderService orderService) {
+        this.eventService = eventService;
+        this.ticketService = ticketService;
+        this.policyRepo = policyRepo;
+        this.orderService = orderService;
 
         setSizeFull();
         setPadding(false);
@@ -110,11 +125,11 @@ public class EventDetailsView extends VerticalLayout {
         add(buildHeader());
 
         Object eventIdObj = UI.getCurrent().getSession().getAttribute("eventId");
-        Object userIdObj  = UI.getCurrent().getSession().getAttribute("userId");
+        Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
         if (userIdObj != null) {
             try {
-                System.out.println("Cached user ID: " + userIdObj.toString()); 
-                cachedUserId = UUID.fromString(userIdObj.toString()); 
+                System.out.println("Cached user ID: " + userIdObj.toString());
+                cachedUserId = UUID.fromString(userIdObj.toString());
                 System.out.println("Parsed user ID: " + cachedUserId.toString());
             } catch (Exception ignored) {
                 cachedUserId = UUID.randomUUID();
@@ -125,13 +140,13 @@ public class EventDetailsView extends VerticalLayout {
         List<show> shows;
 
         if (eventIdObj == null) {
-            ev    = mockEvent();
+            ev = mockEvent();
             shows = List.of(mockShow());
         } else {
             try {
                 UUID eventId = UUID.fromString(eventIdObj.toString());
                 cachedEventId = eventId;
-                ev    = eventService.getEventDetails(eventId);
+                ev = eventService.getEventDetails(eventId);
                 shows = eventService.getShowsForEvent(eventId);
             } catch (RuntimeException ex) {
                 add(emptyState("Could not load event: " + ex.getMessage()));
@@ -141,7 +156,8 @@ public class EventDetailsView extends VerticalLayout {
 
         // Preload areas for each show while we are still in the construction context
         for (show s : shows) {
-            if (s.getShowid() == null) continue;
+            if (s.getShowid() == null)
+                continue;
             try {
                 List<Area> areas = s.getAreas();
                 if (areas != null)
@@ -188,8 +204,8 @@ public class EventDetailsView extends VerticalLayout {
         Div nav = new Div();
         nav.getStyle().set("display", "flex").set("gap", "32px").set("align-items", "center");
         nav.add(
-                clickable("Home",          () -> UI.getCurrent().navigate("main")),
-                clickable("← Company",    () -> UI.getCurrent().navigate("company")),
+                clickable("Home", () -> UI.getCurrent().navigate("main")),
+                clickable("← Company", () -> UI.getCurrent().navigate("company")),
                 clickable("👤 My Account", () -> UI.getCurrent().navigate("profile")));
         header.add(logo, nav);
         return header;
@@ -243,12 +259,12 @@ public class EventDetailsView extends VerticalLayout {
                 .set("gap", "12px 32px");
 
         details.add(
-                infoRow("Venue",      ev.getVenue() != null ? ev.getVenue() : "—"),
+                infoRow("Venue", ev.getVenue() != null ? ev.getVenue() : "—"),
                 infoRow("Start Date", formatDate(ev.getStartDate())),
-                infoRow("Event ID",   ev.getEventId() != null
-                        ? ev.getEventId().toString().substring(0, 8) + "…" : "—"),
-                infoRow("End Date",   formatDate(ev.getEndDate()))
-        );
+                infoRow("Event ID", ev.getEventId() != null
+                        ? ev.getEventId().toString().substring(0, 8) + "…"
+                        : "—"),
+                infoRow("End Date", formatDate(ev.getEndDate())));
 
         card.add(titleRow, details);
 
@@ -265,10 +281,12 @@ public class EventDetailsView extends VerticalLayout {
 
     private boolean isManagerOrOwner() {
         Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-        if (companyIdObj == null || cachedEvent == null) return false;
+        if (companyIdObj == null || cachedEvent == null)
+            return false;
         try {
             Long companyId = Long.valueOf(companyIdObj.toString());
-            // Use companyId (plain column, no lazy-loading) instead of managerIds (ElementCollection)
+            // Use companyId (plain column, no lazy-loading) instead of managerIds
+            // (ElementCollection)
             return companyId.equals(cachedEvent.getCompanyId());
         } catch (Exception e) {
             return false;
@@ -287,14 +305,14 @@ public class EventDetailsView extends VerticalLayout {
         dialog.setWidth("700px");
         dialog.setHeaderTitle("Edit Event");
 
-        Tab detailsTab  = new Tab("Details");
-        Tab showsTab    = new Tab("Shows");
+        Tab detailsTab = new Tab("Details");
+        Tab showsTab = new Tab("Shows");
         Tab policiesTab = new Tab("Policies");
         Tabs tabs = new Tabs(detailsTab, showsTab, policiesTab);
         tabs.setWidthFull();
 
-        Div detailsSection  = buildEditDetailsSection(dialog);
-        Div showsSection    = buildEditShowsSection(dialog);
+        Div detailsSection = buildEditDetailsSection(dialog);
+        Div showsSection = buildEditShowsSection(dialog);
         Div policiesSection = buildEditPoliciesSection();
 
         showsSection.setVisible(false);
@@ -363,9 +381,15 @@ public class EventDetailsView extends VerticalLayout {
 
         Button saveBtn = new Button("Save Details", e -> {
             String name = nameField.getValue();
-            if (name == null || name.isBlank()) { error("Name is required"); return; }
+            if (name == null || name.isBlank()) {
+                error("Name is required");
+                return;
+            }
             Long mgr = getManagerId();
-            if (mgr == null) { error("Session expired — please log in again"); return; }
+            if (mgr == null) {
+                error("Session expired — please log in again");
+                return;
+            }
             UUID evId = cachedEvent.getEventId();
             try {
                 eventService.editEventName(evId, name.trim(), mgr);
@@ -374,10 +398,10 @@ public class EventDetailsView extends VerticalLayout {
                     eventService.editEventType(evId, typeBox.getValue(), mgr);
                 eventService.editEventDescription(evId, descField.getValue().trim(), mgr);
 
-                LocalDate s  = startPicker.getValue();
+                LocalDate s = startPicker.getValue();
                 LocalDate en = endPicker.getValue();
-                Date startDate = s  != null ? Date.from(s.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
-                Date endDate   = en != null ? Date.from(en.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+                Date startDate = s != null ? Date.from(s.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+                Date endDate = en != null ? Date.from(en.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
                 eventService.editEventDates(evId, startDate, endDate, mgr);
 
                 Notification.show("Event details saved",
@@ -414,7 +438,7 @@ public class EventDetailsView extends VerticalLayout {
                 .set("gap", "8px");
         listContainer.setWidthFull();
 
-        Runnable[] refresh = {null};
+        Runnable[] refresh = { null };
         refresh[0] = () -> {
             listContainer.removeAll();
             for (show s : cachedShows) {
@@ -429,11 +453,11 @@ public class EventDetailsView extends VerticalLayout {
                         .set("align-items", "center");
 
                 Div info = new Div();
-                Span nameSpan   = new Span(nullSafe(s.getName()));
+                Span nameSpan = new Span(nullSafe(s.getName()));
                 nameSpan.getStyle().set("font-weight", "700").set("font-size", "14px");
                 Span singerSpan = new Span(s.getSinger() != null ? "  •  " + s.getSinger() : "");
                 singerSpan.getStyle().set("color", "#666").set("font-size", "13px");
-                Span dateSpan   = new Span(s.getShowDate() != null ? "  •  " + DATE_FMT.format(s.getShowDate()) : "");
+                Span dateSpan = new Span(s.getShowDate() != null ? "  •  " + DATE_FMT.format(s.getShowDate()) : "");
                 dateSpan.getStyle().set("color", "#888").set("font-size", "13px");
                 info.add(nameSpan, singerSpan, dateSpan);
 
@@ -466,11 +490,15 @@ public class EventDetailsView extends VerticalLayout {
         dialog.setHeaderTitle(isEdit ? "Edit Show" : "Add Show");
 
         // ── Basic info ────────────────────────────────────────────────────────
-        TextField  nameField   = new TextField("Show Name");         nameField.setWidthFull();
-        TextField  singerField = new TextField("Singer / Performer"); singerField.setWidthFull();
-        TextArea   descField   = new TextArea("Description");         descField.setWidthFull();
+        TextField nameField = new TextField("Show Name");
+        nameField.setWidthFull();
+        TextField singerField = new TextField("Singer / Performer");
+        singerField.setWidthFull();
+        TextArea descField = new TextArea("Description");
+        descField.setWidthFull();
         descField.setMinHeight("72px");
-        DatePicker datePicker  = new DatePicker("Show Date");         datePicker.setWidthFull();
+        DatePicker datePicker = new DatePicker("Show Date");
+        datePicker.setWidthFull();
 
         // ── Standing area ─────────────────────────────────────────────────────
         IntegerField standingCapField = new IntegerField("Capacity");
@@ -521,9 +549,15 @@ public class EventDetailsView extends VerticalLayout {
         // ── Save ──────────────────────────────────────────────────────────────
         Button saveBtn = new Button(isEdit ? "Save" : "Add Show", e -> {
             String sName = nameField.getValue();
-            if (sName == null || sName.isBlank()) { error("Show name is required"); return; }
+            if (sName == null || sName.isBlank()) {
+                error("Show name is required");
+                return;
+            }
             Long mgr = getManagerId();
-            if (mgr == null) { error("Session expired — please log in again"); return; }
+            if (mgr == null) {
+                error("Session expired — please log in again");
+                return;
+            }
 
             java.math.BigDecimal seatedPrice = seatedPriceField.getValue() != null
                     ? java.math.BigDecimal.valueOf(seatedPriceField.getValue())
@@ -555,17 +589,19 @@ public class EventDetailsView extends VerticalLayout {
 
                 } else {
                     // ── Add: validate areas and create the new show ───────────
-                    int standingCap  = standingCapField.getValue()  != null ? standingCapField.getValue()  : 0;
-                    int numBlocks    = blocksField.getValue()        != null ? blocksField.getValue()        : 0;
-                    int rowsPerBlock = rowsField.getValue()          != null ? rowsField.getValue()          : 0;
-                    int seatsPerRow  = seatsField.getValue()         != null ? seatsField.getValue()         : 0;
+                    int standingCap = standingCapField.getValue() != null ? standingCapField.getValue() : 0;
+                    int numBlocks = blocksField.getValue() != null ? blocksField.getValue() : 0;
+                    int rowsPerBlock = rowsField.getValue() != null ? rowsField.getValue() : 0;
+                    int seatsPerRow = seatsField.getValue() != null ? seatsField.getValue() : 0;
 
                     if (standingCap == 0 && numBlocks == 0) {
-                        error("Add at least one area (standing or seated)"); return;
+                        error("Add at least one area (standing or seated)");
+                        return;
                     }
                     boolean hasSeated = numBlocks > 0 || rowsPerBlock > 0 || seatsPerRow > 0;
                     if (hasSeated && (numBlocks <= 0 || rowsPerBlock <= 0 || seatsPerRow <= 0)) {
-                        error("Seated area requires Blocks, Rows per Block, and Seats per Row all > 0"); return;
+                        error("Seated area requires Blocks, Rows per Block, and Seats per Row all > 0");
+                        return;
                     }
 
                     show newShow = new show(cachedEventId, sName.trim(),
@@ -610,16 +646,14 @@ public class EventDetailsView extends VerticalLayout {
                     nameField, singerField, descField, datePicker,
                     showSectionLabel("Ticket Prices"),
                     standingPriceField, seatedPriceField,
-                    areaNote
-            );
+                    areaNote);
         } else {
             body = new VerticalLayout(
                     nameField, singerField, descField, datePicker,
                     showSectionLabel("Standing Area"),
                     standingCapField, standingPriceField,
                     showSectionLabel("Seated Area"),
-                    blocksField, rowsField, seatsField, seatedPriceField
-            );
+                    blocksField, rowsField, seatsField, seatedPriceField);
         }
         body.setPadding(true);
         body.setSpacing(true);
@@ -633,13 +667,17 @@ public class EventDetailsView extends VerticalLayout {
     /** Confirmation dialog before deleting a show — warns about ticket count. */
     private void openDeleteShowConfirm(show s) {
         Long mgr = getManagerId();
-        if (mgr == null) { error("Session expired"); return; }
+        if (mgr == null) {
+            error("Session expired");
+            return;
+        }
 
         int ticketCount = 0;
         try {
             if (s.getShowid() != null)
                 ticketCount = eventService.countTicketsForShow(s.getShowid());
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         Dialog confirm = new Dialog();
         confirm.setHeaderTitle("Delete Show");
@@ -675,7 +713,8 @@ public class EventDetailsView extends VerticalLayout {
                 confirm.close();
                 Notification.show(
                         "Show deleted" + (finalTicketCount > 0
-                                ? " along with " + finalTicketCount + " ticket(s)." : "."),
+                                ? " along with " + finalTicketCount + " ticket(s)."
+                                : "."),
                         3000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 UI.getCurrent().getPage().reload();
@@ -697,7 +736,10 @@ public class EventDetailsView extends VerticalLayout {
     /** Confirmation dialog before deleting the entire event. */
     private void openDeleteEventConfirm() {
         Long mgr = getManagerId();
-        if (mgr == null) { error("Session expired"); return; }
+        if (mgr == null) {
+            error("Session expired");
+            return;
+        }
 
         // Count total tickets across all shows
         int totalTickets = 0;
@@ -705,7 +747,8 @@ public class EventDetailsView extends VerticalLayout {
             try {
                 if (s.getShowid() != null)
                     totalTickets += eventService.countTicketsForShow(s.getShowid());
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         int totalShows = cachedShows.size();
 
@@ -724,7 +767,8 @@ public class EventDetailsView extends VerticalLayout {
 
         if (totalShows > 0 || totalTickets > 0) {
             String detail = "⚠ This will also delete " + totalShows + " show(s)";
-            if (totalTickets > 0) detail += " and " + totalTickets + " ticket(s)";
+            if (totalTickets > 0)
+                detail += " and " + totalTickets + " ticket(s)";
             detail += ". This action cannot be undone.";
             Paragraph warning = new Paragraph(detail);
             warning.getStyle()
@@ -743,7 +787,8 @@ public class EventDetailsView extends VerticalLayout {
                 confirm.close();
                 Notification.show(
                         "Event deleted" + (finalTickets > 0
-                                ? " along with " + finalTickets + " ticket(s)." : "."),
+                                ? " along with " + finalTickets + " ticket(s)."
+                                : "."),
                         3000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 UI.getCurrent().navigate("company");
@@ -764,7 +809,7 @@ public class EventDetailsView extends VerticalLayout {
 
     /** Builds Area objects from raw capacity / layout numbers. */
     private static List<Area> buildShowAreas(int standingCap,
-                                             int numBlocks, int rowsPerBlock, int seatsPerRow) {
+            int numBlocks, int rowsPerBlock, int seatsPerRow) {
         List<Area> areas = new ArrayList<>();
 
         if (standingCap > 0)
@@ -833,7 +878,7 @@ public class EventDetailsView extends VerticalLayout {
                 .set("flex-direction", "column")
                 .set("gap", "8px");
 
-        Runnable[] refresh = {null};
+        Runnable[] refresh = { null };
         refresh[0] = () -> {
             listContainer.removeAll();
             List<Policy> policies;
@@ -878,7 +923,7 @@ public class EventDetailsView extends VerticalLayout {
 
         // Left: type badge + text
         String[] colors = policyTypeColors(p);
-        Span typeBadge  = badge(policyTypeName(p), colors[0], colors[1]);
+        Span typeBadge = badge(policyTypeName(p), colors[0], colors[1]);
 
         Span descSpan = new Span(p.getDescription() != null ? p.getDescription() : "");
         descSpan.getStyle().set("font-weight", "600").set("font-size", "14px").set("color", "#111");
@@ -925,7 +970,8 @@ public class EventDetailsView extends VerticalLayout {
         ComboBox<String> typeBox = new ComboBox<>("Policy Type");
         typeBox.setItems("Selling", "Purchase", "Percentage Discount", "Coupon Discount");
         typeBox.setWidthFull();
-        if (isEdit) typeBox.setEnabled(false);
+        if (isEdit)
+            typeBox.setEnabled(false);
 
         // ── Selling fields ──
         ComboBox<SellingType> sellingTypeBox = new ComboBox<>("Selling Type");
@@ -976,7 +1022,8 @@ public class EventDetailsView extends VerticalLayout {
         if (isEdit) {
             if (existing instanceof SellingPolicy sp) {
                 typeBox.setValue("Selling");
-                if (sp.getType() != null) sellingTypeBox.setValue(sp.getType());
+                if (sp.getType() != null)
+                    sellingTypeBox.setValue(sp.getType());
             } else if (existing instanceof PurchasePolicy pp) {
                 typeBox.setValue("Purchase");
                 extractMinAge(pp).ifPresent(minAgeField::setValue);
@@ -1029,17 +1076,25 @@ public class EventDetailsView extends VerticalLayout {
         // ── Save handler ──
         Button saveBtn = new Button(isEdit ? "Save Changes" : "Add Policy", e -> {
             String t = typeBox.getValue();
-            if (t == null || t.isBlank()) { error("Please select a policy type"); return; }
+            if (t == null || t.isBlank()) {
+                error("Please select a policy type");
+                return;
+            }
             Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-            if (companyIdObj == null) { error("No company session — please log in again"); return; }
+            if (companyIdObj == null) {
+                error("No company session — please log in again");
+                return;
+            }
             UUID companyId = UUID.fromString(companyIdObj.toString());
             try {
-                if (isEdit) policyRepo.deleteByPolicyId(existing.getPolicyId());
+                if (isEdit)
+                    policyRepo.deleteByPolicyId(existing.getPolicyId());
 
                 switch (t) {
                     case "Selling" -> {
                         SellingType st = sellingTypeBox.getValue() != null
-                                ? sellingTypeBox.getValue() : SellingType.REGULAR;
+                                ? sellingTypeBox.getValue()
+                                : SellingType.REGULAR;
                         policyRepo.savePolicy(new SellingPolicy(
                                 Math.abs(UUID.randomUUID().hashCode()),
                                 st.name() + " selling policy", st, cachedEventId, companyId));
@@ -1049,19 +1104,26 @@ public class EventDetailsView extends VerticalLayout {
                         Integer minTix = minTicketsField.getValue();
                         Integer maxTix = maxTicketsField.getValue();
                         if (minAge == null && minTix == null && maxTix == null) {
-                            error("At least one purchase restriction is required"); return;
+                            error("At least one purchase restriction is required");
+                            return;
                         }
                         PurchasePolicy pp = new PurchasePolicy(
                                 Math.abs(UUID.randomUUID().hashCode()),
                                 "Purchase restrictions", cachedEventId, companyId);
-                        if (minAge != null && minAge >= 0) pp.addRule(new MinAgeRule(minAge));
-                        if (minTix != null && minTix  > 0) pp.addRule(new MinTicketsRule(minTix));
-                        if (maxTix != null && maxTix  > 0) pp.addRule(new MaxTicketsRule(maxTix));
+                        if (minAge != null && minAge >= 0)
+                            pp.addRule(new MinAgeRule(minAge));
+                        if (minTix != null && minTix > 0)
+                            pp.addRule(new MinTicketsRule(minTix));
+                        if (maxTix != null && maxTix > 0)
+                            pp.addRule(new MaxTicketsRule(maxTix));
                         policyRepo.savePolicy(pp);
                     }
                     case "Percentage Discount" -> {
                         Double pct = percentageField.getValue();
-                        if (pct == null || pct <= 0) { error("Percentage must be greater than 0"); return; }
+                        if (pct == null || pct <= 0) {
+                            error("Percentage must be greater than 0");
+                            return;
+                        }
                         DiscountPolicy dp = new DiscountPolicy(
                                 Math.abs(UUID.randomUUID().hashCode()),
                                 pct + "% discount", cachedEventId, companyId);
@@ -1070,11 +1132,18 @@ public class EventDetailsView extends VerticalLayout {
                     }
                     case "Coupon Discount" -> {
                         String code = couponCodeField.getValue();
-                        if (code == null || code.isBlank()) { error("Coupon code is required"); return; }
+                        if (code == null || code.isBlank()) {
+                            error("Coupon code is required");
+                            return;
+                        }
                         Double pct = couponPctField.getValue();
-                        if (pct == null || pct <= 0) { error("Percentage must be greater than 0"); return; }
+                        if (pct == null || pct <= 0) {
+                            error("Percentage must be greater than 0");
+                            return;
+                        }
                         java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
-                                ? couponExpiryPicker.getValue().atTime(23, 59, 59) : null;
+                                ? couponExpiryPicker.getValue().atTime(23, 59, 59)
+                                : null;
                         DiscountPolicy dp = new DiscountPolicy(
                                 Math.abs(UUID.randomUUID().hashCode()),
                                 "Coupon: " + code.trim().toUpperCase(), cachedEventId, companyId);
@@ -1112,8 +1181,10 @@ public class EventDetailsView extends VerticalLayout {
     // ── Policy display helpers ────────────────────────────────────────────────
 
     private static String policyTypeName(Policy p) {
-        if (p instanceof SellingPolicy)  return "SELLING";
-        if (p instanceof PurchasePolicy) return "PURCHASE";
+        if (p instanceof SellingPolicy)
+            return "SELLING";
+        if (p instanceof PurchasePolicy)
+            return "PURCHASE";
         if (p instanceof DiscountPolicy dp) {
             return dp.getRootRule() instanceof CouponDiscountRule ? "COUPON" : "DISCOUNT";
         }
@@ -1121,14 +1192,16 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private static String[] policyTypeColors(Policy p) {
-        if (p instanceof SellingPolicy)  return new String[]{"#e3f2fd", "#026cdf"};
-        if (p instanceof PurchasePolicy) return new String[]{"#e8f5e9", "#2e7d32"};
+        if (p instanceof SellingPolicy)
+            return new String[] { "#e3f2fd", "#026cdf" };
+        if (p instanceof PurchasePolicy)
+            return new String[] { "#e8f5e9", "#2e7d32" };
         if (p instanceof DiscountPolicy dp) {
             return dp.getRootRule() instanceof CouponDiscountRule
-                    ? new String[]{"#f3e5f5", "#6a1b9a"}   // purple for coupon
-                    : new String[]{"#fff3e0", "#e65100"};   // orange for percentage
+                    ? new String[] { "#f3e5f5", "#6a1b9a" } // purple for coupon
+                    : new String[] { "#fff3e0", "#e65100" }; // orange for percentage
         }
-        return new String[]{"#f5f5f5", "#555"};
+        return new String[] { "#f5f5f5", "#555" };
     }
 
     private static String policySummary(Policy p) {
@@ -1151,10 +1224,14 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private static String summarizePurchaseRule(PurchaseRule rule) {
-        if (rule == null)                     return "No restrictions";
-        if (rule instanceof MinAgeRule r)     return "Min age: " + r.getMinimumAge();
-        if (rule instanceof MinTicketsRule r) return "Min tickets: " + r.getMinTickets();
-        if (rule instanceof MaxTicketsRule r) return "Max tickets: " + r.getMaxTickets();
+        if (rule == null)
+            return "No restrictions";
+        if (rule instanceof MinAgeRule r)
+            return "Min age: " + r.getMinimumAge();
+        if (rule instanceof MinTicketsRule r)
+            return "Min tickets: " + r.getMinTickets();
+        if (rule instanceof MaxTicketsRule r)
+            return "Max tickets: " + r.getMaxTickets();
         if (rule instanceof CompositePurchaseRule c)
             return c.getRules().stream()
                     .map(EventDetailsView::summarizePurchaseRule)
@@ -1176,12 +1253,15 @@ public class EventDetailsView extends VerticalLayout {
 
     @SuppressWarnings("unchecked")
     private static <T extends PurchaseRule> Optional<T> extractPurchaseRule(PurchaseRule root, Class<T> type) {
-        if (root == null) return Optional.empty();
-        if (type.isInstance(root)) return Optional.of((T) root);
+        if (root == null)
+            return Optional.empty();
+        if (type.isInstance(root))
+            return Optional.of((T) root);
         if (root instanceof CompositePurchaseRule c) {
             for (PurchaseRule r : c.getRules()) {
                 Optional<T> found = extractPurchaseRule(r, type);
-                if (found.isPresent()) return found;
+                if (found.isPresent())
+                    return found;
             }
         }
         return Optional.empty();
@@ -1219,7 +1299,7 @@ public class EventDetailsView extends VerticalLayout {
 
         if (isManagerOrOwner()) {
             Button addShowBtn = new Button("+ Add Show", e -> {
-                Runnable[] refresh = {() -> UI.getCurrent().getPage().reload()};
+                Runnable[] refresh = { () -> UI.getCurrent().getPage().reload() };
                 openEditShowDialog(null, refresh, null);
             });
             addShowBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -1245,10 +1325,32 @@ public class EventDetailsView extends VerticalLayout {
         grid.addColumn(s -> s.getShowDate() != null ? DATE_FMT.format(s.getShowDate()) : "—")
                 .setHeader("Date").setFlexGrow(1);
         grid.addColumn(s -> {
-            List<Area> areas = showAreasCache.getOrDefault(s.getShowid(), List.of());
-            int total = areas.stream().mapToInt(EventDetailsView::areaTotal).sum();
-            int avail = areas.stream().mapToInt(EventDetailsView::areaAvailable).sum();
-            return areas.isEmpty() ? "—" : avail + " / " + total;
+            if (cachedEventId == null || s.getShowid() == null) {
+                return "—";
+            }
+            try {
+                show fullShow = eventService.loadShowFully(cachedEventId, s.getShowid());
+                Map<Long, Boolean> seatAvailability = ticketService.getSeatAvailability(s.getShowid());
+
+                int total = 0;
+                int available = 0;
+
+                if (fullShow.getAreas() != null) {
+                    for (Area area : fullShow.getAreas()) {
+                        SeatCount count = countAreaSeats(s.getShowid(), area, seatAvailability);
+                        total += count.total();
+                        available += count.available();
+                    }
+                }
+                return total == 0 ? "—" : available + " / " + total;
+
+            } catch (Exception ex) {
+                return "—";
+            }
+            // List<Area> areas = showAreasCache.getOrDefault(s.getShowid(), List.of());
+            // int total = areas.stream().mapToInt(EventDetailsView::areaTotal).sum();
+            // int avail = areas.stream().mapToInt(EventDetailsView::areaAvailable).sum();
+            // return areas.isEmpty() ? "—" : avail + " / " + total;
         }).setHeader("Available Seats").setFlexGrow(1);
         grid.addComponentColumn(s -> {
             Div actions = new Div();
@@ -1263,7 +1365,7 @@ public class EventDetailsView extends VerticalLayout {
             actions.add(seatBtn);
 
             if (isManagerOrOwner()) {
-                Runnable[] refresh = {() -> UI.getCurrent().getPage().reload()};
+                Runnable[] refresh = { () -> UI.getCurrent().getPage().reload() };
 
                 Button editBtn = new Button("Edit", e -> openEditShowDialog(s, refresh, null));
                 editBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
@@ -1299,12 +1401,11 @@ public class EventDetailsView extends VerticalLayout {
         body.getStyle().set("gap", "6px");
 
         body.add(
-                dialogRow("Name",        nullSafe(s.getName())),
-                dialogRow("Singer",      nullSafe(s.getSinger())),
-                dialogRow("Date",        s.getShowDate() != null ? DATE_FMT.format(s.getShowDate()) : "—"),
+                dialogRow("Name", nullSafe(s.getName())),
+                dialogRow("Singer", nullSafe(s.getSinger())),
+                dialogRow("Date", s.getShowDate() != null ? DATE_FMT.format(s.getShowDate()) : "—"),
                 dialogRow("Description", nullSafe(s.getDescription())),
-                dialogRow("Show ID",     s.getShowid() != null ? s.getShowid().toString() : "—")
-        );
+                dialogRow("Show ID", s.getShowid() != null ? s.getShowid().toString() : "—"));
 
         // ── Areas & seats ──
         H3 areasHeader = new H3("Areas & Available Seats");
@@ -1374,8 +1475,10 @@ public class EventDetailsView extends VerticalLayout {
     // ── Area seat helpers ────────────────────────────────────────────────────
 
     private static int areaTotal(Area area) {
-        if (area instanceof StandingArea sa) return sa.getMaxCapacity();
-        if (area instanceof SeatedArea)    return -1; // blocks×rows×seats not available without deep fetch
+        if (area instanceof StandingArea sa)
+            return sa.getMaxCapacity();
+        if (area instanceof SeatedArea)
+            return -1; // blocks×rows×seats not available without deep fetch
         return -1;
     }
 
@@ -1404,7 +1507,8 @@ public class EventDetailsView extends VerticalLayout {
                     new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-10"),
                     new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-12"),
                     1L);
-        } catch (Exception ignored) {} 
+        } catch (Exception ignored) {
+        }
         return ev;
     }
 
@@ -1416,8 +1520,8 @@ public class EventDetailsView extends VerticalLayout {
                     "The Midnight", showDate);
 
             StandingArea floor = new StandingArea("Floor GA", 500);
-            StandingArea vip   = new StandingArea("VIP Standing", 80);
-            SeatedArea seated  = new SeatedArea("Seated Balcony", 4);
+            StandingArea vip = new StandingArea("VIP Standing", 80);
+            SeatedArea seated = new SeatedArea("Seated Balcony", 4);
             s.setAreas(List.of(floor, vip, seated));
             return s;
         } catch (Exception e) {
@@ -1484,7 +1588,8 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private static String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
+        if (s == null || s.isEmpty())
+            return s;
         return s.charAt(0) + s.substring(1).toLowerCase();
     }
 
@@ -1522,7 +1627,8 @@ public class EventDetailsView extends VerticalLayout {
                 Map<Long, Boolean> avail = ticketService.getSeatAvailability(s.getShowid());
                 areas = new ArrayList<>();
                 if (full.getAreas() != null)
-                    for (Area a : full.getAreas()) areas.add(toAreaInfo(a, avail));
+                    for (Area a : full.getAreas())
+                        areas.add(toAreaInfo(a, s.getShowid(), avail));
             } catch (Exception ex) {
                 Notification.show("Could not load seat data: " + ex.getMessage(),
                         3000, Notification.Position.MIDDLE);
@@ -1533,9 +1639,9 @@ public class EventDetailsView extends VerticalLayout {
         }
 
         // ── Shared cart state ──
-        List<CartEntry>  cart            = new ArrayList<>();
-        Set<Long>        selectedSeatIds = new LinkedHashSet<>();
-        Runnable[]       cartRefresh     = {null};
+        List<CartEntry> cart = new ArrayList<>();
+        Set<Long> selectedSeatIds = new LinkedHashSet<>();
+        Runnable[] cartRefresh = { null };
 
         Dialog dialog = new Dialog();
         dialog.setWidth("980px");
@@ -1568,7 +1674,7 @@ public class EventDetailsView extends VerticalLayout {
     // ── Cart panel ────────────────────────────────────────────────────────────
 
     private Div buildCartPanel(List<CartEntry> cart, Set<Long> selectedSeatIds,
-                               show s, Dialog parentDialog, Runnable[] cartRefreshRef) {
+            show s, Dialog parentDialog, Runnable[] cartRefreshRef) {
         Div panel = new Div();
         panel.getStyle()
                 .set("width", "290px").set("flex-shrink", "0")
@@ -1591,7 +1697,10 @@ public class EventDetailsView extends VerticalLayout {
         totalSpan.getStyle().set("font-weight", "700").set("font-size", "14px").set("color", "#111");
 
         Button checkoutBtn = new Button("Proceed to Checkout →", e -> {
-            if (cart.isEmpty()) { error("Add at least one ticket first"); return; }
+            if (cart.isEmpty()) {
+                error("Add at least one ticket first");
+                return;
+            }
             if (cachedUserId == null) {
                 Notification.show("Please log in to checkout",
                         3000, Notification.Position.TOP_CENTER)
@@ -1599,36 +1708,70 @@ public class EventDetailsView extends VerticalLayout {
                 return;
             }
             List<String> ticketIds = new ArrayList<>();
+            List<SeatRequest> seatRequests = new ArrayList<>();
+
             List<java.util.Map<String, String>> checkoutItems = new ArrayList<>();
+            int checker = 0;
             try {
+                Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+                if (tokenObj == null || tokenObj.toString().isBlank()) {
+                    Notification.show("Please log in to checkout",
+                            3000,
+                            Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
+                String token = tokenObj.toString();
+                checker++;
                 for (CartEntry entry : cart) {
                     java.util.Map<String, String> item = new java.util.LinkedHashMap<>();
                     item.put("description", entry.description());
-                    item.put("unitPrice",   entry.unitPrice().toPlainString());
-                    item.put("quantity",    String.valueOf(entry.quantity()));
+                    item.put("unitPrice", entry.unitPrice().toPlainString());
+                    item.put("quantity", String.valueOf(entry.quantity()));
                     checkoutItems.add(item);
                     if (entry.isSeated()) {
                         ticket t = eventService.reserveSeat(
                                 cachedEventId, s.getShowid(), entry.areaId(), entry.seatId(), cachedUserId);
                         ticketIds.add(t.getTicketId().toString());
+                        seatRequests.add(new SeatRequest(
+                                t.getTicketId().toString(),
+                                entry.seatId(),
+                                entry.areaId(),
+                                entry.unitPrice()));
                     } else {
                         for (int i = 0; i < entry.quantity(); i++) {
                             ticket t = eventService.reserveStanding(
                                     cachedEventId, s.getShowid(), entry.areaId(), cachedUserId);
                             ticketIds.add(t.getTicketId().toString());
+                            seatRequests.add(new SeatRequest(
+                                    t.getTicketId().toString(),
+                                    null,
+                                    entry.areaId(),
+                                    entry.unitPrice()));
                         }
                     }
                 }
+                checker++;
+                OrderDTO order = orderService.reserveTickets(token, cachedEventId, seatRequests);
+                checker++;
                 var session = UI.getCurrent().getSession();
+                session.setAttribute("checkoutOrderId", order.getOrderId().toString());
+
+                checker++;
                 session.setAttribute("checkoutTicketIds", ticketIds);
-                session.setAttribute("checkoutItems",     checkoutItems);
-                session.setAttribute("checkoutUserId",    cachedUserId.toString());
-                session.setAttribute("checkoutShowName",  nullSafe(s.getName()));
-                session.setAttribute("checkoutEventId",   cachedEventId != null ? cachedEventId.toString() : "");
+                checker++;
+                session.setAttribute("checkoutItems", checkoutItems);
+                checker++;
+                session.setAttribute("checkoutUserId", cachedUserId.toString());
+                checker++;
+                session.setAttribute("checkoutShowName", nullSafe(s.getName()));
+                checker++;
+                session.setAttribute("checkoutEventId", cachedEventId != null ? cachedEventId.toString() : "");
+                checker++;
                 parentDialog.close();
                 UI.getCurrent().navigate("checkout");
             } catch (RuntimeException ex) {
-                error("Reservation failed: " + ex.getMessage());
+                error("Reservation failed: " + ex.getMessage() + " (step " + checker + ")");
             }
         });
         checkoutBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -1663,7 +1806,7 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private Div buildCartRow(CartEntry entry, List<CartEntry> cart,
-                             Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
+            Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
         Div row = new Div();
         row.getStyle()
                 .set("background", "white").set("border-radius", "8px")
@@ -1677,7 +1820,7 @@ public class EventDetailsView extends VerticalLayout {
         String priceText = "$" + entry.unitPrice().toPlainString()
                 + (entry.quantity() > 1
                         ? " × " + entry.quantity() + " = $"
-                          + entry.total().setScale(2, java.math.RoundingMode.HALF_UP)
+                                + entry.total().setScale(2, java.math.RoundingMode.HALF_UP)
                         : "");
         Span price = new Span(priceText);
         price.getStyle().set("font-size", "12px").set("color", "#666");
@@ -1699,7 +1842,7 @@ public class EventDetailsView extends VerticalLayout {
     // ── Wizard steps ──────────────────────────────────────────────────────────
 
     private void showAreaStep(Dialog dialog, Div stepContent, List<AreaInfo> areas, show s,
-                              List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
+            List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
         stepContent.removeAll();
         if (areas.isEmpty()) {
             Div msg = new Div();
@@ -1725,7 +1868,8 @@ public class EventDetailsView extends VerticalLayout {
                 grid.add(btn);
             } else {
                 java.math.BigDecimal stPrice = s.getStandingPrice() != null
-                        ? s.getStandingPrice() : new java.math.BigDecimal("30.00");
+                        ? s.getStandingPrice()
+                        : new java.math.BigDecimal("30.00");
                 grid.add(buildStandingAreaCard(ai, cart, cartRefresh, stPrice));
             }
         }
@@ -1733,8 +1877,8 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private void showBlockStep(Dialog dialog, Div stepContent,
-                               AreaInfo area, List<AreaInfo> areas, show s,
-                               List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
+            AreaInfo area, List<AreaInfo> areas, show s,
+            List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
         stepContent.removeAll();
         if (areas.size() > 1)
             stepContent.add(backBtn("← Areas",
@@ -1748,18 +1892,18 @@ public class EventDetailsView extends VerticalLayout {
         for (int i = 0; i < area.blocks().size(); i++) {
             BlockData block = area.blocks().get(i);
             String color = BLOCK_COLORS[i % BLOCK_COLORS.length];
-            long total    = block.rows().stream().mapToLong(r -> r.seats().size()).sum();
-            long avail    = block.rows().stream().flatMap(r -> r.seats().stream())
-                                  .filter(SeatData::available).count();
+            long total = block.rows().stream().mapToLong(r -> r.seats().size()).sum();
+            long avail = block.rows().stream().flatMap(r -> r.seats().stream())
+                    .filter(SeatData::available).count();
             long selected = block.rows().stream().flatMap(r -> r.seats().stream())
-                                  .filter(sd -> selectedSeatIds.contains(sd.id())).count();
+                    .filter(sd -> selectedSeatIds.contains(sd.id())).count();
 
             Div card = new Div();
             card.getStyle().set("background", color).set("color", "white")
                     .set("border-radius", "12px").set("padding", "18px 10px")
                     .set("text-align", "center").set("cursor", "pointer")
                     .set("font-weight", "700").set("font-size", "15px").set("user-select", "none");
-            Span nameSpan  = new Span("Block " + block.label());
+            Span nameSpan = new Span("Block " + block.label());
             Span availSpan = new Span(avail + "/" + total + " avail");
             availSpan.getStyle().set("font-size", "11px").set("opacity", "0.85")
                     .set("display", "block").set("margin-top", "4px").set("font-weight", "400");
@@ -1771,16 +1915,16 @@ public class EventDetailsView extends VerticalLayout {
                 card.add(selSpan);
             }
             final BlockData b = block;
-            card.addClickListener(e ->
-                    showRowStep(dialog, stepContent, area, b, areas, s, cart, selectedSeatIds, cartRefresh));
+            card.addClickListener(
+                    e -> showRowStep(dialog, stepContent, area, b, areas, s, cart, selectedSeatIds, cartRefresh));
             grid.add(card);
         }
         stepContent.add(grid);
     }
 
     private void showRowStep(Dialog dialog, Div stepContent,
-                             AreaInfo area, BlockData block, List<AreaInfo> areas, show s,
-                             List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
+            AreaInfo area, BlockData block, List<AreaInfo> areas, show s,
+            List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
         stepContent.removeAll();
         stepContent.add(backBtn("← Blocks",
                 () -> showBlockStep(dialog, stepContent, area, areas, s, cart, selectedSeatIds, cartRefresh)));
@@ -1790,7 +1934,7 @@ public class EventDetailsView extends VerticalLayout {
         rowFlex.getStyle().set("display", "flex").set("flex-wrap", "wrap")
                 .set("gap", "8px").set("margin-top", "8px");
         for (RowData row : block.rows()) {
-            long avail    = row.seats().stream().filter(SeatData::available).count();
+            long avail = row.seats().stream().filter(SeatData::available).count();
             long selected = row.seats().stream().filter(sd -> selectedSeatIds.contains(sd.id())).count();
             String lbl = "Row " + row.label() + "  (" + avail + " free"
                     + (selected > 0 ? ", ✓ " + selected : "") + ")";
@@ -1798,8 +1942,8 @@ public class EventDetailsView extends VerticalLayout {
             if (avail > 0 || selected > 0) {
                 btn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
                 final RowData r = row;
-                btn.addClickListener(e ->
-                        showSeatStep(dialog, stepContent, area, block, r, areas, s, cart, selectedSeatIds, cartRefresh));
+                btn.addClickListener(e -> showSeatStep(dialog, stepContent, area, block, r, areas, s, cart,
+                        selectedSeatIds, cartRefresh));
             } else {
                 btn.addThemeVariants(ButtonVariant.LUMO_ERROR);
                 btn.setEnabled(false);
@@ -1810,8 +1954,8 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private void showSeatStep(Dialog dialog, Div stepContent,
-                              AreaInfo area, BlockData block, RowData row, List<AreaInfo> areas, show s,
-                              List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
+            AreaInfo area, BlockData block, RowData row, List<AreaInfo> areas, show s,
+            List<CartEntry> cart, Set<Long> selectedSeatIds, Runnable[] cartRefresh) {
         stepContent.removeAll();
         stepContent.add(backBtn("← Rows",
                 () -> showRowStep(dialog, stepContent, area, block, areas, s, cart, selectedSeatIds, cartRefresh)));
@@ -1822,7 +1966,7 @@ public class EventDetailsView extends VerticalLayout {
         legend.getStyle().set("display", "flex").set("gap", "16px")
                 .set("margin", "6px 0 14px 0").set("font-size", "13px").set("align-items", "center");
         legend.add(legendDot("#4caf50", "Available"), legendDot("#ef5350", "Taken"),
-                   legendDot("#026cdf", "Selected"));
+                legendDot("#026cdf", "Selected"));
         stepContent.add(legend);
 
         Div seatFlex = new Div();
@@ -1830,7 +1974,7 @@ public class EventDetailsView extends VerticalLayout {
 
         for (SeatData seat : row.seats()) {
             boolean isSelected = selectedSeatIds.contains(seat.id());
-            String  bg = !seat.available() ? "#ef5350" : isSelected ? "#026cdf" : "#4caf50";
+            String bg = !seat.available() ? "#ef5350" : isSelected ? "#026cdf" : "#4caf50";
 
             Div circle = new Div();
             circle.getStyle()
@@ -1843,52 +1987,50 @@ public class EventDetailsView extends VerticalLayout {
             circle.add(new Span(seat.label()));
 
             if (seat.available()) {
-    circle.addClickListener(e -> {
-        e.getSource().getElement().executeJs("event.stopPropagation();");
+                circle.addClickListener(e -> {
+                    e.getSource().getElement().executeJs("event.stopPropagation();");
 
-        if (selectedSeatIds.contains(seat.id())) {
-            selectedSeatIds.remove(seat.id());
+                    if (selectedSeatIds.contains(seat.id())) {
+                        selectedSeatIds.remove(seat.id());
 
-            cart.removeIf(en ->
-        en.isSeated()
-                && en.seatId() != null
-                && en.seatId().equals(seat.id())
-);
+                        cart.removeIf(en -> en.isSeated()
+                                && en.seatId() != null
+                                && en.seatId().equals(seat.id()));
 
-            circle.getStyle().set("background", "#4caf50");
-        } else {
-            selectedSeatIds.add(seat.id());
+                        circle.getStyle().set("background", "#4caf50");
+                    } else {
+                        selectedSeatIds.add(seat.id());
 
-            String desc = "Seated — Block " + block.label()
-                    + ", Row " + row.label()
-                    + ", Seat " + seat.label();
+                        String desc = "Seated — Block " + block.label()
+                                + ", Row " + row.label()
+                                + ", Seat " + seat.label();
 
-            java.math.BigDecimal seatPrice = s.getSeatedPrice() != null
-                    ? s.getSeatedPrice() : new java.math.BigDecimal("50.00");
-            cart.add(new CartEntry(
-                    desc,
-                    seatPrice,
-                    1,
-                    true,
-                    area.id(),
-                    seat.id()
-            ));
+                        java.math.BigDecimal seatPrice = s.getSeatedPrice() != null
+                                ? s.getSeatedPrice()
+                                : new java.math.BigDecimal("50.00");
+                        cart.add(new CartEntry(
+                                desc,
+                                seatPrice,
+                                1,
+                                true,
+                                area.id(),
+                                seat.id()));
 
-            circle.getStyle().set("background", "#026cdf");
-        }
+                        circle.getStyle().set("background", "#026cdf");
+                    }
 
-        if (cartRefresh[0] != null) {
-            cartRefresh[0].run();
-        }
-    });
-}
+                    if (cartRefresh[0] != null) {
+                        cartRefresh[0].run();
+                    }
+                });
+            }
             seatFlex.add(circle);
         }
         stepContent.add(seatFlex);
     }
 
     private Div buildStandingAreaCard(AreaInfo ai, List<CartEntry> cart, Runnable[] cartRefresh,
-                                      java.math.BigDecimal standingPrice) {
+            java.math.BigDecimal standingPrice) {
         Div card = new Div();
         card.getStyle()
                 .set("background", "#f0f4ff").set("border-radius", "10px")
@@ -1944,28 +2086,72 @@ public class EventDetailsView extends VerticalLayout {
 
     // ── Area data conversion ──────────────────────────────────────────────────
 
-    private AreaInfo toAreaInfo(Area area, Map<Long, Boolean> seatAvail) {
+    // private AreaInfo toAreaInfo(Area area, Map<Long, Boolean> seatAvail) {
+    // if (area instanceof SeatedArea sa) {
+    // List<BlockData> blocks = new ArrayList<>();
+    // for (Block block : sa.getBlocks()) {
+    // List<RowData> rows = new ArrayList<>();
+    // for (Row row : block.getRows()) {
+    // List<SeatData> seats = new ArrayList<>();
+    // for (Seat seat : row.getSeats()) {
+    // boolean avail = seatAvail.getOrDefault(seat.getId(), true);
+    // seats.add(new SeatData(seat.getId(), seat.getSeatNumber(), avail));
+    // }
+    // rows.add(new RowData(row.getId(), row.getRowNumber(), seats));
+    // }
+    // blocks.add(new BlockData(block.getId(), block.getBlockIdentifier(), rows));
+    // }
+    // return new AreaInfo(area.getId(), area.getName(), true, 0, 0, blocks);
+    // } else if (area instanceof StandingArea sa) {
+    // int max = sa.getMaxCapacity();
+    // int current = 0;
+    // try {
+    // current = sa.getCurrentCapacity();
+    // } catch (Exception ignored) {
+    // }
+    // return new AreaInfo(area.getId(), area.getName(), false, max, max - current,
+    // List.of());
+    // }
+    // return new AreaInfo(area.getId(), area.getName(), false, 0, 0, List.of());
+    // }
+
+    private AreaInfo toAreaInfo(Area area, UUID showId, Map<Long, Boolean> seatAvail) {
         if (area instanceof SeatedArea sa) {
             List<BlockData> blocks = new ArrayList<>();
+
             for (Block block : sa.getBlocks()) {
                 List<RowData> rows = new ArrayList<>();
+
                 for (Row row : block.getRows()) {
                     List<SeatData> seats = new ArrayList<>();
+
                     for (Seat seat : row.getSeats()) {
-                        boolean avail = seatAvail.getOrDefault(seat.getId(), true);
-                        seats.add(new SeatData(seat.getId(), seat.getSeatNumber(), avail));
+                        boolean available = seatAvail.getOrDefault(seat.getId(), true);
+                        seats.add(new SeatData(seat.getId(), seat.getSeatNumber(), available));
                     }
+
                     rows.add(new RowData(row.getId(), row.getRowNumber(), seats));
                 }
+
                 blocks.add(new BlockData(block.getId(), block.getBlockIdentifier(), rows));
             }
+
             return new AreaInfo(area.getId(), area.getName(), true, 0, 0, blocks);
-        } else if (area instanceof StandingArea sa) {
-            int max = sa.getMaxCapacity();
-            int current = 0;
-            try { current = sa.getCurrentCapacity(); } catch (Exception ignored) {}
-            return new AreaInfo(area.getId(), area.getName(), false, max, max - current, List.of());
         }
+
+        if (area instanceof StandingArea sa) {
+            int max = sa.getMaxCapacity();
+            int available = ticketService.getStandingAvailableCount(showId, area.getId(), max);
+
+            return new AreaInfo(
+                    area.getId(),
+                    area.getName(),
+                    false,
+                    max,
+                    available,
+                    List.of());
+        }
+
         return new AreaInfo(area.getId(), area.getName(), false, 0, 0, List.of());
     }
 
@@ -1973,7 +2159,7 @@ public class EventDetailsView extends VerticalLayout {
         Random rnd = new Random(42);
         List<BlockData> blocks = new ArrayList<>();
         long sid = 1;
-        String[] labels = {"A", "B", "C"};
+        String[] labels = { "A", "B", "C" };
         for (int bi = 0; bi < 3; bi++) {
             List<RowData> rows = new ArrayList<>();
             for (int ri = 1; ri <= 4; ri++) {
@@ -1985,9 +2171,8 @@ public class EventDetailsView extends VerticalLayout {
             blocks.add(new BlockData(bi + 1, labels[bi], rows));
         }
         return List.of(
-            new AreaInfo(UUID.randomUUID(), "Main Stage (Seated)", true, 0, 0, blocks),
-            new AreaInfo(UUID.randomUUID(), "Floor GA (Standing)", false, 300, 175, List.of())
-        );
+                new AreaInfo(UUID.randomUUID(), "Main Stage (Seated)", true, 0, 0, blocks),
+                new AreaInfo(UUID.randomUUID(), "Floor GA (Standing)", false, 300, 175, List.of()));
     }
 
     // ── Dialog UI helpers ─────────────────────────────────────────────────────
@@ -1995,8 +2180,8 @@ public class EventDetailsView extends VerticalLayout {
     private static Span stepLabel(String text) {
         Span s = new Span(text);
         s.getStyle()
-            .set("font-weight", "700").set("font-size", "14px").set("color", "#444")
-            .set("display", "block").set("margin-bottom", "12px");
+                .set("font-weight", "700").set("font-size", "14px").set("color", "#444")
+                .set("display", "block").set("margin-bottom", "12px");
         return s;
     }
 
@@ -2011,10 +2196,52 @@ public class EventDetailsView extends VerticalLayout {
     private static Div legendDot(String color, String label) {
         Div dot = new Div();
         dot.getStyle()
-            .set("width", "13px").set("height", "13px")
-            .set("border-radius", "50%").set("background", color).set("flex-shrink", "0");
+                .set("width", "13px").set("height", "13px")
+                .set("border-radius", "50%").set("background", color).set("flex-shrink", "0");
         Div wrapper = new Div(dot, new Span(label));
         wrapper.getStyle().set("display", "flex").set("align-items", "center").set("gap", "5px");
         return wrapper;
+    }
+
+    private record SeatCount(int total, int available) {
+    }
+
+    private SeatCount countAreaSeats(UUID showId, Area area, Map<Long, Boolean> seatAvailability) {
+        if (area instanceof StandingArea standingArea) {
+            int total = standingArea.getMaxCapacity();
+            int available = ticketService.getStandingAvailableCount(showId, area.getId(), total);
+
+            return new SeatCount(total, available);
+        }
+
+        if (area instanceof SeatedArea seatedArea) {
+            int total = 0;
+            int available = 0;
+
+            for (Block block : seatedArea.getBlocks()) {
+                if (block.getRows() == null) {
+                    continue;
+                }
+
+                for (Row row : block.getRows()) {
+                    if (row.getSeats() == null) {
+                        continue;
+                    }
+
+                    for (Seat seat : row.getSeats()) {
+                        total++;
+
+                        boolean isAvailable = seatAvailability.getOrDefault(seat.getId(), true);
+                        if (isAvailable) {
+                            available++;
+                        }
+                    }
+                }
+            }
+
+            return new SeatCount(total, available);
+        }
+
+        return new SeatCount(0, 0);
     }
 }

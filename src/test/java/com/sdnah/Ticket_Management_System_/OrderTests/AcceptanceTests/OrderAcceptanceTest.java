@@ -82,8 +82,8 @@ class OrderAcceptanceTest {
 
         private static final String TOKEN_BUYER_1 = "token-buyer-1";
         private static final String TOKEN_BUYER_2 = "token-buyer-2";
-        private static final String BUYER_1 = "buyer1";
-        private static final String BUYER_2 = "buyer2";
+        private static final String BUYER_1 = UUID.randomUUID().toString(); // "buyer1";
+        private static final String BUYER_2 = UUID.randomUUID().toString(); // "buyer2";
 
         @BeforeEach
         void setup() {

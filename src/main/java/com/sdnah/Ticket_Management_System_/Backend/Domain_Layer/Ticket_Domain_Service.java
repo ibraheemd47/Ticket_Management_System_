@@ -26,7 +26,8 @@ public class Ticket_Domain_Service {
         ticket ticket = ticketRepository.findById(UUID.fromString(ticketId))
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
 
-        ticket.purchase(order.getId());
+        ticket.purchase(UUID.fromString(order.getbuyerId()));
+        ticketRepository.save(ticket);
     }
 
     public void releaseAllTickets(List<String> ticketIds) {

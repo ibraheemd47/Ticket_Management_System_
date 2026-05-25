@@ -3,7 +3,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
+import java.util.Collection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -18,5 +18,16 @@ public interface TicketRepository extends JpaRepository<ticket, UUID> {
 
     Optional<ticket> findFirstByShowIdAndSeat_IdAndStatus(UUID showId, Long seatId, ticket.TicketStatus status);
 
-    Optional<ticket> findFirstByShowIdAndArea_IdAndSeatIsNullAndStatus(UUID showId, UUID areaId, ticket.TicketStatus status);
+    Optional<ticket> findFirstByShowIdAndArea_IdAndSeatIsNullAndStatus(UUID showId, UUID areaId,
+            ticket.TicketStatus status);
+
+    long countByShowIdAndArea_IdAndSeatIsNullAndStatusIn(
+            UUID showId,
+            UUID areaId,
+            Collection<ticket.TicketStatus> statuses);
+
+    long countByShowIdAndArea_IdAndStatusIn(
+            UUID showId,
+            UUID areaId,
+            Collection<ticket.TicketStatus> statuses);
 }

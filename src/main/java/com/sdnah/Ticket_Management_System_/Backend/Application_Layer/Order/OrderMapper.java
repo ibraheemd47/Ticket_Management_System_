@@ -65,8 +65,16 @@ public class OrderMapper {
 
     public static List<PurchaseDTO> purchaseToDTOList(List<Purchase> purchases) {
         List<PurchaseDTO> result = new ArrayList<>();
-        for (Purchase p : purchases)
-            result.add(toDTO(p, new ArrayList<>()));
+
+        for (Purchase p : purchases) {
+            List<String> ticketIds = p.getItems()
+                    .stream()
+                    .map(OrderItem::getTicketId)
+                    .toList();
+
+            result.add(toDTO(p, ticketIds));
+        }
+
         return result;
     }
 }

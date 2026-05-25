@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -86,7 +87,8 @@ public class TicketService {
     }
 
     /**
-     * Returns a map of seatId → true/false (true = at least one AVAILABLE ticket exists for that seat).
+     * Returns a map of seatId → true/false (true = at least one AVAILABLE ticket
+     * exists for that seat).
      * Used by the seat-selection view to colour seats green/red.
      */
     public Map<Long, Boolean> getSeatAvailability(UUID showId) {
@@ -105,5 +107,30 @@ public class TicketService {
         logger.info("Fetching tickets for owner {}", ownerId);
 
         return ticketRepository.findByOwnerId(ownerId);
+    }
+
+    public int getStandingUsedCount(UUID showId, UUID areaId) {
+        return (int) ticketRepository.countByShowIdAndArea_IdAndSeatIsNullAndStatusIn(
+                showId,
+                areaId,
+                Set.of(
+                        ticket.TicketStatus.LOCKED_IN_CART,
+                        ticket.TicketStatus.PURCHASED,
+                        ticket.TicketStatus.SCANNED));
+    }
+
+    public int getAreaUsedCount(UUID showId, UUID areaId) {
+        return (int) ticketRepository.countByShowIdAndArea_IdAndStatusIn(
+                showId,
+                areaId,
+                Set.of(
+                        ticket.TicketStatus.LOCKED_IN_CART,
+                        ticket.TicketStatus.PURCHASED,
+                        ticket.TicketStatus.SCANNED));
+    }
+
+    public int getStandingAvailableCount(UUID showId, UUID areaId, int maxCapacity) {
+        int used = getStandingUsedCount(showId, areaId);
+        return Math.max(0, maxCapacity - used);
     }
 }
