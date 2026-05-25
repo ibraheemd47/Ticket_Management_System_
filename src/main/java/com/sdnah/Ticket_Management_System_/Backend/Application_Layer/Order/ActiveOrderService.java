@@ -58,7 +58,7 @@ public class ActiveOrderService {
     // snapshot של הדקה הקודמת — זה מה שה-UI מציג
     private final AtomicInteger reservationRateSnapshot = new AtomicInteger(0);
 
-    @Autowired  
+    @Autowired
     private LotteryRepository lotteryRepository;
 
     public ActiveOrderService(ActiveOrderRepository orderRepo,
@@ -106,42 +106,42 @@ public class ActiveOrderService {
         this.checkoutDomainService = new CheckoutDomainService(paymentGateway, ticketGateway, ticketDomainService);
         this.actionLogRepo = actionLogRepo;
         this.notificationService = notificationService;
-        
 
-        
     }
 
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
         logger.info("Starting ticket reservation for userToken {} event {}", userToken, eventId);
         String buyerId = represnteUserService.requireMemberId(userToken);
-    var existingOrder = orderRepo.findActiveOrder(buyerId, eventId);
 
-    if (existingOrder.isPresent()) {
-
-        ActiveOrder order = existingOrder.get();
-
-        for (SeatRequest seat : seats) {
-
-            boolean isLocked = orderRepo.isTicketLocked(seat.getTicketId());
-
-            String ticketId = order.addTicketToOrder(
-                    seat,
-                    buyerId,
-                    isLocked
-            );
-
-            ticketDomainService.lockAllTickets(order, List.of(ticketId));
+        if (seats == null || seats.isEmpty()) {
+            throw new IllegalStateException("Order is empty");
         }
+        var existingOrder = orderRepo.findActiveOrder(buyerId, eventId);
 
-        orderPolicyDomainService.validateAndApplyDiscounts(
-                order,
-                order.getAppliedCouponCode()
-        );
+        if (existingOrder.isPresent()) {
 
-        orderRepo.save(order);
+            ActiveOrder order = existingOrder.get();
 
-        return OrderMapper.toDTO(order);
-    }
+            for (SeatRequest seat : seats) {
+
+                boolean isLocked = orderRepo.isTicketLocked(seat.getTicketId());
+
+                String ticketId = order.addTicketToOrder(
+                        seat,
+                        buyerId,
+                        isLocked);
+
+                ticketDomainService.lockAllTickets(order, List.of(ticketId));
+            }
+
+            orderPolicyDomainService.validateAndApplyDiscounts(
+                    order,
+                    order.getAppliedCouponCode());
+
+            orderRepo.save(order);
+
+            return OrderMapper.toDTO(order);
+        }
         logger.info("Creating new order for user {} and event {}", buyerId, eventId);
         ActiveOrder order = new ActiveOrder(buyerId, eventId, TTL_MINUTES);
 
@@ -153,11 +153,11 @@ public class ActiveOrderService {
             ticketDomainService.lockAllTickets(order, reservedTicketIds);
             orderPolicyDomainService.validateAndApplyDiscounts(order, null);
             orderRepo.save(order);
-            reservationsLastMinute.incrementAndGet();//new for Reservation Rate
+            reservationsLastMinute.incrementAndGet();// new for Reservation Rate
             logger.info("Reservation completed successfully order {}", order.getId());
             return OrderMapper.toDTO(order);
         } catch (Exception e) {
-            logger.error("reserveTickets FAILED rollback done userToken={}", userToken , e);
+            logger.error("reserveTickets FAILED rollback done userToken={}", userToken, e);
             throw e;
         }
     }
@@ -247,22 +247,21 @@ public class ActiveOrderService {
 
         PaymentDetails details = new PaymentDetails(paymentDTO.getCardToken(), paymentDTO.getBillingName(),
                 paymentDTO.getPaymentMethod());
-                
+
         try {
             CheckoutDomainService.CheckoutResult result = checkoutDomainService.checkout(order, details);
             purchaseRepo.save(result.getPurchase());
             paymentService.saveTransaction(result.getTransaction());
             orderRepo.save(order);
-            //notify buyer about successful purchase
+            // notify buyer about successful purchase
             notificationService.notifyPurchaseSuccess(
                     buyerId,
-                    order.getEventId().toString()
-            );
+                    order.getEventId().toString());
             logger.info("checkout SUCCESS orderId={} purchaseId={}",
                     orderId,
                     result.getPurchase().getPurchaseId());
             return OrderMapper.toDTO(result.getPurchase(), result.getTicketCodes());
-        
+
         } catch (Exception e) {
             logger.error("checkout FAILED | orderId={} error={}", orderId, e.getMessage());
             orderRepo.save(order);
@@ -350,7 +349,7 @@ public class ActiveOrderService {
                 .filter(o -> !o.isExpired())
                 .count();
     }
- 
+
     // מספר רכישות שהושלמו היום
     public int getPurchasesTodayCount() {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
@@ -358,6 +357,7 @@ public class ActiveOrderService {
                 .filter(p -> p.getPurchasedAt() != null && p.getPurchasedAt().isAfter(startOfDay))
                 .count();
     }
+
     // קצב שריונות בדקה האחרונה
     public int getReservationRate() {
         return reservationRateSnapshot.get();
