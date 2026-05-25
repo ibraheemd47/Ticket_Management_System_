@@ -112,7 +112,13 @@ public class EventDetailsView extends VerticalLayout {
         Object eventIdObj = UI.getCurrent().getSession().getAttribute("eventId");
         Object userIdObj  = UI.getCurrent().getSession().getAttribute("userId");
         if (userIdObj != null) {
-            try { cachedUserId = UUID.fromString(userIdObj.toString()); } catch (Exception ignored) {}
+            try {
+                System.out.println("Cached user ID: " + userIdObj.toString()); 
+                cachedUserId = UUID.fromString(userIdObj.toString()); 
+                System.out.println("Parsed user ID: " + cachedUserId.toString());
+            } catch (Exception ignored) {
+                cachedUserId = UUID.randomUUID();
+            }
         }
 
         Event ev;
