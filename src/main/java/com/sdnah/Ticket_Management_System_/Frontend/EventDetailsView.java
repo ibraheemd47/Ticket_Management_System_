@@ -284,9 +284,7 @@ public class EventDetailsView extends VerticalLayout {
         if (companyIdObj == null || cachedEvent == null)
             return false;
         try {
-            Long companyId = Long.valueOf(companyIdObj.toString());
-            // Use companyId (plain column, no lazy-loading) instead of managerIds
-            // (ElementCollection)
+            UUID companyId = UUID.fromString(companyIdObj.toString());
             return companyId.equals(cachedEvent.getCompanyId());
         } catch (Exception e) {
             return false;
@@ -294,8 +292,10 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private Long getManagerId() {
-        Object obj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-        return obj != null ? Long.valueOf(obj.toString()) : null;
+        // Event.ownerId/managerIds use 0L as a sentinel because Member IDs are UUIDs.
+        // Authorization is enforced at the company level via isManagerOrOwner().
+        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
+        return companyIdObj != null ? 0L : null;
     }
 
     // ── Edit dialog ──────────────────────────────────────────────────────────
