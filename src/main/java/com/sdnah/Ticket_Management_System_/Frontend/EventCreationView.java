@@ -707,9 +707,8 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
             EventDto created = companyService.addEvent(token, companyId, dto);
 
             // Persist shows
-            // memberId was previously derived from int companyId (now UUID);
-            // 0L is a placeholder until Event/show APIs are migrated to UUID/String memberIds.
-            Long memberId = 0L;
+            Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
+            String memberId = userIdObj != null ? userIdObj.toString() : null;
             for (ShowDTO s : shows) {
                 java.util.Date showDate = s.showDate != null
                     ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())

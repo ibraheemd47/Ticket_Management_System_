@@ -37,10 +37,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRep
 @DisplayName("Event Module — Integration Tests")
 class EventIntegrationTest {
 
-    private static final Long OWNER_ID = 100L;
-    private static final Long OTHER_OWNER_ID = 101L;
-    private static final Long MANAGER_ID = 200L;
-    private static final Long SECOND_MANAGER_ID = 201L;
+    private static final String OWNER_ID = "owner-100";
+    private static final String OTHER_OWNER_ID = "owner-101";
+    private static final String MANAGER_ID = "manager-200";
+    private static final String SECOND_MANAGER_ID = "manager-201";
     private static final UUID COMPANY_ID = UUID.randomUUID();
     private static final UUID OTHER_COMPANY_ID = UUID.randomUUID();
 
@@ -133,7 +133,7 @@ class EventIntegrationTest {
 
         eventService.assignManager(event.getEventId(), MANAGER_ID, OWNER_ID);
 
-        List<Long> managers = eventService.getEventManagerIds(event.getEventId());
+        List<String> managers = eventService.getEventManagerIds(event.getEventId());
         assertTrue(managers.contains(OWNER_ID));
         assertTrue(managers.contains(MANAGER_ID));
     }
@@ -151,7 +151,7 @@ class EventIntegrationTest {
 
         eventService.removeManager(event.getEventId(), MANAGER_ID, OWNER_ID);
 
-        List<Long> managers = eventService.getEventManagerIds(event.getEventId());
+        List<String> managers = eventService.getEventManagerIds(event.getEventId());
         assertFalse(managers.contains(MANAGER_ID));
         assertTrue(managers.contains(SECOND_MANAGER_ID));
         assertTrue(managers.contains(OWNER_ID));
@@ -170,7 +170,7 @@ class EventIntegrationTest {
         Event reloaded = eventService.getEventDetails(event.getEventId());
         assertEquals(OTHER_OWNER_ID, reloaded.getOwnerId());
 
-        List<Long> managers = eventService.getEventManagerIds(event.getEventId());
+        List<String> managers = eventService.getEventManagerIds(event.getEventId());
         assertTrue(managers.contains(OTHER_OWNER_ID));
         assertFalse(managers.contains(OWNER_ID),
                 "Previous owner should be removed from managers after transfer");

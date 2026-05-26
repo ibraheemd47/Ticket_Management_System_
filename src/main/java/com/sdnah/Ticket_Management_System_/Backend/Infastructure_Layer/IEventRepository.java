@@ -23,7 +23,7 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
     // ── Derived queries (Spring Data auto-implements) ────────────────────────
     List<Event> findByCompanyId(UUID companyId);
 
-    List<Event> findByOwnerId(Long ownerId);
+    List<Event> findByOwnerId(String ownerId);
 
     List<Event> findByNameContainingIgnoreCase(String keyword);
 
@@ -32,7 +32,7 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
     List<Event> findAllEvents();
 
     @Query("SELECT e FROM Event e WHERE :managerId MEMBER OF e.managerIds")
-    List<Event> findByManagerId(@Param("managerId") Long managerId);
+    List<Event> findByManagerId(@Param("managerId") String managerId);
 
     // Boolean EventExists(@Param("eventId") UUID eventUuid);
 
@@ -67,12 +67,12 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
 
     // ── Complex mutations — not yet implemented as JPQL ──────────────────────
     default boolean editShowInEvent(UUID eventId, UUID showId, String name, String description,
-            String singer, Date showDate, Long managerId) {
+            String singer, Date showDate, String managerId) {
         throw new UnsupportedOperationException("Not yet implemented — use service layer");
     }
 
     default boolean addAreaToShow(UUID eventId, UUID showId, String areaName,
-            int capacity, double price, Long managerId) {
+            int capacity, double price, String managerId) {
         throw new UnsupportedOperationException("Not yet implemented");
     }
 

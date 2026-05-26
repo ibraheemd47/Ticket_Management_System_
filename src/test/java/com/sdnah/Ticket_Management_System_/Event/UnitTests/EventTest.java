@@ -17,10 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class EventTest {
 
     private Event event;
-    private final Long OWNER_ID = 100L;
+    private final String OWNER_ID = "owner-100";
     private static final UUID COMPANY_ID = UUID.randomUUID();
-    private final Long MANAGER_ID = 200L;
-    private final Long UNAUTHORIZED_USER = 999L;
+    private final String MANAGER_ID = "manager-200";
+    private final String UNAUTHORIZED_USER = "user-999";
 
     @BeforeEach
     void setUp() {

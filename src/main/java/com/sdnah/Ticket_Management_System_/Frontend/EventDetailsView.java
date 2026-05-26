@@ -291,11 +291,9 @@ public class EventDetailsView extends VerticalLayout {
         }
     }
 
-    private Long getManagerId() {
-        // Event.ownerId/managerIds use 0L as a sentinel because Member IDs are UUIDs.
-        // Authorization is enforced at the company level via isManagerOrOwner().
-        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-        return companyIdObj != null ? 0L : null;
+    private String getManagerId() {
+        Object obj = UI.getCurrent().getSession().getAttribute("userId");
+        return obj != null ? obj.toString() : null;
     }
 
     // ── Edit dialog ──────────────────────────────────────────────────────────
@@ -385,7 +383,7 @@ public class EventDetailsView extends VerticalLayout {
                 error("Name is required");
                 return;
             }
-            Long mgr = getManagerId();
+            String mgr = getManagerId();
             if (mgr == null) {
                 error("Session expired — please log in again");
                 return;
@@ -553,7 +551,7 @@ public class EventDetailsView extends VerticalLayout {
                 error("Show name is required");
                 return;
             }
-            Long mgr = getManagerId();
+            String mgr = getManagerId();
             if (mgr == null) {
                 error("Session expired — please log in again");
                 return;
@@ -666,7 +664,7 @@ public class EventDetailsView extends VerticalLayout {
 
     /** Confirmation dialog before deleting a show — warns about ticket count. */
     private void openDeleteShowConfirm(show s) {
-        Long mgr = getManagerId();
+        String mgr = getManagerId();
         if (mgr == null) {
             error("Session expired");
             return;
@@ -735,7 +733,7 @@ public class EventDetailsView extends VerticalLayout {
 
     /** Confirmation dialog before deleting the entire event. */
     private void openDeleteEventConfirm() {
-        Long mgr = getManagerId();
+        String mgr = getManagerId();
         if (mgr == null) {
             error("Session expired");
             return;
@@ -1497,16 +1495,16 @@ public class EventDetailsView extends VerticalLayout {
 
     private static Event mockEvent() {
         Event ev = new Event("Summer Music Festival 2025", show_type.FESTIVAL,
-                UUID.fromString("00000000-0000-0000-0000-000000000001"), 1L);
-        ev.editVenue("BGU Amphitheatre, Beer-Sheva", 1L);
+                UUID.fromString("00000000-0000-0000-0000-000000000001"), "mock-owner");
+        ev.editVenue("BGU Amphitheatre, Beer-Sheva", "mock-owner");
         ev.editDescription(
                 "A three-day outdoor festival featuring top local and international artists across multiple stages.",
-                1L);
+                "mock-owner");
         try {
             ev.editDates(
                     new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-10"),
                     new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-12"),
-                    1L);
+                    "mock-owner");
         } catch (Exception ignored) {
         }
         return ev;

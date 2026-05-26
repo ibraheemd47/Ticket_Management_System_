@@ -1,37 +1,44 @@
 package com.sdnah.Ticket_Management_System_.Backend;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PasswordHasher;
-
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Row;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Seat;
-
-import java.util.ArrayList;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Row;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Seat;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.SeatedArea;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.StandingArea;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
-
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
-
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
-
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Complaint;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ManagerPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Complaint;
-
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Waiting_Queue.WaitingQueue;
-
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ComplaintRepository;
@@ -41,29 +48,12 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdm
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.Waiting_QueueRepository;
 
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-
 @Component
 @Profile("dev")
 public class DemoDataLoader implements CommandLineRunner {
 
         private static final String PASSWORD = "123456";
 
-        private static final long EVENT_OWNER_ID = 1001L;
-        private static final long EVENT_MANAGER_ID = 1002L;
 
         private final UserRepository userRepository;
         private final SystemAdminRepository systemAdminRepository;
@@ -127,7 +117,8 @@ public class DemoDataLoader implements CommandLineRunner {
                                 "Demo Rock Festival",
                                 show_type.FESTIVAL,
                                 concerts,
-                                EVENT_OWNER_ID,
+                                owner.getMemberId(),
+                                manager.getMemberId(),
                                 "Demo Arena",
                                 "Large demo festival with multiple shows.");
 
@@ -135,7 +126,8 @@ public class DemoDataLoader implements CommandLineRunner {
                                 "Demo Tech Conference",
                                 show_type.CONFERENCE,
                                 conferences,
-                                EVENT_OWNER_ID,
+                                owner.getMemberId(),
+                                manager.getMemberId(),
                                 "Demo Convention Center",
                                 "Technology conference demo event.");
 
@@ -143,7 +135,8 @@ public class DemoDataLoader implements CommandLineRunner {
                                 "Demo Theater Performance",
                                 show_type.PERFORMANCE,
                                 concerts,
-                                EVENT_OWNER_ID,
+                                owner.getMemberId(),
+                                manager.getMemberId(),
                                 "Demo Theater Hall",
                                 "Performance demo event.");
 
@@ -342,7 +335,8 @@ public class DemoDataLoader implements CommandLineRunner {
         private Event createEventIfMissing(String name,
                         show_type type,
                         Company company,
-                        Long ownerId,
+                        String ownerId,
+                        String managerId,
                         String venue,
                         String description) {
 
@@ -367,8 +361,8 @@ public class DemoDataLoader implements CommandLineRunner {
                                         return saved;
                                 });
 
-                if (!event.getManagerIds().contains(EVENT_MANAGER_ID)) {
-                        event.addManager(EVENT_MANAGER_ID, ownerId);
+                if (!event.getManagerIds().contains(managerId)) {
+                        event.addManager(managerId, ownerId);
                         eventRepository.saveAndFlush(event);
                 }
 
@@ -590,10 +584,10 @@ public class DemoDataLoader implements CommandLineRunner {
                                                 5,
                                                 15)));
 
-                event.addShow(opening, EVENT_OWNER_ID);
-                event.addShow(mainShow, EVENT_OWNER_ID);
-                event.addShow(acousticShow, EVENT_OWNER_ID);
-                event.addShow(closingShow, EVENT_OWNER_ID);
+                // event.addShow(opening, EVENT_OWNER_ID);
+                // event.addShow(mainShow, EVENT_OWNER_ID);
+                // event.addShow(acousticShow, EVENT_OWNER_ID);
+                // event.addShow(closingShow, EVENT_OWNER_ID);
 
                 eventRepository.saveAndFlush(event);
         }

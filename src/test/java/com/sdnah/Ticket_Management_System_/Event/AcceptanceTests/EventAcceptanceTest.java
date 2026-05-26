@@ -34,10 +34,10 @@ class EventAcceptanceTest {
         @Autowired
         private IEventRepository eventRepository;
 
-        private static final Long OWNER_ID = 1L;
-        private static final Long MANAGER_ID = 2L;
+        private static final String OWNER_ID = "owner-1";
+        private static final String MANAGER_ID = "manager-2";
         private static final UUID COMPANY_ID = UUID.randomUUID();
-        private static final Long UNAUTHORIZED = 99L;
+        private static final String UNAUTHORIZED = "user-99";
 
         @BeforeEach
         void cleanDb() {
@@ -237,7 +237,7 @@ class EventAcceptanceTest {
                         eventService.assignManager(event.getEventId(), MANAGER_ID, OWNER_ID);
 
                         // Assert
-                        List<Long> managerIds = eventService.getEventManagerIds(event.getEventId());
+                        List<String> managerIds = eventService.getEventManagerIds(event.getEventId());
                         assertThat(managerIds).contains(MANAGER_ID);
                 }
 
@@ -256,7 +256,7 @@ class EventAcceptanceTest {
                         eventService.removeManager(event.getEventId(), MANAGER_ID, OWNER_ID);
 
                         // Assert
-                        List<Long> managerIds = eventService.getEventManagerIds(event.getEventId());
+                        List<String> managerIds = eventService.getEventManagerIds(event.getEventId());
                         assertThat(managerIds).doesNotContain(MANAGER_ID);
                 }
 
@@ -269,7 +269,7 @@ class EventAcceptanceTest {
                                         COMPANY_ID,
                                         OWNER_ID);
 
-                        Long newOwner = 50L;
+                        String newOwner = "owner-50";
 
                         // Act
                         eventService.transferOwnership(event.getEventId(), newOwner, OWNER_ID);
@@ -291,7 +291,7 @@ class EventAcceptanceTest {
                                         OWNER_ID);
 
                         // Act + Assert
-                        assertThatThrownBy(() -> eventService.transferOwnership(event.getEventId(), 50L, UNAUTHORIZED))
+                        assertThatThrownBy(() -> eventService.transferOwnership(event.getEventId(), "owner-50", UNAUTHORIZED))
                                         .isInstanceOf(IllegalArgumentException.class)
                                         .hasMessageContaining("Only the current owner can transfer ownership");
                 }

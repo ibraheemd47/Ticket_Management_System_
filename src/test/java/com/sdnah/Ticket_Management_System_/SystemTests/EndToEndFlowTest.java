@@ -165,7 +165,7 @@ class EndToEndFlowTest {
         Event event = eventService.createEvent(
                 new EventDto(null, "End-to-End Concert", null, show_type.PERFORMANCE, "Tel Aviv"),
                 companyId,
-                999L); // companyId / eventOwnerId can be independent of the Member memberId
+                "owner-999"); // companyId / eventOwnerId can be independent of the Member memberId
 
         assertNotNull(event.getEventId());
 
@@ -320,10 +320,10 @@ class EndToEndFlowTest {
         Event event = eventService.createEvent(
                 new EventDto(null, "Initial Title", null, show_type.FESTIVAL, "Haifa"),
                 companyId,
-                111L);
+                "owner-111");
 
-        eventService.editEventName(event.getEventId(), "Final Title", 111L);
-        eventService.editEventVenue(event.getEventId(), "Heichal HaTarbut", 111L);
+        eventService.editEventName(event.getEventId(), "Final Title", "owner-111");
+        eventService.editEventVenue(event.getEventId(), "Heichal HaTarbut", "owner-111");
 
         Event seen = eventService.getEventDetails(event.getEventId());
         assertEquals("Final Title", seen.getName());

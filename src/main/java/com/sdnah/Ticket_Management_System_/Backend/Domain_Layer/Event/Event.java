@@ -41,12 +41,12 @@ public class Event {
 
     private String name;
     private UUID companyId;
-    private Long ownerId;
+    private String ownerId;
 
     @ElementCollection
     @CollectionTable(name = "event_manager_ids", joinColumns = @JoinColumn(name = "event_id"))
     @Column(name = "manager_id")
-    private List<Long> managerIds;
+    private List<String> managerIds;
 
     private Date startDate;
     private Date endDate;
@@ -68,7 +68,7 @@ public class Event {
 
     protected Event() {}
 
-    public Event(String name, show_type eventType, UUID companyId, Long ownerId) {
+    public Event(String name, show_type eventType, UUID companyId, String ownerId) {
         this.eventId = UUID.randomUUID();
         this.name = name;
         this.eventType = eventType;
@@ -87,10 +87,10 @@ public class Event {
     public UUID getCompanyId() { return companyId; }
     public void setCompanyId(UUID companyId) { this.companyId = companyId; }
 
-    public Long getOwnerId() { return ownerId; }
-    public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
+    public String getOwnerId() { return ownerId; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
-    public List<Long> getManagerIds() { return managerIds; }
+    public List<String> getManagerIds() { return managerIds; }
 
     public Date getStartDate() { return startDate; }
     public void setStartDate(Date startDate) { this.startDate = startDate; }
@@ -105,14 +105,14 @@ public class Event {
     public String getDescription() { return description; }
 
     public List<show> getShows() { return shows; }
-    public void setShows(List<show> shows, Long managerId) {
+    public void setShows(List<show> shows, String managerId) {
         if (!managerIds.contains(managerId))
             throw new IllegalArgumentException("Only managers can update the shows list.");
         logger.info("Updating shows list for event {} by manager {}", this.eventId, managerId);
         this.shows = shows;
     }
 
-    public void addShow(show show, Long managerId) {
+    public void addShow(show show, String managerId) {
         if (!managerIds.contains(managerId))
             throw new IllegalArgumentException("Only managers can add shows to the event.");
         logger.info("Adding show to event {} by manager {}", this.eventId, managerId);
@@ -120,14 +120,14 @@ public class Event {
         show.setEvent(this);
     }
 
-    public void removeShow(show showToRemove, Long managerId) {
+    public void removeShow(show showToRemove, String managerId) {
         if (!managerIds.contains(managerId))
             throw new IllegalArgumentException("Only managers can remove shows from the event.");
         logger.info("Removing show from event {} by manager {}", this.eventId, managerId);
         shows.removeIf(s -> Objects.equals(s.getShowid(), showToRemove.getShowid()));
     }
 
-    public void addManager(Long managerId, Long requestingOwnerId) {
+    public void addManager(String managerId, String requestingOwnerId) {
         if (!requestingOwnerId.equals(this.ownerId))
             throw new IllegalArgumentException("Only the owner can add managers to the event.");
         if (managerIds.contains(managerId))
@@ -136,7 +136,7 @@ public class Event {
         managerIds.add(managerId);
     }
 
-    public void removeManager(Long managerId, Long requestingOwnerId) {
+    public void removeManager(String managerId, String requestingOwnerId) {
         if (!requestingOwnerId.equals(this.ownerId))
             throw new IllegalArgumentException("Only the owner can remove managers from the event.");
         if (!managerIds.contains(managerId))
@@ -145,7 +145,7 @@ public class Event {
         managerIds.remove(managerId);
     }
 
-    public void delete(Long requestingOwnerId) {
+    public void delete(String requestingOwnerId) {
         if (!requestingOwnerId.equals(this.ownerId))
             throw new IllegalArgumentException("Only the owner can delete the event.");
         logger.info("Deleting event {} by owner {}", this.eventId, requestingOwnerId);
@@ -153,7 +153,7 @@ public class Event {
         this.managerIds.clear();
     }
 
-    public void transferOwnership(Long newOwnerId, Long currentOwnerId) {
+    public void transferOwnership(String newOwnerId, String currentOwnerId) {
         if (!currentOwnerId.equals(this.ownerId))
             throw new IllegalArgumentException("Only the current owner can transfer ownership.");
         if (!managerIds.contains(newOwnerId))
@@ -163,21 +163,21 @@ public class Event {
         logger.info("Ownership of event {} transferred from {} to {}", this.eventId, currentOwnerId, newOwnerId);
     }
 
-    public void editName(String newName, Long managerId) {
+    public void editName(String newName, String managerId) {
         if (!managerIds.contains(managerId))
             throw new IllegalArgumentException("Only managers can edit the event name.");
         logger.info("Editing name of event {} by manager {}", this.eventId, managerId);
         this.name = newName;
     }
 
-    public void editType(show_type newType, Long managerId) {
+    public void editType(show_type newType, String managerId) {
         if (!managerIds.contains(managerId))
             throw new IllegalArgumentException("Only managers can edit the event type.");
         logger.info("Editing type of event {} by manager {}", this.eventId, managerId);
         this.eventType = newType;
     }
 
-    public void editDates(Date newStartDate, Date newEndDate, Long managerId) {
+    public void editDates(Date newStartDate, Date newEndDate, String managerId) {
         if (!managerIds.contains(managerId))
             throw new IllegalArgumentException("Only managers can edit the event dates.");
         logger.info("Editing dates of event {} by manager {}", this.eventId, managerId);
@@ -185,14 +185,14 @@ public class Event {
         this.endDate = newEndDate;
     }
 
-    public void editVenue(String newVenue, Long managerId) {
+    public void editVenue(String newVenue, String managerId) {
         if (!managerIds.contains(managerId))
             throw new IllegalArgumentException("Only managers can edit the event venue.");
         logger.info("Editing venue of event {} by manager {}", this.eventId, managerId);
         this.venue = newVenue;
     }
 
-    public void editDescription(String newDescription, Long managerId) {
+    public void editDescription(String newDescription, String managerId) {
         if (!managerIds.contains(managerId))
             throw new IllegalArgumentException("Only managers can edit the event description.");
         logger.info("Editing description of event {} by manager {}", this.eventId, managerId);
