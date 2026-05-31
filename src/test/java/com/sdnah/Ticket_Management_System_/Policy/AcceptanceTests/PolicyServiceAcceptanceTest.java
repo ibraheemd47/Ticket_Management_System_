@@ -42,9 +42,9 @@ class PolicyServiceAcceptanceTest {
 
     private PolicyService policyService;
 
-    private static final UUID  COMPANY_ID = UUID.randomUUID();
-    private static final UUID EVENT_ID   = UUID.randomUUID();
-    private static final String TOKEN    = "token";
+    private static final UUID   COMPANY_ID = UUID.randomUUID();
+    private static final UUID   EVENT_ID   = UUID.randomUUID();
+    private static final String TOKEN      = "token";
 
     @BeforeEach
     void setUp() {
@@ -90,6 +90,17 @@ class PolicyServiceAcceptanceTest {
     }
 
     @Test
+    @DisplayName("GivenNullDiscountRule_WhenAddDiscountRuleToEvent_ThenExceptionThrown")
+    void GivenNullDiscountRule_WhenAddDiscountRuleToEvent_ThenExceptionThrown() {
+        DiscountPolicy policy = new DiscountPolicy(1, "Event policy", EVENT_ID, COMPANY_ID);
+        lenient().when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        mockOwnerAuth();
+
+        assertThrows(IllegalArgumentException.class, () ->
+                policyService.addDiscountRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID, null));
+    }
+
+    @Test
     @DisplayName("GivenDiscountPolicy_WhenSetDiscountRulesForEvent_ThenRulesReplacedAndSaved")
     void GivenDiscountPolicy_WhenSetDiscountRulesForEvent_ThenRulesReplacedAndSaved() {
         DiscountPolicy policy = new DiscountPolicy(2, "Event policy", EVENT_ID, COMPANY_ID);
@@ -103,6 +114,37 @@ class PolicyServiceAcceptanceTest {
 
         verify(policyRepo).savePolicy(policy);
         assertEquals(30.0, policy.computeDiscount(new DiscountContext(1, null)), 0.001);
+    }
+
+    @Test
+    @DisplayName("GivenDiscountPolicy_WhenSetDiscountRulesForEventAdditive_ThenSumApplied")
+    void GivenDiscountPolicy_WhenSetDiscountRulesForEventAdditive_ThenSumApplied() {
+        DiscountPolicy policy = new DiscountPolicy(2, "Additive", EVENT_ID, COMPANY_ID);
+        when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(policyRepo.savePolicy(policy)).thenReturn(policy);
+        mockOwnerAuth();
+
+        policyService.setDiscountRulesForEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                List.of(
+                        new PercentageDiscountRule(10.0, "10% off"),
+                        new PercentageDiscountRule(15.0, "15% off")),
+                true);
+
+        verify(policyRepo).savePolicy(policy);
+        // additive = SUM → 10 + 15 = 25
+        assertEquals(25.0, policy.computeDiscount(new DiscountContext(1, null)), 0.001);
+    }
+
+    @Test
+    @DisplayName("GivenDiscountPolicy_WhenSetEmptyRulesList_ThenExceptionThrown")
+    void GivenDiscountPolicy_WhenSetEmptyRulesList_ThenExceptionThrown() {
+        DiscountPolicy policy = new DiscountPolicy(2, "Event policy", EVENT_ID, COMPANY_ID);
+        lenient().when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        mockOwnerAuth();
+
+        assertThrows(IllegalArgumentException.class, () ->
+                policyService.setDiscountRulesForEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                        List.of(), false));
     }
 
     // =========================================================================
@@ -169,6 +211,17 @@ class PolicyServiceAcceptanceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 policyService.addPurchaseRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID,
                         new MinAgeRule(18)));
+    }
+
+    @Test
+    @DisplayName("GivenNullPurchaseRule_WhenAddPurchaseRuleToEvent_ThenExceptionThrown")
+    void GivenNullPurchaseRule_WhenAddPurchaseRuleToEvent_ThenExceptionThrown() {
+        PurchasePolicy policy = new PurchasePolicy(5, "Event policy", EVENT_ID, COMPANY_ID);
+        lenient().when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        mockOwnerAuth();
+
+        assertThrows(IllegalArgumentException.class, () ->
+                policyService.addPurchaseRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID, null));
     }
 
     @Test
@@ -245,6 +298,37 @@ class PolicyServiceAcceptanceTest {
         assertThrows(RuntimeException.class, () ->
                 policyService.addDiscountRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID,
                         new PercentageDiscountRule(10.0, "10% off")));
+    }
+
+    @Test
+    @DisplayName("GivenInactiveMember_WhenAddDiscountRule_ThenThrowException")
+    void GivenInactiveMember_WhenAddDiscountRule_ThenThrowException() {
+        DiscountPolicy policy = new DiscountPolicy(9, "Policy", EVENT_ID, COMPANY_ID);
+        lenient().when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(representUserService.requireMember(TOKEN)).thenReturn(actor);
+        when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        when(actor.isActive()).thenReturn(false);
+        lenient().when(company.getCompanyId()).thenReturn(COMPANY_ID);
+
+        assertThrows(RuntimeException.class, () ->
+                policyService.addDiscountRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                        new PercentageDiscountRule(10.0, "10% off")));
+    }
+
+    @Test
+    @DisplayName("GivenNonOwner_WhenAddPurchaseRule_ThenThrowException")
+    void GivenNonOwner_WhenAddPurchaseRule_ThenThrowException() {
+        PurchasePolicy policy = new PurchasePolicy(9, "Policy", EVENT_ID, COMPANY_ID);
+        when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
+        when(representUserService.requireMember(TOKEN)).thenReturn(actor);
+        when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
+        when(actor.isActive()).thenReturn(true);
+        when(company.isOwner(any())).thenReturn(false);
+        when(company.getCompanyId()).thenReturn(COMPANY_ID);
+
+        assertThrows(RuntimeException.class, () ->
+                policyService.addPurchaseRuleToEvent(TOKEN, COMPANY_ID, EVENT_ID,
+                        new MinAgeRule(18)));
     }
 
     // =========================================================================
