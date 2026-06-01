@@ -123,4 +123,24 @@ class CheckoutDomainServiceTest {
 
         verify(payment, times(1)).refund("tx-1");
     }
+    @Test
+    @DisplayName("Given ticket is not reserved/found, when checkout runs, then payment is refunded and order is not completed")
+    void ticketNotReserved_RefundsPaymentAndOrderNotCompleted() {
+        when(payment.charge(eq(order.getId()), any(BigDecimal.class), eq(details)))
+                .thenReturn(successfulTx());
+
+        when(tickets.issueTickets(eq(order.getId()), anyList()))
+                .thenReturn(List.of(new Ticketcode("CODE-1", "QR-1")));
+
+        when(ticketRepo.findById(any(UUID.class)))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.checkout(order, details))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Checkout failed");
+
+        verify(payment, times(1)).refund("tx-1");
+        verify(ticketRepo, never()).save(any(ticket.class));
+        assertThat(order.getStatus()).isNotEqualTo(ActiveOrder.Status.COMPLETED);
+    }
 }
