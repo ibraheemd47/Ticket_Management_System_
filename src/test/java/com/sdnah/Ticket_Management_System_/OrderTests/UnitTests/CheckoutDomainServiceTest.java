@@ -53,11 +53,11 @@ class CheckoutDomainServiceTest {
         ticketDomainService = new Ticket_Domain_Service(ticketRepo);
         service = new CheckoutDomainService(payment, tickets, ticketDomainService);
 
-        order = new ActiveOrder("buyer-1", UUID.randomUUID(), 30);
+        order = new ActiveOrder(UUID.randomUUID().toString(), UUID.randomUUID(), 30);
         UUID ticketId = UUID.randomUUID();
         String ticketIdString = ticketId.toString();
         Area area = new Area("GA");
-        Lock lock = new Lock(ticketIdString, "buyer-1", order.getExpiresAt());
+        Lock lock = new Lock(ticketIdString, UUID.randomUUID().toString(), order.getExpiresAt());
         order.addTicket(ticketIdString, 1L, area.getId(), BigDecimal.TEN, lock);
 
         details = mock(PaymentDetails.class);
@@ -122,5 +122,25 @@ class CheckoutDomainServiceTest {
         assertThatThrownBy(() -> service.checkout(order, details)).isInstanceOf(IllegalStateException.class);
 
         verify(payment, times(1)).refund("tx-1");
+    }
+    @Test
+    @DisplayName("Given ticket is not reserved/found, when checkout runs, then payment is refunded and order is not completed")
+    void ticketNotReserved_RefundsPaymentAndOrderNotCompleted() {
+        when(payment.charge(eq(order.getId()), any(BigDecimal.class), eq(details)))
+                .thenReturn(successfulTx());
+
+        when(tickets.issueTickets(eq(order.getId()), anyList()))
+                .thenReturn(List.of(new Ticketcode("CODE-1", "QR-1")));
+
+        when(ticketRepo.findById(any(UUID.class)))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.checkout(order, details))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Checkout failed");
+
+        verify(payment, times(1)).refund("tx-1");
+        verify(ticketRepo, never()).save(any(ticket.class));
+        assertThat(order.getStatus()).isNotEqualTo(ActiveOrder.Status.COMPLETED);
     }
 }

@@ -280,4 +280,11 @@ public class NotificationService {
                 NotificationType.OWNER_REMOVED
         );
     }
+    public String notifyComplaintResolved(String recipientUsername, String complaintId) {
+        return createNotification(
+                recipientUsername,
+                "Your complaint with ID " + complaintId + " has been resolved.",
+                NotificationType.COMPLAINT_RESOLVED
+        );
+    }
 }

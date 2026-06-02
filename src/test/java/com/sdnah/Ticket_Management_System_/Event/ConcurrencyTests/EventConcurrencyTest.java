@@ -73,7 +73,7 @@ class EventConcurrencyTest {
         return outcome;
     }
 
-    private Event createBasicEvent(String name, UUID companyId, Long ownerId) {
+    private Event createBasicEvent(String name, UUID companyId, String ownerId) {
         EventDto dto = new EventDto();
         dto.name = name;
         dto.eventType = show_type.CONFERENCE;
@@ -86,8 +86,8 @@ class EventConcurrencyTest {
     void concurrentAssignManager_SameManager_OnlyOneSucceeds() throws Exception {
         // Arrange
         UUID companyId = UUID.randomUUID();
-        Long ownerId = 10L;
-        Long managerId = 20L;
+        String ownerId = "owner-10";
+        String managerId = "manager-20";
 
         Event event = createBasicEvent("Manager Race Event", companyId, ownerId);
         UUID eventId = event.getEventId();
@@ -97,7 +97,7 @@ class EventConcurrencyTest {
                 () -> eventService.assignManager(eventId, managerId, ownerId));
 
         // Assert
-        List<Long> managerIds = eventService.getEventManagerIds(eventId);
+        List<String> managerIds = eventService.getEventManagerIds(eventId);
 
         assertEquals(1, outcome.successes.get(), "exactly one manager assignment should succeed");
         assertEquals(9, outcome.failures.get(), "the rest should fail because manager already exists");
@@ -116,8 +116,8 @@ class EventConcurrencyTest {
     void concurrentTransferOwnership_SameNewOwner_FinalOwnerIsCorrect() throws Exception {
         // Arrange
         UUID companyId = UUID.randomUUID();
-        Long currentOwnerId = 10L;
-        Long newOwnerId = 20L;
+        String currentOwnerId = "owner-10";
+        String newOwnerId = "owner-20";
 
         Event event = createBasicEvent("Ownership Race Event", companyId, currentOwnerId);
         UUID eventId = event.getEventId();
@@ -132,7 +132,7 @@ class EventConcurrencyTest {
         assertEquals(newOwnerId, reloaded.getOwnerId());
         assertTrue(outcome.successes.get() >= 1, "at least one transfer should succeed");
 
-        List<Long> managerIds = eventService.getEventManagerIds(eventId);
+        List<String> managerIds = eventService.getEventManagerIds(eventId);
         assertTrue(managerIds.contains(newOwnerId));
     }
 
@@ -141,7 +141,7 @@ class EventConcurrencyTest {
     void concurrentAddReview_SameUser_OnlyOneReviewEntryRemains() throws Exception {
         // Arrange
         UUID companyId = UUID.randomUUID();
-        Long ownerId = 10L;
+        String ownerId = "owner-10";
         UUID userId = UUID.randomUUID();
 
         Event event = createBasicEvent("Review Race Event", companyId, ownerId);
@@ -165,7 +165,7 @@ class EventConcurrencyTest {
         // Arrange
         int threads = 20;
         UUID companyId = UUID.randomUUID();
-        Long ownerId = 10L;
+        String ownerId = "owner-10";
 
         // Act
         Outcome outcome = runConcurrently(threads, () -> {

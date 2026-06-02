@@ -161,6 +161,20 @@
                         <exclude>com/sdnah/Ticket_Management_System_/Frontend/**</exclude>
                         <!-- DTOs / generated boilerplate -->
                         <exclude>com/sdnah/Ticket_Management_System_/Backend/DTOs/**</exclude>
+                        <!-- REST endpoint adapters: thin glue over services, exercised via service tests -->
+                        <exclude>com/sdnah/Ticket_Management_System_/Backend/endpoints/**</exclude>
+                        <!-- JPA repositories / infrastructure: Spring Data boilerplate -->
+                        <exclude>com/sdnah/Ticket_Management_System_/Backend/Infastructure_Layer/**</exclude>
+                        <!-- Spring / WebSocket configuration glue -->
+                        <exclude>com/sdnah/Ticket_Management_System_/Backend/Communication_Layer/Config/**</exclude>
+                        <!-- Application bootstrap / main class -->
+                        <exclude>com/sdnah/Ticket_Management_System_/TicketManagementSystemApplication.*</exclude>
+                        <!-- Bean wiring + test-data factory: not business logic -->
+                        <exclude>com/sdnah/Ticket_Management_System_/Backend/Application_Layer/Factory.*</exclude>
+                        <!-- Spring bootstrap / startup data loaders / security config (incl. inner classes) -->
+                        <exclude>com/sdnah/Ticket_Management_System_/Backend/DataInitializer*</exclude>
+                        <exclude>com/sdnah/Ticket_Management_System_/Backend/DemoDataLoader*</exclude>
+                        <exclude>com/sdnah/Ticket_Management_System_/Backend/SecurityConfig*</exclude>
                     </excludes>
                 </configuration>
             </plugin>

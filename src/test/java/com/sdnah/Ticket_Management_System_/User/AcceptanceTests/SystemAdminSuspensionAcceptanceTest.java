@@ -25,6 +25,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintSe
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.SuspensionDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
@@ -59,7 +60,7 @@ class SystemAdminSuspensionAcceptanceTest {
     @Mock private UserService userService;
     @Mock private ComplaintRepository complaintRepository;
     @Mock private ComplaintService complaintService;
-
+    @Mock private NotificationService notificationService;
     @Spy  private KeyedLock keyedLock = new KeyedLock();
 
     private SystemAdminService service;
@@ -71,7 +72,7 @@ class SystemAdminSuspensionAcceptanceTest {
         service = new SystemAdminService(
                 userRepository, systemAdminRepository, purchaseRepository,
                 waitingQueueRepository, userService, complaintRepository,
-                complaintService, keyedLock);
+                complaintService,notificationService, keyedLock);
 
         admin  = new System_admin(new Member("admin-1", "admin", "hash"), "System");
         target = new Member(TARGET_ID, TARGET_USER, "hash");

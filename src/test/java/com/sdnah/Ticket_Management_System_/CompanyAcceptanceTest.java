@@ -244,7 +244,7 @@ public class CompanyAcceptanceTest {
         EventDto dto = new EventDto(null, "Event", null, show_type.CONFERENCE, "Venue");
         EventDto saved = companyService.addEvent(FOUNDER_TOKEN, companyId, dto);
 
-        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER_ID));
+        Event event = new Event(dto.name, dto.eventType, companyId, FOUNDER_ID);
         try {
             var field = Event.class.getDeclaredField("eventId");
             field.setAccessible(true);

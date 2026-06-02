@@ -12,8 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountContext;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountContext;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
@@ -24,8 +25,16 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 
+/**
+ * Integration tests for the Policy module.
+ * Persists policies through the real PolicyRepository, then re-loads them to
+ * verify JPA mappings + composite rule serialization survive the round-trip.
+ * This is a repository-focused integration test; service-level orchestration
+ * is covered separately in PolicyServiceAcceptanceTest with mocks.
+ */
 @SpringBootTest
 @ActiveProfiles("test")
+@DisplayName("Policy Module — Integration Tests")
 class PolicyServiceIntegrationTest {
 
     private static final UUID COMPANY_ID = UUID.randomUUID();
@@ -41,7 +50,7 @@ class PolicyServiceIntegrationTest {
     }
 
     // =========================================================================
-    // Discount Policy — persisted and queried directly
+    // Discount Policy — persistence round-trip
     // =========================================================================
 
     @Test
@@ -87,13 +96,49 @@ class PolicyServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Given composite discount policy, when loaded, then composite tree is preserved")
+    void givenCompositeDiscountPolicy_WhenLoaded_ThenCompositeTreePreserved() {
+        DiscountPolicy policy = new DiscountPolicy(13, "Best of two", eventId, COMPANY_ID);
+        policy.setRules(List.of(
+                        new PercentageDiscountRule(10.0, "10% off"),
+                        new PercentageDiscountRule(25.0, "25% off")),
+                false); // MAX
+        policyRepository.saveAndFlush(policy);
+
+        DiscountPolicy loaded = policyRepository
+                .findDiscountPolicyByEventId(eventId).orElseThrow();
+
+        // best-of MAX → 25%, so 100 * 0.75 = 75
+        assertEquals(75.0, loaded.computeFinalPrice(100.0,
+                new DiscountContext(1, null)), 0.001);
+    }
+
+    @Test
+    @DisplayName("Given additive composite discount policy, when loaded, then sum is preserved")
+    void givenAdditiveCompositeDiscountPolicy_WhenLoaded_ThenSumPreserved() {
+        DiscountPolicy policy = new DiscountPolicy(14, "Additive", eventId, COMPANY_ID);
+        policy.setRules(List.of(
+                        new PercentageDiscountRule(10.0, "10% off"),
+                        new PercentageDiscountRule(20.0, "20% off")),
+                true); // SUM
+        policyRepository.saveAndFlush(policy);
+
+        DiscountPolicy loaded = policyRepository
+                .findDiscountPolicyByEventId(eventId).orElseThrow();
+
+        // additive SUM → 30%, so 100 * 0.7 = 70
+        assertEquals(70.0, loaded.computeFinalPrice(100.0,
+                new DiscountContext(1, null)), 0.001);
+    }
+
+    @Test
     @DisplayName("Given no discount policy, when queried, then empty returned")
     void givenNoDiscountPolicy_WhenQueried_ThenEmpty() {
         assertTrue(policyRepository.findDiscountPolicyByEventId(eventId).isEmpty());
     }
 
     // =========================================================================
-    // Purchase Policy — persisted and queried directly
+    // Purchase Policy — persistence round-trip
     // =========================================================================
 
     @Test
@@ -168,8 +213,25 @@ class PolicyServiceIntegrationTest {
         assertFalse(loaded.validatePurchase(5, 20, false));
     }
 
+    @Test
+    @DisplayName("Given composite OR policy with mixed rules, when loaded, then OR is preserved")
+     void givenMixedOrComposite_WhenLoaded_ThenOrPreserved() {
+        // OR( MinAge(18), MaxTickets(2) )
+        PurchasePolicy policy = new PurchasePolicy(15, "Mixed OR", eventId, COMPANY_ID);
+        policy.setRules(List.of(new MinAgeRule(18), new MaxTicketsRule(2)),
+                PurchasePolicy.Operator.OR);
+        policyRepository.saveAndFlush(policy);
+
+        PurchasePolicy loaded = policyRepository
+                .findPurchasePolicyByEventId(eventId).orElseThrow();
+
+        assertTrue(loaded.validatePurchase(1, 20, false));
+        assertTrue(loaded.validatePurchase(10, 20, false));
+        assertTrue(loaded.validatePurchase(1, 16, false));
+        assertFalse(loaded.validatePurchase(10, 16, false));
+}
     // =========================================================================
-    // Selling Policy — persisted and queried directly
+    // Selling Policy — persistence round-trip
     // =========================================================================
 
     @Test

@@ -137,7 +137,7 @@ class company_managment_serivceTest {
     @Test
     void GivenFounder_WhenAddEvent_ThenEventAdded() {
         EventDto dto = eventDto("Event10");
-        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER));
+        Event event = new Event(dto.name, dto.eventType, companyId, FOUNDER);
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
@@ -168,7 +168,7 @@ class company_managment_serivceTest {
     @Test
     void GivenDuplicateEvent_WhenAddEvent_ThenFail() {
         EventDto dto = eventDto("Event10");
-        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER));
+        Event event = new Event(dto.name, dto.eventType, companyId, FOUNDER);
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
@@ -181,7 +181,7 @@ class company_managment_serivceTest {
     @Test
     void GivenExistingEvent_WhenRemoveEvent_ThenEventRemoved() {
         EventDto dto = eventDto("Event10");
-        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER));
+        Event event = new Event(dto.name, dto.eventType, companyId, FOUNDER);
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
@@ -208,7 +208,7 @@ class company_managment_serivceTest {
     @Test
     void GivenUnauthorizedUser_WhenRemoveEvent_ThenFail() {
         EventDto dto = eventDto("Event10");
-        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(FOUNDER));
+        Event event = new Event(dto.name, dto.eventType, companyId, FOUNDER);
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 
@@ -249,7 +249,7 @@ class company_managment_serivceTest {
                 EnumSet.of(CompanyPermission.MANAGE_EVENTS));
 
         EventDto dto = eventDto("Event20");
-        Event event = new Event(dto.name, dto.eventType, companyId, Long.valueOf(MANAGER));
+        Event event = new Event(dto.name, dto.eventType, companyId, MANAGER);
 
         when(eventRepository.save(any(Event.class))).thenReturn(event);
 

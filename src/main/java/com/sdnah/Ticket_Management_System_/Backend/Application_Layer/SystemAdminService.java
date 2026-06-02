@@ -11,12 +11,14 @@ import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.OrderMapper;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.SuspensionDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.UserDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Complaint;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.System_admin;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Waiting_Queue.WaitingQueue;
@@ -42,6 +44,8 @@ public class SystemAdminService {
     private final ComplaintRepository complaintRepository;
     private final ComplaintService complaintService;
 
+    private final NotificationService notificationService;
+
     private static final String LOCK_NS = "system-admin:member";
 
     public SystemAdminService(UserRepository userRepository,
@@ -51,6 +55,7 @@ public class SystemAdminService {
             UserService userService,
             ComplaintRepository complaintRepository,
             ComplaintService complaintService,
+            NotificationService notificationService,
             KeyedLock keyedLock) {
         this.userRepository = userRepository;
         this.systemAdminRepository = systemAdminRepository;
@@ -59,6 +64,7 @@ public class SystemAdminService {
         this.userService = userService;
         this.complaintRepository = complaintRepository;
         this.complaintService = complaintService;
+        this.notificationService = notificationService;
         this.keyedLock = keyedLock;
     }
 
@@ -491,8 +497,18 @@ public class SystemAdminService {
     // מענה לתלונה — II.6.3
     @Transactional
     public void resolveComplaint(String token, UUID complaintId, String adminResponse) {
+        logger.info("Resolving complaint with ID {} by admin with token {}", complaintId, token);
         requireAdmin(token);
+        Complaint complaint = complaintRepository.findById(complaintId)
+                .orElseThrow(() -> new IllegalArgumentException("Complaint not found"));
+        UUID user_id = UUID.fromString(complaint.getReporterMemberId());
+        Member user = userRepository.findByMemberId(user_id.toString());
+
+       // String username = user != null ? user.getUsername() : "Unknown User";
+        
+        notificationService.notifyComplaintResolved(user.getMemberId(), complaintId.toString());
         complaintService.resolveComplaint(token, complaintId, adminResponse);
+        logger.info("Complaint with ID {} resolved by admin with token {}", complaintId, token);
     }
 
     public String getMemberIdByUsername(String token, String value) {

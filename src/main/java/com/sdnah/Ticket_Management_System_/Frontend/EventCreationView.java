@@ -49,10 +49,20 @@ import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
-//need to add the area type for the show creartion and add the policy for selling ot discount on events / shows 
+//need to add the area type for the show creartion and add the policy for selling ot discount on events / shows
 @Route("event-create")
-public class EventCreationView extends VerticalLayout {
+public class EventCreationView extends VerticalLayout implements BeforeEnterObserver {
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        Object token = UI.getCurrent().getSession().getAttribute("token");
+        if (token == null) {
+            event.forwardTo(LoginView.class);
+        }
+    }
 
     private final company_managment_serivce companyService;
     private final EventService eventService;
@@ -697,9 +707,8 @@ public class EventCreationView extends VerticalLayout {
             EventDto created = companyService.addEvent(token, companyId, dto);
 
             // Persist shows
-            // memberId was previously derived from int companyId (now UUID);
-            // 0L is a placeholder until Event/show APIs are migrated to UUID/String memberIds.
-            Long memberId = 0L;
+            Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
+            String memberId = userIdObj != null ? userIdObj.toString() : null;
             for (ShowDTO s : shows) {
                 java.util.Date showDate = s.showDate != null
                     ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())

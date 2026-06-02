@@ -123,8 +123,10 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
         Button myDetails = createMainButton("My Details", "profile-details");
         Button myOrders = createMainButton("My Orders", "orders?tab=active");
         Button browseEvents = createSecondaryButton("Browse Events", "main");
+        Button myComplaints = createSecondaryButton("My Complaints", "my-complaints");
+        
 
-        card.add(avatar, title, subtitle, myDetails, myOrders, browseEvents);
+        card.add(avatar, title, subtitle, myDetails, myOrders, myComplaints, browseEvents);
         wrapper.add(card);
 
         return wrapper;

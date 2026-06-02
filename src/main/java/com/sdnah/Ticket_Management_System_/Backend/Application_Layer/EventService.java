@@ -73,7 +73,7 @@ public class EventService {
 
     // ── Creation / Deletion ──────────────────────────────────────────────────
 
-    public Event createEvent(EventDto dto, UUID companyId, Long ownerId) {
+    public Event createEvent(EventDto dto, UUID companyId, String ownerId) {
         Event event = new Event(dto.name, dto.eventType, companyId, ownerId);
         return eventRepository.saveAndFlush(event);
     }
@@ -82,7 +82,7 @@ public class EventService {
      * Permanently deletes an event and everything under it:
      * tickets → shows/areas → event.
      */
-    public void deleteEvent(UUID eventId, Long managerId) {
+    public void deleteEvent(UUID eventId, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -116,7 +116,7 @@ public class EventService {
 
     // ── Shows ────────────────────────────────────────────────────────────────
 
-    public void addShowToEvent(UUID eventId, show newShow, Long managerId) {
+    public void addShowToEvent(UUID eventId, show newShow, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -130,7 +130,7 @@ public class EventService {
         });
     }
 
-    public void removeShowFromEvent(UUID eventId, show showToRemove, Long managerId) {
+    public void removeShowFromEvent(UUID eventId, show showToRemove, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
 
@@ -176,7 +176,7 @@ public class EventService {
                                       String name, String description,
                                       String singer, Date showDate,
                                       BigDecimal seatedPrice, BigDecimal standingPrice,
-                                      Long managerId) {
+                                      String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -214,7 +214,7 @@ public class EventService {
     }
 
     public boolean editShowInEvent(UUID eventId, UUID showId, String name, String description,
-            String singer, Date showDate, Long managerId) {
+            String singer, Date showDate, String managerId) {
         String key = eventId + ":" + showId;
 
         return keyedLock.callLocked(LOCK_NS_EVENT, key, () -> transactionTemplate.execute(status -> {
@@ -227,7 +227,7 @@ public class EventService {
     // ── Areas ────────────────────────────────────────────────────────────────
 
     public boolean addAreaToShow(UUID eventId, UUID showId, String areaName, int capacity,
-            double price, Long managerId) {
+            double price, String managerId) {
         String key = eventId + ":" + showId + ":" + areaName;
 
         return keyedLock.callLocked(LOCK_NS_EVENT, key, () -> transactionTemplate.execute(status -> {
@@ -248,7 +248,7 @@ public class EventService {
 
     // ── Managers / Ownership ─────────────────────────────────────────────────
 
-    public void assignManager(UUID eventId, Long newManagerId, Long currentOwnerId) {
+    public void assignManager(UUID eventId, String newManagerId, String currentOwnerId) {
         String key = eventId + ":" + newManagerId;
 
         keyedLock.runLocked(LOCK_NS_EVENT_MANAGER, key, () -> {
@@ -264,7 +264,7 @@ public class EventService {
         });
     }
 
-    public void removeManager(UUID eventId, Long managerIdToRemove, Long currentOwnerId) {
+    public void removeManager(UUID eventId, String managerIdToRemove, String currentOwnerId) {
         String key = eventId + ":" + managerIdToRemove;
 
         keyedLock.runLocked(LOCK_NS_EVENT_MANAGER, key, () -> {
@@ -280,7 +280,7 @@ public class EventService {
         });
     }
 
-    public void transferOwnership(UUID eventId, Long newOwnerId, Long currentOwnerId) {
+    public void transferOwnership(UUID eventId, String newOwnerId, String currentOwnerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -297,7 +297,7 @@ public class EventService {
 
     // ── Edit Event Fields ────────────────────────────────────────────────────
 
-    public void editEventName(UUID eventId, String newName, Long managerId) {
+    public void editEventName(UUID eventId, String newName, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -309,7 +309,7 @@ public class EventService {
         });
     }
 
-    public void editEventType(UUID eventId, show_type newType, Long managerId) {
+    public void editEventType(UUID eventId, show_type newType, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -321,7 +321,7 @@ public class EventService {
         });
     }
 
-    public void editEventDates(UUID eventId, Date newStartDate, Date newEndDate, Long managerId) {
+    public void editEventDates(UUID eventId, Date newStartDate, Date newEndDate, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -340,7 +340,7 @@ public class EventService {
         });
     }
 
-    public void editEventDescription(UUID eventId, String newDescription, Long managerId) {
+    public void editEventDescription(UUID eventId, String newDescription, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -352,7 +352,7 @@ public class EventService {
         });
     }
 
-    public void editEventVenue(UUID eventId, String newVenue, Long managerId) {
+    public void editEventVenue(UUID eventId, String newVenue, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
                 Event event = eventRepository.findById(eventId)
@@ -382,18 +382,18 @@ public class EventService {
         return eventRepository.findByCompanyId(companyId);
     }
 
-    public List<Event> getEventsByManager(Long managerId) {
+    public List<Event> getEventsByManager(String managerId) {
         logger.info("Retrieving events for manager {}", managerId);
         return eventRepository.findByManagerId(managerId);
     }
 
-    public List<Event> getEventsByOwner(Long ownerId) {
+    public List<Event> getEventsByOwner(String ownerId) {
         logger.info("Retrieving events for owner {}", ownerId);
         return eventRepository.findByOwnerId(ownerId);
     }
 
     @Transactional(readOnly = true)
-    public List<Long> getEventManagerIds(UUID eventId) {
+    public List<String> getEventManagerIds(UUID eventId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 

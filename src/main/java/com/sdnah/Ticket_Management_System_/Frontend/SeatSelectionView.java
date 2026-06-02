@@ -34,10 +34,20 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 
 @Route("seat-select")
-public class SeatSelectionView extends VerticalLayout {
+public class SeatSelectionView extends VerticalLayout implements BeforeEnterObserver {
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        Object token = UI.getCurrent().getSession().getAttribute("token");
+        if (token == null) {
+            event.forwardTo(LoginView.class);
+        }
+    }
 
     // ── Plain data records — no JPA proxy risk in the view layer ─────────────
     record BlockData(long id, String label, List<RowData> rows) {}

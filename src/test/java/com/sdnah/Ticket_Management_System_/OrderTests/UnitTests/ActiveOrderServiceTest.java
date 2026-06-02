@@ -8,6 +8,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,22 +35,32 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTr
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 // import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.PolicyService;
 
 class ActiveOrderServiceTest {
 
-    @Mock private ActiveOrderRepository orderRepo;
-    @Mock private PurchaseRepository purchaseRepo;
-    @Mock private PaymentTransactionRepository txRepo;
-    @Mock private PaymentService paymentService;
-    @Mock private IPaymentGateway paymentGateway;
-    @Mock private ITicketSupplierGateway ticketGateway;
-    @Mock private TicketRepository ticketRepository;
-    @Mock private PolicyRepository policyRepository;
-    @Mock private IrepresnteUserService represnteUserService;
-    @Mock private OrderActionLogRepository actionLogRepo;
-    @Mock private NotificationService notificationService;
+    @Mock
+    private ActiveOrderRepository orderRepo;
+    @Mock
+    private PurchaseRepository purchaseRepo;
+    @Mock
+    private PaymentTransactionRepository txRepo;
+    @Mock
+    private PaymentService paymentService;
+    @Mock
+    private IPaymentGateway paymentGateway;
+    @Mock
+    private ITicketSupplierGateway ticketGateway;
+    @Mock
+    private TicketRepository ticketRepository;
+    @Mock
+    private PolicyRepository policyRepository;
+    @Mock
+    private IrepresnteUserService represnteUserService;
+    @Mock
+    private OrderActionLogRepository actionLogRepo;
+    @Mock
+    private NotificationService notificationService;
     // @Mock private PolicyService policyService;
 
     private ActiveOrderService service;
@@ -57,7 +68,6 @@ class ActiveOrderServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        
 
         service = new ActiveOrderService(
                 orderRepo,
@@ -70,8 +80,7 @@ class ActiveOrderServiceTest {
                 ticketRepository,
                 policyRepository,
                 represnteUserService,
-                actionLogRepo
-        );
+                actionLogRepo);
     }
 
     @Test
@@ -100,24 +109,60 @@ class ActiveOrderServiceTest {
         verify(orderRepo).isTicketLocked(ticketId.toString());
         verify(orderRepo, times(2)).save(any(ActiveOrder.class));
     }
+    // @Disabled("Behavior changed: existing active order now adds tickets to same
+    // order")
+    // @Test
+    // @DisplayName("Given active order already exists, when reserving tickets, then
+    // exception is thrown")
+    // void reserveTickets_shouldThrow_whenActiveOrderExists() {
+    // String userToken = "token-123";
+    // String buyerId = UUID.randomUUID().toString();
+    // UUID eventId = UUID.randomUUID();
 
+    // when(represnteUserService.requireMemberId(userToken)).thenReturn(buyerId);
+    // when(orderRepo.findActiveOrder(buyerId, eventId))
+    // .thenReturn(Optional.of(new ActiveOrder(buyerId, eventId, 10)));
+
+    // IllegalStateException ex = assertThrows(IllegalStateException.class,
+    // () -> service.reserveTickets(userToken, eventId, List.of()));
+
+    // assertEquals("Active order already exists", ex.getMessage());
+    // verify(represnteUserService).requireMemberId(userToken);
+    // verify(orderRepo).findActiveOrder(buyerId, eventId);
+    // }
     @Test
-    @DisplayName("Given active order already exists, when reserving tickets, then exception is thrown")
-    void reserveTickets_shouldThrow_whenActiveOrderExists() {
+    @DisplayName("Given active order already exists, when reserving another ticket, then ticket is added to existing order")
+    void reserveTickets_shouldAddTicketToExistingOrder_whenActiveOrderExists() {
         String userToken = "token-123";
-        String buyerId = "buyer1";
+        String buyerId = UUID.randomUUID().toString();
         UUID eventId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+
+        ActiveOrder existingOrder = new ActiveOrder(buyerId, eventId, 10);
+
+        SeatRequest seat = new SeatRequest(
+                ticketId.toString(),
+                1L,
+                UUID.randomUUID(),
+                new BigDecimal("50"));
 
         when(represnteUserService.requireMemberId(userToken)).thenReturn(buyerId);
-        when(orderRepo.findActiveOrder(buyerId, eventId))
-                .thenReturn(Optional.of(new ActiveOrder(buyerId, eventId, 10)));
+        when(orderRepo.findActiveOrder(buyerId, eventId)).thenReturn(Optional.of(existingOrder));
+        when(orderRepo.isTicketLocked(ticketId.toString())).thenReturn(false);
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.empty());
+        when(policyRepository.findPurchasePolicyByEventId(eventId)).thenReturn(null);
+        when(policyRepository.findDiscountPolicyByEventId(eventId)).thenReturn(null);
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> service.reserveTickets(userToken, eventId, List.of()));
+        OrderDTO result = service.reserveTickets(userToken, eventId, List.of(seat));
 
-        assertEquals("Active order already exists", ex.getMessage());
+        assertEquals(buyerId, result.getbuyerId());
+        assertEquals(eventId, result.getEventId());
+        assertEquals(1, result.getItems().size());
+
         verify(represnteUserService).requireMemberId(userToken);
         verify(orderRepo).findActiveOrder(buyerId, eventId);
+        verify(orderRepo).isTicketLocked(ticketId.toString());
+        verify(orderRepo).save(existingOrder);
     }
 
     @Test
