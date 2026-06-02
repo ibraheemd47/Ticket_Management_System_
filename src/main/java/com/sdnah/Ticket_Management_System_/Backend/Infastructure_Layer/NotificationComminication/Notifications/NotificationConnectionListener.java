@@ -1,4 +1,4 @@
-package com.sdnah.Ticket_Management_System_.Backend.Communication_Layer.Notifications;
+package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationComminication.Notifications;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;

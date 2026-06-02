@@ -7,8 +7,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.sdnah.Ticket_Management_System_.Backend.Communication_Layer.Notifications.NotificationPrincipal;
-import com.sdnah.Ticket_Management_System_.Backend.Communication_Layer.Notifications.NotificationSessionRegistry;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationComminication.Notifications.NotificationPrincipal;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationComminication.Notifications.NotificationSessionRegistry;
 
 /**
  * Pure unit tests for the WebSocket session registry + principal value object.
