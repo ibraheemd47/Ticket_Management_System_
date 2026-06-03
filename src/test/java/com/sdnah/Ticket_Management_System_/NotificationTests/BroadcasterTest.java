@@ -18,8 +18,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.NotificationDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationComminication.Notifications.Broadcaster;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationComminication.Notifications.NotificationSessionRegistry;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationCommunication.Notifications.Broadcaster;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationCommunication.Notifications.NotificationSessionRegistry;
 
 /**
  * Unit tests for the WebSocket push transport layer:

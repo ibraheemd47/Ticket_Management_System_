@@ -1,11 +1,11 @@
-package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationComminication.Config;
+package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationCommunication.Config;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationComminication.Notifications.NotificationHandshakeHandler;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationCommunication.Notifications.NotificationHandshakeHandler;
 
 @Configuration
 @EnableWebSocketMessageBroker

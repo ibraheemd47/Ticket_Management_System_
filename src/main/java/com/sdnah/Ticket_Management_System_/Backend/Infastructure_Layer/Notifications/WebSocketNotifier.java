@@ -2,7 +2,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.Notifica
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.INotifier;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.NotificationDTO;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationComminication.Notifications.Broadcaster;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.NotificationCommunication.Notifications.Broadcaster;
 
 import org.springframework.stereotype.Component;
 
