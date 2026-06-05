@@ -179,7 +179,6 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         BigDecimal[] finalTotalRef = { finalPrice };
         layout.add(
                 buildPaymentCard(orderId),
-                //buildSummaryCard(items, rawTotal, finalTotalRef, eventIdStr, showName, orderId));
                 buildSummaryCard(items, rawTotal, finalTotalRef, eventIdStr, showName, orderId, discount))     ;   // layout.add(
         // buildPaymentCard(ticketIds, userId, finalTotalRef),
         // buildSummaryCard(items, rawTotal, finalTotalRef, eventIdStr, showName));

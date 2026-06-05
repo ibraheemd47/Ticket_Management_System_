@@ -1992,14 +1992,21 @@ public class EventDetailsView extends VerticalLayout {
                 var session = UI.getCurrent().getSession();
                 session.setAttribute("checkoutOrderId", order.getOrderId().toString());
                 // session.setAttribute("checkoutFinalPrice", order.getFinalPrice().toPlainString());
-                // session.setAttribute("checkoutDiscount", order.getDiscount().toPlainString());
-                session.setAttribute("checkoutFinalPrice", null);
-                session.setAttribute("checkoutDiscount", null);
+                //session.setAttribute("checkoutDiscount", order.getDiscount().toPlainString());
+                // session.setAttribute("checkoutFinalPrice", null);
+                //  session.setAttribute("checkoutDiscount", null);
+                session.setAttribute("checkoutFinalPrice",
+                order.getFinalPrice() != null ? order.getFinalPrice().toPlainString() : null);
+
+                session.setAttribute("checkoutDiscount",
+                order.getDiscount() != null ? order.getDiscount().toPlainString() : "0");
+                 
 
                 checker++;
                 session.setAttribute("checkoutTicketIds", ticketIds);
                 checker++;
-                session.setAttribute("checkoutItems", checkoutItems);
+                // session.setAttribute("checkoutItems", checkoutItems);
+                session.setAttribute("checkoutItems", buildCheckoutItemsFromOrder(order));
                 checker++;
                 session.setAttribute("checkoutUserId", cachedUserId.toString());
                 checker++;
@@ -2483,4 +2490,24 @@ public class EventDetailsView extends VerticalLayout {
 
         return new SeatCount(0, 0);
     }
+
+    private List<Map<String, String>> buildCheckoutItemsFromOrder(OrderDTO order) {
+    List<Map<String, String>> items = new ArrayList<>();
+
+    if (order == null || order.getItems() == null) {
+        return items;
+    }
+
+    for (var orderItem : order.getItems()) {
+        Map<String, String> item = new java.util.LinkedHashMap<>();
+
+        item.put("description", "Ticket");
+        item.put("unitPrice", orderItem.getPrice().toPlainString());
+        item.put("quantity", "1");
+
+        items.add(item);
+    }
+
+    return items;
+}
 }
