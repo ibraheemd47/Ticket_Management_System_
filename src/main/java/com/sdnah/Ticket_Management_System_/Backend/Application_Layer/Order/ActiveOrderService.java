@@ -61,9 +61,7 @@ public class ActiveOrderService {
     // snapshot של הדקה הקודמת — זה מה שה-UI מציג
     private final AtomicInteger reservationRateSnapshot = new AtomicInteger(0);
 
-    @Autowired
     private LotteryRepository lotteryRepository;
-    @Autowired
     private IEventRepository eventRepository;
 
     private  PolicyRepository policyRepository;
@@ -78,7 +76,8 @@ public class ActiveOrderService {
             TicketRepository ticketRepository,
             PolicyRepository policyRepository,
             IrepresnteUserService represnteUserService,
-            OrderActionLogRepository actionLogRepo) {
+            OrderActionLogRepository actionLogRepo,LotteryRepository lotteryRepository,
+        IEventRepository eventRepository) {
         if (orderRepo == null)
             throw new IllegalArgumentException("orderRepo required");
         if (purchaseRepo == null)
@@ -116,14 +115,12 @@ public class ActiveOrderService {
         this.actionLogRepo = actionLogRepo;
         this.notificationService = notificationService;
         this.policyRepository = policyRepository;
+         this.orderPolicyDomainService = new OrderPolicyDomainService(
+            policyRepository, lotteryRepository, eventRepository);
 
 
     }
 
-    @PostConstruct
-    private void init() {
-        this.orderPolicyDomainService = new OrderPolicyDomainService(this.policyRepository, lotteryRepository, eventRepository);
-    }
 
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
         logger.info("Starting ticket reservation for userToken {} event {}", userToken, eventId);

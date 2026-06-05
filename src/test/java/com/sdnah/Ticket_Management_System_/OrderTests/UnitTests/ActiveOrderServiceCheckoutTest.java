@@ -34,6 +34,8 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentTra
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
@@ -55,6 +57,8 @@ class ActiveOrderServiceCheckoutTest {
         IrepresnteUserService userService = mock(IrepresnteUserService.class);
         OrderActionLogRepository actionLogRepo = mock(OrderActionLogRepository.class);
         NotificationService notificationService = mock(NotificationService.class);
+        LotteryRepository lotteryRepo = mock(LotteryRepository.class);
+        IEventRepository eventRepo = mock(IEventRepository.class);
 
         ActiveOrderService service = new ActiveOrderService(
                 orderRepo,
@@ -67,7 +71,7 @@ class ActiveOrderServiceCheckoutTest {
                 ticketRepo,
                 policyRepo,
                 userService,
-                actionLogRepo
+                actionLogRepo,lotteryRepo,eventRepo
         );
 
         String userToken = "token-1";
