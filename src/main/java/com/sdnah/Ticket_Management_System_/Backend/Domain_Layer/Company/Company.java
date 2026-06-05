@@ -26,9 +26,11 @@ public class Company {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "company_events", joinColumns = @JoinColumn(name = "company_id"))
-    @Column(name = "event_id", columnDefinition = "BINARY(16)")
+    @Column(name = "event_id", columnDefinition = "uuid")
     private List<UUID> associatedEventIds = new ArrayList<>();
 
+
+    
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "company_purchase_history", joinColumns = @JoinColumn(name = "company_id"))
     @Column(name = "purchase_id")
