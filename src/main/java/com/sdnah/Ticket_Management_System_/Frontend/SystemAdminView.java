@@ -1,13 +1,11 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Waiting_QueueService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;

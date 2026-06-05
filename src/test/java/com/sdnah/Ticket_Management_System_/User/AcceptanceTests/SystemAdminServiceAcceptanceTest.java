@@ -3,7 +3,6 @@ package com.sdnah.Ticket_Management_System_.User.AcceptanceTests;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -77,7 +77,6 @@ class ActiveOrderServiceCheckoutTest {
         String userToken = "token-1";
         String buyerId = UUID.randomUUID().toString();
         UUID eventId = UUID.randomUUID();
-        UUID orderId = UUID.randomUUID();
         UUID ticketId = UUID.randomUUID();
 
         ActiveOrder order = new ActiveOrder(buyerId, eventId, 30);
