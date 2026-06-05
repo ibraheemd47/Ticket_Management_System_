@@ -62,7 +62,7 @@ class PolicyServiceCoverageTest {
     @DisplayName("setPurchaseRulesForCompany loads company policy, applies rules, and saves")
     void setPurchaseRulesForCompany_success() {
         mockOwnerAuth();
-        PurchasePolicy policy = new PurchasePolicy(2, "Company policy", null, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy( "Company policy", null, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);

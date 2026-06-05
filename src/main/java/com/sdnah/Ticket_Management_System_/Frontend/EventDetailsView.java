@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
@@ -21,8 +22,12 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DateRangeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
@@ -30,7 +35,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.CompositePurchaseRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import java.util.Optional;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -98,7 +102,8 @@ public class EventDetailsView extends VerticalLayout {
 
     private final EventService eventService;
     private final TicketService ticketService;
-    private final PolicyRepository policyRepo;
+    //private final PolicyRepository policyRepo;
+    private final PolicyService policyService;
 
     // Areas preloaded during construction (while JPA session may be open)
     private final Map<UUID, List<Area>> showAreasCache = new HashMap<>();
@@ -108,11 +113,11 @@ public class EventDetailsView extends VerticalLayout {
     private Event cachedEvent;
     private List<show> cachedShows = new ArrayList<>();
 
-    public EventDetailsView(EventService eventService, TicketService ticketService, PolicyRepository policyRepo,
+    public EventDetailsView(EventService eventService, TicketService ticketService, PolicyService policyService,
             ActiveOrderService orderService) {
         this.eventService = eventService;
         this.ticketService = ticketService;
-        this.policyRepo = policyRepo;
+        this.policyService = policyService;
         this.orderService = orderService;
 
         setSizeFull();
@@ -881,7 +886,9 @@ public class EventDetailsView extends VerticalLayout {
             listContainer.removeAll();
             List<Policy> policies;
             try {
-                policies = policyRepo.findByEventId(cachedEventId);
+                //policies = policyRepo.findByEventId(cachedEventId);
+                policies = policyService.getPoliciesForEvent(cachedEventId);
+
             } catch (Exception ex) {
                 Span errSpan = new Span("Could not load policies: " + ex.getMessage());
                 errSpan.getStyle().set("color", "#c62828").set("font-size", "13px");
@@ -943,7 +950,9 @@ public class EventDetailsView extends VerticalLayout {
 
         Button removeBtn = new Button("Remove", ev -> {
             try {
-                policyRepo.deleteByPolicyId(p.getPolicyId());
+                //policyRepo.deleteByPolicyId(p.getPolicyId());
+                policyService.removePolicy(p.getPolicyId());
+
                 refresh[0].run();
             } catch (Exception ex) {
                 error("Could not remove: " + ex.getMessage());
@@ -965,11 +974,35 @@ public class EventDetailsView extends VerticalLayout {
         dialog.setHeaderTitle(isEdit ? "Edit Policy" : "Add Policy");
 
         // ── Type selector (locked when editing) ──
+        // ComboBox<String> typeBox = new ComboBox<>("Policy Type");
+        // typeBox.setItems("Selling", "Purchase", "Percentage Discount", "Coupon Discount");
+        // typeBox.setWidthFull();
+        // if (isEdit)
+        //     typeBox.setEnabled(false);
+
+        //new 
         ComboBox<String> typeBox = new ComboBox<>("Policy Type");
-        typeBox.setItems("Selling", "Purchase", "Percentage Discount", "Coupon Discount");
-        typeBox.setWidthFull();
-        if (isEdit)
+        if (isEdit) {
+            //typeBox.setItems("Selling", "Purchase", "Percentage Discount", "Coupon Discount");
+            typeBox.setItems("Selling", "Purchase", "Discount");
             typeBox.setEnabled(false);
+        } else {
+            List<Policy> existingPolicies = policyService.getPoliciesForEvent(cachedEventId);
+            boolean hasSelling  = existingPolicies.stream().anyMatch(p -> p instanceof SellingPolicy);
+            boolean hasPurchase = existingPolicies.stream().anyMatch(p -> p instanceof PurchasePolicy);
+            boolean hasDiscount = existingPolicies.stream().anyMatch(p -> p instanceof DiscountPolicy);
+            List<String> available = new ArrayList<>();
+            if (!hasSelling)  available.add("Selling");
+            if (!hasPurchase) available.add("Purchase");
+            // if (!hasDiscount) available.add("Percentage Discount");
+            // if (!hasDiscount) available.add("Coupon Discount");
+            //new:
+            if (!hasDiscount) available.add("Discount");
+            typeBox.setItems(available);
+        }
+        typeBox.setWidthFull();
+        //end new
+
 
         // ── Selling fields ──
         ComboBox<SellingType> sellingTypeBox = new ComboBox<>("Selling Type");
@@ -994,27 +1027,160 @@ public class EventDetailsView extends VerticalLayout {
         maxTicketsField.setPlaceholder("Leave empty = no limit");
         maxTicketsField.setWidthFull();
 
-        // ── Percentage Discount fields ──
-        NumberField percentageField = new NumberField("Percentage Off (0–100)");
-        percentageField.setMin(0);
-        percentageField.setMax(100);
-        percentageField.setPlaceholder("e.g. 10");
-        percentageField.setWidthFull();
+        com.vaadin.flow.component.radiobutton.RadioButtonGroup<String> purchaseOperatorGroup =
+            new com.vaadin.flow.component.radiobutton.RadioButtonGroup<>();
+        purchaseOperatorGroup.setLabel("Combine rules with:");
+        purchaseOperatorGroup.setItems("AND (all must pass)", "OR (at least one must pass)");
+        purchaseOperatorGroup.setValue("AND (all must pass)");
+        purchaseOperatorGroup.setWidthFull();
 
-        // ── Coupon Discount fields ──
-        TextField couponCodeField = new TextField("Coupon Code");
-        couponCodeField.setPlaceholder("e.g. SUMMER25");
-        couponCodeField.setWidthFull();
+        //old:
+        // // ── Percentage Discount fields ──
+        // NumberField percentageField = new NumberField("Percentage Off (0–100)");
+        // percentageField.setMin(0);
+        // percentageField.setMax(100);
+        // percentageField.setPlaceholder("e.g. 10");
+        // percentageField.setWidthFull();
 
-        NumberField couponPctField = new NumberField("Percentage Off (0–100)");
-        couponPctField.setMin(0);
-        couponPctField.setMax(100);
-        couponPctField.setPlaceholder("e.g. 25");
-        couponPctField.setWidthFull();
+        // // ── Coupon Discount fields ──
+        // TextField couponCodeField = new TextField("Coupon Code");
+        // couponCodeField.setPlaceholder("e.g. SUMMER25");
+        // couponCodeField.setWidthFull();
 
-        DatePicker couponExpiryPicker = new DatePicker("Expiry Date (optional)");
-        couponExpiryPicker.setPlaceholder("Leave empty = never expires");
-        couponExpiryPicker.setWidthFull();
+        // NumberField couponPctField = new NumberField("Percentage Off (0–100)");
+        // couponPctField.setMin(0);
+        // couponPctField.setMax(100);
+        // couponPctField.setPlaceholder("e.g. 25");
+        // couponPctField.setWidthFull();
+
+        // DatePicker couponExpiryPicker = new DatePicker("Expiry Date (optional)");
+        // couponExpiryPicker.setPlaceholder("Leave empty = never expires");
+        // couponExpiryPicker.setWidthFull();
+
+        //new:
+        /////////////////////////////////////////////
+        /// /////////////////////////////////////////////
+        
+        // ── Discount fields ──
+        // AND/OR selector
+        com.vaadin.flow.component.radiobutton.RadioButtonGroup<String> andOrGroup =
+            new com.vaadin.flow.component.radiobutton.RadioButtonGroup<>();
+        andOrGroup.setLabel("Combine rules with:");
+        andOrGroup.setItems("OR (best discount)", "AND (sum discounts)");
+        andOrGroup.setValue("OR (best discount)");
+        andOrGroup.setWidthFull();
+
+        // Dynamic list of rules
+        Div rulesContainer = new Div();
+        rulesContainer.setWidthFull();
+        rulesContainer.getStyle().set("display","flex").set("flex-direction","column").set("gap","8px");
+
+        List<DiscountRule> discountRules = new ArrayList<>();
+
+        // Helper to add a rule row
+        Runnable[] rebuildRuleRows = {null};
+        rebuildRuleRows[0] = () -> {
+            rulesContainer.removeAll();
+            for (int i = 0; i < discountRules.size(); i++) {
+                final int idx = i;
+                DiscountRule rule = discountRules.get(i);
+                Span desc = new Span(rule.describe());
+                Button delBtn = new Button("✕", ev -> {
+                    discountRules.remove(idx);
+                    rebuildRuleRows[0].run();
+                });
+                delBtn.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_ERROR,
+                        com.vaadin.flow.component.button.ButtonVariant.LUMO_TERTIARY,
+                        com.vaadin.flow.component.button.ButtonVariant.LUMO_SMALL);
+                Div ruleRow = new Div(desc, delBtn);
+                ruleRow.getStyle().set("display","flex").set("justify-content","space-between")
+                    .set("align-items","center").set("background","#f0f4ff")
+                    .set("padding","6px 10px").set("border-radius","6px");
+                rulesContainer.add(ruleRow);
+            }
+        };
+
+        // Add rule buttons
+        ComboBox<String> ruleTypeBox = new ComboBox<>("Rule Type");
+        ruleTypeBox.setItems("Percentage", "Coupon", "Quantity (min tickets)", "Date Range");
+        ruleTypeBox.setWidthFull();
+
+        NumberField rulePercentage = new NumberField("Percentage (0-100)");
+        rulePercentage.setMin(0); rulePercentage.setMax(100); rulePercentage.setWidthFull();
+
+        TextField ruleCouponCode = new TextField("Coupon Code");
+        ruleCouponCode.setWidthFull();
+
+        DatePicker ruleCouponExpiry = new DatePicker("Expiry (optional)");
+        ruleCouponExpiry.setWidthFull();
+
+        // Quantity fields
+        IntegerField ruleMinTickets = new IntegerField("Minimum Tickets");
+        ruleMinTickets.setMin(1);
+        ruleMinTickets.setWidthFull();
+
+        // Date Range fields
+        com.vaadin.flow.component.datetimepicker.DateTimePicker ruleFromPicker = 
+            new com.vaadin.flow.component.datetimepicker.DateTimePicker("From (optional)");
+        ruleFromPicker.setWidthFull();
+
+        com.vaadin.flow.component.datetimepicker.DateTimePicker ruleUntilPicker = 
+            new com.vaadin.flow.component.datetimepicker.DateTimePicker("Until (optional)");
+        ruleUntilPicker.setWidthFull();
+
+        Div ruleFields = new Div();
+        ruleFields.setWidthFull();
+        ruleTypeBox.addValueChangeListener(ev -> {
+            ruleFields.removeAll();
+            switch (ev.getValue() != null ? ev.getValue() : "") {
+                case "Percentage" -> 
+                    ruleFields.add(rulePercentage);
+                case "Coupon" -> 
+                    ruleFields.add(ruleCouponCode, rulePercentage, ruleCouponExpiry);
+                case "Quantity (min tickets)" -> 
+                    ruleFields.add(ruleMinTickets, rulePercentage);
+                case "Date Range" -> 
+                    ruleFields.add(rulePercentage, ruleFromPicker, ruleUntilPicker);
+            }
+        });
+
+        Button addRuleBtn = new Button("+ Add Rule", ev -> {
+            String rt = ruleTypeBox.getValue();
+            Double pct = rulePercentage.getValue();
+            if (rt == null) { error("Select rule type"); return; }
+            if (pct == null || pct <= 0) { error("Percentage must be > 0"); return; }
+            if ("Percentage".equals(rt)) {
+                discountRules.add(new PercentageDiscountRule(pct, pct + "% off"));
+            } else if ("Coupon".equals(rt)) {
+                String code = ruleCouponCode.getValue();
+                if (code == null || code.isBlank()) { error("Coupon code required"); return; }
+                java.time.LocalDateTime expiry = ruleCouponExpiry.getValue() != null
+                        ? ruleCouponExpiry.getValue().atTime(23, 59, 59) : null;
+                discountRules.add(new CouponDiscountRule(pct, code.trim().toUpperCase(), expiry));
+            }
+            else if ("Quantity (min tickets)".equals(rt)) 
+            {
+            Integer minTix = ruleMinTickets.getValue();
+            if (minTix == null || minTix <= 0) { error("Min tickets must be > 0"); return; }
+            discountRules.add(new QuantityConditionalDiscountRule(minTix, pct));
+            ruleMinTickets.clear();
+            } else if ("Date Range".equals(rt)) {
+                java.time.LocalDateTime from = ruleFromPicker.getValue() != null
+                        ? ruleFromPicker.getValue() : null;
+                java.time.LocalDateTime until = ruleUntilPicker.getValue() != null
+                        ? ruleUntilPicker.getValue() : null;
+                discountRules.add(new DateRangeDiscountRule(pct, from, until));
+                ruleFromPicker.clear(); ruleUntilPicker.clear();
+            }
+            rebuildRuleRows[0].run();
+            rulePercentage.clear(); ruleCouponCode.clear(); ruleCouponExpiry.clear();
+        });
+        addRuleBtn.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_PRIMARY,
+                com.vaadin.flow.component.button.ButtonVariant.LUMO_SMALL);
+        //end new
+        /////////////////////////////////////////////
+        /////////////////////////////////////////////
+        /// ///////////////////////////////////////////// 
 
         // ── Pre-fill when editing ──
         if (isEdit) {
@@ -1024,21 +1190,32 @@ public class EventDetailsView extends VerticalLayout {
                     sellingTypeBox.setValue(sp.getType());
             } else if (existing instanceof PurchasePolicy pp) {
                 typeBox.setValue("Purchase");
+                purchaseOperatorGroup.setValue(pp.getOperator() == PurchasePolicy.Operator.OR
+                    ? "OR (at least one must pass)" : "AND (all must pass)");
                 extractMinAge(pp).ifPresent(minAgeField::setValue);
                 extractMinTickets(pp).ifPresent(minTicketsField::setValue);
                 extractMaxTickets(pp).ifPresent(maxTicketsField::setValue);
             } else if (existing instanceof DiscountPolicy dp) {
-                if (dp.getRootRule() instanceof CouponDiscountRule cr) {
-                    typeBox.setValue("Coupon Discount");
-                    couponCodeField.setValue(cr.getCouponCode());
-                    couponPctField.setValue(cr.getPercentage());
-                    if (cr.getExpiry() != null)
-                        couponExpiryPicker.setValue(cr.getExpiry().toLocalDate());
-                } else {
-                    typeBox.setValue("Percentage Discount");
-                    if (dp.getRootRule() instanceof PercentageDiscountRule pdr)
-                        percentageField.setValue(pdr.getPercentage());
+                typeBox.setValue("Discount");
+                andOrGroup.setValue(dp.isAdditive() ? "AND (sum discounts)" : "OR (best discount)");
+                // load existing rules into discountRules list
+                if (dp.getRootRule() instanceof CompositeDiscountRule composite) {
+                    discountRules.addAll(composite.getRules());
+                } else if (dp.getRootRule() != null) {
+                    discountRules.add(dp.getRootRule());
                 }
+                rebuildRuleRows[0].run();
+            //     if (dp.getRootRule() instanceof CouponDiscountRule cr) {
+            //         typeBox.setValue("Coupon Discount");
+            //         couponCodeField.setValue(cr.getCouponCode());
+            //         couponPctField.setValue(cr.getPercentage());
+            //         if (cr.getExpiry() != null)
+            //             couponExpiryPicker.setValue(cr.getExpiry().toLocalDate());
+            //     } else {
+            //         typeBox.setValue("Percentage Discount");
+            //         if (dp.getRootRule() instanceof PercentageDiscountRule pdr)
+            //             percentageField.setValue(pdr.getPercentage());
+            //     }
             }
         }
 
@@ -1059,17 +1236,25 @@ public class EventDetailsView extends VerticalLayout {
             } else if ("Purchase".equals(t)) {
                 formArea.add(
                         editSectionLabel("At least one rule required"),
+                        purchaseOperatorGroup,
                         minAgeField, minTicketsField, maxTicketsField);
-            } else if ("Percentage Discount".equals(t)) {
-                formArea.add(percentageField);
-            } else if ("Coupon Discount".equals(t)) {
-                formArea.add(
-                        editSectionLabel("Coupon details"),
-                        couponCodeField, couponPctField, couponExpiryPicker);
+                        } 
+            else if ("Discount".equals(t)) {
+                formArea.add(andOrGroup, rulesContainer,
+                        editSectionLabel("Add a rule:"),
+                        ruleTypeBox, ruleFields, addRuleBtn);
             }
+            // } else if ("Percentage Discount".equals(t)) {
+            //     formArea.add(percentageField);
+            // } else if ("Coupon Discount".equals(t)) {
+            //     formArea.add(
+            //             editSectionLabel("Coupon details"),
+            //             couponCodeField, couponPctField, couponExpiryPicker);
+            // }
         };
         typeBox.addValueChangeListener(e -> updateForm.run());
         updateForm.run();
+
 
         // ── Save handler ──
         Button saveBtn = new Button(isEdit ? "Save Changes" : "Add Policy", e -> {
@@ -1086,15 +1271,14 @@ public class EventDetailsView extends VerticalLayout {
             UUID companyId = UUID.fromString(companyIdObj.toString());
             try {
                 if (isEdit)
-                    policyRepo.deleteByPolicyId(existing.getPolicyId());
+                    policyService.removePolicy(existing.getPolicyId());
 
                 switch (t) {
                     case "Selling" -> {
                         SellingType st = sellingTypeBox.getValue() != null
                                 ? sellingTypeBox.getValue()
                                 : SellingType.REGULAR;
-                        policyRepo.savePolicy(new SellingPolicy(
-                                Math.abs(UUID.randomUUID().hashCode()),
+                        policyService.savePolicy(new SellingPolicy(
                                 st.name() + " selling policy", st, cachedEventId, companyId));
                     }
                     case "Purchase" -> {
@@ -1106,48 +1290,85 @@ public class EventDetailsView extends VerticalLayout {
                             return;
                         }
                         PurchasePolicy pp = new PurchasePolicy(
-                                Math.abs(UUID.randomUUID().hashCode()),
-                                "Purchase restrictions", cachedEventId, companyId);
-                        if (minAge != null && minAge >= 0)
-                            pp.addRule(new MinAgeRule(minAge));
-                        if (minTix != null && minTix > 0)
-                            pp.addRule(new MinTicketsRule(minTix));
-                        if (maxTix != null && maxTix > 0)
-                            pp.addRule(new MaxTicketsRule(maxTix));
-                        policyRepo.savePolicy(pp);
+                                   "Purchase restrictions", cachedEventId, companyId);
+                        // if (minAge != null && minAge >= 0)
+                        //     pp.addRule(new MinAgeRule(minAge));
+                        // if (minTix != null && minTix > 0)
+                        //     pp.addRule(new MinTicketsRule(minTix));
+                        // if (maxTix != null && maxTix > 0)
+                        //     pp.addRule(new MaxTicketsRule(maxTix));
+                        // policyService.savePolicy(pp);
+                        PurchasePolicy.Operator op = "OR (at least one must pass)"
+                                .equals(purchaseOperatorGroup.getValue())
+                                ? PurchasePolicy.Operator.OR
+                                : PurchasePolicy.Operator.AND;
+
+                        List<PurchaseRule> rules = new ArrayList<>();
+                        if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
+                        if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
+                        if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
+                        pp.setRules(rules, op);
+                        policyService.savePolicy(pp);
                     }
-                    case "Percentage Discount" -> {
-                        Double pct = percentageField.getValue();
-                        if (pct == null || pct <= 0) {
-                            error("Percentage must be greater than 0");
+                    case "Discount" -> {
+                        if (discountRules.isEmpty()) {
+                            error("At least one discount rule is required");
                             return;
                         }
-                        DiscountPolicy dp = new DiscountPolicy(
-                                Math.abs(UUID.randomUUID().hashCode()),
-                                pct + "% discount", cachedEventId, companyId);
-                        dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
-                        policyRepo.savePolicy(dp);
+                        // Delete old policy first
+                        policyService.getPoliciesForEvent(cachedEventId).stream()
+                            .filter(p -> p instanceof DiscountPolicy)
+                            .forEach(p -> policyService.removePolicy(p.getPolicyId()));
+                        boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
+                        List<DiscountRule> freshRules = discountRules.stream()
+                        .map(r -> {
+                            if (r instanceof PercentageDiscountRule pr)
+                                return (DiscountRule) new PercentageDiscountRule(pr.getPercentage(), pr.getDescription());
+                            if (r instanceof CouponDiscountRule cr)
+                                return (DiscountRule) new CouponDiscountRule(cr.getPercentage(), cr.getCouponCode(), cr.getExpiry());
+                            if (r instanceof QuantityConditionalDiscountRule qr)
+                                return (DiscountRule) new QuantityConditionalDiscountRule(qr.getMinTickets(), qr.getPercentage());
+                            if (r instanceof DateRangeDiscountRule dr)
+                                return (DiscountRule) new DateRangeDiscountRule(dr.getPercentage(), dr.getFrom(), dr.getUntil());
+                            return r;
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+                    DiscountPolicy dp = new DiscountPolicy("Discount policy", cachedEventId, companyId);
+                    dp.setRules(freshRules, isAdditive);
+                    policyService.savePolicy(dp);
                     }
-                    case "Coupon Discount" -> {
-                        String code = couponCodeField.getValue();
-                        if (code == null || code.isBlank()) {
-                            error("Coupon code is required");
-                            return;
-                        }
-                        Double pct = couponPctField.getValue();
-                        if (pct == null || pct <= 0) {
-                            error("Percentage must be greater than 0");
-                            return;
-                        }
-                        java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
-                                ? couponExpiryPicker.getValue().atTime(23, 59, 59)
-                                : null;
-                        DiscountPolicy dp = new DiscountPolicy(
-                                Math.abs(UUID.randomUUID().hashCode()),
-                                "Coupon: " + code.trim().toUpperCase(), cachedEventId, companyId);
-                        dp.addRule(new CouponDiscountRule(pct, code.trim().toUpperCase(), expiry));
-                        policyRepo.savePolicy(dp);
-                    }
+                    // case "Percentage Discount" -> {
+                    //     Double pct = percentageField.getValue();
+                    //     if (pct == null || pct <= 0) {
+                    //         error("Percentage must be greater than 0");
+                    //         return;
+                    //     }
+                    //     DiscountPolicy dp = new DiscountPolicy(
+                    //             Math.abs(UUID.randomUUID().hashCode()),
+                    //             pct + "% discount", cachedEventId, companyId);
+                    //     dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
+                    //     policyService.savePolicy(dp);
+                    // }
+                    // case "Coupon Discount" -> {
+                    //     String code = couponCodeField.getValue();
+                    //     if (code == null || code.isBlank()) {
+                    //         error("Coupon code is required");
+                    //         return;
+                    //     }
+                    //     Double pct = couponPctField.getValue();
+                    //     if (pct == null || pct <= 0) {
+                    //         error("Percentage must be greater than 0");
+                    //         return;
+                    //     }
+                    //     java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
+                    //             ? couponExpiryPicker.getValue().atTime(23, 59, 59)
+                    //             : null;
+                    //     DiscountPolicy dp = new DiscountPolicy(
+                    //             Math.abs(UUID.randomUUID().hashCode()),
+                    //             "Coupon: " + code.trim().toUpperCase(), cachedEventId, companyId);
+                    //     dp.addRule(new CouponDiscountRule(pct, code.trim().toUpperCase(), expiry));
+                    //     policyService.savePolicy(dp);
+                    // }
                 }
 
                 refresh[0].run();
@@ -1290,6 +1511,7 @@ public class EventDetailsView extends VerticalLayout {
                 .set("justify-content", "space-between")
                 .set("align-items", "center")
                 .set("margin-bottom", "16px");
+
 
         H2 title = new H2("Shows");
         title.getStyle().set("margin", "0").set("font-size", "20px").set("color", "#111");
@@ -1722,11 +1944,26 @@ public class EventDetailsView extends VerticalLayout {
                 String token = tokenObj.toString();
                 checker++;
                 for (CartEntry entry : cart) {
+                    System.out.println("DEBUG cart entry: " + entry.description() + " qty=" + entry.quantity());
                     java.util.Map<String, String> item = new java.util.LinkedHashMap<>();
                     item.put("description", entry.description());
                     item.put("unitPrice", entry.unitPrice().toPlainString());
                     item.put("quantity", String.valueOf(entry.quantity()));
-                    checkoutItems.add(item);
+    
+                    boolean found = false;
+                    for (java.util.Map<String, String> existingItem : checkoutItems) {
+                        if (existingItem.get("description").equals(entry.description()) &&
+                            existingItem.get("unitPrice").equals(entry.unitPrice().toPlainString())) {
+                            int q = Integer.parseInt(existingItem.get("quantity")) + entry.quantity();
+                            existingItem.put("quantity", String.valueOf(q));
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        item.put("quantity", String.valueOf(entry.quantity()));
+                        checkoutItems.add(item);
+                    }
                     if (entry.isSeated()) {
                         ticket t = eventService.reserveSeat(
                                 cachedEventId, s.getShowid(), entry.areaId(), entry.seatId(), cachedUserId);
@@ -1754,6 +1991,8 @@ public class EventDetailsView extends VerticalLayout {
                 checker++;
                 var session = UI.getCurrent().getSession();
                 session.setAttribute("checkoutOrderId", order.getOrderId().toString());
+                session.setAttribute("checkoutFinalPrice", order.getFinalPrice().toPlainString());
+                session.setAttribute("checkoutDiscount", order.getDiscount().toPlainString());
 
                 checker++;
                 session.setAttribute("checkoutTicketIds", ticketIds);

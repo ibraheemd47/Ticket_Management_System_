@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mock;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,6 +30,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.Payme
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
@@ -69,6 +71,11 @@ class ActiveOrderServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
+         // NEW by yara:
+        Member mockBuyer = mock(Member.class);
+        when(mockBuyer.getAge()).thenReturn(25);
+        when(represnteUserService.requireMember(any())).thenReturn(mockBuyer);
+        
         service = new ActiveOrderService(
                 orderRepo,
                 notificationService,

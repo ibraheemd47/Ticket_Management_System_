@@ -598,7 +598,6 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
             SellingType sellingType = sellingTypeBox.getValue() != null
                     ? sellingTypeBox.getValue() : SellingType.REGULAR;
             policyRepo.savePolicy(new SellingPolicy(
-                    Math.abs(UUID.randomUUID().hashCode()),
                     sellingType.name() + " selling policy",
                     sellingType, eventId, companyId));
 
@@ -608,7 +607,6 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
             Integer maxTickets = maxTicketsField.getValue();
             if (minAge != null || minTickets != null || maxTickets != null) {
                 PurchasePolicy pp = new PurchasePolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
                         "Purchase restrictions", eventId, companyId);
                 if (minAge     != null && minAge     >= 0) pp.addRule(new MinAgeRule(minAge));
                 if (minTickets != null && minTickets >  0) pp.addRule(new MinTicketsRule(minTickets));
@@ -620,7 +618,6 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
             Double pct = percentageField.getValue();
             if (pct != null && pct > 0) {
                 DiscountPolicy dp = new DiscountPolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
                         pct + "% discount", eventId, companyId);
                 dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
                 policyRepo.savePolicy(dp);
@@ -639,7 +636,6 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
                 java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
                         ? couponExpiryPicker.getValue().atTime(23, 59, 59) : null;
                 DiscountPolicy dp = new DiscountPolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
                         "Coupon: " + code.trim().toUpperCase(), eventId, companyId);
                 dp.addRule(new CouponDiscountRule(cpct, code.trim().toUpperCase(), expiry));
                 policyRepo.savePolicy(dp);

@@ -1,7 +1,9 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -11,13 +13,18 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DateRangeDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
@@ -28,6 +35,8 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -38,6 +47,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.TextField;
@@ -70,6 +80,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private String token;
     private UUID companyId;
 
+    
     private final Div tabContent = new Div();
     private final Tab eventsTab   = new Tab("Events");
     private final Tab rolesTab    = new Tab("Roles");
@@ -432,6 +443,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     // ── Tab: Policies ────────────────────────────────────────────────────────
 
+
     private void renderPoliciesTab() {
         tabContent.removeAll();
 
@@ -453,125 +465,225 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     // ── Policies → Discount editor ──────────────────────────────────────────
 
     private Component buildDiscountEditor() {
-        Div card = policyCard("Add a discount rule");
+        Div card = policyCard("Company Discount Policy");
 
-        Select<String> type = new Select<>();
-        type.setLabel("Rule type");
-        type.setItems("Percentage", "Conditional (min qty)", "Coupon code");
-        type.setValue("Percentage");
+        Div rulesContainer = new Div();
+        rulesContainer.setWidthFull();
+        rulesContainer.getStyle().set("display","flex").set("flex-direction","column").set("gap","8px");
 
-        NumberField percent = new NumberField("Percentage (0–100)");
-        percent.setValue(10.0);
-        percent.setMin(0); percent.setMax(100); percent.setStep(1);
+        List<DiscountRule> discountRules = new ArrayList<>();
 
-        IntegerField minQty = new IntegerField("Min tickets");
-        minQty.setValue(2);
-        minQty.setMin(1);
-        minQty.setVisible(false);
+        RadioButtonGroup<String> andOrGroup = new RadioButtonGroup<>();
+        andOrGroup.setLabel("Combine rules with:");
+        andOrGroup.setItems("OR (best discount)", "AND (sum discounts)");
+        andOrGroup.setValue("OR (best discount)");
+        andOrGroup.setWidthFull();
 
-        TextField code = new TextField("Coupon code");
-        code.setVisible(false);
+        java.util.List<Policy> existing = policyService.getPoliciesForCompany(companyId);
+        existing.stream()
+            .filter(p -> p instanceof DiscountPolicy)
+            .map(p -> (DiscountPolicy) p)
+            .findFirst()
+            .ifPresent(dp -> {
+                andOrGroup.setValue(dp.isAdditive() ? "AND (sum discounts)" : "OR (best discount)");
+                if (dp.getRootRule() instanceof CompositeDiscountRule composite) {
+                    discountRules.addAll(composite.getRules());
+                } else if (dp.getRootRule() != null) {
+                    discountRules.add(dp.getRootRule());
+                }
+            });
 
-        TextField description = new TextField("Description (optional)");
+        Runnable[] rebuildRuleRows = {null};
+        rebuildRuleRows[0] = () -> {
+            rulesContainer.removeAll();
+            for (int i = 0; i < discountRules.size(); i++) {
+                final int idx = i;
+                Span desc = new Span(discountRules.get(i).describe());
+                Button delBtn = new Button("✕", ev -> {
+                    discountRules.remove(idx);
+                    rebuildRuleRows[0].run();
+                });
+                delBtn.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+                Div row = new Div(desc, delBtn);
+                row.getStyle().set("display","flex").set("justify-content","space-between")
+                .set("align-items","center").set("background","#f0f4ff")
+                .set("padding","6px 10px").set("border-radius","6px");
+                rulesContainer.add(row);
+            }
+        };
+        rebuildRuleRows[0].run();
 
-        type.addValueChangeListener(e -> {
-            minQty.setVisible("Conditional (min qty)".equals(e.getValue()));
-            code.setVisible("Coupon code".equals(e.getValue()));
+        Select<String> ruleTypeBox = new Select<>();
+        ruleTypeBox.setLabel("Rule Type");
+        ruleTypeBox.setItems("Percentage", "Coupon", "Quantity (min tickets)", "Date Range");
+        ruleTypeBox.setWidthFull();
+
+        NumberField rulePercentage = new NumberField("Percentage (0-100)");
+        rulePercentage.setMin(0); rulePercentage.setMax(100); rulePercentage.setWidthFull();
+        TextField ruleCouponCode = new TextField("Coupon Code");
+        ruleCouponCode.setWidthFull();
+        DatePicker ruleCouponExpiry = new DatePicker("Expiry (optional)");
+        ruleCouponExpiry.setWidthFull();
+        IntegerField ruleMinTickets = new IntegerField("Minimum Tickets");
+        ruleMinTickets.setMin(1); ruleMinTickets.setWidthFull();
+        DateTimePicker ruleFromPicker = new DateTimePicker("From (optional)");
+        ruleFromPicker.setWidthFull();
+        DateTimePicker ruleUntilPicker = new DateTimePicker("Until (optional)");
+        ruleUntilPicker.setWidthFull();
+
+        Div ruleFields = new Div();
+        ruleFields.setWidthFull();
+        ruleTypeBox.addValueChangeListener(ev -> {
+            ruleFields.removeAll();
+            switch (ev.getValue() != null ? ev.getValue() : "") {
+                case "Percentage" -> ruleFields.add(rulePercentage);
+                case "Coupon" -> ruleFields.add(ruleCouponCode, rulePercentage, ruleCouponExpiry);
+                case "Quantity (min tickets)" -> ruleFields.add(ruleMinTickets, rulePercentage);
+                case "Date Range" -> ruleFields.add(rulePercentage, ruleFromPicker, ruleUntilPicker);
+            }
         });
 
-        Button add = new Button("Add discount rule", ev -> {
+        Button addRuleBtn = new Button("+ Add Rule", ev -> {
+            String rt = ruleTypeBox.getValue();
+            Double pct = rulePercentage.getValue();
+            if (rt == null) { Notification.show("Select rule type"); return; }
+            if (pct == null || pct <= 0) { Notification.show("Percentage must be > 0"); return; }
+            if ("Percentage".equals(rt)) {
+                discountRules.add(new PercentageDiscountRule(pct, pct + "% off"));
+            } else if ("Coupon".equals(rt)) {
+                String c = ruleCouponCode.getValue();
+                if (c == null || c.isBlank()) { Notification.show("Coupon code required"); return; }
+                java.time.LocalDateTime expiry = ruleCouponExpiry.getValue() != null
+                        ? ruleCouponExpiry.getValue().atTime(23, 59, 59) : null;
+                discountRules.add(new CouponDiscountRule(pct, c.trim().toUpperCase(), expiry));
+            } else if ("Quantity (min tickets)".equals(rt)) {
+                Integer minTix = ruleMinTickets.getValue();
+                if (minTix == null || minTix <= 0) { Notification.show("Min tickets must be > 0"); return; }
+                discountRules.add(new QuantityConditionalDiscountRule(minTix, pct));
+                ruleMinTickets.clear();
+            } else if ("Date Range".equals(rt)) {
+                java.time.LocalDateTime from = ruleFromPicker.getValue();
+                java.time.LocalDateTime until = ruleUntilPicker.getValue();
+                discountRules.add(new DateRangeDiscountRule(pct, from, until));
+                ruleFromPicker.clear(); ruleUntilPicker.clear();
+            }
+            rebuildRuleRows[0].run();
+            rulePercentage.clear(); ruleCouponCode.clear(); ruleCouponExpiry.clear();
+        });
+        addRuleBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+
+        Button saveBtn = new Button("Save Discount Policy", ev -> {
             try {
-                DiscountRule rule = buildDiscountRule(
-                        type.getValue(), percent.getValue(), minQty.getValue(),
-                        code.getValue(), description.getValue());
-                policyService.addDiscountRuleToCompany(token, companyId, rule);
-                Notification.show("Discount rule added", 2500, Notification.Position.TOP_CENTER)
+                if (discountRules.isEmpty()) { Notification.show("Add at least one rule"); return; }
+                boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
+                policyService.setDiscountRulesForCompany(token, companyId, discountRules, isAdditive);
+                Notification.show("Discount policy saved", 2500, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } catch (RuntimeException ex) {
-                Notification.show("Couldn't add: " + ex.getMessage(),
-                                3500, Notification.Position.MIDDLE)
+                Notification.show("Error: " + ex.getMessage(), 3500, Notification.Position.MIDDLE)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
-        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        card.add(type, percent, minQty, code, description, add);
+        //card.add(andOrGroup, rulesContainer, ruleTypeBox, ruleFields, addRuleBtn, saveBtn);
+        Div addRow = new Div(addRuleBtn);
+        addRow.getStyle().set("margin-top", "8px");
+
+        Div saveRow = new Div(saveBtn);
+        saveRow.getStyle().set("margin-top", "16px").set("border-top", "1px solid #e3eaf5").set("padding-top", "16px");
+
+        card.add(andOrGroup, rulesContainer, ruleTypeBox, ruleFields, addRow, saveRow);
         return card;
     }
-
-    private DiscountRule buildDiscountRule(String type, Double percent, Integer minQty,
-                                           String code, String description) {
-        double p = percent == null ? 0.0 : percent;
-        String desc = (description == null || description.isBlank())
-                ? defaultDiscountDescription(type, p) : description;
-        return switch (type) {
-            case "Conditional (min qty)" -> new QuantityConditionalDiscountRule(
-                    minQty == null ? 1 : minQty, p);
-            case "Coupon code"           -> {
-                if (code == null || code.isBlank())
-                    throw new IllegalArgumentException("Coupon code required");
-                yield new CouponDiscountRule(p, code.trim());
-            }
-            default                      -> new PercentageDiscountRule(p, desc);
-        };
-    }
-
-    private String defaultDiscountDescription(String type, double percent) {
-        return "%.0f%% %s".formatted(percent,
-                type == null ? "discount" : type.toLowerCase() + " discount");
-    }
-
-    // ── Policies → Purchase editor ──────────────────────────────────────────
 
     private Component buildPurchaseEditor() {
-        Div card = policyCard("Add a purchase rule");
+        Div card = policyCard("Company Purchase Policy");
 
-        Select<String> type = new Select<>();
-        type.setLabel("Rule type");
-        type.setItems("Minimum age", "Max tickets per order", "Min tickets per order");
-        type.setValue("Minimum age");
+        RadioButtonGroup<String> operatorGroup = new RadioButtonGroup<>();
+        operatorGroup.setLabel("Combine rules with:");
+        operatorGroup.setItems("AND (all must pass)", "OR (at least one must pass)");
+        operatorGroup.setValue("AND (all must pass)");
+        operatorGroup.setWidthFull();
 
-        IntegerField value = new IntegerField("Value");
-        value.setValue(18);
-        value.setMin(1);
+        IntegerField minAgeField = new IntegerField("Minimum Age");
+        minAgeField.setMin(0); minAgeField.setWidthFull();
+        minAgeField.setPlaceholder("Leave empty = no restriction");
 
-        type.addValueChangeListener(e -> {
-            // sane default for each rule type
-            switch (e.getValue()) {
-                case "Minimum age"             -> value.setValue(18);
-                case "Max tickets per order"   -> value.setValue(5);
-                case "Min tickets per order"   -> value.setValue(2);
-                default -> {}
-            }
-        });
+        IntegerField minTicketsField = new IntegerField("Minimum Tickets per Purchase");
+        minTicketsField.setMin(1); minTicketsField.setWidthFull();
+        minTicketsField.setPlaceholder("Leave empty = no minimum");
 
-        Button add = new Button("Add purchase rule", ev -> {
+        IntegerField maxTicketsField = new IntegerField("Maximum Tickets per Purchase");
+        maxTicketsField.setMin(1); maxTicketsField.setWidthFull();
+        maxTicketsField.setPlaceholder("Leave empty = no limit");
+
+        policyService.getPoliciesForCompany(companyId).stream()
+            .filter(p -> p instanceof PurchasePolicy)
+            .map(p -> (PurchasePolicy) p)
+            .findFirst()
+            .ifPresent(pp -> {
+                operatorGroup.setValue(pp.getOperator() == PurchasePolicy.Operator.OR
+                        ? "OR (at least one must pass)" : "AND (all must pass)");
+                extractMinAge(pp).ifPresent(minAgeField::setValue);
+                extractMinTickets(pp).ifPresent(minTicketsField::setValue);
+                extractMaxTickets(pp).ifPresent(maxTicketsField::setValue);
+            });
+
+        Button saveBtn = new Button("Save Purchase Policy", ev -> {
             try {
-                PurchaseRule rule = buildPurchaseRule(type.getValue(), value.getValue());
-                policyService.addPurchaseRuleToCompany(token, companyId, rule);
-                Notification.show("Purchase rule added", 2500, Notification.Position.TOP_CENTER)
+                Integer minAge = minAgeField.getValue();
+                Integer minTix = minTicketsField.getValue();
+                Integer maxTix = maxTicketsField.getValue();
+                if (minAge == null && minTix == null && maxTix == null) {
+                    Notification.show("At least one restriction is required"); return;
+                }
+                PurchasePolicy.Operator op = "OR (at least one must pass)".equals(operatorGroup.getValue())
+                        ? PurchasePolicy.Operator.OR : PurchasePolicy.Operator.AND;
+                java.util.List<PurchaseRule> rules = new ArrayList<>();
+                if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
+                if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
+                if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
+                policyService.setPurchaseRulesForCompany(token, companyId, rules, op);
+                Notification.show("Purchase policy saved", 2500, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } catch (RuntimeException ex) {
-                Notification.show("Couldn't add: " + ex.getMessage(),
-                                3500, Notification.Position.MIDDLE)
+                Notification.show("Error: " + ex.getMessage(), 3500, Notification.Position.MIDDLE)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
-        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        card.add(type, value, add);
+        card.add(operatorGroup, minAgeField, minTicketsField, maxTicketsField, saveBtn);
         return card;
     }
 
-    private PurchaseRule buildPurchaseRule(String type, Integer value) {
-        int v = value == null ? 0 : value;
-        if (v <= 0) throw new IllegalArgumentException("Value must be positive");
-        return switch (type) {
-            case "Max tickets per order" -> new MaxTicketsRule(v);
-            case "Min tickets per order" -> new MinTicketsRule(v);
-            default                      -> new MinAgeRule(v);
-        };
+    private static Optional<Integer> extractMinAge(PurchasePolicy pp) {
+        return extractPurchaseRule(pp.getRootRule(), MinAgeRule.class).map(MinAgeRule::getMinimumAge);
     }
+
+    private static Optional<Integer> extractMinTickets(PurchasePolicy pp) {
+        return extractPurchaseRule(pp.getRootRule(), MinTicketsRule.class).map(MinTicketsRule::getMinTickets);
+    }
+
+    private static Optional<Integer> extractMaxTickets(PurchasePolicy pp) {
+        return extractPurchaseRule(pp.getRootRule(), MaxTicketsRule.class).map(MaxTicketsRule::getMaxTickets);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule> Optional<T> extractPurchaseRule(
+            com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule root, Class<T> type) {
+        if (root == null) return Optional.empty();
+        if (type.isInstance(root)) return Optional.of((T) root);
+        if (root instanceof com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.CompositePurchaseRule c) {
+            for (var r : c.getRules()) {
+                Optional<T> found = extractPurchaseRule(r, type);
+                if (found.isPresent()) return found;
+            }
+        }
+        return Optional.empty();
+    }
+
 
     private Div policyCard(String title) {
         Div card = new Div();

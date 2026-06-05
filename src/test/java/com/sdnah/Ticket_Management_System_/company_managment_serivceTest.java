@@ -12,6 +12,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
@@ -34,6 +35,7 @@ class company_managment_serivceTest {
     private IEventRepository eventRepository;
     private IrepresnteUserService representUserService;
     private NotificationService notificationService;
+    private PolicyRepository policyRepository;
 
     private UUID companyId;
 
@@ -59,13 +61,15 @@ class company_managment_serivceTest {
         eventRepository = mock(IEventRepository.class);
         representUserService = mock(IrepresnteUserService.class);
         notificationService = mock(NotificationService.class);
+        policyRepository = mock(PolicyRepository.class);
 
         service = new company_managment_serivce(
             repo,
             userRepository,
             eventRepository,
             representUserService,
-            notificationService);
+            notificationService,
+            policyRepository);
 
         Company company = new Company("Main Company", FOUNDER);
         companyId = company.getCompanyId();

@@ -32,6 +32,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.No
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Purchase;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Complaint;
@@ -43,6 +47,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrd
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ComplaintRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.SystemAdminRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
@@ -65,6 +70,8 @@ public class DemoDataLoader implements CommandLineRunner {
         private final ComplaintRepository complaintRepository;
         private final PasswordHasher passwordHasher;
         private final NotificationService notificationService;
+        private final PolicyRepository policyRepository;
+        
 
         public DemoDataLoader(UserRepository userRepository,
                         SystemAdminRepository systemAdminRepository,
@@ -75,7 +82,7 @@ public class DemoDataLoader implements CommandLineRunner {
                         ActiveOrderRepository activeOrderRepository,
                         ComplaintRepository complaintRepository,
                         PasswordHasher passwordHasher,
-                        NotificationService notificationService) {
+                        NotificationService notificationService,PolicyRepository policyRepository) {
 
                 this.userRepository = userRepository;
                 this.systemAdminRepository = systemAdminRepository;
@@ -87,6 +94,7 @@ public class DemoDataLoader implements CommandLineRunner {
                 this.complaintRepository = complaintRepository;
                 this.passwordHasher = passwordHasher;
                 this.notificationService = notificationService;
+                this.policyRepository = policyRepository;
         }
 
         @Override
@@ -244,7 +252,17 @@ public class DemoDataLoader implements CommandLineRunner {
                                         Company company = new Company(name, founder.getMemberId());
                                         company.setLogoURL("https://example.com/demo-logo.png");
                                         company.updateRating(4.5);
-                                        return companyRepository.saveAndFlush(company);
+                                        //return companyRepository.saveAndFlush(company);
+                                        Company saved = companyRepository.saveAndFlush(company);
+                                        UUID companyId = saved.getCompanyId();
+                                        policyRepository.saveAndFlush(new SellingPolicy(
+                                                "Default selling policy", SellingType.REGULAR, null, companyId));
+                                        policyRepository.saveAndFlush(new PurchasePolicy(
+                                                "Default purchase policy", null, companyId));
+                                        policyRepository.saveAndFlush(new DiscountPolicy(
+                                                "Default discount policy", null, companyId));
+                                        
+                                        return saved;
                                 });
         }
 

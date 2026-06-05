@@ -16,12 +16,15 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.AuthToken;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 
 import org.springframework.stereotype.Service;
@@ -39,13 +42,14 @@ public class company_managment_serivce {
     private UserRepository userRepository;
     private IEventRepository eventRepository;
     private IrepresnteUserService representUserService;
+    private PolicyRepository policyRepo;
 
     @Autowired
     public company_managment_serivce(CompanyRepository companyRepository,
             UserRepository userRepository,
             IEventRepository eventRepository,
             IrepresnteUserService representUserService,
-            NotificationService notificationService) {
+            NotificationService notificationService,PolicyRepository policyRepo) {
 
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
@@ -53,6 +57,7 @@ public class company_managment_serivce {
         this.eventRepository = eventRepository;
         this.representUserService = representUserService;
         this.notificationService = notificationService;
+        this.policyRepo = policyRepo;
     }
 
     // --- II.2.1: View Active Production Companies ---
@@ -94,7 +99,38 @@ public class company_managment_serivce {
                     Set.of()
             ));
 
+            //policy
+            // Create default company-level policies
+            DiscountPolicy discountPolicy =
+                new DiscountPolicy(
+                    
+                    "Default company discount policy",
+                    null,
+                    savedCompany.getCompanyId()
+                );
+
+            PurchasePolicy purchasePolicy =
+                new PurchasePolicy(
+                    
+                    "Default company purchase policy",
+                    null,
+                    savedCompany.getCompanyId()
+                );
+
+            SellingPolicy sellingPolicy =
+                new SellingPolicy(
+                        
+                        "Default company selling policy",
+                        SellingPolicy.SellingType.REGULAR,
+                        null,
+                        savedCompany.getCompanyId());
+
+            policyRepo.savePolicy(discountPolicy);
+            policyRepo.savePolicy(purchasePolicy);
+            policyRepo.savePolicy(sellingPolicy);
+
             userRepository.save(actor);
+
 
             logger.info("Company opened successfully. companyId={}", savedCompany.getCompanyId());
 

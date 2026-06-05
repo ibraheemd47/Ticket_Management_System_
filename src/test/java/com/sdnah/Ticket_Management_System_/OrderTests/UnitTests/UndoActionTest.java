@@ -28,6 +28,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrde
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderActionLog;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderItem;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
@@ -88,6 +89,11 @@ class UndoActionTest {
 
         when(userService.requireMemberId(USER_TOKEN)).thenReturn(BUYER_ID);
         when(policyRepository.findDiscountPolicyByEventId(any())).thenReturn(null);
+
+        //NEW by yara:
+        Member mockBuyer = mock(Member.class);
+        when(mockBuyer.getAge()).thenReturn(25);
+        when(userService.requireMember(USER_TOKEN)).thenReturn(mockBuyer);
     }
 
     private ActiveOrder orderWithOneItem(String ticketId) {

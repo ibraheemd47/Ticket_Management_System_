@@ -24,9 +24,11 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderActionLog;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderItem;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentDetails;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Ticket_Domain_Service;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
@@ -34,6 +36,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRep
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRepository;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.transaction.Transactional;
 
 @Service
@@ -48,9 +51,9 @@ public class ActiveOrderService {
     private final PaymentService paymentService;
     private final ITicketSupplierGateway ticketGateway;
     private final Ticket_Domain_Service ticketDomainService;
-    private final OrderPolicyDomainService orderPolicyDomainService;
+    private  OrderPolicyDomainService orderPolicyDomainService;
     private final CheckoutDomainService checkoutDomainService;
-    private final OrderActionLogRepository actionLogRepo;
+    private  OrderActionLogRepository actionLogRepo;
     private IrepresnteUserService represnteUserService;
     private final NotificationService notificationService;
     // עולה בכל שריון מוצלח, מתאפס כל דקה
@@ -60,6 +63,10 @@ public class ActiveOrderService {
 
     @Autowired
     private LotteryRepository lotteryRepository;
+    @Autowired
+    private IEventRepository eventRepository;
+
+    private  PolicyRepository policyRepository;
 
     public ActiveOrderService(ActiveOrderRepository orderRepo,
             NotificationService notificationService,
@@ -94,6 +101,8 @@ public class ActiveOrderService {
             throw new IllegalArgumentException("actionLogRepo required");
         if (notificationService == null)
             throw new IllegalArgumentException("notificationService required");
+        if(policyRepository == null)
+            throw new IllegalArgumentException("policyRepository required");
 
         this.orderRepo = orderRepo;
         this.purchaseRepo = purchaseRepo;
@@ -102,16 +111,26 @@ public class ActiveOrderService {
         this.ticketGateway = ticketGateway;
         this.represnteUserService = represnteUserService;
         this.ticketDomainService = new Ticket_Domain_Service(ticketRepository);
-        this.orderPolicyDomainService = new OrderPolicyDomainService(policyRepository, lotteryRepository);
+        // this.orderPolicyDomainService = new OrderPolicyDomainService(policyRepository, lotteryRepository);
         this.checkoutDomainService = new CheckoutDomainService(paymentGateway, ticketGateway, ticketDomainService);
         this.actionLogRepo = actionLogRepo;
         this.notificationService = notificationService;
+        this.policyRepository = policyRepository;
 
+
+    }
+
+    @PostConstruct
+    private void init() {
+        this.orderPolicyDomainService = new OrderPolicyDomainService(this.policyRepository, lotteryRepository, eventRepository);
     }
 
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
         logger.info("Starting ticket reservation for userToken {} event {}", userToken, eventId);
         String buyerId = represnteUserService.requireMemberId(userToken);
+
+        Member buyer = represnteUserService.requireMember(userToken);
+        int buyerAge = buyer.getAge(); // ← קורס כי buyer=null בטסטים
 
         if (seats == null || seats.isEmpty()) {
             throw new IllegalStateException("Order is empty");
@@ -134,9 +153,10 @@ public class ActiveOrderService {
                 ticketDomainService.lockAllTickets(order, List.of(ticketId));
             }
 
+            
             orderPolicyDomainService.validateAndApplyDiscounts(
                     order,
-                    order.getAppliedCouponCode());
+                    order.getAppliedCouponCode(), buyerAge, true);
 
             orderRepo.save(order);
 
@@ -151,7 +171,7 @@ public class ActiveOrderService {
             List<String> reservedTicketIds = order.reserveTickets(seats, buyerId, lockedStatuses);
             orderRepo.save(order);
             ticketDomainService.lockAllTickets(order, reservedTicketIds);
-            orderPolicyDomainService.validateAndApplyDiscounts(order, null);
+            orderPolicyDomainService.validateAndApplyDiscounts(order, null, buyerAge, true);
             orderRepo.save(order);
             reservationsLastMinute.incrementAndGet();// new for Reservation Rate
             logger.info("Reservation completed successfully order {}", order.getId());
@@ -165,13 +185,15 @@ public class ActiveOrderService {
     public OrderDTO addTicketToOrder(UUID orderId, String userToken, SeatRequest seat) {
         logger.info("addTicketToOrder | orderId={} userToken={}", orderId, userToken);
         String buyerId = represnteUserService.requireMemberId(userToken);
+        Member buyer = represnteUserService.requireMember(userToken);
+        int buyerAge = buyer.getAge(); // ← קורס כי buyer=null בטסטים
         ActiveOrder order = findValidOrder(orderId, buyerId);
         try {
             boolean isLocked = orderRepo.isTicketLocked(seat.getTicketId());
             String ticketId = order.addTicketToOrder(seat, buyerId, isLocked);
             orderRepo.save(order);
             ticketDomainService.lockAllTickets(order, List.of(ticketId));
-            orderPolicyDomainService.validateAndApplyDiscounts(order, order.getAppliedCouponCode());
+            orderPolicyDomainService.validateAndApplyDiscounts(order, order.getAppliedCouponCode(), buyerAge, true);
             orderRepo.save(order);
             logger.info("addTicketToOrder SUCCESS orderId={}", orderId);
             return OrderMapper.toDTO(order);
@@ -189,6 +211,11 @@ public class ActiveOrderService {
 
         // Record the action so the user can undo it (re-acquire the same seat).
         actionLogRepo.save(OrderActionLog.forRemovedTicket(order.getId(), removed));
+
+
+        //new:
+        Member buyer = represnteUserService.requireMember(userToken);
+        int buyerAge = buyer.getAge(); // ← קורס כי buyer=null בטסטים
 
         orderPolicyDomainService.applyDiscounts(order, order.getAppliedCouponCode());
         orderRepo.save(order);
@@ -243,7 +270,10 @@ public class ActiveOrderService {
         logger.info("Starting checkout for order {} by user {}", orderId, userToken);
         String buyerId = represnteUserService.requireMemberId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
-        orderPolicyDomainService.validatePurchasePolicy(order);
+
+        Member buyer = represnteUserService.requireMember(userToken);
+        int buyerAge = buyer.getAge(); // ← קורס כי buyer=null בטסטים
+        orderPolicyDomainService.validatePurchasePolicy(order, buyerAge, true);
 
         PaymentDetails details = new PaymentDetails(paymentDTO.getCardToken(), paymentDTO.getBillingName(),
                 paymentDTO.getPaymentMethod());

@@ -18,7 +18,7 @@ class SellingPolicyTest {
     @Test
     void GivenRegularSellingPolicy_WhenGuestSelectsTickets_ThenReturnTrue() {
         SellingPolicy policy = new SellingPolicy(
-                1,
+                
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
                 EVENT_ID,
@@ -31,7 +31,7 @@ class SellingPolicyTest {
     @Test
     void GivenRegularSellingPolicy_WhenMemberSelectsTickets_ThenReturnTrue() {
         SellingPolicy policy = new SellingPolicy(
-                1,
+                
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
                 EVENT_ID,
@@ -44,7 +44,7 @@ class SellingPolicyTest {
     @Test
     void GivenLotterySellingPolicy_WhenGuestSelectsTickets_ThenReturnFalse() {
         SellingPolicy policy = new SellingPolicy(
-                1,
+                
                 "Lottery",
                 SellingPolicy.SellingType.LOTTERY,
                 EVENT_ID,
@@ -57,7 +57,7 @@ class SellingPolicyTest {
     @Test
     void GivenLotterySellingPolicy_WhenMemberSelectsTickets_ThenReturnTrue() {
         SellingPolicy policy = new SellingPolicy(
-                1,
+                
                 "Lottery",
                 SellingPolicy.SellingType.LOTTERY,
                 EVENT_ID,
@@ -70,7 +70,7 @@ class SellingPolicyTest {
     @Test
     void GivenSellingPolicy_WhenSetTypeToLottery_ThenGuestSelectionRejected() {
         SellingPolicy policy = new SellingPolicy(
-                1,
+                
                 "Regular",
                 SellingPolicy.SellingType.REGULAR,
                 EVENT_ID,
