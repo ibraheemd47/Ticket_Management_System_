@@ -165,15 +165,17 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
 
         // BigDecimal rawTotal = computeTotal(items);
         // BigDecimal[] finalTotalRef = { rawTotal }; // mutated by coupon section
-        BigDecimal rawTotal = computeTotal(items);
+        BigDecimal rawTotal = (finalPriceStr != null && discountStr != null)
+                ? new BigDecimal(finalPriceStr).add(new BigDecimal(discountStr))
+                : computeTotal(items);
         System.out.println("DEBUG items=" + items);
         System.out.println("DEBUG rawTotal=" + rawTotal);
         System.out.println("DEBUG finalPriceStr=" + finalPriceStr);
         System.out.println("DEBUG discountStr=" + discountStr);
         BigDecimal finalPrice = (finalPriceStr != null && !finalPriceStr.isBlank())
                 ? new BigDecimal(finalPriceStr) : rawTotal;
-        BigDecimal discount = (discountStr != null && !discountStr.isBlank())
-                ? rawTotal.subtract(finalPrice).max(BigDecimal.ZERO) : BigDecimal.ZERO;
+       BigDecimal discount = (discountStr != null && !discountStr.isBlank())
+        ? new BigDecimal(discountStr) : BigDecimal.ZERO;
         BigDecimal[] finalTotalRef = { finalPrice };
         layout.add(
                 buildPaymentCard(orderId),

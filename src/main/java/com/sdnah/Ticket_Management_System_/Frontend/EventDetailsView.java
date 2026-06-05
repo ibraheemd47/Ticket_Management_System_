@@ -1991,8 +1991,10 @@ public class EventDetailsView extends VerticalLayout {
                 checker++;
                 var session = UI.getCurrent().getSession();
                 session.setAttribute("checkoutOrderId", order.getOrderId().toString());
-                session.setAttribute("checkoutFinalPrice", order.getFinalPrice().toPlainString());
-                session.setAttribute("checkoutDiscount", order.getDiscount().toPlainString());
+                // session.setAttribute("checkoutFinalPrice", order.getFinalPrice().toPlainString());
+                // session.setAttribute("checkoutDiscount", order.getDiscount().toPlainString());
+                session.setAttribute("checkoutFinalPrice", null);
+                session.setAttribute("checkoutDiscount", null);
 
                 checker++;
                 session.setAttribute("checkoutTicketIds", ticketIds);
