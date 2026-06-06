@@ -1,5 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -156,6 +157,15 @@ public class UserService implements IrepresnteUserService {
         } else {
             logger.warn("Password reset failed: member not found for email={}", email);
         }
+    }
+
+    public Member getMemberById(String memberId) {
+        if (memberId == null || memberId.isBlank())
+            throw new IllegalArgumentException("memberId cannot be null or blank");
+        Member m = userRepository.findByMemberId(memberId);
+        if (m == null)
+            throw new NoSuchElementException("Member not found: " + memberId);
+        return m;
     }
 
     public Member getMemberByToken(String tokenValue) {
