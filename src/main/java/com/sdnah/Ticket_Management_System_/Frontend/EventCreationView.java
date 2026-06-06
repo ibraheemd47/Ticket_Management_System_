@@ -1,13 +1,10 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.vaadin.flow.theme.lumo.LumoUtility;
-
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import java.time.ZoneId;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
@@ -21,21 +18,22 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.SeatedArea
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.StandingArea;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -52,6 +50,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 //need to add the area type for the show creartion and add the policy for selling ot discount on events / shows
 @Route("event-create")
 public class EventCreationView extends VerticalLayout implements BeforeEnterObserver {
@@ -88,7 +87,6 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
         this.companyService = companyService;
         this.eventService   = eventService;
         this.policyRepo     = policyRepo;
-        addMockShows();
 
         setSizeFull();
         setPadding(false);
@@ -109,26 +107,7 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
         add(buildHeader(), content);
     }
 
-    // ── Mock data ────────────────────────────────────────────────────────────
-
-    private void addMockShows() {
-        ShowDTO s1 = new ShowDTO(null, "Opening Night", "Fireworks and live music to kick off the festival.", "The Midnight", LocalDate.of(2025, 7, 10));
-        s1.standingCapacity = 500;
-        s1.numBlocks = 4;
-        s1.rowsPerBlock = 10;
-        s1.seatsPerRow = 20;
-        shows.add(s1);
-
-        ShowDTO s2 = new ShowDTO(null, "Headline Act", "Main stage performance.", "Coldplay", LocalDate.of(2025, 7, 11));
-        s2.standingCapacity = 800;
-        shows.add(s2);
-
-        ShowDTO s3 = new ShowDTO(null, "Closing Night", "Grand finale with special guests.", "Dua Lipa", LocalDate.of(2025, 7, 12));
-        s3.numBlocks = 6;
-        s3.rowsPerBlock = 12;
-        s3.seatsPerRow = 15;
-        shows.add(s3);
-    }
+    
 
     // ── Header ───────────────────────────────────────────────────────────────
 
@@ -182,26 +161,33 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
         typeBox.setItems(show_type.values());
         typeBox.setItemLabelGenerator(t -> capitalize(t.name()));
         typeBox.setWidthFull();
+        DateTimePicker startDatePicker = new DateTimePicker("Start Date and Time");
+startDatePicker.setWidthFull();
+startDatePicker.setStep(java.time.Duration.ofMinutes(15));
 
-        DatePicker startDatePicker = new DatePicker("Start Date");
-        startDatePicker.setWidthFull();
-        startDatePicker.setPlaceholder("Choose start date");
-
-        DatePicker endDatePicker = new DatePicker("End Date");
-        endDatePicker.setWidthFull();
-        endDatePicker.setPlaceholder("Choose end date");
-
+DateTimePicker endDatePicker = new DateTimePicker("End Date and Time");
+endDatePicker.setWidthFull();
+endDatePicker.setStep(java.time.Duration.ofMinutes(15));
         startDatePicker.addValueChangeListener(e -> {
-            LocalDate start = e.getValue();
-            if (start != null) {
-                endDatePicker.setMin(start);
-                if (endDatePicker.getValue() != null && endDatePicker.getValue().isBefore(start))
-                    endDatePicker.clear();
-            }
-        });
-        endDatePicker.addValueChangeListener(e -> {
-            if (e.getValue() != null) startDatePicker.setMax(e.getValue());
-        });
+    LocalDateTime start = e.getValue();
+
+    if (start != null) {
+        endDatePicker.setMin(start);
+
+        if (endDatePicker.getValue() != null &&
+                endDatePicker.getValue().isBefore(start)) {
+            endDatePicker.clear();
+        }
+    }
+});
+
+endDatePicker.addValueChangeListener(e -> {
+    LocalDateTime end = e.getValue();
+
+    if (end != null) {
+        startDatePicker.setMax(end);
+    }
+});
 
         Button createBtn = new Button("Create Event");
         createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -654,17 +640,17 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
     // ── Submit ───────────────────────────────────────────────────────────────
 
     private void handleCreate(
-            TextField nameField,
-            TextField venueField,
-            ComboBox<show_type> typeBox,
-            DatePicker startDatePicker,
-            DatePicker endDatePicker) {
+        TextField nameField,
+        TextField venueField,
+        ComboBox<show_type> typeBox,
+        DateTimePicker startDatePicker,
+        DateTimePicker endDatePicker) {
 
         String name     = nameField.getValue();
         String venue    = venueField.getValue();
         show_type type  = typeBox.getValue();
-        LocalDate start = startDatePicker.getValue();
-        LocalDate end   = endDatePicker.getValue();
+        LocalDateTime start = startDatePicker.getValue();
+        LocalDateTime end   = endDatePicker.getValue();
 
         if (name == null || name.isBlank())  { error("Event name is required");          return; }
         if (venue == null || venue.isBlank()) { error("Venue is required");               return; }
@@ -739,9 +725,9 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
     }
 
     private static void error(String msg) {
-        Notification.show(msg, 3000, Notification.Position.MIDDLE)
-                .addThemeVariants(NotificationVariant.LUMO_ERROR);
-    }
+    Notification.show(msg, 3000, Notification.Position.MIDDLE)
+            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+}
 
     private static Div card() {
         Div card = new Div();

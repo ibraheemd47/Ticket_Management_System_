@@ -16,6 +16,7 @@ import java.util.UUID;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
@@ -75,6 +76,7 @@ public class EventDetailsView extends VerticalLayout {
     private final ActiveOrderService orderService;
 
     private static final SimpleDateFormat DATE_FMT = new SimpleDateFormat("MMM d, yyyy");
+    private static final SimpleDateFormat DATETIME_FMT = new SimpleDateFormat("MMM d, yyyy  h:mm a");
     private static final String[] BLOCK_COLORS = {
             "#1565c0", "#283593", "#0277bd", "#00838f", "#2e7d32", "#558b2f", "#6a1b9a"
     };
@@ -104,6 +106,7 @@ public class EventDetailsView extends VerticalLayout {
     private final TicketService ticketService;
     //private final PolicyRepository policyRepo;
     private final PolicyService policyService;
+    private final UserService userService;
 
     // Areas preloaded during construction (while JPA session may be open)
     private final Map<UUID, List<Area>> showAreasCache = new HashMap<>();
@@ -114,10 +117,11 @@ public class EventDetailsView extends VerticalLayout {
     private List<show> cachedShows = new ArrayList<>();
 
     public EventDetailsView(EventService eventService, TicketService ticketService, PolicyService policyService,
-            ActiveOrderService orderService) {
+            ActiveOrderService orderService, UserService userService) {
         this.eventService = eventService;
         this.ticketService = ticketService;
         this.policyService = policyService;
+        this.userService = userService;
         this.orderService = orderService;
 
         setSizeFull();
@@ -126,8 +130,6 @@ public class EventDetailsView extends VerticalLayout {
         getStyle()
                 .set("background", "#f4f4f4")
                 .set("font-family", "Arial, sans-serif");
-
-        add(buildHeader());
 
         Object eventIdObj = UI.getCurrent().getSession().getAttribute("eventId");
         Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
@@ -154,6 +156,7 @@ public class EventDetailsView extends VerticalLayout {
                 ev = eventService.getEventDetails(eventId);
                 shows = eventService.getShowsForEvent(eventId);
             } catch (RuntimeException ex) {
+                add(buildHeader());
                 add(emptyState("Could not load event: " + ex.getMessage()));
                 return;
             }
@@ -174,6 +177,8 @@ public class EventDetailsView extends VerticalLayout {
 
         cachedEvent = ev;
         cachedShows = new ArrayList<>(shows);
+
+        add(buildHeader());
 
         Div content = new Div(buildEventInfoCard(ev), buildShowsCard(shows));
         content.getStyle()
@@ -208,10 +213,10 @@ public class EventDetailsView extends VerticalLayout {
 
         Div nav = new Div();
         nav.getStyle().set("display", "flex").set("gap", "32px").set("align-items", "center");
-        nav.add(
-                clickable("Home", () -> UI.getCurrent().navigate("main")),
-                clickable("← Company", () -> UI.getCurrent().navigate("company")),
-                clickable("👤 My Account", () -> UI.getCurrent().navigate("profile")));
+        nav.add(clickable("Home", () -> UI.getCurrent().navigate("main")));
+        if (isManagerOrOwner())
+            nav.add(clickable("← Company", () -> UI.getCurrent().navigate("company")));
+        nav.add(clickable("👤 My Account", () -> UI.getCurrent().navigate("profile")));
         header.add(logo, nav);
         return header;
     }
@@ -285,12 +290,13 @@ public class EventDetailsView extends VerticalLayout {
     // ── Manager check ────────────────────────────────────────────────────────
 
     private boolean isManagerOrOwner() {
-        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-        if (companyIdObj == null || cachedEvent == null)
-            return false;
+        if (cachedEvent == null) return false;
+        Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+        if (tokenObj == null) return false;
         try {
-            UUID companyId = UUID.fromString(companyIdObj.toString());
-            return companyId.equals(cachedEvent.getCompanyId());
+            UUID companyId = cachedEvent.getCompanyId();
+            var member = userService.getMemberByToken(tokenObj.toString());
+            return member.isOwnerInCompany(companyId) || member.isManagerInCompany(companyId);
         } catch (Exception e) {
             return false;
         }
@@ -460,7 +466,7 @@ public class EventDetailsView extends VerticalLayout {
                 nameSpan.getStyle().set("font-weight", "700").set("font-size", "14px");
                 Span singerSpan = new Span(s.getSinger() != null ? "  •  " + s.getSinger() : "");
                 singerSpan.getStyle().set("color", "#666").set("font-size", "13px");
-                Span dateSpan = new Span(s.getShowDate() != null ? "  •  " + DATE_FMT.format(s.getShowDate()) : "");
+                Span dateSpan = new Span(s.getShowDate() != null ? "  •  " + DATETIME_FMT.format(s.getShowDate()) : "");
                 dateSpan.getStyle().set("color", "#888").set("font-size", "13px");
                 info.add(nameSpan, singerSpan, dateSpan);
 
@@ -500,7 +506,8 @@ public class EventDetailsView extends VerticalLayout {
         TextArea descField = new TextArea("Description");
         descField.setWidthFull();
         descField.setMinHeight("72px");
-        DatePicker datePicker = new DatePicker("Show Date");
+        com.vaadin.flow.component.datetimepicker.DateTimePicker datePicker =
+                new com.vaadin.flow.component.datetimepicker.DateTimePicker("Show Date & Time");
         datePicker.setWidthFull();
 
         // ── Standing area ─────────────────────────────────────────────────────
@@ -542,7 +549,7 @@ public class EventDetailsView extends VerticalLayout {
             descField.setValue(nullSafe(existing.getDescription()));
             if (existing.getShowDate() != null)
                 datePicker.setValue(existing.getShowDate().toInstant()
-                        .atZone(ZoneId.systemDefault()).toLocalDate());
+                        .atZone(ZoneId.systemDefault()).toLocalDateTime());
             if (existing.getStandingPrice() != null)
                 standingPriceField.setValue(existing.getStandingPrice().doubleValue());
             if (existing.getSeatedPrice() != null)
@@ -570,7 +577,7 @@ public class EventDetailsView extends VerticalLayout {
                     : new java.math.BigDecimal("30.00");
 
             Date showDate = datePicker.getValue() != null
-                    ? Date.from(datePicker.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
+                    ? Date.from(datePicker.getValue().atZone(ZoneId.systemDefault()).toInstant())
                     : null;
 
             try {
@@ -1542,8 +1549,8 @@ public class EventDetailsView extends VerticalLayout {
         Grid<show> grid = new Grid<>(show.class, false);
         grid.addColumn(s -> nullSafe(s.getName())).setHeader("Show Name").setFlexGrow(2);
         grid.addColumn(s -> nullSafe(s.getSinger())).setHeader("Singer / Performer").setFlexGrow(2);
-        grid.addColumn(s -> s.getShowDate() != null ? DATE_FMT.format(s.getShowDate()) : "—")
-                .setHeader("Date").setFlexGrow(1);
+        grid.addColumn(s -> s.getShowDate() != null ? DATETIME_FMT.format(s.getShowDate()) : "—")
+                .setHeader("Date & Time").setFlexGrow(1);
         grid.addColumn(s -> {
             if (cachedEventId == null || s.getShowid() == null) {
                 return "—";
@@ -1623,7 +1630,7 @@ public class EventDetailsView extends VerticalLayout {
         body.add(
                 dialogRow("Name", nullSafe(s.getName())),
                 dialogRow("Singer", nullSafe(s.getSinger())),
-                dialogRow("Date", s.getShowDate() != null ? DATE_FMT.format(s.getShowDate()) : "—"),
+                dialogRow("Date & Time", s.getShowDate() != null ? DATETIME_FMT.format(s.getShowDate()) : "—"),
                 dialogRow("Description", nullSafe(s.getDescription())),
                 dialogRow("Show ID", s.getShowid() != null ? s.getShowid().toString() : "—"));
 
@@ -1818,7 +1825,7 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private static String formatDate(Date d) {
-        return d != null ? DATE_FMT.format(d) : "—";
+        return d != null ? DATETIME_FMT.format(d) : "—";
     }
 
     private static Div emptyState(String message) {

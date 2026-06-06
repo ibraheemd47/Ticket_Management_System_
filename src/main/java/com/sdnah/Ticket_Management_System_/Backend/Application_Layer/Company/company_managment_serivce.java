@@ -1,24 +1,34 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import org.springframework.beans.factory.annotation.Autowired;
-
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CompanyAuthorizationDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CompanyAuthorizationDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
@@ -26,10 +36,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRe
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
-
-import org.springframework.stereotype.Service;
-
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
 @Service
 public class company_managment_serivce {
@@ -158,9 +164,9 @@ public class company_managment_serivce {
 
         if (dto.startDate != null || dto.endDate != null) {
             java.util.Date startDate = dto.startDate != null
-                ? java.util.Date.from(dto.startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()) : null;
+                ? java.util.Date.from(dto.startDate.atZone(java.time.ZoneId.systemDefault()).toInstant()) : null;
             java.util.Date endDate = dto.endDate != null
-                ? java.util.Date.from(dto.endDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()) : null;
+                ? java.util.Date.from(dto.endDate.atZone(java.time.ZoneId.systemDefault()).toInstant()) : null;
             event.editDates(startDate, endDate, ownerId);
         }
 
@@ -169,10 +175,10 @@ public class company_managment_serivce {
         company.addEventId(actor.getMemberId(), savedEvent.getEventId());
         companyRepository.save(company);
 
-        java.time.LocalDate retStart = savedEvent.getStartDate() == null ? null :
-            savedEvent.getStartDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-        java.time.LocalDate retEnd = savedEvent.getEndDate() == null ? null :
-            savedEvent.getEndDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        java.time.LocalDateTime retStart = savedEvent.getStartDate() == null ? null :
+            savedEvent.getStartDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+        java.time.LocalDateTime retEnd = savedEvent.getEndDate() == null ? null :
+            savedEvent.getEndDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
 
         return new EventDto(
                 savedEvent.getEventId(),
@@ -590,7 +596,6 @@ public class company_managment_serivce {
         companyRepository.deleteById(companyId);
     }
 
-
     //search company using key word
     public List<CompanyDTO> searchCompaniesByKeyword(String keyword) {
         if (keyword == null || keyword.isBlank()) {
@@ -763,10 +768,10 @@ public class company_managment_serivce {
                 .filter(Objects::nonNull);
     }
     private EventDto toEventDto(Event e) {
-        java.time.LocalDate start = e.getStartDate() == null ? null
-                : e.getStartDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-        java.time.LocalDate end = e.getEndDate() == null ? null
-                : e.getEndDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        java.time.LocalDateTime start = e.getStartDate() == null ? null
+                : e.getStartDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+        java.time.LocalDateTime end = e.getEndDate() == null ? null
+                : e.getEndDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
         return new EventDto(e.getEventId(), e.getName(), start, end,
                 e.getEventType(), e.getVenue(), null);
     }
