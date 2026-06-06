@@ -14,10 +14,14 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.LotteryStatus;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
@@ -107,6 +111,7 @@ public class EventDetailsView extends VerticalLayout {
     //private final PolicyRepository policyRepo;
     private final PolicyService policyService;
     private final UserService userService;
+    private final LotteryService lotteryService;
 
     // Areas preloaded during construction (while JPA session may be open)
     private final Map<UUID, List<Area>> showAreasCache = new HashMap<>();
@@ -117,11 +122,12 @@ public class EventDetailsView extends VerticalLayout {
     private List<show> cachedShows = new ArrayList<>();
 
     public EventDetailsView(EventService eventService, TicketService ticketService, PolicyService policyService,
-            ActiveOrderService orderService, UserService userService) {
+            ActiveOrderService orderService, UserService userService, LotteryService lotteryService) {
         this.eventService = eventService;
         this.ticketService = ticketService;
         this.policyService = policyService;
         this.userService = userService;
+        this.lotteryService = lotteryService;
         this.orderService = orderService;
 
         setSizeFull();
@@ -181,6 +187,8 @@ public class EventDetailsView extends VerticalLayout {
         add(buildHeader());
 
         Div content = new Div(buildEventInfoCard(ev), buildShowsCard(shows));
+        if (isManagerOrOwner())
+            content.add(buildLotteryCard());
         content.getStyle()
                 .set("max-width", "860px")
                 .set("margin", "40px auto")
@@ -1707,6 +1715,156 @@ public class EventDetailsView extends VerticalLayout {
         if (area instanceof SeatedArea)
             return -1; // blocks×rows×seats not available without deep fetch
         return -1;
+    }
+
+    // ── Lottery management card (manager/owner only) ─────────────────────────
+
+    private Div buildLotteryCard() {
+        Div card = card();
+
+        H2 title = new H2("Lottery");
+        title.getStyle().set("margin", "0 0 16px 0").set("font-size", "20px").set("color", "#111");
+        card.add(title);
+
+        if (cachedEventId == null) {
+            card.add(new Paragraph("Save the event first before creating a lottery."));
+            return card;
+        }
+
+        Div body = new Div();
+        body.setWidthFull();
+        Runnable[] refresh = { null };
+        refresh[0] = () -> {
+            body.removeAll();
+            try {
+                java.util.List<LotteryDTO> lotteries = lotteryService.getLotteriesByEvent(cachedEventId);
+                if (lotteries.isEmpty()) {
+                    body.add(buildCreateLotteryForm(refresh));
+                } else {
+                    for (LotteryDTO dto : lotteries)
+                        body.add(buildLotteryRow(dto, refresh));
+                }
+            } catch (Exception ex) {
+                body.add(new Paragraph("Could not load lottery: " + ex.getMessage()));
+                body.add(buildCreateLotteryForm(refresh));
+            }
+        };
+        refresh[0].run();
+        card.add(body);
+        return card;
+    }
+
+    private Div buildCreateLotteryForm(Runnable[] refresh) {
+        Div form = new Div();
+        form.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "12px");
+
+        Paragraph hint = new Paragraph("No lottery exists for this event. Create one below.");
+        hint.getStyle().set("color", "#666").set("margin", "0");
+
+        com.vaadin.flow.component.datetimepicker.DateTimePicker deadlinePicker =
+                new com.vaadin.flow.component.datetimepicker.DateTimePicker("Registration Deadline");
+        deadlinePicker.setWidthFull();
+
+        com.vaadin.flow.component.datetimepicker.DateTimePicker drawTimePicker =
+                new com.vaadin.flow.component.datetimepicker.DateTimePicker("Draw Time");
+        drawTimePicker.setWidthFull();
+
+        Button createBtn = new Button("Create Lottery", e -> {
+            if (deadlinePicker.getValue() == null || drawTimePicker.getValue() == null) {
+                error("Both registration deadline and draw time are required");
+                return;
+            }
+            Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+            if (tokenObj == null) { error("Session expired"); return; }
+            try {
+                lotteryService.createLottery(
+                        tokenObj.toString(),
+                        cachedEventId,
+                        cachedEvent.getCompanyId(),
+                        deadlinePicker.getValue(),
+                        drawTimePicker.getValue());
+                Notification.show("Lottery created!", 2500, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                refresh[0].run();
+            } catch (Exception ex) {
+                error(ex.getMessage());
+            }
+        });
+        createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createBtn.getStyle().set("background", "#026cdf").set("color", "white").set("font-weight", "700");
+
+        form.add(hint, deadlinePicker, drawTimePicker, createBtn);
+        return form;
+    }
+
+    private Div buildLotteryRow(LotteryDTO dto, Runnable[] refresh) {
+        Div row = new Div();
+        row.setWidthFull();
+        row.getStyle()
+                .set("background", "#f8faff").set("border", "1px solid #d0e4ff")
+                .set("border-radius", "12px").set("padding", "20px 24px")
+                .set("display", "flex").set("flex-direction", "column").set("gap", "12px");
+
+        // Status badge
+        String statusColor = dto.getStatus() == LotteryStatus.OPEN ? "#e8f5e9" :
+                             dto.getStatus() == LotteryStatus.DRAWN ? "#fff3e0" : "#fce4ec";
+        String statusText  = dto.getStatus() == LotteryStatus.OPEN ? "#2e7d32" :
+                             dto.getStatus() == LotteryStatus.DRAWN ? "#e65100" : "#c62828";
+        Span statusBadge = badge(dto.getStatus().name(), statusColor, statusText);
+
+        Div infoGrid = new Div();
+        infoGrid.getStyle().set("display", "grid").set("grid-template-columns", "1fr 1fr")
+                .set("gap", "8px 32px");
+        infoGrid.add(
+                infoRow("Lottery ID", dto.getId().toString().substring(0, 8) + "…"),
+                infoRow("Participants", String.valueOf(dto.getEntryCount())),
+                infoRow("Registration Deadline", dto.getRegistrationDeadline() != null
+                        ? dto.getRegistrationDeadline().toString().replace("T", "  ") : "—"),
+                infoRow("Draw Time", dto.getDrawTime() != null
+                        ? dto.getDrawTime().toString().replace("T", "  ") : "—"));
+
+        Div topRow = new Div(statusBadge);
+        topRow.getStyle().set("display", "flex").set("align-items", "center").set("gap", "12px");
+
+        row.add(topRow, infoGrid);
+
+        // Draw button — only when OPEN
+        if (dto.getStatus() == LotteryStatus.OPEN) {
+            com.vaadin.flow.component.textfield.IntegerField winnersField =
+                    new com.vaadin.flow.component.textfield.IntegerField("Number of Winners");
+            winnersField.setMin(1);
+            winnersField.setValue(1);
+            winnersField.setStepButtonsVisible(true);
+            winnersField.setWidth("180px");
+
+            Button drawBtn = new Button("Draw Lottery", e -> {
+                int count = winnersField.getValue() != null ? winnersField.getValue() : 1;
+                Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+                if (tokenObj == null) { error("Session expired"); return; }
+                try {
+                    java.util.List<LotteryEntryDTO> winners =
+                            lotteryService.drawLottery(tokenObj.toString(), dto.getId(), count);
+                    String winnerIds = winners.stream()
+                            .map(w -> w.getMemberId() + (w.getAccessCode() != null
+                                    ? " (code: " + w.getAccessCode() + ")" : ""))
+                            .collect(java.util.stream.Collectors.joining(", "));
+                    Notification.show("Draw complete! Winners: " + winnerIds,
+                            6000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    refresh[0].run();
+                } catch (Exception ex) {
+                    error(ex.getMessage());
+                }
+            });
+            drawBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            drawBtn.getStyle().set("font-weight", "700");
+
+            Div drawRow = new Div(winnersField, drawBtn);
+            drawRow.getStyle().set("display", "flex").set("align-items", "flex-end").set("gap", "12px");
+            row.add(drawRow);
+        }
+
+        return row;
     }
 
     private static int areaAvailable(Area area) {

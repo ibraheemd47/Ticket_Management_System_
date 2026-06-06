@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ShowDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
@@ -51,7 +52,7 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-//need to add the area type for the show creartion and add the policy for selling ot discount on events / shows
+
 @Route("event-create")
 public class EventCreationView extends VerticalLayout implements BeforeEnterObserver {
 
@@ -66,27 +67,41 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
     private final company_managment_serivce companyService;
     private final EventService eventService;
     private final PolicyRepository policyRepo;
+    private final LotteryService lotteryService;
 
     private final List<ShowDTO> shows = new ArrayList<>();
     private Div showsContainer;
 
-    // Policy UI fields — selling
+    // Event fields
+    private TextField nameField;
+    private TextField venueField;
+    private ComboBox<show_type> typeBox;
+    private DateTimePicker startDatePicker;
+    private DateTimePicker endDatePicker;
+
+    // Policy fields — selling
     private ComboBox<SellingType> sellingTypeBox;
+    // — lottery (shown only when LOTTERY selling type is selected)
+    private DateTimePicker lotteryDeadlinePicker;
+    private DateTimePicker lotteryDrawTimePicker;
+    private Div lotteryFieldsDiv;
     // — purchase
     private IntegerField minAgeField;
     private IntegerField minTicketsField;
     private IntegerField maxTicketsField;
     // — percentage discount
-    private NumberField  percentageField;
+    private NumberField percentageField;
     // — coupon discount
-    private TextField    couponCodeField;
-    private NumberField  couponPctField;
-    private DatePicker   couponExpiryPicker;
+    private TextField couponCodeField;
+    private NumberField couponPctField;
+    private DatePicker couponExpiryPicker;
 
-    public EventCreationView(company_managment_serivce companyService, EventService eventService, PolicyRepository policyRepo) {
+    public EventCreationView(company_managment_serivce companyService, EventService eventService,
+            PolicyRepository policyRepo, LotteryService lotteryService) {
         this.companyService = companyService;
         this.eventService   = eventService;
         this.policyRepo     = policyRepo;
+        this.lotteryService = lotteryService;
 
         setSizeFull();
         setPadding(false);
@@ -104,10 +119,26 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
                 .set("flex-direction", "column")
                 .set("gap", "24px");
 
-        add(buildHeader(), content);
-    }
+        // ── Single action button at the bottom ──────────────────────────────
+        Button createBtn = new Button("Create Event");
+        createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createBtn.getStyle()
+                .set("background", "#026cdf").set("color", "white")
+                .set("font-weight", "700").set("padding", "10px 36px")
+                .set("font-size", "16px");
+        createBtn.addClickListener(e -> handleCreate());
 
-    
+        Button cancelBtn = new Button("Cancel", e -> UI.getCurrent().navigate("company"));
+        cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        HorizontalLayout actions = new HorizontalLayout(createBtn, cancelBtn);
+        actions.getStyle()
+                .set("max-width", "760px")
+                .set("margin", "0 auto 48px auto")
+                .set("width", "100%");
+
+        add(buildHeader(), content, actions);
+    }
 
     // ── Header ───────────────────────────────────────────────────────────────
 
@@ -149,59 +180,40 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
                 .set("font-size", "26px")
                 .set("color", "#111");
 
-        TextField nameField = new TextField("Event Name");
+        nameField = new TextField("Event Name");
         nameField.setPlaceholder("e.g. Summer Concert 2025");
         nameField.setWidthFull();
 
-        TextField venueField = new TextField("Venue / Location");
+        venueField = new TextField("Venue / Location");
         venueField.setPlaceholder("e.g. BGU Auditorium, Tel Aviv Hall");
         venueField.setWidthFull();
 
-        ComboBox<show_type> typeBox = new ComboBox<>("Event Type");
+        typeBox = new ComboBox<>("Event Type");
         typeBox.setItems(show_type.values());
         typeBox.setItemLabelGenerator(t -> capitalize(t.name()));
         typeBox.setWidthFull();
-        DateTimePicker startDatePicker = new DateTimePicker("Start Date and Time");
-startDatePicker.setWidthFull();
-startDatePicker.setStep(java.time.Duration.ofMinutes(15));
 
-DateTimePicker endDatePicker = new DateTimePicker("End Date and Time");
-endDatePicker.setWidthFull();
-endDatePicker.setStep(java.time.Duration.ofMinutes(15));
+        startDatePicker = new DateTimePicker("Start Date and Time");
+        startDatePicker.setWidthFull();
+        startDatePicker.setStep(java.time.Duration.ofMinutes(15));
+
+        endDatePicker = new DateTimePicker("End Date and Time");
+        endDatePicker.setWidthFull();
+        endDatePicker.setStep(java.time.Duration.ofMinutes(15));
+
         startDatePicker.addValueChangeListener(e -> {
-    LocalDateTime start = e.getValue();
+            LocalDateTime start = e.getValue();
+            if (start != null) {
+                endDatePicker.setMin(start);
+                if (endDatePicker.getValue() != null && endDatePicker.getValue().isBefore(start))
+                    endDatePicker.clear();
+            }
+        });
+        endDatePicker.addValueChangeListener(e -> {
+            if (e.getValue() != null) startDatePicker.setMax(e.getValue());
+        });
 
-    if (start != null) {
-        endDatePicker.setMin(start);
-
-        if (endDatePicker.getValue() != null &&
-                endDatePicker.getValue().isBefore(start)) {
-            endDatePicker.clear();
-        }
-    }
-});
-
-endDatePicker.addValueChangeListener(e -> {
-    LocalDateTime end = e.getValue();
-
-    if (end != null) {
-        startDatePicker.setMax(end);
-    }
-});
-
-        Button createBtn = new Button("Create Event");
-        createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        createBtn.getStyle().set("background", "#026cdf").set("color", "white")
-                .set("font-weight", "700").set("padding", "10px 28px");
-
-        Button cancelBtn = new Button("Cancel", e -> UI.getCurrent().navigate("company"));
-        cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-
-        createBtn.addClickListener(e ->
-                handleCreate(nameField, venueField, typeBox, startDatePicker, endDatePicker));
-
-        card.add(title, nameField, venueField, typeBox, startDatePicker, endDatePicker,
-                new HorizontalLayout(createBtn, cancelBtn));
+        card.add(title, nameField, venueField, typeBox, startDatePicker, endDatePicker);
         return card;
     }
 
@@ -340,7 +352,6 @@ endDatePicker.addValueChangeListener(e -> {
         dialog.setWidth("680px");
         dialog.setHeaderTitle(isEdit ? "Edit Show" : "Add Show");
 
-        // ── Basic info ──
         TextField nameField   = new TextField("Show Name");
         nameField.setWidthFull();
         TextField singerField = new TextField("Singer / Performer");
@@ -351,7 +362,6 @@ endDatePicker.addValueChangeListener(e -> {
         DatePicker datePicker = new DatePicker("Show Date");
         datePicker.setWidthFull();
 
-        // ── Standing area ──
         TextField standingCapField = new TextField("Standing Area — Capacity");
         standingCapField.setPlaceholder("0 = no standing area");
         standingCapField.setWidthFull();
@@ -361,16 +371,15 @@ endDatePicker.addValueChangeListener(e -> {
         standingPriceField.setPlaceholder("e.g. 30");
         standingPriceField.setWidthFull();
 
-        // ── Seated area ──
-        TextField blocksField   = new TextField("Number of Blocks");
+        TextField blocksField = new TextField("Number of Blocks");
         blocksField.setPlaceholder("e.g. 5");
         blocksField.setWidthFull();
 
-        TextField rowsField     = new TextField("Rows per Block");
+        TextField rowsField = new TextField("Rows per Block");
         rowsField.setPlaceholder("e.g. 10");
         rowsField.setWidthFull();
 
-        TextField seatsField    = new TextField("Seats per Row");
+        TextField seatsField = new TextField("Seats per Row");
         seatsField.setPlaceholder("e.g. 20");
         seatsField.setWidthFull();
 
@@ -400,12 +409,11 @@ endDatePicker.addValueChangeListener(e -> {
                 return;
             }
 
-            int standingCap = parseIntOrZero(standingCapField.getValue());
-            int numBlocks   = parseIntOrZero(blocksField.getValue());
+            int standingCap  = parseIntOrZero(standingCapField.getValue());
+            int numBlocks    = parseIntOrZero(blocksField.getValue());
             int rowsPerBlock = parseIntOrZero(rowsField.getValue());
             int seatsPerRow  = parseIntOrZero(seatsField.getValue());
 
-            // Validate seated config: all-or-nothing
             boolean hasSeated = numBlocks > 0 || rowsPerBlock > 0 || seatsPerRow > 0;
             if (hasSeated && (numBlocks <= 0 || rowsPerBlock <= 0 || seatsPerRow <= 0)) {
                 Notification.show("Seated area requires blocks, rows, and seats all > 0",
@@ -414,22 +422,22 @@ endDatePicker.addValueChangeListener(e -> {
                 return;
             }
 
-            java.math.BigDecimal sPriceSeated   = seatedPriceField.getValue()   != null
-                    ? java.math.BigDecimal.valueOf(seatedPriceField.getValue())   : new java.math.BigDecimal("50.00");
+            java.math.BigDecimal sPriceSeated   = seatedPriceField.getValue() != null
+                    ? java.math.BigDecimal.valueOf(seatedPriceField.getValue()) : new java.math.BigDecimal("50.00");
             java.math.BigDecimal sPriceStanding = standingPriceField.getValue() != null
                     ? java.math.BigDecimal.valueOf(standingPriceField.getValue()) : new java.math.BigDecimal("30.00");
 
             if (isEdit) {
-                existing.name            = name.trim();
-                existing.singer          = singerField.getValue().trim();
-                existing.description     = descField.getValue().trim();
-                existing.showDate        = datePicker.getValue();
+                existing.name             = name.trim();
+                existing.singer           = singerField.getValue().trim();
+                existing.description      = descField.getValue().trim();
+                existing.showDate         = datePicker.getValue();
                 existing.standingCapacity = standingCap;
-                existing.numBlocks       = numBlocks;
-                existing.rowsPerBlock    = rowsPerBlock;
-                existing.seatsPerRow     = seatsPerRow;
-                existing.seatedPrice     = sPriceSeated;
-                existing.standingPrice   = sPriceStanding;
+                existing.numBlocks        = numBlocks;
+                existing.rowsPerBlock     = rowsPerBlock;
+                existing.seatsPerRow      = seatsPerRow;
+                existing.seatedPrice      = sPriceSeated;
+                existing.standingPrice    = sPriceStanding;
             } else {
                 ShowDTO dto = new ShowDTO(null, name.trim(),
                         descField.getValue().trim(), singerField.getValue().trim(),
@@ -493,14 +501,40 @@ endDatePicker.addValueChangeListener(e -> {
         H2 title = new H2("Policies");
         title.getStyle().set("margin", "0 0 16px 0").set("font-size", "20px").set("color", "#111");
 
-        // ── Selling Policy (required) ──
         sellingTypeBox = new ComboBox<>("Selling Type");
         sellingTypeBox.setItems(SellingType.values());
         sellingTypeBox.setItemLabelGenerator(t -> capitalize(t.name()));
         sellingTypeBox.setValue(SellingType.REGULAR);
         sellingTypeBox.setWidthFull();
 
-        // ── Purchase Policy (optional) ──
+        // ── Lottery fields (visible only when LOTTERY is selected) ──
+        lotteryDeadlinePicker = new DateTimePicker("Registration Deadline");
+        lotteryDeadlinePicker.setWidthFull();
+        lotteryDeadlinePicker.setHelperText("Last date/time users can register for the lottery");
+
+        lotteryDrawTimePicker = new DateTimePicker("Draw Time");
+        lotteryDrawTimePicker.setWidthFull();
+        lotteryDrawTimePicker.setHelperText("When the lottery winners will be drawn (must be after deadline)");
+
+        lotteryDeadlinePicker.addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                lotteryDrawTimePicker.setMin(e.getValue().plusMinutes(1));
+                if (lotteryDrawTimePicker.getValue() != null &&
+                        !lotteryDrawTimePicker.getValue().isAfter(e.getValue()))
+                    lotteryDrawTimePicker.clear();
+            }
+        });
+
+        lotteryFieldsDiv = new Div(
+                sectionLabel("Lottery Configuration"),
+                lotteryDeadlinePicker,
+                lotteryDrawTimePicker);
+        lotteryFieldsDiv.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "12px");
+        lotteryFieldsDiv.setVisible(false);
+
+        sellingTypeBox.addValueChangeListener(e ->
+                lotteryFieldsDiv.setVisible(e.getValue() == SellingType.LOTTERY));
+
         minAgeField = new IntegerField("Minimum Age");
         minAgeField.setMin(0);
         minAgeField.setPlaceholder("Leave empty = no restriction");
@@ -516,14 +550,12 @@ endDatePicker.addValueChangeListener(e -> {
         maxTicketsField.setPlaceholder("Leave empty = no limit");
         maxTicketsField.setWidthFull();
 
-        // ── Percentage Discount Policy (optional) ──
         percentageField = new NumberField("Percentage Off (0–100)");
         percentageField.setMin(0);
         percentageField.setMax(100);
         percentageField.setPlaceholder("Leave empty = no percentage discount");
         percentageField.setWidthFull();
 
-        // ── Coupon Discount Policy (optional) ──
         couponCodeField = new TextField("Coupon Code");
         couponCodeField.setPlaceholder("e.g. SUMMER25  —  leave empty to skip");
         couponCodeField.setWidthFull();
@@ -538,114 +570,23 @@ endDatePicker.addValueChangeListener(e -> {
         couponExpiryPicker.setPlaceholder("Leave empty = never expires");
         couponExpiryPicker.setWidthFull();
 
-        Button savePoliciesBtn = new Button("Save Policies", e -> handleSavePolicies());
-        savePoliciesBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        savePoliciesBtn.getStyle()
-                .set("background", "#026cdf")
-                .set("color", "white")
-                .set("font-weight", "700")
-                .set("margin-top", "8px");
-
         card.add(title,
                 sectionLabel("Selling Policy"),
                 sellingTypeBox,
+                lotteryFieldsDiv,
                 sectionLabel("Purchase Policy (optional)"),
                 minAgeField, minTicketsField, maxTicketsField,
                 sectionLabel("Percentage Discount (optional)"),
                 percentageField,
                 sectionLabel("Coupon Discount (optional)"),
-                couponCodeField, couponPctField, couponExpiryPicker,
-                savePoliciesBtn);
+                couponCodeField, couponPctField, couponExpiryPicker);
         return card;
     }
 
-    private void handleSavePolicies() {
-        Object eventIdObj   = UI.getCurrent().getSession().getAttribute("eventId");
-        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
+    // ── Single submit handler ────────────────────────────────────────────────
 
-        if (eventIdObj == null) {
-            Notification.show("No event selected — create an event first",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-        if (companyIdObj == null) {
-            Notification.show("No company selected — navigate from your company page",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-
-        UUID eventId   = UUID.fromString(eventIdObj.toString());
-        UUID companyId = UUID.fromString(companyIdObj.toString());
-
-        try {
-            // ── Selling Policy (always) ──
-            SellingType sellingType = sellingTypeBox.getValue() != null
-                    ? sellingTypeBox.getValue() : SellingType.REGULAR;
-            policyRepo.savePolicy(new SellingPolicy(
-                    sellingType.name() + " selling policy",
-                    sellingType, eventId, companyId));
-
-            // ── Purchase Policy (if any restriction set) ──
-            Integer minAge     = minAgeField.getValue();
-            Integer minTickets = minTicketsField.getValue();
-            Integer maxTickets = maxTicketsField.getValue();
-            if (minAge != null || minTickets != null || maxTickets != null) {
-                PurchasePolicy pp = new PurchasePolicy(
-                        "Purchase restrictions", eventId, companyId);
-                if (minAge     != null && minAge     >= 0) pp.addRule(new MinAgeRule(minAge));
-                if (minTickets != null && minTickets >  0) pp.addRule(new MinTicketsRule(minTickets));
-                if (maxTickets != null && maxTickets >  0) pp.addRule(new MaxTicketsRule(maxTickets));
-                policyRepo.savePolicy(pp);
-            }
-
-            // ── Percentage Discount (if filled) ──
-            Double pct = percentageField.getValue();
-            if (pct != null && pct > 0) {
-                DiscountPolicy dp = new DiscountPolicy(
-                        pct + "% discount", eventId, companyId);
-                dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
-                policyRepo.savePolicy(dp);
-            }
-
-            // ── Coupon Discount (if code is provided) ──
-            String code = couponCodeField.getValue();
-            if (code != null && !code.isBlank()) {
-                Double cpct = couponPctField.getValue();
-                if (cpct == null || cpct <= 0) {
-                    Notification.show("Coupon percentage must be greater than 0",
-                            3000, Notification.Position.MIDDLE)
-                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                    return;
-                }
-                java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
-                        ? couponExpiryPicker.getValue().atTime(23, 59, 59) : null;
-                DiscountPolicy dp = new DiscountPolicy(
-                        "Coupon: " + code.trim().toUpperCase(), eventId, companyId);
-                dp.addRule(new CouponDiscountRule(cpct, code.trim().toUpperCase(), expiry));
-                policyRepo.savePolicy(dp);
-            }
-
-            Notification.show("Policies saved for event " + eventId,
-                    3000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-        } catch (RuntimeException ex) {
-            Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
-    }
-
-    // ── Submit ───────────────────────────────────────────────────────────────
-
-    private void handleCreate(
-        TextField nameField,
-        TextField venueField,
-        ComboBox<show_type> typeBox,
-        DateTimePicker startDatePicker,
-        DateTimePicker endDatePicker) {
-
+    private void handleCreate() {
+        // ── Validate event fields ──
         String name     = nameField.getValue();
         String venue    = venueField.getValue();
         show_type type  = typeBox.getValue();
@@ -659,49 +600,115 @@ endDatePicker.addValueChangeListener(e -> {
         if (end == null)                      { error("End date is required");            return; }
         if (end.isBefore(start))              { error("End date cannot be before start"); return; }
 
+        // ── Validate lottery fields if LOTTERY is selected ──
+        boolean isLottery = sellingTypeBox.getValue() == SellingType.LOTTERY;
+        if (isLottery) {
+            if (lotteryDeadlinePicker.getValue() == null) {
+                error("Registration deadline is required for lottery events");
+                return;
+            }
+            if (lotteryDrawTimePicker.getValue() == null) {
+                error("Draw time is required for lottery events");
+                return;
+            }
+            if (!lotteryDrawTimePicker.getValue().isAfter(lotteryDeadlinePicker.getValue())) {
+                error("Draw time must be after the registration deadline");
+                return;
+            }
+        }
+
+        // ── Validate coupon if provided ──
+        String couponCode = couponCodeField.getValue();
+        if (couponCode != null && !couponCode.isBlank()) {
+            Double cpct = couponPctField.getValue();
+            if (cpct == null || cpct <= 0) {
+                error("Coupon percentage must be greater than 0");
+                return;
+            }
+        }
+
         Object tokenObj     = UI.getCurrent().getSession().getAttribute("token");
         Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
 
         if (tokenObj == null) {
-            Notification.show("Not logged in — sign in first to save the event",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            error("Not logged in — sign in first");
             return;
         }
         if (companyIdObj == null) {
-            Notification.show("No company selected — navigate from your company page",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            error("No company selected — navigate from your company page");
             return;
         }
 
-        String token    = tokenObj.toString();
+        String token     = tokenObj.toString();
         UUID   companyId = UUID.fromString(companyIdObj.toString());
 
-        EventDto dto   = new EventDto();
-        dto.name       = name.trim();
-        dto.venue      = venue.trim();
-        dto.eventType  = type;
-        dto.startDate  = start;
-        dto.endDate    = end;
-
         try {
+            // ── Create event ──
+            EventDto dto  = new EventDto();
+            dto.name      = name.trim();
+            dto.venue     = venue.trim();
+            dto.eventType = type;
+            dto.startDate = start;
+            dto.endDate   = end;
+
             EventDto created = companyService.addEvent(token, companyId, dto);
 
-            // Persist shows
+            // ── Persist shows ──
             Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
-            String memberId = userIdObj != null ? userIdObj.toString() : null;
+            String memberId  = userIdObj != null ? userIdObj.toString() : null;
             for (ShowDTO s : shows) {
                 java.util.Date showDate = s.showDate != null
-                    ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
-                    : null;
+                        ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
+                        : null;
                 show newShow = new show(created.id, s.name, s.description, s.singer, showDate);
                 newShow.setAreas(buildAreas(s));
                 newShow.setSeatedPrice(s.seatedPrice);
                 newShow.setStandingPrice(s.standingPrice);
-                try {
-                    eventService.addShowToEvent(created.id, newShow, memberId);
-                } catch (Exception ignored) {}
+                try { eventService.addShowToEvent(created.id, newShow, memberId); }
+                catch (Exception ignored) {}
+            }
+
+            // ── Save policies ──
+            SellingType sellingType = sellingTypeBox.getValue() != null
+                    ? sellingTypeBox.getValue() : SellingType.REGULAR;
+            policyRepo.savePolicy(new SellingPolicy(
+                    sellingType.name() + " selling policy", sellingType, created.id, companyId));
+
+            Integer minAge     = minAgeField.getValue();
+            Integer minTickets = minTicketsField.getValue();
+            Integer maxTickets = maxTicketsField.getValue();
+            if (minAge != null || minTickets != null || maxTickets != null) {
+                PurchasePolicy pp = new PurchasePolicy("Purchase restrictions", created.id, companyId);
+                if (minAge     != null && minAge     >= 0) pp.addRule(new MinAgeRule(minAge));
+                if (minTickets != null && minTickets >  0) pp.addRule(new MinTicketsRule(minTickets));
+                if (maxTickets != null && maxTickets >  0) pp.addRule(new MaxTicketsRule(maxTickets));
+                policyRepo.savePolicy(pp);
+            }
+
+            Double pct = percentageField.getValue();
+            if (pct != null && pct > 0) {
+                DiscountPolicy dp = new DiscountPolicy(pct + "% discount", created.id, companyId);
+                dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
+                policyRepo.savePolicy(dp);
+            }
+
+            if (couponCode != null && !couponCode.isBlank()) {
+                Double cpct = couponPctField.getValue();
+                java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
+                        ? couponExpiryPicker.getValue().atTime(23, 59, 59) : null;
+                DiscountPolicy dp = new DiscountPolicy("Coupon: " + couponCode.trim().toUpperCase(), created.id, companyId);
+                dp.addRule(new CouponDiscountRule(cpct, couponCode.trim().toUpperCase(), expiry));
+                policyRepo.savePolicy(dp);
+            }
+
+            // ── Create lottery if selling type is LOTTERY ──
+            if (isLottery) {
+                lotteryService.createLottery(
+                        token,
+                        created.id,
+                        companyId,
+                        lotteryDeadlinePicker.getValue(),
+                        lotteryDrawTimePicker.getValue());
             }
 
             Notification.show("Event \"" + created.name + "\" created with " + shows.size() + " show(s)!",
@@ -710,9 +717,9 @@ endDatePicker.addValueChangeListener(e -> {
 
             UI.getCurrent().getSession().setAttribute("eventId", created.id.toString());
             UI.getCurrent().navigate("company");
+
         } catch (RuntimeException ex) {
-            Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            error(ex.getMessage());
         }
     }
 
@@ -725,9 +732,9 @@ endDatePicker.addValueChangeListener(e -> {
     }
 
     private static void error(String msg) {
-    Notification.show(msg, 3000, Notification.Position.MIDDLE)
-            .addThemeVariants(NotificationVariant.LUMO_ERROR);
-}
+        Notification.show(msg, 3000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
 
     private static Div card() {
         Div card = new Div();
@@ -738,7 +745,7 @@ endDatePicker.addValueChangeListener(e -> {
                 .set("padding", "32px 36px")
                 .set("width", "100%")
                 .set("box-sizing", "border-box");
-card.addClassNames(LumoUtility.Padding.Vertical.XLARGE, LumoUtility.AlignSelf.START);
+        card.addClassNames(LumoUtility.Padding.Vertical.XLARGE, LumoUtility.AlignSelf.START);
         return card;
     }
 
