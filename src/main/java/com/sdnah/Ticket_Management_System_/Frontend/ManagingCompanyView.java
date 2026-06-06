@@ -356,8 +356,7 @@ grid.addColumn(r -> r.role)
 
         Div section = new Div();
         section.add(sectionTitle("Founder"));
-        section.add(new Paragraph(roles.getFounderId()));
-
+        section.add(new Paragraph(getMemberDisplayName(roles.getFounderId())));
         section.add(sectionTitle("Owners"));
         section.add(buildOwnersList(roles.getOwnerIds()));
         section.add(appointBox("Appoint owner",
@@ -372,44 +371,58 @@ grid.addColumn(r -> r.role)
     }
 
     private Component buildOwnersList(List<String> ownerIds) {
-        if (ownerIds == null || ownerIds.isEmpty()) {
-            return new Paragraph("No additional owners.");
-        }
-        Div list = new Div();
-        list.getStyle().set("display", "flex").set("flex-wrap", "wrap").set("gap", "8px");
-        for (String oid : ownerIds) {
-            Span chip = new Span(oid);
-            chip.getStyle()
-                    .set("padding", "6px 12px")
-                    .set("background", "#e3f2fd")
-                    .set("border-radius", "999px")
-                    .set("font-size", "13px");
-            list.add(chip);
-        }
-        return list;
+    if (ownerIds == null || ownerIds.isEmpty()) {
+        return new Paragraph("No additional owners.");
     }
+
+    Div list = new Div();
+    list.getStyle()
+            .set("display", "flex")
+            .set("flex-wrap", "wrap")
+            .set("gap", "8px");
+
+    for (String ownerId : ownerIds) {
+        Span chip = new Span(getMemberDisplayName(ownerId));
+
+        chip.getStyle()
+                .set("padding", "6px 12px")
+                .set("background", "#e3f2fd")
+                .set("border-radius", "999px")
+                .set("font-size", "13px");
+
+        list.add(chip);
+    }
+
+    return list;
+}
 
     private Component buildManagersGrid(Map<String, Set<CompanyPermission>> managerPermissions) {
         if (managerPermissions == null || managerPermissions.isEmpty()) {
             return new Paragraph("No managers yet.");
         }
         Grid<Map.Entry<String, Set<CompanyPermission>>> grid = new Grid<>();
-        grid.addColumn(Map.Entry::getKey).setHeader("Manager");
-        grid.addColumn(e -> String.join(", ",
+        grid.addColumn(entry -> getMemberDisplayName(entry.getKey()))
+        .setHeader("Manager");
+                grid.addColumn(e -> String.join(", ",
                 e.getValue().stream().map(Enum::name).sorted().toList())).setHeader("Permissions");
         grid.addComponentColumn(entry -> {
             Button remove = new Button("Remove", ev -> {
-                try {
-                    companyService.removeManagerAppointment(token, companyId, entry.getKey());
-                    Notification.show("Removed " + entry.getKey(), 2500,
-                                    Notification.Position.TOP_CENTER)
-                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    renderRolesTab();
-                } catch (RuntimeException ex) {
-                    Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                }
-            });
+    try {
+        String username = getMemberDisplayName(entry.getKey());
+
+        companyService.removeManagerAppointment(token, companyId, entry.getKey());
+
+        Notification.show("Removed " + username, 2500,
+                        Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+        renderRolesTab();
+
+    } catch (RuntimeException ex) {
+        Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+});
             remove.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
             return remove;
         }).setHeader("");
@@ -420,30 +433,40 @@ grid.addColumn(r -> r.role)
     }
 
     private Component appointBox(String label, java.util.function.Consumer<String> action) {
-        TextField id = new TextField();
-        id.setPlaceholder("member id");
-        Button go = new Button(label, e -> {
-            String v = id.getValue();
-            if (v == null || v.isBlank()) {
-                Notification.show("Member id required", 2500, Notification.Position.MIDDLE);
-                return;
-            }
-            try {
-                action.accept(v.trim());
-                Notification.show("Done", 2500, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                renderRolesTab();
-            } catch (RuntimeException ex) {
-                Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-        go.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+    TextField usernameField = new TextField();
+    usernameField.setPlaceholder("username");
 
-        HorizontalLayout row = new HorizontalLayout(id, go);
-        row.getStyle().set("margin-top", "8px");
-        return row;
-    }
+    Button go = new Button(label, e -> {
+        String username = usernameField.getValue();
+
+        if (username == null || username.isBlank()) {
+            Notification.show("Username required", 2500, Notification.Position.MIDDLE);
+            return;
+        }
+
+        try {
+            String memberId = getMemberIdByUsername(username);
+
+            action.accept(memberId);
+
+            Notification.show("Done", 2500, Notification.Position.TOP_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+            renderRolesTab();
+
+        } catch (RuntimeException ex) {
+            Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    });
+
+    go.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+    HorizontalLayout row = new HorizontalLayout(usernameField, go);
+    row.getStyle().set("margin-top", "8px");
+
+    return row;
+}
 
     // ── Tab: Policies ────────────────────────────────────────────────────────
 
@@ -737,5 +760,38 @@ grid.addColumn(r -> r.role)
     }
 
     return "Company";
+}
+    private String getMemberDisplayName(String memberId) {
+    try {
+        Member member = userService.getMemberById(memberId);
+
+        if (member == null) {
+            return memberId;
+        }
+
+        // Use the real method names from your Member class.
+        // Example options:
+        if (member.getUsername() != null && !member.getUsername().isBlank()) {
+            return member.getUsername();
+        }
+
+        return memberId;
+
+    } catch (RuntimeException ex) {
+        return memberId;
+    }
+}
+    private String getMemberIdByUsername(String username) {
+    if (username == null || username.isBlank()) {
+        throw new RuntimeException("Username is required");
+    }
+
+    Member member = userService.getMemberByUsername(username.trim());
+
+    if (member == null) {
+        throw new RuntimeException("User not found: " + username);
+    }
+
+    return member.getMemberId();
 }
 }
