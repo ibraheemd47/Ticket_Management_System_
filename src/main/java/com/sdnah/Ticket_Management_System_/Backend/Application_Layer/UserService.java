@@ -1,11 +1,11 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ProfileResponse;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.UpdateProfileRequest;
@@ -15,8 +15,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRole
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.VerificationEmail;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
-
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService implements IrepresnteUserService {
@@ -159,14 +157,7 @@ public class UserService implements IrepresnteUserService {
         }
     }
 
-    public Member getMemberById(String memberId) {
-        if (memberId == null || memberId.isBlank())
-            throw new IllegalArgumentException("memberId cannot be null or blank");
-        Member m = userRepository.findByMemberId(memberId);
-        if (m == null)
-            throw new NoSuchElementException("Member not found: " + memberId);
-        return m;
-    }
+   
 
     public Member getMemberByToken(String tokenValue) {
         if (tokenValue == null || tokenValue.isBlank()) {
