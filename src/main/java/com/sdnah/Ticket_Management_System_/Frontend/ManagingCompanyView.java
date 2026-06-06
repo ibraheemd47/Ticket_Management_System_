@@ -13,7 +13,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DateRangeDiscountRule;
@@ -21,6 +20,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
@@ -28,9 +28,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
-import com.vaadin.flow.component.select.Select;
-import com.vaadin.flow.component.textfield.IntegerField;
-import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -48,8 +45,11 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -172,9 +172,13 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             card.add(empty);
         } else {
             Grid<CompanyRow> grid = new Grid<>(CompanyRow.class, false);
-            grid.addColumn(r -> "#" + r.companyId).setHeader("ID").setAutoWidth(true);
-            grid.addColumn(r -> r.name == null ? "—" : r.name).setHeader("Name").setFlexGrow(2);
-            grid.addColumn(r -> r.role).setHeader("Your role").setAutoWidth(true);
+            grid.addColumn(r -> r.name == null ? "Unnamed company" : r.name)
+        .setHeader("Company Name")
+        .setFlexGrow(2);
+
+grid.addColumn(r -> r.role)
+        .setHeader("Your role")
+        .setAutoWidth(true);
             grid.addComponentColumn(r -> {
                 Button manage = new Button("Manage", ev -> {
                     UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, r.companyId);
@@ -278,7 +282,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         back.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         back.getStyle().set("margin-bottom", "8px");
 
-        H1 title = new H1("Company #" + companyId);
+        H1 title = new H1(getCurrentCompanyName());
         title.getStyle().set("margin", "0 0 16px 0");
         card.add(back);
 
@@ -721,4 +725,17 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         p.getStyle().set("color", "#c62828").set("font-weight", "600");
         return p;
     }
+    //helper 
+    private String getCurrentCompanyName() {
+    try {
+        for (CompanyDTO dto : companyService.getActiveCompanies()) {
+            if (dto.getCompanyId().equals(companyId)) {
+                return dto.getCompanyName();
+            }
+        }
+    } catch (RuntimeException ignored) {
+    }
+
+    return "Company";
+}
 }
