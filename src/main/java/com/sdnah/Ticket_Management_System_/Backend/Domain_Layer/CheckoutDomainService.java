@@ -23,9 +23,9 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode
  * step when any later step fails.
  *
  * Forward path:
- *   1. charge payment
- *   2. issue ticket codes
- *   3. mark every ticket SOLD and complete the order
+ * 1. charge payment
+ * 2. issue ticket codes
+ * 3. mark every ticket SOLD and complete the order
  *
  * Reverse path (on any failure): refund the payment if it succeeded; flag
  * issued ticket codes for operator review (the supplier gateway exposes no
@@ -41,19 +41,24 @@ public class CheckoutDomainService {
     private final Ticket_Domain_Service ticketDomainService;
 
     public CheckoutDomainService(IPaymentGateway paymentGateway,
-                                 ITicketSupplierGateway ticketGateway,
-                                 Ticket_Domain_Service ticketDomainService) {
-        if (paymentGateway == null)      throw new IllegalArgumentException("paymentGateway required");
-        if (ticketGateway == null)       throw new IllegalArgumentException("ticketGateway required");
-        if (ticketDomainService == null) throw new IllegalArgumentException("ticketDomainService required");
+            ITicketSupplierGateway ticketGateway,
+            Ticket_Domain_Service ticketDomainService) {
+        if (paymentGateway == null)
+            throw new IllegalArgumentException("paymentGateway required");
+        if (ticketGateway == null)
+            throw new IllegalArgumentException("ticketGateway required");
+        if (ticketDomainService == null)
+            throw new IllegalArgumentException("ticketDomainService required");
         this.paymentGateway = paymentGateway;
         this.ticketGateway = ticketGateway;
         this.ticketDomainService = ticketDomainService;
     }
 
     public CheckoutResult checkout(ActiveOrder order, PaymentDetails details) {
-        if (order == null)   throw new IllegalArgumentException("order required");
-        if (details == null) throw new IllegalArgumentException("details required");
+        if (order == null)
+            throw new IllegalArgumentException("order required");
+        if (details == null)
+            throw new IllegalArgumentException("details required");
 
         OrderSaga saga = new OrderSaga();
         AtomicReference<PaymentTransaction> txRef = new AtomicReference<>();
@@ -70,15 +75,16 @@ public class CheckoutDomainService {
 
         Purchase purchase = new Purchase(order);
         List<String> ticketCodes = new ArrayList<>();
-        for (Ticketcode tc : codesRef.get()) ticketCodes.add(tc.getCode());
+        for (Ticketcode tc : codesRef.get())
+            ticketCodes.add(tc.getCode());
 
         logger.info("checkout SUCCESS orderId={} purchaseId={}", order.getId(), purchase.getPurchaseId());
         return new CheckoutResult(purchase, txRef.get(), ticketCodes);
     }
 
     private CompensableStep chargePaymentStep(ActiveOrder order,
-                                              PaymentDetails details,
-                                              AtomicReference<PaymentTransaction> txRef) {
+            PaymentDetails details,
+            AtomicReference<PaymentTransaction> txRef) {
         return new CompensableStep() {
             @Override
             public void execute() {
@@ -92,18 +98,24 @@ public class CheckoutDomainService {
             @Override
             public void compensate() {
                 PaymentTransaction tx = txRef.get();
-                if (tx == null) return;
-                if (tx.isRefunded()) return;
-                paymentGateway.refund(tx.getTransactionId());
-                logger.info("refunded transaction {} for order {}", tx.getTransactionId(), order.getId());
+                if (tx != null && !tx.isRefunded()) {
+                    paymentGateway.refund(tx.getTransactionId());
+                    logger.info("refunded transaction {} for order {}", tx.getTransactionId(), order.getId());
+                }
+                // always release tickets — "all or nothing" requirement
+                ticketDomainService.releaseAllTickets(order.cancel());
+                logger.info("tickets released for order {}", order.getId());
             }
 
-            @Override public String name() { return "charge-payment"; }
+            @Override
+            public String name() {
+                return "charge-payment";
+            }
         };
     }
 
     private CompensableStep issueTicketsStep(ActiveOrder order,
-                                             AtomicReference<List<Ticketcode>> codesRef) {
+            AtomicReference<List<Ticketcode>> codesRef) {
         return new CompensableStep() {
             @Override
             public void execute() {
@@ -117,12 +129,19 @@ public class CheckoutDomainService {
             @Override
             public void compensate() {
                 List<Ticketcode> codes = codesRef.get();
-                if (codes == null || codes.isEmpty()) return;
-                logger.error("ORPHANED_TICKET_CODES orderId={} codes={} — manual void required",
-                        order.getId(), codes.size());
+                if (codes != null && !codes.isEmpty()) {
+                    logger.error("ORPHANED_TICKET_CODES orderId={} codes={} — manual void required",
+                            order.getId(), codes.size());
+                }
+                // release tickets — "all or nothing" requirement
+                ticketDomainService.releaseAllTickets(order.cancel());
+                logger.info("tickets released for order {}", order.getId());
             }
 
-            @Override public String name() { return "issue-tickets"; }
+            @Override
+            public String name() {
+                return "issue-tickets";
+            }
         };
     }
 
@@ -141,7 +160,10 @@ public class CheckoutDomainService {
                 ticketDomainService.releaseAllTickets(order.cancel());
             }
 
-            @Override public String name() { return "finalize-order"; }
+            @Override
+            public String name() {
+                return "finalize-order";
+            }
         };
     }
 
@@ -151,13 +173,21 @@ public class CheckoutDomainService {
         private final List<String> ticketCodes;
 
         public CheckoutResult(Purchase purchase, PaymentTransaction transaction, List<String> ticketCodes) {
-            this.purchase    = purchase;
+            this.purchase = purchase;
             this.transaction = transaction;
             this.ticketCodes = ticketCodes;
         }
 
-        public Purchase getPurchase()              { return purchase; }
-        public PaymentTransaction getTransaction() { return transaction; }
-        public List<String> getTicketCodes()       { return ticketCodes; }
+        public Purchase getPurchase() {
+            return purchase;
+        }
+
+        public PaymentTransaction getTransaction() {
+            return transaction;
+        }
+
+        public List<String> getTicketCodes() {
+            return ticketCodes;
+        }
     }
 }

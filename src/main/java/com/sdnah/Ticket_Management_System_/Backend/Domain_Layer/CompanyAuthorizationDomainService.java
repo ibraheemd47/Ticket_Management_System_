@@ -3,6 +3,7 @@ package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer;
 import javax.management.RuntimeErrorException;
 
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 
@@ -115,9 +116,21 @@ public class CompanyAuthorizationDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (!company.isOwner(actor.getMemberId())) {
-            throw new RuntimeException("Only a company owner can view roles and permissions");
+        String actorId = actor.getMemberId();
+
+        if (company.isOwner(actorId)) {
+            return;
         }
+
+        if (company.isManager(actorId)
+                && company.managerHasPermission(
+                        actorId,
+                        CompanyPermission.VIEW_ROLES)) {
+            return;
+        }
+
+        throw new RuntimeException(
+                "Only a company owner or manager with VIEW_ROLES permission can view roles and permissions");
     }
 
     public void assertCanModifyManagerPermissions(Member actor, Company company, String managerId) {
