@@ -32,3 +32,5 @@ build/
 ### VS Code ###
 .vscode/
 .claude/
+# Ignore Vaadin generated frontend files
+src/main/frontend/generated/
