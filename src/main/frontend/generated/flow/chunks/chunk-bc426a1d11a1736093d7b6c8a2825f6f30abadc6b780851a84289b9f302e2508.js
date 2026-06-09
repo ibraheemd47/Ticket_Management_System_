@@ -1,6 +1,5 @@
 import 'Frontend/generated/jar-resources/flow-component-renderer.js';
 import '@vaadin/polymer-legacy-adapter/style-modules.js';
-import '@vaadin/integer-field/src/vaadin-integer-field.js';
 import '@vaadin/radio-group/src/vaadin-radio-group.js';
 import '@vaadin/radio-group/src/vaadin-radio-button.js';
 import '@vaadin/tooltip/src/vaadin-tooltip.js';

@@ -28,9 +28,7 @@ public class CompanyCreationView extends VerticalLayout
     // ── Form fields ───────────────────────────────────────────────────────────
     private final TextField                companyNameField;
     private final RadioButtonGroup<String> operatorGroup;
-    private final IntegerField             minAgeField;
-    private final IntegerField             minTicketsField;
-    private final IntegerField             maxTicketsField;
+
 
     private static final String OR_LABEL = "OR (at least one must pass)";
 
@@ -48,9 +46,6 @@ public class CompanyCreationView extends VerticalLayout
         // Initialise fields
         companyNameField = new TextField("Company Name");
         operatorGroup    = new RadioButtonGroup<>();
-        minAgeField      = new IntegerField("Minimum Age");
-        minTicketsField  = new IntegerField("Minimum Tickets per Purchase");
-        maxTicketsField  = new IntegerField("Maximum Tickets per Purchase");
 
         Div content = new Div(buildCompanyCard());
         content.getStyle()
@@ -83,29 +78,7 @@ public class CompanyCreationView extends VerticalLayout
         companyNameField.setWidthFull();
 
         // Purchase policy section
-        H2 policyHeader = new H2("Initial Purchase Policy");
-        policyHeader.getStyle()
-                .set("font-size", "16px")
-                .set("margin", "16px 0 4px 0")
-                .set("color", "#333");
-
-        operatorGroup.setLabel("Rule Combination");
-        operatorGroup.setItems("AND (all must pass)", OR_LABEL);
-        operatorGroup.setValue("AND (all must pass)");
-        operatorGroup.setWidthFull();
-
-        minAgeField.setMin(0);
-        minAgeField.setPlaceholder("Leave empty = no age restriction");
-        minAgeField.setWidthFull();
-
-        minTicketsField.setMin(1);
-        minTicketsField.setPlaceholder("Leave empty = no minimum");
-        minTicketsField.setWidthFull();
-
-        maxTicketsField.setMin(1);
-        maxTicketsField.setPlaceholder("Leave empty = no limit");
-        maxTicketsField.setWidthFull();
-
+        
         Button createBtn = new Button("Create Company", e -> handleCreate());
         createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         createBtn.getStyle()
@@ -121,11 +94,6 @@ public class CompanyCreationView extends VerticalLayout
         card.add(
                 title,
                 companyNameField,
-                policyHeader,
-                operatorGroup,
-                minAgeField,
-                minTicketsField,
-                maxTicketsField,
                 new HorizontalLayout(createBtn, cancelBtn));
         return card;
     }
@@ -134,11 +102,8 @@ public class CompanyCreationView extends VerticalLayout
 
     private void handleCreate() {
         presenter.handleCreate(
-                companyNameField.getValue(),
-                OR_LABEL.equals(operatorGroup.getValue()),
-                minAgeField.getValue(),
-                minTicketsField.getValue(),
-                maxTicketsField.getValue());
+                companyNameField.getValue());
+
     }
 
     // ── Header ────────────────────────────────────────────────────────────────
