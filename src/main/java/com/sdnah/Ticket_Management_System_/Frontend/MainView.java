@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.sdnah.Ticket_Management_System_.Frontend.Presenters.MainPresenter;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.NotificationBellPresenter;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
@@ -37,15 +38,17 @@ import com.vaadin.flow.router.Route;
 public class MainView extends VerticalLayout {
 
     private final MainPresenter presenter;
+    private final NotificationBellPresenter notificationBell;
     private Grid<EventDto> eventGrid;
     private HorizontalLayout companyList;
 
-    public MainView(MainPresenter presenter) {
+    public MainView(MainPresenter presenter, NotificationBellPresenter notificationBell) {
         this.presenter = presenter;
-        
+        this.notificationBell = notificationBell;
 
         // 1. Link this view directly to the Presenter
         this.presenter.setView(this);
+        this.notificationBell.setView(this);
 
         setSizeFull();
         setPadding(false);
@@ -177,7 +180,7 @@ public class MainView extends VerticalLayout {
                         .set("border", "2px solid white").set("font-weight", "700")
                         .set("border-radius", "8px").set("cursor", "pointer");
 
-                NotificationBell notifcation_bell = presenter.CreateNotificationBell();
+                NotificationBell notifcation_bell = notificationBell.CreateNotificationBell();
                 authButtons.add(notifcation_bell, profileBtn, logoutBtn);
 
             } else {
@@ -602,5 +605,19 @@ public class MainView extends VerticalLayout {
 
         headerContainer.add(header);
         return headerContainer;
+    }
+
+    public String getCurrentToken() {
+        String token = "";
+        try {
+            Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+            if (tokenObj != null) {
+                token = tokenObj.toString();
+            }
+        } catch (Exception e) {
+            // Handle any exceptions related to session access
+            e.printStackTrace();
+        }
+        return token;
     }
 }

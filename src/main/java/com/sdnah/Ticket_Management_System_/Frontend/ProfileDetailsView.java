@@ -3,6 +3,7 @@ package com.sdnah.Ticket_Management_System_.Frontend;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ProfileResponse;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.UpdateProfileRequest;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.UserPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
@@ -20,10 +21,10 @@ import com.vaadin.flow.router.Route;
 @Route("profile-details")
 public class ProfileDetailsView extends VerticalLayout implements BeforeEnterObserver {
 
-    private final UserService userService;
+    private final UserPresenter presenter;
 
-    public ProfileDetailsView(UserService userService) {
-        this.userService = userService;
+    public ProfileDetailsView(UserPresenter presenter) {
+        this.presenter = presenter;
 
         setSizeFull();
         setPadding(false);
@@ -87,7 +88,7 @@ public class ProfileDetailsView extends VerticalLayout implements BeforeEnterObs
 
         ProfileResponse profile = null;
         try {
-            profile = userService.getMyProfile(token);
+            profile = presenter.getMyProfile(token);
         } catch (Exception ex) {
             Notification.show(ex.getMessage());
         }
@@ -180,7 +181,7 @@ public class ProfileDetailsView extends VerticalLayout implements BeforeEnterObs
             request.setEmail(email.getValue());
             request.setPhone(phone.getValue());
 
-            userService.updateMyProfile(token, request);
+            presenter.updateMyProfile(token, request);
 
             Notification.show("Profile updated successfully");
 

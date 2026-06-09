@@ -17,6 +17,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintSe
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.CreateComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
@@ -141,10 +142,7 @@ public void loadInitialData() {
         }
     }
 
-    public NotificationBell CreateNotificationBell() {
-        NotificationBell notifcation_bell = new NotificationBell(notificationService, userService);
-      return notifcation_bell;
-    }
+   
 
     public List<ComplaintDTO> getUserComplaints(String token) {
         try {
@@ -152,6 +150,15 @@ public void loadInitialData() {
         } catch (Exception ex) {
             view.showNotification("Error fetching complaints: " + ex.getMessage(), true);
             return null;
+        }
+    }
+
+    public void createComplaint(String token, CreateComplaintDTO request) {
+        try {
+            complaintService.createComplaint(token, request);
+            view.showNotification("Complaint submitted successfully", false);
+        } catch (Exception ex) {
+            view.showNotification("Error submitting complaint: " + ex.getMessage(), true);
         }
     }
 }

@@ -1,6 +1,8 @@
 package com.sdnah.Ticket_Management_System_.Frontend.Presenters;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.ProfileResponse;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.UpdateProfileRequest;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
 import com.sdnah.Ticket_Management_System_.Backend.endpoints.LoginPage;
 import com.sdnah.Ticket_Management_System_.Frontend.LoginView;
@@ -141,6 +143,33 @@ public class UserPresenter {
             Loginview.showNotification("Login failed: " + ex.getMessage(), true);
             return null;
         }
+    }
+
+    public ProfileResponse getMyProfile(String token) {
+        try {
+            return userService.getMyProfile(token);
+        } catch (Exception ex) {
+            Loginview.showNotification("Failed to load profile: " + ex.getMessage(), true);
+            return null;
+        }
+    }
+
+    public void updateMyProfile(String token, UpdateProfileRequest request) {
+        try {
+            userService.updateMyProfile(token, request);
+        } catch (Exception ex) {
+            Loginview.showNotification("Failed to update profile: " + ex.getMessage(), true);
+        }
+    }
+
+    public String requireMemberId(String trim) {
+           try {
+            return userService.requireMemberId(trim);
+        } catch (Exception ex) {
+            Loginview.showNotification("Invalid token: " + ex.getMessage(), true);
+            return null;
+        }
+            
     }
    
 
