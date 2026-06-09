@@ -14,15 +14,25 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.LotteryStatus;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DateRangeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
@@ -30,7 +40,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.CompositePurchaseRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import java.util.Optional;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -71,6 +80,7 @@ public class EventDetailsView extends VerticalLayout {
     private final ActiveOrderService orderService;
 
     private static final SimpleDateFormat DATE_FMT = new SimpleDateFormat("MMM d, yyyy");
+    private static final SimpleDateFormat DATETIME_FMT = new SimpleDateFormat("MMM d, yyyy  h:mm a");
     private static final String[] BLOCK_COLORS = {
             "#1565c0", "#283593", "#0277bd", "#00838f", "#2e7d32", "#558b2f", "#6a1b9a"
     };
@@ -98,7 +108,11 @@ public class EventDetailsView extends VerticalLayout {
 
     private final EventService eventService;
     private final TicketService ticketService;
-    private final PolicyRepository policyRepo;
+    //private final PolicyRepository policyRepo;
+    private final PolicyService policyService;
+    private final UserService userService;
+    private final LotteryService lotteryService;
+    private final com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService notificationService;
 
     // Areas preloaded during construction (while JPA session may be open)
     private final Map<UUID, List<Area>> showAreasCache = new HashMap<>();
@@ -108,12 +122,16 @@ public class EventDetailsView extends VerticalLayout {
     private Event cachedEvent;
     private List<show> cachedShows = new ArrayList<>();
 
-    public EventDetailsView(EventService eventService, TicketService ticketService, PolicyRepository policyRepo,
-            ActiveOrderService orderService) {
+    public EventDetailsView(EventService eventService, TicketService ticketService, PolicyService policyService,
+            ActiveOrderService orderService, UserService userService, LotteryService lotteryService,
+            com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService notificationService) {
         this.eventService = eventService;
         this.ticketService = ticketService;
-        this.policyRepo = policyRepo;
+        this.policyService = policyService;
+        this.userService = userService;
+        this.lotteryService = lotteryService;
         this.orderService = orderService;
+        this.notificationService = notificationService;
 
         setSizeFull();
         setPadding(false);
@@ -121,8 +139,6 @@ public class EventDetailsView extends VerticalLayout {
         getStyle()
                 .set("background", "#f4f4f4")
                 .set("font-family", "Arial, sans-serif");
-
-        add(buildHeader());
 
         Object eventIdObj = UI.getCurrent().getSession().getAttribute("eventId");
         Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
@@ -149,6 +165,7 @@ public class EventDetailsView extends VerticalLayout {
                 ev = eventService.getEventDetails(eventId);
                 shows = eventService.getShowsForEvent(eventId);
             } catch (RuntimeException ex) {
+                add(buildHeader());
                 add(emptyState("Could not load event: " + ex.getMessage()));
                 return;
             }
@@ -170,7 +187,11 @@ public class EventDetailsView extends VerticalLayout {
         cachedEvent = ev;
         cachedShows = new ArrayList<>(shows);
 
+        add(buildHeader());
+
         Div content = new Div(buildEventInfoCard(ev), buildShowsCard(shows));
+        if (cachedEventId != null)
+            content.add(buildLotteryCard());
         content.getStyle()
                 .set("max-width", "860px")
                 .set("margin", "40px auto")
@@ -203,10 +224,10 @@ public class EventDetailsView extends VerticalLayout {
 
         Div nav = new Div();
         nav.getStyle().set("display", "flex").set("gap", "32px").set("align-items", "center");
-        nav.add(
-                clickable("Home", () -> UI.getCurrent().navigate("main")),
-                clickable("← Company", () -> UI.getCurrent().navigate("company")),
-                clickable("👤 My Account", () -> UI.getCurrent().navigate("profile")));
+        nav.add(clickable("Home", () -> UI.getCurrent().navigate("main")));
+        if (isManagerOrOwner())
+            nav.add(clickable("← Company", () -> UI.getCurrent().navigate("company")));
+        nav.add(clickable("👤 My Account", () -> UI.getCurrent().navigate("profile")));
         header.add(logo, nav);
         return header;
     }
@@ -280,12 +301,13 @@ public class EventDetailsView extends VerticalLayout {
     // ── Manager check ────────────────────────────────────────────────────────
 
     private boolean isManagerOrOwner() {
-        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-        if (companyIdObj == null || cachedEvent == null)
-            return false;
+        if (cachedEvent == null) return false;
+        Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+        if (tokenObj == null) return false;
         try {
-            UUID companyId = UUID.fromString(companyIdObj.toString());
-            return companyId.equals(cachedEvent.getCompanyId());
+            UUID companyId = cachedEvent.getCompanyId();
+            var member = userService.getMemberByToken(tokenObj.toString());
+            return member.isOwnerInCompany(companyId) || member.isManagerInCompany(companyId);
         } catch (Exception e) {
             return false;
         }
@@ -455,7 +477,7 @@ public class EventDetailsView extends VerticalLayout {
                 nameSpan.getStyle().set("font-weight", "700").set("font-size", "14px");
                 Span singerSpan = new Span(s.getSinger() != null ? "  •  " + s.getSinger() : "");
                 singerSpan.getStyle().set("color", "#666").set("font-size", "13px");
-                Span dateSpan = new Span(s.getShowDate() != null ? "  •  " + DATE_FMT.format(s.getShowDate()) : "");
+                Span dateSpan = new Span(s.getShowDate() != null ? "  •  " + DATETIME_FMT.format(s.getShowDate()) : "");
                 dateSpan.getStyle().set("color", "#888").set("font-size", "13px");
                 info.add(nameSpan, singerSpan, dateSpan);
 
@@ -495,7 +517,8 @@ public class EventDetailsView extends VerticalLayout {
         TextArea descField = new TextArea("Description");
         descField.setWidthFull();
         descField.setMinHeight("72px");
-        DatePicker datePicker = new DatePicker("Show Date");
+        com.vaadin.flow.component.datetimepicker.DateTimePicker datePicker =
+                new com.vaadin.flow.component.datetimepicker.DateTimePicker("Show Date & Time");
         datePicker.setWidthFull();
 
         // ── Standing area ─────────────────────────────────────────────────────
@@ -537,7 +560,7 @@ public class EventDetailsView extends VerticalLayout {
             descField.setValue(nullSafe(existing.getDescription()));
             if (existing.getShowDate() != null)
                 datePicker.setValue(existing.getShowDate().toInstant()
-                        .atZone(ZoneId.systemDefault()).toLocalDate());
+                        .atZone(ZoneId.systemDefault()).toLocalDateTime());
             if (existing.getStandingPrice() != null)
                 standingPriceField.setValue(existing.getStandingPrice().doubleValue());
             if (existing.getSeatedPrice() != null)
@@ -565,7 +588,7 @@ public class EventDetailsView extends VerticalLayout {
                     : new java.math.BigDecimal("30.00");
 
             Date showDate = datePicker.getValue() != null
-                    ? Date.from(datePicker.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
+                    ? Date.from(datePicker.getValue().atZone(ZoneId.systemDefault()).toInstant())
                     : null;
 
             try {
@@ -881,7 +904,9 @@ public class EventDetailsView extends VerticalLayout {
             listContainer.removeAll();
             List<Policy> policies;
             try {
-                policies = policyRepo.findByEventId(cachedEventId);
+                //policies = policyRepo.findByEventId(cachedEventId);
+                policies = policyService.getPoliciesForEvent(cachedEventId);
+
             } catch (Exception ex) {
                 Span errSpan = new Span("Could not load policies: " + ex.getMessage());
                 errSpan.getStyle().set("color", "#c62828").set("font-size", "13px");
@@ -943,7 +968,9 @@ public class EventDetailsView extends VerticalLayout {
 
         Button removeBtn = new Button("Remove", ev -> {
             try {
-                policyRepo.deleteByPolicyId(p.getPolicyId());
+                //policyRepo.deleteByPolicyId(p.getPolicyId());
+                policyService.removePolicy(p.getPolicyId());
+
                 refresh[0].run();
             } catch (Exception ex) {
                 error("Could not remove: " + ex.getMessage());
@@ -965,11 +992,35 @@ public class EventDetailsView extends VerticalLayout {
         dialog.setHeaderTitle(isEdit ? "Edit Policy" : "Add Policy");
 
         // ── Type selector (locked when editing) ──
+        // ComboBox<String> typeBox = new ComboBox<>("Policy Type");
+        // typeBox.setItems("Selling", "Purchase", "Percentage Discount", "Coupon Discount");
+        // typeBox.setWidthFull();
+        // if (isEdit)
+        //     typeBox.setEnabled(false);
+
+        //new 
         ComboBox<String> typeBox = new ComboBox<>("Policy Type");
-        typeBox.setItems("Selling", "Purchase", "Percentage Discount", "Coupon Discount");
-        typeBox.setWidthFull();
-        if (isEdit)
+        if (isEdit) {
+            //typeBox.setItems("Selling", "Purchase", "Percentage Discount", "Coupon Discount");
+            typeBox.setItems("Selling", "Purchase", "Discount");
             typeBox.setEnabled(false);
+        } else {
+            List<Policy> existingPolicies = policyService.getPoliciesForEvent(cachedEventId);
+            boolean hasSelling  = existingPolicies.stream().anyMatch(p -> p instanceof SellingPolicy);
+            boolean hasPurchase = existingPolicies.stream().anyMatch(p -> p instanceof PurchasePolicy);
+            boolean hasDiscount = existingPolicies.stream().anyMatch(p -> p instanceof DiscountPolicy);
+            List<String> available = new ArrayList<>();
+            if (!hasSelling)  available.add("Selling");
+            if (!hasPurchase) available.add("Purchase");
+            // if (!hasDiscount) available.add("Percentage Discount");
+            // if (!hasDiscount) available.add("Coupon Discount");
+            //new:
+            if (!hasDiscount) available.add("Discount");
+            typeBox.setItems(available);
+        }
+        typeBox.setWidthFull();
+        //end new
+
 
         // ── Selling fields ──
         ComboBox<SellingType> sellingTypeBox = new ComboBox<>("Selling Type");
@@ -994,27 +1045,160 @@ public class EventDetailsView extends VerticalLayout {
         maxTicketsField.setPlaceholder("Leave empty = no limit");
         maxTicketsField.setWidthFull();
 
-        // ── Percentage Discount fields ──
-        NumberField percentageField = new NumberField("Percentage Off (0–100)");
-        percentageField.setMin(0);
-        percentageField.setMax(100);
-        percentageField.setPlaceholder("e.g. 10");
-        percentageField.setWidthFull();
+        com.vaadin.flow.component.radiobutton.RadioButtonGroup<String> purchaseOperatorGroup =
+            new com.vaadin.flow.component.radiobutton.RadioButtonGroup<>();
+        purchaseOperatorGroup.setLabel("Combine rules with:");
+        purchaseOperatorGroup.setItems("AND (all must pass)", "OR (at least one must pass)");
+        purchaseOperatorGroup.setValue("AND (all must pass)");
+        purchaseOperatorGroup.setWidthFull();
 
-        // ── Coupon Discount fields ──
-        TextField couponCodeField = new TextField("Coupon Code");
-        couponCodeField.setPlaceholder("e.g. SUMMER25");
-        couponCodeField.setWidthFull();
+        //old:
+        // // ── Percentage Discount fields ──
+        // NumberField percentageField = new NumberField("Percentage Off (0–100)");
+        // percentageField.setMin(0);
+        // percentageField.setMax(100);
+        // percentageField.setPlaceholder("e.g. 10");
+        // percentageField.setWidthFull();
 
-        NumberField couponPctField = new NumberField("Percentage Off (0–100)");
-        couponPctField.setMin(0);
-        couponPctField.setMax(100);
-        couponPctField.setPlaceholder("e.g. 25");
-        couponPctField.setWidthFull();
+        // // ── Coupon Discount fields ──
+        // TextField couponCodeField = new TextField("Coupon Code");
+        // couponCodeField.setPlaceholder("e.g. SUMMER25");
+        // couponCodeField.setWidthFull();
 
-        DatePicker couponExpiryPicker = new DatePicker("Expiry Date (optional)");
-        couponExpiryPicker.setPlaceholder("Leave empty = never expires");
-        couponExpiryPicker.setWidthFull();
+        // NumberField couponPctField = new NumberField("Percentage Off (0–100)");
+        // couponPctField.setMin(0);
+        // couponPctField.setMax(100);
+        // couponPctField.setPlaceholder("e.g. 25");
+        // couponPctField.setWidthFull();
+
+        // DatePicker couponExpiryPicker = new DatePicker("Expiry Date (optional)");
+        // couponExpiryPicker.setPlaceholder("Leave empty = never expires");
+        // couponExpiryPicker.setWidthFull();
+
+        //new:
+        /////////////////////////////////////////////
+        /// /////////////////////////////////////////////
+        
+        // ── Discount fields ──
+        // AND/OR selector
+        com.vaadin.flow.component.radiobutton.RadioButtonGroup<String> andOrGroup =
+            new com.vaadin.flow.component.radiobutton.RadioButtonGroup<>();
+        andOrGroup.setLabel("Combine rules with:");
+        andOrGroup.setItems("OR (best discount)", "AND (sum discounts)");
+        andOrGroup.setValue("OR (best discount)");
+        andOrGroup.setWidthFull();
+
+        // Dynamic list of rules
+        Div rulesContainer = new Div();
+        rulesContainer.setWidthFull();
+        rulesContainer.getStyle().set("display","flex").set("flex-direction","column").set("gap","8px");
+
+        List<DiscountRule> discountRules = new ArrayList<>();
+
+        // Helper to add a rule row
+        Runnable[] rebuildRuleRows = {null};
+        rebuildRuleRows[0] = () -> {
+            rulesContainer.removeAll();
+            for (int i = 0; i < discountRules.size(); i++) {
+                final int idx = i;
+                DiscountRule rule = discountRules.get(i);
+                Span desc = new Span(rule.describe());
+                Button delBtn = new Button("✕", ev -> {
+                    discountRules.remove(idx);
+                    rebuildRuleRows[0].run();
+                });
+                delBtn.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_ERROR,
+                        com.vaadin.flow.component.button.ButtonVariant.LUMO_TERTIARY,
+                        com.vaadin.flow.component.button.ButtonVariant.LUMO_SMALL);
+                Div ruleRow = new Div(desc, delBtn);
+                ruleRow.getStyle().set("display","flex").set("justify-content","space-between")
+                    .set("align-items","center").set("background","#f0f4ff")
+                    .set("padding","6px 10px").set("border-radius","6px");
+                rulesContainer.add(ruleRow);
+            }
+        };
+
+        // Add rule buttons
+        ComboBox<String> ruleTypeBox = new ComboBox<>("Rule Type");
+        ruleTypeBox.setItems("Percentage", "Coupon", "Quantity (min tickets)", "Date Range");
+        ruleTypeBox.setWidthFull();
+
+        NumberField rulePercentage = new NumberField("Percentage (0-100)");
+        rulePercentage.setMin(0); rulePercentage.setMax(100); rulePercentage.setWidthFull();
+
+        TextField ruleCouponCode = new TextField("Coupon Code");
+        ruleCouponCode.setWidthFull();
+
+        DatePicker ruleCouponExpiry = new DatePicker("Expiry (optional)");
+        ruleCouponExpiry.setWidthFull();
+
+        // Quantity fields
+        IntegerField ruleMinTickets = new IntegerField("Minimum Tickets");
+        ruleMinTickets.setMin(1);
+        ruleMinTickets.setWidthFull();
+
+        // Date Range fields
+        com.vaadin.flow.component.datetimepicker.DateTimePicker ruleFromPicker = 
+            new com.vaadin.flow.component.datetimepicker.DateTimePicker("From (optional)");
+        ruleFromPicker.setWidthFull();
+
+        com.vaadin.flow.component.datetimepicker.DateTimePicker ruleUntilPicker = 
+            new com.vaadin.flow.component.datetimepicker.DateTimePicker("Until (optional)");
+        ruleUntilPicker.setWidthFull();
+
+        Div ruleFields = new Div();
+        ruleFields.setWidthFull();
+        ruleTypeBox.addValueChangeListener(ev -> {
+            ruleFields.removeAll();
+            switch (ev.getValue() != null ? ev.getValue() : "") {
+                case "Percentage" -> 
+                    ruleFields.add(rulePercentage);
+                case "Coupon" -> 
+                    ruleFields.add(ruleCouponCode, rulePercentage, ruleCouponExpiry);
+                case "Quantity (min tickets)" -> 
+                    ruleFields.add(ruleMinTickets, rulePercentage);
+                case "Date Range" -> 
+                    ruleFields.add(rulePercentage, ruleFromPicker, ruleUntilPicker);
+            }
+        });
+
+        Button addRuleBtn = new Button("+ Add Rule", ev -> {
+            String rt = ruleTypeBox.getValue();
+            Double pct = rulePercentage.getValue();
+            if (rt == null) { error("Select rule type"); return; }
+            if (pct == null || pct <= 0) { error("Percentage must be > 0"); return; }
+            if ("Percentage".equals(rt)) {
+                discountRules.add(new PercentageDiscountRule(pct, pct + "% off"));
+            } else if ("Coupon".equals(rt)) {
+                String code = ruleCouponCode.getValue();
+                if (code == null || code.isBlank()) { error("Coupon code required"); return; }
+                java.time.LocalDateTime expiry = ruleCouponExpiry.getValue() != null
+                        ? ruleCouponExpiry.getValue().atTime(23, 59, 59) : null;
+                discountRules.add(new CouponDiscountRule(pct, code.trim().toUpperCase(), expiry));
+            }
+            else if ("Quantity (min tickets)".equals(rt)) 
+            {
+            Integer minTix = ruleMinTickets.getValue();
+            if (minTix == null || minTix <= 0) { error("Min tickets must be > 0"); return; }
+            discountRules.add(new QuantityConditionalDiscountRule(minTix, pct));
+            ruleMinTickets.clear();
+            } else if ("Date Range".equals(rt)) {
+                java.time.LocalDateTime from = ruleFromPicker.getValue() != null
+                        ? ruleFromPicker.getValue() : null;
+                java.time.LocalDateTime until = ruleUntilPicker.getValue() != null
+                        ? ruleUntilPicker.getValue() : null;
+                discountRules.add(new DateRangeDiscountRule(pct, from, until));
+                ruleFromPicker.clear(); ruleUntilPicker.clear();
+            }
+            rebuildRuleRows[0].run();
+            rulePercentage.clear(); ruleCouponCode.clear(); ruleCouponExpiry.clear();
+        });
+        addRuleBtn.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_PRIMARY,
+                com.vaadin.flow.component.button.ButtonVariant.LUMO_SMALL);
+        //end new
+        /////////////////////////////////////////////
+        /////////////////////////////////////////////
+        /// ///////////////////////////////////////////// 
 
         // ── Pre-fill when editing ──
         if (isEdit) {
@@ -1024,21 +1208,32 @@ public class EventDetailsView extends VerticalLayout {
                     sellingTypeBox.setValue(sp.getType());
             } else if (existing instanceof PurchasePolicy pp) {
                 typeBox.setValue("Purchase");
+                purchaseOperatorGroup.setValue(pp.getOperator() == PurchasePolicy.Operator.OR
+                    ? "OR (at least one must pass)" : "AND (all must pass)");
                 extractMinAge(pp).ifPresent(minAgeField::setValue);
                 extractMinTickets(pp).ifPresent(minTicketsField::setValue);
                 extractMaxTickets(pp).ifPresent(maxTicketsField::setValue);
             } else if (existing instanceof DiscountPolicy dp) {
-                if (dp.getRootRule() instanceof CouponDiscountRule cr) {
-                    typeBox.setValue("Coupon Discount");
-                    couponCodeField.setValue(cr.getCouponCode());
-                    couponPctField.setValue(cr.getPercentage());
-                    if (cr.getExpiry() != null)
-                        couponExpiryPicker.setValue(cr.getExpiry().toLocalDate());
-                } else {
-                    typeBox.setValue("Percentage Discount");
-                    if (dp.getRootRule() instanceof PercentageDiscountRule pdr)
-                        percentageField.setValue(pdr.getPercentage());
+                typeBox.setValue("Discount");
+                andOrGroup.setValue(dp.isAdditive() ? "AND (sum discounts)" : "OR (best discount)");
+                // load existing rules into discountRules list
+                if (dp.getRootRule() instanceof CompositeDiscountRule composite) {
+                    discountRules.addAll(composite.getRules());
+                } else if (dp.getRootRule() != null) {
+                    discountRules.add(dp.getRootRule());
                 }
+                rebuildRuleRows[0].run();
+            //     if (dp.getRootRule() instanceof CouponDiscountRule cr) {
+            //         typeBox.setValue("Coupon Discount");
+            //         couponCodeField.setValue(cr.getCouponCode());
+            //         couponPctField.setValue(cr.getPercentage());
+            //         if (cr.getExpiry() != null)
+            //             couponExpiryPicker.setValue(cr.getExpiry().toLocalDate());
+            //     } else {
+            //         typeBox.setValue("Percentage Discount");
+            //         if (dp.getRootRule() instanceof PercentageDiscountRule pdr)
+            //             percentageField.setValue(pdr.getPercentage());
+            //     }
             }
         }
 
@@ -1059,17 +1254,25 @@ public class EventDetailsView extends VerticalLayout {
             } else if ("Purchase".equals(t)) {
                 formArea.add(
                         editSectionLabel("At least one rule required"),
+                        purchaseOperatorGroup,
                         minAgeField, minTicketsField, maxTicketsField);
-            } else if ("Percentage Discount".equals(t)) {
-                formArea.add(percentageField);
-            } else if ("Coupon Discount".equals(t)) {
-                formArea.add(
-                        editSectionLabel("Coupon details"),
-                        couponCodeField, couponPctField, couponExpiryPicker);
+                        } 
+            else if ("Discount".equals(t)) {
+                formArea.add(andOrGroup, rulesContainer,
+                        editSectionLabel("Add a rule:"),
+                        ruleTypeBox, ruleFields, addRuleBtn);
             }
+            // } else if ("Percentage Discount".equals(t)) {
+            //     formArea.add(percentageField);
+            // } else if ("Coupon Discount".equals(t)) {
+            //     formArea.add(
+            //             editSectionLabel("Coupon details"),
+            //             couponCodeField, couponPctField, couponExpiryPicker);
+            // }
         };
         typeBox.addValueChangeListener(e -> updateForm.run());
         updateForm.run();
+
 
         // ── Save handler ──
         Button saveBtn = new Button(isEdit ? "Save Changes" : "Add Policy", e -> {
@@ -1086,15 +1289,14 @@ public class EventDetailsView extends VerticalLayout {
             UUID companyId = UUID.fromString(companyIdObj.toString());
             try {
                 if (isEdit)
-                    policyRepo.deleteByPolicyId(existing.getPolicyId());
+                    policyService.removePolicy(existing.getPolicyId());
 
                 switch (t) {
                     case "Selling" -> {
                         SellingType st = sellingTypeBox.getValue() != null
                                 ? sellingTypeBox.getValue()
                                 : SellingType.REGULAR;
-                        policyRepo.savePolicy(new SellingPolicy(
-                                Math.abs(UUID.randomUUID().hashCode()),
+                        policyService.savePolicy(new SellingPolicy(
                                 st.name() + " selling policy", st, cachedEventId, companyId));
                     }
                     case "Purchase" -> {
@@ -1106,48 +1308,85 @@ public class EventDetailsView extends VerticalLayout {
                             return;
                         }
                         PurchasePolicy pp = new PurchasePolicy(
-                                Math.abs(UUID.randomUUID().hashCode()),
-                                "Purchase restrictions", cachedEventId, companyId);
-                        if (minAge != null && minAge >= 0)
-                            pp.addRule(new MinAgeRule(minAge));
-                        if (minTix != null && minTix > 0)
-                            pp.addRule(new MinTicketsRule(minTix));
-                        if (maxTix != null && maxTix > 0)
-                            pp.addRule(new MaxTicketsRule(maxTix));
-                        policyRepo.savePolicy(pp);
+                                   "Purchase restrictions", cachedEventId, companyId);
+                        // if (minAge != null && minAge >= 0)
+                        //     pp.addRule(new MinAgeRule(minAge));
+                        // if (minTix != null && minTix > 0)
+                        //     pp.addRule(new MinTicketsRule(minTix));
+                        // if (maxTix != null && maxTix > 0)
+                        //     pp.addRule(new MaxTicketsRule(maxTix));
+                        // policyService.savePolicy(pp);
+                        PurchasePolicy.Operator op = "OR (at least one must pass)"
+                                .equals(purchaseOperatorGroup.getValue())
+                                ? PurchasePolicy.Operator.OR
+                                : PurchasePolicy.Operator.AND;
+
+                        List<PurchaseRule> rules = new ArrayList<>();
+                        if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
+                        if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
+                        if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
+                        pp.setRules(rules, op);
+                        policyService.savePolicy(pp);
                     }
-                    case "Percentage Discount" -> {
-                        Double pct = percentageField.getValue();
-                        if (pct == null || pct <= 0) {
-                            error("Percentage must be greater than 0");
+                    case "Discount" -> {
+                        if (discountRules.isEmpty()) {
+                            error("At least one discount rule is required");
                             return;
                         }
-                        DiscountPolicy dp = new DiscountPolicy(
-                                Math.abs(UUID.randomUUID().hashCode()),
-                                pct + "% discount", cachedEventId, companyId);
-                        dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
-                        policyRepo.savePolicy(dp);
+                        // Delete old policy first
+                        policyService.getPoliciesForEvent(cachedEventId).stream()
+                            .filter(p -> p instanceof DiscountPolicy)
+                            .forEach(p -> policyService.removePolicy(p.getPolicyId()));
+                        boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
+                        List<DiscountRule> freshRules = discountRules.stream()
+                        .map(r -> {
+                            if (r instanceof PercentageDiscountRule pr)
+                                return (DiscountRule) new PercentageDiscountRule(pr.getPercentage(), pr.getDescription());
+                            if (r instanceof CouponDiscountRule cr)
+                                return (DiscountRule) new CouponDiscountRule(cr.getPercentage(), cr.getCouponCode(), cr.getExpiry());
+                            if (r instanceof QuantityConditionalDiscountRule qr)
+                                return (DiscountRule) new QuantityConditionalDiscountRule(qr.getMinTickets(), qr.getPercentage());
+                            if (r instanceof DateRangeDiscountRule dr)
+                                return (DiscountRule) new DateRangeDiscountRule(dr.getPercentage(), dr.getFrom(), dr.getUntil());
+                            return r;
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+                    DiscountPolicy dp = new DiscountPolicy("Discount policy", cachedEventId, companyId);
+                    dp.setRules(freshRules, isAdditive);
+                    policyService.savePolicy(dp);
                     }
-                    case "Coupon Discount" -> {
-                        String code = couponCodeField.getValue();
-                        if (code == null || code.isBlank()) {
-                            error("Coupon code is required");
-                            return;
-                        }
-                        Double pct = couponPctField.getValue();
-                        if (pct == null || pct <= 0) {
-                            error("Percentage must be greater than 0");
-                            return;
-                        }
-                        java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
-                                ? couponExpiryPicker.getValue().atTime(23, 59, 59)
-                                : null;
-                        DiscountPolicy dp = new DiscountPolicy(
-                                Math.abs(UUID.randomUUID().hashCode()),
-                                "Coupon: " + code.trim().toUpperCase(), cachedEventId, companyId);
-                        dp.addRule(new CouponDiscountRule(pct, code.trim().toUpperCase(), expiry));
-                        policyRepo.savePolicy(dp);
-                    }
+                    // case "Percentage Discount" -> {
+                    //     Double pct = percentageField.getValue();
+                    //     if (pct == null || pct <= 0) {
+                    //         error("Percentage must be greater than 0");
+                    //         return;
+                    //     }
+                    //     DiscountPolicy dp = new DiscountPolicy(
+                    //             Math.abs(UUID.randomUUID().hashCode()),
+                    //             pct + "% discount", cachedEventId, companyId);
+                    //     dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
+                    //     policyService.savePolicy(dp);
+                    // }
+                    // case "Coupon Discount" -> {
+                    //     String code = couponCodeField.getValue();
+                    //     if (code == null || code.isBlank()) {
+                    //         error("Coupon code is required");
+                    //         return;
+                    //     }
+                    //     Double pct = couponPctField.getValue();
+                    //     if (pct == null || pct <= 0) {
+                    //         error("Percentage must be greater than 0");
+                    //         return;
+                    //     }
+                    //     java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
+                    //             ? couponExpiryPicker.getValue().atTime(23, 59, 59)
+                    //             : null;
+                    //     DiscountPolicy dp = new DiscountPolicy(
+                    //             Math.abs(UUID.randomUUID().hashCode()),
+                    //             "Coupon: " + code.trim().toUpperCase(), cachedEventId, companyId);
+                    //     dp.addRule(new CouponDiscountRule(pct, code.trim().toUpperCase(), expiry));
+                    //     policyService.savePolicy(dp);
+                    // }
                 }
 
                 refresh[0].run();
@@ -1291,6 +1530,7 @@ public class EventDetailsView extends VerticalLayout {
                 .set("align-items", "center")
                 .set("margin-bottom", "16px");
 
+
         H2 title = new H2("Shows");
         title.getStyle().set("margin", "0").set("font-size", "20px").set("color", "#111");
         titleRow.add(title);
@@ -1320,8 +1560,8 @@ public class EventDetailsView extends VerticalLayout {
         Grid<show> grid = new Grid<>(show.class, false);
         grid.addColumn(s -> nullSafe(s.getName())).setHeader("Show Name").setFlexGrow(2);
         grid.addColumn(s -> nullSafe(s.getSinger())).setHeader("Singer / Performer").setFlexGrow(2);
-        grid.addColumn(s -> s.getShowDate() != null ? DATE_FMT.format(s.getShowDate()) : "—")
-                .setHeader("Date").setFlexGrow(1);
+        grid.addColumn(s -> s.getShowDate() != null ? DATETIME_FMT.format(s.getShowDate()) : "—")
+                .setHeader("Date & Time").setFlexGrow(1);
         grid.addColumn(s -> {
             if (cachedEventId == null || s.getShowid() == null) {
                 return "—";
@@ -1360,6 +1600,26 @@ public class EventDetailsView extends VerticalLayout {
 
             Button seatBtn = new Button("Select Seat", e -> openSeatDialog(s));
             seatBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+            // Block ticket purchase if this is a lottery event and the draw hasn't happened yet
+            try {
+                boolean isLotteryEvent = cachedEventId != null &&
+                        policyService.getPoliciesForEvent(cachedEventId).stream()
+                                .anyMatch(p -> p instanceof SellingPolicy sp
+                                        && sp.getType() == SellingType.LOTTERY);
+                if (isLotteryEvent) {
+                    boolean drawDone = cachedEventId != null &&
+                            lotteryService.getLotteriesByEvent(cachedEventId).stream()
+                                    .anyMatch(l -> l.getStatus() == LotteryStatus.DRAWN);
+                    if (!drawDone) {
+                        seatBtn.setEnabled(false);
+                        seatBtn.getElement().setAttribute("title",
+                                "Tickets can only be purchased after the lottery draw is complete");
+                        seatBtn.setText("Lottery Pending");
+                    }
+                }
+            } catch (Exception ignored) { /* leave button enabled if check fails */ }
+
             actions.add(seatBtn);
 
             if (isManagerOrOwner()) {
@@ -1401,7 +1661,7 @@ public class EventDetailsView extends VerticalLayout {
         body.add(
                 dialogRow("Name", nullSafe(s.getName())),
                 dialogRow("Singer", nullSafe(s.getSinger())),
-                dialogRow("Date", s.getShowDate() != null ? DATE_FMT.format(s.getShowDate()) : "—"),
+                dialogRow("Date & Time", s.getShowDate() != null ? DATETIME_FMT.format(s.getShowDate()) : "—"),
                 dialogRow("Description", nullSafe(s.getDescription())),
                 dialogRow("Show ID", s.getShowid() != null ? s.getShowid().toString() : "—"));
 
@@ -1478,6 +1738,417 @@ public class EventDetailsView extends VerticalLayout {
         if (area instanceof SeatedArea)
             return -1; // blocks×rows×seats not available without deep fetch
         return -1;
+    }
+
+    /**
+     * Returns the total capacity of a fully-loaded show:
+     * standing max-capacity + every seat in every row of every block in every seated area.
+     */
+    private int showCapacity(show s) {
+        try {
+            show full = eventService.loadShowFully(cachedEventId, s.getShowid());
+            int total = 0;
+            if (full.getAreas() == null) return 0;
+            for (Area area : full.getAreas()) {
+                if (area instanceof StandingArea sa) {
+                    total += sa.getMaxCapacity();
+                } else if (area instanceof SeatedArea sea) {
+                    for (Block block : sea.getBlocks()) {
+                        if (block.getRows() != null)
+                            for (Row row : block.getRows())
+                                total += row.getSeats() != null ? row.getSeats().size() : 0;
+                    }
+                }
+            }
+            return total;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Returns the capacity of the largest show in this event.
+     * This is used as the lottery draw count so that enough winners are
+     * selected to fill every seat/standing spot in the busiest show.
+     */
+    private int computeMaxShowCapacity() {
+        if (cachedEventId == null) return 0;
+        try {
+            java.util.List<show> shows = eventService.getShowsForEvent(cachedEventId);
+            int max = 0;
+            for (show s : shows) {
+                int cap = showCapacity(s);
+                if (cap > max) max = cap;
+            }
+            return max;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    // ── Lottery card (all users) ──────────────────────────────────────────────
+
+    private Div buildLotteryCard() {
+        Div card = card();
+        H2 title = new H2("🎟 Lottery");
+        title.getStyle().set("margin", "0 0 16px 0").set("font-size", "20px").set("color", "#111");
+        card.add(title);
+
+        Div body = new Div();
+        body.setWidthFull();
+        Runnable[] refresh = { null };
+        refresh[0] = () -> {
+            body.removeAll();
+            try {
+                java.util.List<LotteryDTO> lotteries = lotteryService.getLotteriesByEvent(cachedEventId);
+                if (lotteries.isEmpty()) {
+                    if (isManagerOrOwner()) {
+                        body.add(buildCreateLotteryForm(refresh));
+                    } else {
+                        Paragraph none = new Paragraph("No lottery has been set up for this event yet.");
+                        none.getStyle().set("color", "#888");
+                        body.add(none);
+                    }
+                } else {
+                    for (LotteryDTO dto : lotteries)
+                        body.add(buildLotteryRow(dto, refresh));
+                }
+            } catch (Exception ex) {
+                Paragraph err = new Paragraph("Could not load lottery: " + ex.getMessage());
+                err.getStyle().set("color", "#c62828");
+                body.add(err);
+                if (isManagerOrOwner()) body.add(buildCreateLotteryForm(refresh));
+            }
+        };
+        refresh[0].run();
+        card.add(body);
+        return card;
+    }
+
+    private Div buildCreateLotteryForm(Runnable[] refresh) {
+        Div form = new Div();
+        form.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "12px");
+
+        Paragraph hint = new Paragraph("No lottery exists for this event. Create one below.");
+        hint.getStyle().set("color", "#666").set("margin", "0");
+
+        com.vaadin.flow.component.datetimepicker.DateTimePicker deadlinePicker =
+                new com.vaadin.flow.component.datetimepicker.DateTimePicker("Registration Deadline");
+        deadlinePicker.setWidthFull();
+
+        com.vaadin.flow.component.datetimepicker.DateTimePicker drawTimePicker =
+                new com.vaadin.flow.component.datetimepicker.DateTimePicker("Draw Time");
+        drawTimePicker.setWidthFull();
+
+        deadlinePicker.addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                drawTimePicker.setMin(e.getValue().plusMinutes(1));
+                if (drawTimePicker.getValue() != null &&
+                        !drawTimePicker.getValue().isAfter(e.getValue()))
+                    drawTimePicker.clear();
+            }
+        });
+
+        Button createBtn = new Button("Create Lottery", e -> {
+            if (deadlinePicker.getValue() == null || drawTimePicker.getValue() == null) {
+                error("Both registration deadline and draw time are required");
+                return;
+            }
+            Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+            if (tokenObj == null) { error("Session expired"); return; }
+            try {
+                lotteryService.createLottery(tokenObj.toString(), cachedEventId,
+                        cachedEvent.getCompanyId(),
+                        deadlinePicker.getValue(), drawTimePicker.getValue());
+                Notification.show("Lottery created!", 2500, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                refresh[0].run();
+            } catch (Exception ex) { error(ex.getMessage()); }
+        });
+        createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createBtn.getStyle().set("background", "#026cdf").set("color", "white").set("font-weight", "700");
+
+        form.add(hint, deadlinePicker, drawTimePicker, createBtn);
+        return form;
+    }
+
+    private Div buildLotteryRow(LotteryDTO dto, Runnable[] refresh) {
+        Div row = new Div();
+        row.setWidthFull();
+        row.getStyle()
+                .set("background", "#f8faff").set("border", "1px solid #d0e4ff")
+                .set("border-radius", "12px").set("padding", "20px 24px")
+                .set("display", "flex").set("flex-direction", "column").set("gap", "16px");
+
+        // ── Status badge ──
+        String statusBg  = dto.getStatus() == LotteryStatus.OPEN   ? "#e8f5e9"
+                         : dto.getStatus() == LotteryStatus.DRAWN  ? "#fff3e0" : "#fce4ec";
+        String statusFg  = dto.getStatus() == LotteryStatus.OPEN   ? "#2e7d32"
+                         : dto.getStatus() == LotteryStatus.DRAWN  ? "#e65100" : "#c62828";
+        Span statusBadge = badge(dto.getStatus().name(), statusBg, statusFg);
+
+        Div topRow = new Div(statusBadge);
+        topRow.getStyle().set("display", "flex").set("align-items", "center").set("gap", "12px");
+
+        // ── Info grid ──
+        Div infoGrid = new Div();
+        infoGrid.getStyle().set("display", "grid").set("grid-template-columns", "1fr 1fr")
+                .set("gap", "8px 32px");
+        infoGrid.add(infoRow("Participants", String.valueOf(dto.getEntryCount())));
+
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+
+        // ── Countdown timers ──
+        if (dto.getStatus() == LotteryStatus.OPEN && dto.getRegistrationDeadline() != null) {
+            boolean regOpen = java.time.LocalDateTime.now().isBefore(dto.getRegistrationDeadline());
+            if (regOpen) {
+                Div timerBox = buildTimerBox(
+                        "⏰ Registration closes in",
+                        "#e3f2fd", "#026cdf",
+                        dto.getRegistrationDeadline().atZone(zone).toInstant().toEpochMilli());
+                row.add(timerBox);
+            } else {
+                Div closedBox = new Div(new Span("🔒 Registration is closed"));
+                closedBox.getStyle().set("background", "#fce4ec").set("color", "#c62828")
+                        .set("border-radius", "8px").set("padding", "10px 16px")
+                        .set("font-weight", "600").set("font-size", "14px");
+                row.add(closedBox);
+            }
+        }
+
+        if (dto.getStatus() == LotteryStatus.OPEN && dto.getDrawTime() != null) {
+            boolean drawPending = java.time.LocalDateTime.now().isBefore(dto.getDrawTime());
+            if (drawPending) {
+                Div timerBox = buildTimerBox(
+                        "🎲 Draw in",
+                        "#f3e5f5", "#6a1b9a",
+                        dto.getDrawTime().atZone(zone).toInstant().toEpochMilli());
+                row.add(timerBox);
+            }
+        }
+
+        row.add(topRow, infoGrid);
+
+        // ── Winners panel (manager/owner only, after draw) ──────────────────
+        if (isManagerOrOwner() && dto.getStatus() == LotteryStatus.DRAWN) {
+            try {
+                java.util.List<LotteryEntryDTO> allEntries = lotteryService.getEntriesByLottery(dto.getId());
+                java.util.List<LotteryEntryDTO> winnerEntries = allEntries.stream()
+                        .filter(LotteryEntryDTO::isWinner)
+                        .collect(java.util.stream.Collectors.toList());
+
+                Div winnersPanel = new Div();
+                winnersPanel.getStyle()
+                        .set("background", "#f0fff4").set("border", "1px solid #a5d6a7")
+                        .set("border-radius", "10px").set("padding", "14px 18px")
+                        .set("display", "flex").set("flex-direction", "column").set("gap", "8px");
+
+                Span panelTitle = new Span("🏆 Winners (" + winnerEntries.size() + ")");
+                panelTitle.getStyle().set("font-weight", "700").set("font-size", "14px")
+                        .set("color", "#2e7d32");
+                winnersPanel.add(panelTitle);
+
+                if (winnerEntries.isEmpty()) {
+                    Span none = new Span("No winners recorded.");
+                    none.getStyle().set("color", "#888").set("font-size", "13px");
+                    winnersPanel.add(none);
+                } else {
+                    for (LotteryEntryDTO w : winnerEntries) {
+                        String username;
+                        try {
+                            username = userService.getMemberById(w.getMemberId()).getUsername();
+                        } catch (Exception ex) {
+                            username = w.getMemberId(); // fallback to raw id
+                        }
+                        Div winnerLine = new Div();
+                        winnerLine.getStyle()
+                                .set("display", "flex").set("align-items", "center")
+                                .set("gap", "10px").set("font-size", "13px");
+
+                        Span name = new Span("👤 " + username);
+                        name.getStyle().set("font-weight", "600").set("color", "#1b5e20");
+
+                        winnerLine.add(name);
+
+                        if (w.getAccessCode() != null && !w.getAccessCode().isBlank()) {
+                            Span code = new Span("Access code: " + w.getAccessCode());
+                            code.getStyle()
+                                    .set("background", "#c8e6c9").set("color", "#1b5e20")
+                                    .set("padding", "2px 8px").set("border-radius", "6px")
+                                    .set("font-family", "monospace").set("font-size", "12px");
+                            winnerLine.add(code);
+                        }
+
+                        winnersPanel.add(winnerLine);
+                    }
+                }
+                row.add(winnersPanel);
+            } catch (Exception ex) {
+                Span err = new Span("Could not load winners: " + ex.getMessage());
+                err.getStyle().set("color", "#c62828").set("font-size", "13px");
+                row.add(err);
+            }
+        }
+
+        // ── Register button (regular users only, lottery OPEN and deadline not passed) ──
+        boolean isOpen = dto.getStatus() == LotteryStatus.OPEN
+                && dto.getRegistrationDeadline() != null
+                && java.time.LocalDateTime.now().isBefore(dto.getRegistrationDeadline());
+
+        if (!isManagerOrOwner() && isOpen) {
+            Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+            if (tokenObj != null) {
+                Button registerBtn = new Button("🎟 Register for Lottery", e -> {
+                    Object tok = UI.getCurrent().getSession().getAttribute("token");
+                    if (tok == null) { error("Please log in to register"); return; }
+                    try {
+                        lotteryService.registerToLottery(tok.toString(), dto.getId());
+                        Notification.show("You're registered! Good luck 🍀",
+                                3000, Notification.Position.TOP_CENTER)
+                                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                        refresh[0].run();
+                    } catch (Exception ex) {
+                        error(ex.getMessage());
+                    }
+                });
+                registerBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+                registerBtn.getStyle()
+                        .set("background", "#026cdf").set("color", "white")
+                        .set("font-weight", "700").set("font-size", "15px")
+                        .set("padding", "10px 28px");
+                row.add(registerBtn);
+            } else {
+                Span loginHint = new Span("Log in to register for this lottery");
+                loginHint.getStyle().set("color", "#888").set("font-style", "italic");
+                row.add(loginHint);
+            }
+        }
+
+        // ── Manager: draw controls ──
+        if (isManagerOrOwner() && dto.getStatus() == LotteryStatus.OPEN) {
+            int maxCapacity = computeMaxShowCapacity();
+            int participants = dto.getEntryCount();
+
+            Span infoSpan = new Span(
+                    participants + " participant" + (participants == 1 ? "" : "s") + " registered" +
+                    (maxCapacity > 0 ? "  ·  " + maxCapacity + " seat" + (maxCapacity == 1 ? "" : "s") + " available" : ""));
+            infoSpan.getStyle().set("color", "#555").set("font-size", "13px").set("align-self", "center");
+
+            // Draw exactly as many winners as there are seats in the largest show
+            // (capped to participant count so we never request more winners than entrants)
+            int drawCount = maxCapacity > 0 ? Math.min(maxCapacity, participants) : participants;
+
+            Button drawBtn = new Button("🎲 Draw Lottery", e -> {
+                if (participants == 0) { error("No participants registered yet"); return; }
+                Object tok = UI.getCurrent().getSession().getAttribute("token");
+                if (tok == null) { error("Session expired"); return; }
+                int count = computeMaxShowCapacity();
+                count = count > 0 ? Math.min(count, dto.getEntryCount()) : dto.getEntryCount();
+                try {
+                    java.util.List<LotteryEntryDTO> winners =
+                            lotteryService.drawLottery(tok.toString(), dto.getId(), count);
+
+                    // Collect winner member IDs for quick lookup
+                    java.util.Set<String> winnerMemberIds = winners.stream()
+                            .map(LotteryEntryDTO::getMemberId)
+                            .collect(java.util.stream.Collectors.toSet());
+
+                    // Fetch all entries so we can notify losers too
+                    java.util.List<LotteryEntryDTO> allEntries;
+                    try {
+                        allEntries = lotteryService.getEntriesByLottery(dto.getId());
+                    } catch (Exception ex) {
+                        allEntries = winners; // fallback: only notify winners
+                    }
+
+                    String eventName = cachedEvent != null ? cachedEvent.getName() : "the event";
+                    int notifiedWinners = 0, notifiedLosers = 0;
+
+                    for (LotteryEntryDTO entry : allEntries) {
+                        try {
+                            com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member m =
+                                    userService.getMemberById(entry.getMemberId());
+                            if (winnerMemberIds.contains(entry.getMemberId())) {
+                                // Find matching winner entry to get access code
+                                String code = winners.stream()
+                                        .filter(w -> w.getMemberId().equals(entry.getMemberId()))
+                                        .map(LotteryEntryDTO::getAccessCode)
+                                        .findFirst().orElse(null);
+                                notificationService.notifyLotteryWin(m.getUsername(), eventName, code);
+                                notifiedWinners++;
+                            } else {
+                                notificationService.notifyLotteryLoss(m.getUsername(), eventName);
+                                notifiedLosers++;
+                            }
+                        } catch (Exception notifyEx) {
+                            System.err.println("Could not notify member " + entry.getMemberId()
+                                    + ": " + notifyEx.getMessage());
+                        }
+                    }
+
+                    Notification.show("🎉 Draw complete! " + winners.size() + " winner(s) — "
+                                    + notifiedWinners + " win notifications and "
+                                    + notifiedLosers + " loss notifications sent.",
+                            6000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    refresh[0].run();
+                } catch (Exception ex) { error(ex.getMessage()); }
+            });
+            if (drawCount == 0) drawBtn.setEnabled(false);
+            drawBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            drawBtn.getStyle().set("font-weight", "700");
+
+            Div drawRow = new Div(infoSpan, drawBtn);
+            drawRow.getStyle().set("display", "flex").set("align-items", "center").set("gap", "16px");
+            row.add(drawRow);
+        }
+
+        return row;
+    }
+
+    /** Builds a styled countdown box and wires up a JS interval to count down to {@code epochMs}. */
+    private Div buildTimerBox(String label, String bg, String color, long epochMs) {
+        String timerId = "lottery-timer-" + java.util.UUID.randomUUID().toString().replace("-", "");
+
+        Span labelSpan = new Span(label + "  ");
+        labelSpan.getStyle().set("font-weight", "600").set("font-size", "14px");
+
+        Span countdownSpan = new Span("…");
+        countdownSpan.getStyle()
+                .set("font-weight", "700").set("font-size", "15px")
+                .set("font-variant-numeric", "tabular-nums");
+        countdownSpan.setId(timerId);
+
+        Div box = new Div(labelSpan, countdownSpan);
+        box.getStyle()
+                .set("background", bg).set("color", color)
+                .set("border-radius", "10px").set("padding", "12px 18px")
+                .set("display", "flex").set("align-items", "center").set("flex-wrap", "wrap")
+                .set("gap", "4px");
+
+        // Inject JS countdown that ticks every second.
+        // epochMs must be cast to double — Vaadin cannot serialise long/Long to JSON.
+        final double epochDouble = (double) epochMs;
+        box.addAttachListener(ev -> UI.getCurrent().getPage().executeJs(
+                "(function() {" +
+                "  var target = $0;" +
+                "  var el = document.getElementById($1);" +
+                "  if (!el) return;" +
+                "  function tick() {" +
+                "    var diff = target - Date.now();" +
+                "    if (diff <= 0) { el.textContent = 'Expired'; return; }" +
+                "    var d = Math.floor(diff/86400000);" +
+                "    var h = Math.floor((diff%86400000)/3600000);" +
+                "    var m = Math.floor((diff%3600000)/60000);" +
+                "    var s = Math.floor((diff%60000)/1000);" +
+                "    el.textContent = (d>0?d+'d ':'')+h+'h '+m+'m '+s+'s';" +
+                "  }" +
+                "  tick();" +
+                "  var iv = setInterval(function(){ var e=document.getElementById($1); if(!e){clearInterval(iv);return;} tick(); },1000);" +
+                "})()",
+                epochDouble, timerId));
+
+        return box;
     }
 
     private static int areaAvailable(Area area) {
@@ -1596,7 +2267,7 @@ public class EventDetailsView extends VerticalLayout {
     }
 
     private static String formatDate(Date d) {
-        return d != null ? DATE_FMT.format(d) : "—";
+        return d != null ? DATETIME_FMT.format(d) : "—";
     }
 
     private static Div emptyState(String message) {
@@ -1722,11 +2393,26 @@ public class EventDetailsView extends VerticalLayout {
                 String token = tokenObj.toString();
                 checker++;
                 for (CartEntry entry : cart) {
+                    System.out.println("DEBUG cart entry: " + entry.description() + " qty=" + entry.quantity());
                     java.util.Map<String, String> item = new java.util.LinkedHashMap<>();
                     item.put("description", entry.description());
                     item.put("unitPrice", entry.unitPrice().toPlainString());
                     item.put("quantity", String.valueOf(entry.quantity()));
-                    checkoutItems.add(item);
+    
+                    boolean found = false;
+                    for (java.util.Map<String, String> existingItem : checkoutItems) {
+                        if (existingItem.get("description").equals(entry.description()) &&
+                            existingItem.get("unitPrice").equals(entry.unitPrice().toPlainString())) {
+                            int q = Integer.parseInt(existingItem.get("quantity")) + entry.quantity();
+                            existingItem.put("quantity", String.valueOf(q));
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        item.put("quantity", String.valueOf(entry.quantity()));
+                        checkoutItems.add(item);
+                    }
                     if (entry.isSeated()) {
                         ticket t = eventService.reserveSeat(
                                 cachedEventId, s.getShowid(), entry.areaId(), entry.seatId(), cachedUserId);
@@ -1754,11 +2440,22 @@ public class EventDetailsView extends VerticalLayout {
                 checker++;
                 var session = UI.getCurrent().getSession();
                 session.setAttribute("checkoutOrderId", order.getOrderId().toString());
+                // session.setAttribute("checkoutFinalPrice", order.getFinalPrice().toPlainString());
+                //session.setAttribute("checkoutDiscount", order.getDiscount().toPlainString());
+                // session.setAttribute("checkoutFinalPrice", null);
+                //  session.setAttribute("checkoutDiscount", null);
+                session.setAttribute("checkoutFinalPrice",
+                order.getFinalPrice() != null ? order.getFinalPrice().toPlainString() : null);
+
+                session.setAttribute("checkoutDiscount",
+                order.getDiscount() != null ? order.getDiscount().toPlainString() : "0");
+                 
 
                 checker++;
                 session.setAttribute("checkoutTicketIds", ticketIds);
                 checker++;
-                session.setAttribute("checkoutItems", checkoutItems);
+                // session.setAttribute("checkoutItems", checkoutItems);
+                session.setAttribute("checkoutItems", buildCheckoutItemsFromOrder(order));
                 checker++;
                 session.setAttribute("checkoutUserId", cachedUserId.toString());
                 checker++;
@@ -2242,4 +2939,24 @@ public class EventDetailsView extends VerticalLayout {
 
         return new SeatCount(0, 0);
     }
+
+    private List<Map<String, String>> buildCheckoutItemsFromOrder(OrderDTO order) {
+    List<Map<String, String>> items = new ArrayList<>();
+
+    if (order == null || order.getItems() == null) {
+        return items;
+    }
+
+    for (var orderItem : order.getItems()) {
+        Map<String, String> item = new java.util.LinkedHashMap<>();
+
+        item.put("description", "Ticket");
+        item.put("unitPrice", orderItem.getPrice().toPlainString());
+        item.put("quantity", "1");
+
+        items.add(item);
+    }
+
+    return items;
+}
 }

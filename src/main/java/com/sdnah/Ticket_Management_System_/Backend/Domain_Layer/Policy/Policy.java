@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 public abstract class Policy {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "policy_id")
     private int policyId;
 
@@ -24,19 +25,22 @@ public abstract class Policy {
     @Column(name = "event_id")
     private UUID eventId;
 
+    public enum CombineMode { AND, OR }
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "combine_mode")
+    private CombineMode combineMode = CombineMode.AND;
+
     protected Policy() {
         // JPA
     }
 
-    protected Policy(int policyId, String description, UUID eventId, UUID companyId) {
-        if (policyId <= 0)
-            throw new IllegalArgumentException("Policy ID must be positive");
+    protected Policy(String description, UUID eventId, UUID companyId) {
         if (description == null || description.trim().isEmpty())
             throw new IllegalArgumentException("Policy description cannot be empty");
         if (companyId ==null)
             throw new IllegalArgumentException("Company ID must be positive");
         // eventId may be null for company-scoped policies
-        this.policyId    = policyId;
         this.description = description;
         this.eventId     = eventId;
         this.companyId   = companyId;

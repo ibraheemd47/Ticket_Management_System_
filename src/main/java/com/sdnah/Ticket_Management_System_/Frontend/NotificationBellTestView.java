@@ -3,7 +3,6 @@ package com.sdnah.Ticket_Management_System_.Frontend;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
-import com.sdnah.Ticket_Management_System_.Frontend.NotificationBell;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;

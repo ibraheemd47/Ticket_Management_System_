@@ -8,12 +8,12 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mock;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,7 +29,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.Payme
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
@@ -62,6 +65,10 @@ class ActiveOrderServiceTest {
     @Mock
     private NotificationService notificationService;
     // @Mock private PolicyService policyService;
+    @Mock 
+    private LotteryRepository lotteryRepo;
+    @Mock
+    private IEventRepository eventRepo;
 
     private ActiveOrderService service;
 
@@ -69,6 +76,13 @@ class ActiveOrderServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
+         // NEW by yara:
+        Member mockBuyer = mock(Member.class);
+        when(mockBuyer.getAge()).thenReturn(25);
+        when(represnteUserService.requireMember(any())).thenReturn(mockBuyer);
+
+        
+        
         service = new ActiveOrderService(
                 orderRepo,
                 notificationService,
@@ -80,7 +94,7 @@ class ActiveOrderServiceTest {
                 ticketRepository,
                 policyRepository,
                 represnteUserService,
-                actionLogRepo);
+                actionLogRepo,lotteryRepo,eventRepo);
     }
 
     @Test

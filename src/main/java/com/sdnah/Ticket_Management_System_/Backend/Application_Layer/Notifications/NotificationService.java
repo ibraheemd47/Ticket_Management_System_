@@ -287,4 +287,20 @@ public class NotificationService {
                 NotificationType.COMPLAINT_RESOLVED
         );
     }
+
+    public String notifyLotteryWin(String recipientUsername, String eventName, String accessCode) {
+        String message = "🎉 Congratulations! You won the lottery for event: " + eventName + "."
+                + (accessCode != null && !accessCode.isBlank()
+                   ? " Your access code is: " + accessCode + ". Use it to purchase your ticket."
+                   : " You may now purchase your ticket.");
+        return createNotification(recipientUsername, message, NotificationType.LOTTERY_WIN);
+    }
+
+    public String notifyLotteryLoss(String recipientUsername, String eventName) {
+        return createNotification(
+                recipientUsername,
+                "Unfortunately, you were not selected in the lottery for event: " + eventName
+                        + ". Better luck next time!",
+                NotificationType.LOTTERY_LOSS);
+    }
 }

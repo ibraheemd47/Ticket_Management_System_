@@ -32,7 +32,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrde
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentTransaction;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
@@ -54,6 +57,8 @@ class ActiveOrderServiceCheckoutTest {
         IrepresnteUserService userService = mock(IrepresnteUserService.class);
         OrderActionLogRepository actionLogRepo = mock(OrderActionLogRepository.class);
         NotificationService notificationService = mock(NotificationService.class);
+        LotteryRepository lotteryRepo = mock(LotteryRepository.class);
+        IEventRepository eventRepo = mock(IEventRepository.class);
 
         ActiveOrderService service = new ActiveOrderService(
                 orderRepo,
@@ -66,13 +71,12 @@ class ActiveOrderServiceCheckoutTest {
                 ticketRepo,
                 policyRepo,
                 userService,
-                actionLogRepo
+                actionLogRepo,lotteryRepo,eventRepo
         );
 
         String userToken = "token-1";
         String buyerId = UUID.randomUUID().toString();
         UUID eventId = UUID.randomUUID();
-        UUID orderId = UUID.randomUUID();
         UUID ticketId = UUID.randomUUID();
 
         ActiveOrder order = new ActiveOrder(buyerId, eventId, 30);
@@ -106,6 +110,11 @@ class ActiveOrderServiceCheckoutTest {
         );
 
         when(userService.requireMemberId(userToken)).thenReturn(buyerId);
+        //NEW by yara:
+        Member mockBuyer = mock(Member.class);
+        when(mockBuyer.getAge()).thenReturn(25);
+        when(userService.requireMember(userToken)).thenReturn(mockBuyer);
+
         when(orderRepo.findById(order.getId())).thenReturn(Optional.of(order));
         when(ticketRepo.findById(ticketId)).thenReturn(Optional.of(realTicket));
 

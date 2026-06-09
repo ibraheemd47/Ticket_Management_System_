@@ -17,6 +17,8 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer> {
        // ── Basic queries ──────────────────────────────────────────────────────────
     Optional<Policy> findByPolicyId(int policyId);
     List<Policy>     findByEventId(UUID eventId);
+    List<Policy> findByCompanyIdAndEventIdIsNull(UUID companyId);
+
  
     // ── By eventId (event-scoped policy) ──────────────────────────────────────
     Optional<DiscountPolicy> findDiscountPolicyByEventId(UUID eventId);
@@ -29,6 +31,8 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer> {
     Optional<SellingPolicy>  findSellingPolicyByCompanyIdAndEventIdIsNull(UUID companyId);
  
     // ── Delete ────────────────────────────────────────────────────────────────
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
     void deleteByPolicyId(int policyId);
 
     // ── Save any Policy subtype ───────────────────────────────────

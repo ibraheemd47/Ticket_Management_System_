@@ -1,8 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.UUID;
+
 
 import javax.crypto.SecretKey;
 
@@ -11,13 +9,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.AuthToken;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import java.security.Key;
 import java.util.Date;
 
 @Service

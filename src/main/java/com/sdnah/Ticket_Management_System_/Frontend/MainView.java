@@ -1,6 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
@@ -28,8 +28,6 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
@@ -197,6 +195,7 @@ private List<EventDto> allEventDtos;
 
                 // 3. Clear the session attribute so the UI knows the user is logged out
                 UI.getCurrent().getSession().setAttribute("token", null);
+                UI.getCurrent().getSession().setAttribute("managingCompanyId", null);
 
                 // 4. THE FIX: Reload the page to refresh the header buttons
                 UI.getCurrent().getPage().reload();
@@ -240,13 +239,14 @@ private List<EventDto> allEventDtos;
            
            allEventDtos = events.stream()
     .map(ev -> {
-        LocalDate start = ev.getStartDate().toInstant()
+        LocalDateTime start = ev.getStartDate().toInstant()
                             .atZone(ZoneId.systemDefault())
-                            .toLocalDate();
+                            .toLocalDateTime();
 
-        LocalDate end = ev.getEndDate().toInstant()
-                          .atZone(ZoneId.systemDefault())
-                          .toLocalDate();
+        LocalDateTime end;
+               end = ev.getEndDate().toInstant()
+                       .atZone(ZoneId.systemDefault())
+                       .toLocalDateTime();
 
         return new EventDto(
             ev.getEventId(),
