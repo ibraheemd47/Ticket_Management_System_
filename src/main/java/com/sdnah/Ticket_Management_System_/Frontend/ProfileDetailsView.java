@@ -40,7 +40,7 @@ public class ProfileDetailsView extends VerticalLayout implements BeforeEnterObs
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         Object token = event.getUI().getSession().getAttribute("token");
-        if (token == null) {
+        if (token == null || token.toString().startsWith("GUEST_")) {
             event.rerouteTo("login");
         }
     }

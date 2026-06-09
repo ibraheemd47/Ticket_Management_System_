@@ -2152,16 +2152,19 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         totalSpan.getStyle().set("font-weight", "700").set("font-size", "14px").set("color", "#111");
 
         Button checkoutBtn = new Button("Proceed to Checkout →", e -> {
+            e.getSource().setEnabled(false); // prevent double-click
             if (cart.isEmpty()) {
+                e.getSource().setEnabled(true);
                 error("Add at least one ticket first");
                 return;
             }
+            // ── GUEST SUPPORT: הוספה ── אם אין userId, צור UUID לגסט
             if (cachedUserId == null) {
-                Notification.show("Please log in to checkout",
-                        3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_WARNING);
-                return;
+                cachedUserId = UUID.randomUUID();
+                UI.getCurrent().getSession().setAttribute("userId", cachedUserId.toString());
             }
+            // ────────────────────────────────────────────────────
+
             List<String> ticketIds = new ArrayList<>();
             List<SeatRequest> seatRequests = new ArrayList<>();
 
@@ -2169,13 +2172,13 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             int checker = 0;
             try {
                 Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+                // ── GUEST SUPPORT: הוספה ── אם אין token, צור guest token מה-UUID שנוצר
                 if (tokenObj == null || tokenObj.toString().isBlank()) {
-                    Notification.show("Please log in to checkout",
-                            3000,
-                            Notification.Position.TOP_CENTER)
-                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
-                    return;
+                    String guestToken = "GUEST_" + cachedUserId;
+                    UI.getCurrent().getSession().setAttribute("token", guestToken);
+                    tokenObj = guestToken;
                 }
+                // ────────────────────────────────────────────────
                 String token = tokenObj.toString();
                 checker++;
                 for (CartEntry entry : cart) {
@@ -2250,7 +2253,20 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                 parentDialog.close();
                 UI.getCurrent().navigate("checkout");
             } catch (RuntimeException ex) {
-                error("Reservation failed: " + ex.getMessage() + " (step " + checker + ")");
+                String msg = ex.getMessage();
+                // ── GUEST SUPPORT: הוספה ── הגבלת גיל לגסט → הפנייה להרשמה
+                Object tok = UI.getCurrent().getSession().getAttribute("token");
+                if (msg != null && msg.toLowerCase().contains("age")
+                        && tok != null && tok.toString().startsWith("GUEST_")) {
+                    Notification.show(
+                            "This show has an age restriction. Please register to continue.",
+                            5000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
+                // ────────────────────────────────────────────────
+                error("Reservation failed: " + msg + " (step " + checker + ")");
+                e.getSource().setEnabled(true); // re-enable on error so user can retry
             }
         });
         checkoutBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

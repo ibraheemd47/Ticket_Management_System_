@@ -146,45 +146,56 @@ public class MainView extends VerticalLayout {
                     .set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
 
             String currentToken = (String) token;
+            boolean isGuest = currentToken.startsWith("GUEST_"); // ← GUEST SUPPORT
 
-            // Admin button - Delegated to Presenter
-            if (presenter.isSystemAdmin(currentToken)) {
-                Button adminBtn = new Button("Admin Dashboard",
-                        e -> UI.getCurrent().navigate("admin"));
+            if (!isGuest) {
+                // ── Member-only header buttons ──────────────────────────────
 
-                adminBtn.getStyle()
-                        .set("background", "#111827")
-                        .set("color", "white")
-                        .set("font-weight", "700")
-                        .set("border-radius", "8px")
+                // Admin button - Delegated to Presenter
+                if (presenter.isSystemAdmin(currentToken)) {
+                    Button adminBtn = new Button("Admin Dashboard",
+                            e -> UI.getCurrent().navigate("admin"));
+                    adminBtn.getStyle()
+                            .set("background", "#111827").set("color", "white")
+                            .set("font-weight", "700").set("border-radius", "8px")
+                            .set("cursor", "pointer");
+                    authButtons.add(adminBtn);
+                }
+
+                Button complaintBtn = new Button("File Complaint",
+                        e -> UI.getCurrent().navigate("complaints"));
+                complaintBtn.getStyle()
+                        .set("background", "white").set("color", "#026cdf")
+                        .set("font-weight", "700").set("border-radius", "8px")
+                        .set("cursor", "pointer");
+                authButtons.add(complaintBtn);
+
+                Button logoutBtn = new Button("Logout", e -> {
+                    presenter.logout(currentToken);
+                });
+                logoutBtn.getStyle().set("background", "transparent").set("color", "white")
+                        .set("border", "2px solid white").set("font-weight", "700")
+                        .set("border-radius", "8px").set("cursor", "pointer");
+
+                NotificationBell notifcation_bell = presenter.CreateNotificationBell();
+                authButtons.add(notifcation_bell, profileBtn, logoutBtn);
+
+            } else {
+                // ── Guest: show Login + Sign Up buttons ─────────────────────
+                Button loginBtn = new Button("Login",
+                        e -> UI.getCurrent().navigate("login"));
+                loginBtn.getStyle().set("background", "white").set("color", "#026cdf")
+                        .set("font-weight", "700").set("border-radius", "8px")
                         .set("cursor", "pointer");
 
-                authButtons.add(adminBtn);
+                Button signupBtn = new Button("Sign Up",
+                        e -> UI.getCurrent().navigate("signup"));
+                signupBtn.getStyle().set("background", "transparent").set("color", "white")
+                        .set("border", "2px solid white").set("font-weight", "700")
+                        .set("border-radius", "8px").set("cursor", "pointer");
+
+                authButtons.add(loginBtn, signupBtn);
             }
-
-            Button complaintBtn = new Button("File Complaint",
-                     e -> UI.getCurrent().navigate("complaints"));
-
-            complaintBtn.getStyle()
-                    .set("background", "white")
-                    .set("color", "#026cdf")
-                    .set("font-weight", "700")
-                    .set("border-radius", "8px")
-                    .set("cursor", "pointer");
-                    
-            authButtons.add(complaintBtn);    
-
-            Button logoutBtn = new Button("Logout", e -> {
-                presenter.logout(currentToken); // Delegated to presenter
-            });
-            
-          NotificationBell notifcation_bell = presenter.CreateNotificationBell(); // Delegated to presenter
-
-            logoutBtn.getStyle().set("background", "transparent").set("color", "white")
-                    .set("border", "2px solid white").set("font-weight", "700")
-                    .set("border-radius", "8px").set("cursor", "pointer");
-
-            authButtons.add( notifcation_bell, profileBtn, logoutBtn);
         }
 
         header.add(logo, searchBarLayout, authButtons);

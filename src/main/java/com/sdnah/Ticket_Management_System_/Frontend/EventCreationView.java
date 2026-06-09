@@ -61,7 +61,7 @@ public class EventCreationView extends VerticalLayout
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         Object token = UI.getCurrent().getSession().getAttribute("token");
-        if (token == null) event.forwardTo(LoginView.class);
+        if (token == null || token.toString().startsWith("GUEST_")) event.forwardTo(LoginView.class);
     }
 
     private final EventCreationPresenter presenter;

@@ -86,6 +86,11 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
             selectedTab = params.get("tab").get(0);
         }
 
+        // Guest: past orders tab is not available — always show active
+        if (this.token.startsWith("GUEST_") && "past".equals(selectedTab)) {
+            selectedTab = "active";
+        }
+
         removeAll();
         add(createHeader());
         add(createOrdersSection());
@@ -410,8 +415,11 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
         tabs.getStyle().set("display", "flex").set("gap", "34px")
                 .set("border-bottom", "1px solid rgba(255,255,255,0.3)");
 
-        tabs.add(createTab("Active Orders", "active"),
-                 createTab("Past Orders",   "past"));
+        tabs.add(createTab("Active Orders", "active"));
+        // Past Orders tab — members only
+        if (!token.startsWith("GUEST_")) {
+            tabs.add(createTab("Past Orders", "past"));
+        }
         header.add(top, crumbs, title, tabs);
         return header;
     }

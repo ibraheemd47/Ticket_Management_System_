@@ -98,7 +98,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         Object t = UI.getCurrent().getSession().getAttribute(SESSION_TOKEN);
-        if (t == null) {
+        if (t == null || t.toString().startsWith("GUEST_")) {
             event.forwardTo(LoginView.class);
             return;
         }

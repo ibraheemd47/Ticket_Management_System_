@@ -58,7 +58,8 @@ public class CompanyCreationView extends VerticalLayout
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        if (UI.getCurrent().getSession().getAttribute("token") == null) {
+        Object token = UI.getCurrent().getSession().getAttribute("token");
+        if (token == null || token.toString().startsWith("GUEST_")) {
             event.forwardTo(LoginView.class);
         }
     }

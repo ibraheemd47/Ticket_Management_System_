@@ -164,7 +164,10 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
 
         Span back = new Span("⟵ Back");
         back.getStyle().set("cursor", "pointer").set("font-weight", "700");
-        back.addClickListener(e -> UI.getCurrent().navigate("company"));
+        // Guests go back to their orders page; members go to company dashboard
+        Object token = UI.getCurrent().getSession().getAttribute("token");
+        boolean isGuest = token != null && token.toString().startsWith("GUEST_");
+        back.addClickListener(e -> UI.getCurrent().navigate(isGuest ? "orders" : "company"));
 
         header.add(logo, back);
         return header;
