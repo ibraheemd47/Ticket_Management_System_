@@ -29,6 +29,7 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.QueryParameters;
 import com.vaadin.flow.router.Route;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.OrderDetailsPresenter;
 
 /**
  * "My Orders" page — Active tab pulls from {@code getPendingOrdersByBuyer},
@@ -41,10 +42,7 @@ import com.vaadin.flow.router.Route;
 @Route("orders")
 public class OrderDetailsView extends VerticalLayout implements BeforeEnterObserver {
 
-    private final ActiveOrderService orderService;
-    private final TicketService ticketService;
-    private final UserService userService;
-    private final EventService eventService;
+    private final OrderDetailsPresenter presenter;
 
     private String selectedTab = "active"; // default to "active" (was "past" before)
     private String token;
@@ -52,14 +50,10 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
     private static final DateTimeFormatter DATE_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    public OrderDetailsView(ActiveOrderService orderService,
-                            TicketService ticketService,
-                            UserService userService,
-                            EventService eventService) {
-        this.orderService = orderService;
-        this.ticketService = ticketService;
-        this.userService = userService;
-        this.eventService = eventService;
+    public OrderDetailsView(OrderDetailsPresenter presenter) {
+
+        this.presenter = presenter;
+        this.presenter.setView(this);
 
         setSizeFull();
         setPadding(false);
@@ -72,12 +66,11 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        Object t = event.getUI().getSession().getAttribute("token");
-        if (t == null) {
-            event.rerouteTo("login");
+        this.token = presenter.checkAccess(event);
+
+        if (this.token == null) {
             return;
         }
-        this.token = t.toString();
 
         // Read ?tab=… from the URL.
         QueryParameters qp = event.getLocation().getQueryParameters();
@@ -108,7 +101,7 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
     private Div renderActiveOrders() {
         List<OrderDTO> orders;
         try {
-            orders = orderService.getPendingOrdersByBuyer(token);
+            orders = presenter.getActiveOrders(token);
         } catch (RuntimeException ex) {
             return errorCard("Couldn't load your active orders: " + ex.getMessage());
         }
@@ -157,10 +150,9 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
         //  2) ticket rows owned by the user (the actual checkout path that
         //     CheckoutView uses today via TicketService.confirmPurchase).
         // Show both; tickets are the realistic source for now.
-        List<PurchaseDTO> purchases = safeList(() -> orderService.getPurchaseHistory(token));
+        List<PurchaseDTO> purchases = safeList(() -> presenter.getPurchaseHistory(token));
         List<ticket> tickets        = safeList(() -> {
-            UUID ownerId = resolveOwnerUuid();
-            return ownerId == null ? List.<ticket>of() : ticketService.getTicketsByOwner(ownerId);
+            return presenter.getUserTickets(token);
         });
 
         if ((purchases == null || purchases.isEmpty())
@@ -244,51 +236,28 @@ public class OrderDetailsView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void reserveSampleOrder() {
-        List<Event> events;
-        try {
-            events = eventService.getAllEvents();
-        } catch (RuntimeException ex) {
-            Notification.show("Couldn't list events: " + ex.getMessage(),
-                            4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            return;
-        }
-        if (events == null || events.isEmpty()) {
-            Notification.show("No events in the DB — ask whoever owns event-creation to add one first",
-                            4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            return;
-        }
-        UUID eventId = events.get(0).getEventId();
-        SeatRequest seat = new SeatRequest(
-                UUID.randomUUID().toString(),   // fresh ticket id → not already locked
-                1L,
-                UUID.randomUUID(),
-                new BigDecimal("30"));
+    try {
+        OrderDTO created = presenter.reserveSampleOrder(token);
 
-        try {
-            OrderDTO created = orderService.reserveTickets(token, eventId, List.of(seat));
-            Notification.show("Reserved order " + shortId(created.getOrderId()) + " — refreshing",
-                            2500, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            getUI().ifPresent(ui -> ui.getPage().reload());
-        } catch (RuntimeException ex) {
-            Notification.show("Reserve failed: " + ex.getMessage(),
-                            5000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
+        Notification.show(
+                "Reserved order " + shortId(created.getOrderId()) + " — refreshing",
+                2500,
+                Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+        getUI().ifPresent(ui -> ui.getPage().reload());
+
+    } catch (RuntimeException ex) {
+
+        Notification.show(
+                "Reserve failed: " + ex.getMessage(),
+                5000,
+                Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
     }
 
-    /** Resolve the current user's memberId (a String) and turn it into a UUID
-     *  so we can look up the tickets they own via TicketService. */
-    private UUID resolveOwnerUuid() {
-        try {
-            String memberId = userService.getMemberByToken(token).getMemberId();
-            return UUID.fromString(memberId);
-        } catch (RuntimeException ex) {
-            return null;
-        }
-    }
+
 
     private static <T> List<T> safeList(java.util.concurrent.Callable<List<T>> fetch) {
         try {
