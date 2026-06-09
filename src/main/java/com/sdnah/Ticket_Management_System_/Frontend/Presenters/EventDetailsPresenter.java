@@ -38,6 +38,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPo
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
@@ -318,7 +319,6 @@ public class EventDetailsPresenter {
                 case "Selling" -> {
                     SellingType st = sellingType != null ? sellingType : SellingType.REGULAR;
                     policyRepo.savePolicy(new SellingPolicy(
-                            Math.abs(UUID.randomUUID().hashCode()),
                             st.name() + " selling policy", st, cachedEventId, companyId));
                 }
                 case "Purchase" -> {
@@ -326,7 +326,6 @@ public class EventDetailsPresenter {
                         view.showError("At least one purchase restriction is required"); return;
                     }
                     PurchasePolicy pp = new PurchasePolicy(
-                            Math.abs(UUID.randomUUID().hashCode()),
                             "Purchase restrictions", cachedEventId, companyId);
                     if (minAge != null && minAge >= 0)      pp.addRule(new MinAgeRule(minAge));
                     if (minTickets != null && minTickets > 0) pp.addRule(new MinTicketsRule(minTickets));
@@ -338,7 +337,6 @@ public class EventDetailsPresenter {
                         view.showError("Percentage must be > 0"); return;
                     }
                     DiscountPolicy dp = new DiscountPolicy(
-                            Math.abs(UUID.randomUUID().hashCode()),
                             percentage + "% discount", cachedEventId, companyId);
                     dp.addRule(new PercentageDiscountRule(percentage, percentage + "% discount"));
                     policyRepo.savePolicy(dp);
@@ -353,7 +351,6 @@ public class EventDetailsPresenter {
                     LocalDateTime expiry = couponExpiry != null
                             ? couponExpiry.atTime(23, 59, 59) : null;
                     DiscountPolicy dp = new DiscountPolicy(
-                            Math.abs(UUID.randomUUID().hashCode()),
                             "Coupon: " + couponCode.trim().toUpperCase(), cachedEventId, companyId);
                     dp.addRule(new CouponDiscountRule(couponPct,
                             couponCode.trim().toUpperCase(), expiry));
@@ -362,6 +359,37 @@ public class EventDetailsPresenter {
                 default -> { view.showError("Unknown policy type"); return; }
             }
             view.showSuccess(existing == null ? "Policy added" : "Policy updated");
+            view.refreshPolicies();
+        } catch (RuntimeException ex) { view.showError(ex.getMessage()); }
+    }
+
+    /**
+     * Saves a composite discount policy with an explicit list of rules.
+     * Used by the new "Discount" dialog that lets managers combine Percentage,
+     * Coupon, Quantity and Date-range rules.
+     *
+     * @param existing   the policy to replace (null → new policy)
+     * @param rules      the discount rules to apply
+     * @param isAdditive true → AND (sum discounts), false → OR (best discount)
+     */
+    public void saveDiscountPolicy(Policy existing, List<DiscountRule> rules, boolean isAdditive) {
+        if (cachedEventId == null) { view.showError("No event loaded"); return; }
+        Object companyIdObj = view.getSessionAttribute("managingCompanyId");
+        if (companyIdObj == null) { view.showError("No company session"); return; }
+        if (rules == null || rules.isEmpty()) { view.showError("At least one discount rule is required"); return; }
+        UUID companyId = UUID.fromString(companyIdObj.toString());
+        try {
+            // Remove existing discount policies for this event first
+            policyRepo.findByEventId(cachedEventId).stream()
+                    .filter(p -> p instanceof DiscountPolicy)
+                    .forEach(p -> policyRepo.deleteByPolicyId(p.getPolicyId()));
+            if (existing != null) {
+                try { policyRepo.deleteByPolicyId(existing.getPolicyId()); } catch (Exception ignored) {}
+            }
+            DiscountPolicy dp = new DiscountPolicy("Discount policy", cachedEventId, companyId);
+            dp.setRules(rules, isAdditive);
+            policyRepo.savePolicy(dp);
+            view.showSuccess("Discount policy saved");
             view.refreshPolicies();
         } catch (RuntimeException ex) { view.showError(ex.getMessage()); }
     }

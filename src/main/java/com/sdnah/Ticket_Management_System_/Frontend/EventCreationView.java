@@ -1,10 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
-<<<<<<< HEAD
-import java.time.LocalDate;
-=======
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
->>>>>>> main
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,11 +54,6 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-<<<<<<< HEAD
-//need to add the area type for the show creartion and add the policy for selling ot discount on events / shows
-=======
-
->>>>>>> main
 @Route("event-create")
 public class EventCreationView extends VerticalLayout
         implements BeforeEnterObserver, EventCreationPresenter.View {
@@ -73,10 +65,6 @@ public class EventCreationView extends VerticalLayout
     }
 
     private final EventCreationPresenter presenter;
-    private final company_managment_serivce companyService;
-    private final EventService eventService;
-    private final PolicyRepository policyRepo;
-    private final LotteryService lotteryService;
 
     private final List<ShowDTO> shows = new ArrayList<>();
     private Div showsContainer;
@@ -105,18 +93,6 @@ public class EventCreationView extends VerticalLayout
     private NumberField couponPctField;
     private DatePicker couponExpiryPicker;
 
-    public EventCreationView(company_managment_serivce companyService, EventService eventService,
-            PolicyRepository policyRepo, LotteryService lotteryService) {
-        this.companyService = companyService;
-        this.eventService   = eventService;
-        this.policyRepo     = policyRepo;
-        this.lotteryService = lotteryService;
-
-    // ── Lottery fields (shown when SellingType == LOTTERY) ──
-    private com.vaadin.flow.component.datetimepicker.DateTimePicker lotteryDeadlinePicker;
-    private com.vaadin.flow.component.datetimepicker.DateTimePicker lotteryDrawTimePicker;
-    private Div                    lotteryFieldsDiv;
-
     public EventCreationView(EventCreationPresenter presenter) {
         this.presenter = presenter;
         this.presenter.setView(this);
@@ -139,11 +115,14 @@ public class EventCreationView extends VerticalLayout
                 .set("margin", "0 auto 48px auto")
                 .set("width", "100%");
 
+        VerticalLayout content = new VerticalLayout(buildEventCard(), buildShowsCard(), buildPoliciesCard());
+        content.setPadding(false);
+        content.setSpacing(false);
+        content.getStyle().set("max-width", "760px").set("margin", "0 auto").set("width", "100%");
+
         add(buildHeader(), content, actions);
     }
 
-    add(buildHeader(), content, actions);
-}
     // ── Header ───────────────────────────────────────────────────────────────
 
     private Div buildHeader() {
@@ -587,141 +566,29 @@ public class EventCreationView extends VerticalLayout
     // ── Single submit handler ────────────────────────────────────────────────
 
     private void handleCreate() {
-        // ── Validate event fields ──
-        String name     = nameField.getValue();
-        String venue    = venueField.getValue();
-        show_type type  = typeBox.getValue();
-        LocalDateTime start = startDatePicker.getValue();
-        LocalDateTime end   = endDatePicker.getValue();
+        LocalDateTime startDT = startDatePicker.getValue();
+        LocalDateTime endDT   = endDatePicker.getValue();
+        LocalDate start = startDT != null ? startDT.toLocalDate() : null;
+        LocalDate end   = endDT   != null ? endDT.toLocalDate()   : null;
 
-        if (name == null || name.isBlank())  { error("Event name is required");          return; }
-        if (venue == null || venue.isBlank()) { error("Venue is required");               return; }
-        if (type == null)                     { error("Please select an event type");     return; }
-        if (start == null)                    { error("Start date is required");          return; }
-        if (end == null)                      { error("End date is required");            return; }
-        if (end.isBefore(start))              { error("End date cannot be before start"); return; }
+        LocalDate couponExpiry = couponExpiryPicker.getValue();
 
-        // ── Validate lottery fields if LOTTERY is selected ──
-        boolean isLottery = sellingTypeBox.getValue() == SellingType.LOTTERY;
-        if (isLottery) {
-            if (lotteryDeadlinePicker.getValue() == null) {
-                error("Registration deadline is required for lottery events");
-                return;
-            }
-            if (lotteryDrawTimePicker.getValue() == null) {
-                error("Draw time is required for lottery events");
-                return;
-            }
-            if (!lotteryDrawTimePicker.getValue().isAfter(lotteryDeadlinePicker.getValue())) {
-                error("Draw time must be after the registration deadline");
-                return;
-            }
-        }
-
-        // ── Validate coupon if provided ──
-        String couponCode = couponCodeField.getValue();
-        if (couponCode != null && !couponCode.isBlank()) {
-            Double cpct = couponPctField.getValue();
-            if (cpct == null || cpct <= 0) {
-                error("Coupon percentage must be greater than 0");
-                return;
-            }
-        }
-
-        Object tokenObj     = UI.getCurrent().getSession().getAttribute("token");
-        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-
-        if (tokenObj == null) {
-            error("Not logged in — sign in first");
-            return;
-        }
-        if (companyIdObj == null) {
-            error("No company selected — navigate from your company page");
-            return;
-        }
-
-        String token     = tokenObj.toString();
-        UUID   companyId = UUID.fromString(companyIdObj.toString());
-
-        try {
-            // ── Create event ──
-            EventDto dto  = new EventDto();
-            dto.name      = name.trim();
-            dto.venue     = venue.trim();
-            dto.eventType = type;
-            dto.startDate = start;
-            dto.endDate   = end;
-
-            EventDto created = companyService.addEvent(token, companyId, dto);
-
-            // ── Persist shows ──
-            Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
-            String memberId  = userIdObj != null ? userIdObj.toString() : null;
-            for (ShowDTO s : shows) {
-                java.util.Date showDate = s.showDate != null
-                        ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
-                        : null;
-                show newShow = new show(created.id, s.name, s.description, s.singer, showDate);
-                newShow.setAreas(buildAreas(s));
-                newShow.setSeatedPrice(s.seatedPrice);
-                newShow.setStandingPrice(s.standingPrice);
-                try { eventService.addShowToEvent(created.id, newShow, memberId); }
-                catch (Exception ignored) {}
-            }
-
-            // ── Save policies ──
-            SellingType sellingType = sellingTypeBox.getValue() != null
-                    ? sellingTypeBox.getValue() : SellingType.REGULAR;
-            policyRepo.savePolicy(new SellingPolicy(
-                    sellingType.name() + " selling policy", sellingType, created.id, companyId));
-
-            Integer minAge     = minAgeField.getValue();
-            Integer minTickets = minTicketsField.getValue();
-            Integer maxTickets = maxTicketsField.getValue();
-            if (minAge != null || minTickets != null || maxTickets != null) {
-                PurchasePolicy pp = new PurchasePolicy("Purchase restrictions", created.id, companyId);
-                if (minAge     != null && minAge     >= 0) pp.addRule(new MinAgeRule(minAge));
-                if (minTickets != null && minTickets >  0) pp.addRule(new MinTicketsRule(minTickets));
-                if (maxTickets != null && maxTickets >  0) pp.addRule(new MaxTicketsRule(maxTickets));
-                policyRepo.savePolicy(pp);
-            }
-
-            Double pct = percentageField.getValue();
-            if (pct != null && pct > 0) {
-                DiscountPolicy dp = new DiscountPolicy(pct + "% discount", created.id, companyId);
-                dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
-                policyRepo.savePolicy(dp);
-            }
-
-            if (couponCode != null && !couponCode.isBlank()) {
-                Double cpct = couponPctField.getValue();
-                java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
-                        ? couponExpiryPicker.getValue().atTime(23, 59, 59) : null;
-                DiscountPolicy dp = new DiscountPolicy("Coupon: " + couponCode.trim().toUpperCase(), created.id, companyId);
-                dp.addRule(new CouponDiscountRule(cpct, couponCode.trim().toUpperCase(), expiry));
-                policyRepo.savePolicy(dp);
-            }
-
-            // ── Create lottery if selling type is LOTTERY ──
-            if (isLottery) {
-                lotteryService.createLottery(
-                        token,
-                        created.id,
-                        companyId,
-                        lotteryDeadlinePicker.getValue(),
-                        lotteryDrawTimePicker.getValue());
-            }
-
-            Notification.show("Event \"" + created.name + "\" created with " + shows.size() + " show(s)!",
-                    3000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-            UI.getCurrent().getSession().setAttribute("eventId", created.id.toString());
-            UI.getCurrent().navigate("company");
-
-        } catch (RuntimeException ex) {
-            error(ex.getMessage());
-        }
+        presenter.handleCreate(
+                nameField.getValue(),
+                venueField.getValue(),
+                typeBox.getValue(),
+                start, end,
+                shows,
+                sellingTypeBox.getValue(),
+                minAgeField.getValue(),
+                minTicketsField.getValue(),
+                maxTicketsField.getValue(),
+                percentageField.getValue(),
+                couponCodeField.getValue(),
+                couponPctField.getValue(),
+                couponExpiry,
+                lotteryDeadlinePicker.getValue(),
+                lotteryDrawTimePicker.getValue());
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

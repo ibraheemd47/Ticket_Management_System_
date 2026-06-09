@@ -53,8 +53,10 @@ public void loadInitialData() {
             // 1. Map Events to EventDtos (Already doing this)
             List<Event> events = eventService.getAllEvents();
             allEventDtos = events.stream().map(ev -> {
-                LocalDate start = ev.getStartDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-                LocalDate end = ev.getEndDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                java.time.LocalDateTime start = ev.getStartDate() != null
+                        ? ev.getStartDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
+                java.time.LocalDateTime end = ev.getEndDate() != null
+                        ? ev.getEndDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
                 return new EventDto(ev.getEventId(), ev.getName(), start, end, ev.getEventType(), ev.getVenue(), ev.getPhotoUrl());
             }).collect(Collectors.toList());
 

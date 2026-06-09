@@ -144,8 +144,8 @@ public void setDetailsView(DetailsView view) {
         dto.name = name.trim();
         dto.venue = venue.trim();
         dto.eventType = type;
-        dto.startDate = start;
-        dto.endDate = end;
+        dto.startDate = start != null ? start.atStartOfDay() : null;
+        dto.endDate   = end   != null ? end.atStartOfDay()   : null;
 
         try {
             EventDto created = companyService.addEvent(token, companyId, dto);
@@ -689,7 +689,6 @@ public void setDetailsView(DetailsView view) {
                             : SellingType.REGULAR;
 
                     policyRepo.savePolicy(new SellingPolicy(
-                            Math.abs(UUID.randomUUID().hashCode()),
                             st.name() + " selling policy",
                             st,
                             eventId,
@@ -704,7 +703,6 @@ public void setDetailsView(DetailsView view) {
                     }
 
                     PurchasePolicy pp = new PurchasePolicy(
-                            Math.abs(UUID.randomUUID().hashCode()),
                             "Purchase restrictions",
                             eventId,
                             companyId
@@ -732,7 +730,6 @@ public void setDetailsView(DetailsView view) {
                     }
 
                     DiscountPolicy dp = new DiscountPolicy(
-                            Math.abs(UUID.randomUUID().hashCode()),
                             percentage + "% discount",
                             eventId,
                             companyId
@@ -758,7 +755,6 @@ public void setDetailsView(DetailsView view) {
                             : null;
 
                     DiscountPolicy dp = new DiscountPolicy(
-                            Math.abs(UUID.randomUUID().hashCode()),
                             "Coupon: " + couponCode.trim().toUpperCase(),
                             eventId,
                             companyId

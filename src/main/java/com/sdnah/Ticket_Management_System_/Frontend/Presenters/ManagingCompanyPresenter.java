@@ -15,7 +15,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyServi
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
@@ -170,6 +173,49 @@ public class ManagingCompanyPresenter {
         } catch (RuntimeException ex) {
             view.showError("Couldn't add: " + ex.getMessage());
         }
+    }
+
+    public List<Policy> getPoliciesForCompany() {
+        try { return policyService.getPoliciesForCompany(companyId); }
+        catch (RuntimeException ex) { return List.of(); }
+    }
+
+    public void setDiscountRulesForCompany(List<DiscountRule> rules, boolean isAdditive) {
+        try {
+            policyService.setDiscountRulesForCompany(token, companyId, rules, isAdditive);
+            view.showSuccess("Discount policy saved");
+        } catch (RuntimeException ex) {
+            view.showError("Error: " + ex.getMessage());
+        }
+    }
+
+    public void setPurchaseRulesForCompany(List<PurchaseRule> rules, PurchasePolicy.Operator op) {
+        try {
+            policyService.setPurchaseRulesForCompany(token, companyId, rules, op);
+            view.showSuccess("Purchase policy saved");
+        } catch (RuntimeException ex) {
+            view.showError("Error: " + ex.getMessage());
+        }
+    }
+
+    public String getMemberIdByUsername(String username) {
+        return userService.getMemberByUsername(username).getMemberId();
+    }
+
+    public String getMemberDisplayName(String memberId) {
+        try { return userService.getMemberById(memberId).getUsername(); }
+        catch (Exception e) { return memberId; }
+    }
+
+    public String getCurrentCompanyName() {
+        if (companyId == null) return "Company";
+        try {
+            for (com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO dto
+                    : companyService.getActiveCompanies()) {
+                if (dto.getCompanyId().equals(companyId)) return dto.getCompanyName();
+            }
+        } catch (RuntimeException ignored) {}
+        return "Company";
     }
 
     // ── Small row type shared with the view ─────────────────────────────────

@@ -165,8 +165,8 @@ public class EventCreationPresenter {
             dto.name      = name.trim();
             dto.venue     = venue.trim();
             dto.eventType = type;
-            dto.startDate = start;
-            dto.endDate   = end;
+            dto.startDate = start != null ? start.atStartOfDay() : null;
+            dto.endDate   = end   != null ? end.atStartOfDay()   : null;
 
             EventDto created = companyService.addEvent(token, companyId, dto);
 
@@ -187,7 +187,6 @@ public class EventCreationPresenter {
             // ── 3. Selling policy ──────────────────────────────────────────
             SellingType st = sellingType != null ? sellingType : SellingType.REGULAR;
             policyRepo.savePolicy(new SellingPolicy(
-                    Math.abs(UUID.randomUUID().hashCode()),
                     st.name() + " selling policy",
                     st, created.id, companyId));
 
@@ -197,7 +196,6 @@ public class EventCreationPresenter {
                     || (maxTickets != null && maxTickets > 0);
             if (hasPurchase) {
                 PurchasePolicy pp = new PurchasePolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
                         "Purchase restrictions", created.id, companyId);
                 if (minAge != null && minAge >= 0)      pp.addRule(new MinAgeRule(minAge));
                 if (minTickets != null && minTickets > 0) pp.addRule(new MinTicketsRule(minTickets));
@@ -208,7 +206,6 @@ public class EventCreationPresenter {
             // ── 5. Percentage discount (optional) ─────────────────────────
             if (percentage != null && percentage > 0) {
                 DiscountPolicy dp = new DiscountPolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
                         percentage + "% discount", created.id, companyId);
                 dp.addRule(new PercentageDiscountRule(percentage, percentage + "% discount"));
                 policyRepo.savePolicy(dp);
@@ -220,7 +217,6 @@ public class EventCreationPresenter {
                 LocalDateTime expiry = couponExpiry != null
                         ? couponExpiry.atTime(23, 59, 59) : null;
                 DiscountPolicy dp = new DiscountPolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
                         "Coupon: " + couponCode.trim().toUpperCase(), created.id, companyId);
                 dp.addRule(new CouponDiscountRule(couponPct,
                         couponCode.trim().toUpperCase(), expiry));

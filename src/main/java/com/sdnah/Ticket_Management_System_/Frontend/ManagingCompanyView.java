@@ -22,13 +22,8 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
-<<<<<<< HEAD
 import com.sdnah.Ticket_Management_System_.Frontend.Presenters.ManagingCompanyPresenter;
 import com.sdnah.Ticket_Management_System_.Frontend.Presenters.ManagingCompanyPresenter.CompanyRow;
-=======
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRoleAssignment;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
->>>>>>> main
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -258,46 +253,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
         card.add(title, blurb, create);
 
-        // Resolve the user's companies via their role assignments.
-        List<CompanyRow> myCompanies;
-        try {
-            Member me = userService.getMemberByToken(token);
-            myCompanies = resolveMyCompanies(me);
-        } catch (RuntimeException ex) {
-            card.add(error("Couldn't load your companies: " + ex.getMessage()));
-            Div outer = new Div(card);
-            outer.setWidthFull();
-            return outer;
-        }
-
-        if (myCompanies.isEmpty()) {
-            Paragraph empty = new Paragraph(
-                    "You don't own or manage any company yet. Click \"+ Create new company\" to start one.");
-            empty.getStyle().set("color", "#666").set("padding", "24px 0");
-            card.add(empty);
-        } else {
-            Grid<CompanyRow> grid = new Grid<>(CompanyRow.class, false);
-            grid.addColumn(r -> r.name == null ? "Unnamed company" : r.name)
-        .setHeader("Company Name")
-        .setFlexGrow(2);
-
-grid.addColumn(r -> r.role)
-        .setHeader("Your role")
-        .setAutoWidth(true);
-            grid.addComponentColumn(r -> {
-                Button manage = new Button("Manage", ev -> {
-                    UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, r.companyId);
-                    UI.getCurrent().getPage().reload();
-                });
-                manage.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-                return manage;
-            }).setHeader("");
-            grid.setItems(myCompanies);
-            grid.setAllRowsVisible(true);
-            grid.setWidthFull();
-            card.add(grid);
-        }
-
+        // Companies are populated into chooserSlot via presenter.loadMyCompanies() → showMyCompanies()
         Div outer = new Div(card);
         outer.setWidthFull();
         return outer;
@@ -371,67 +327,13 @@ grid.addColumn(r -> r.role)
     // ── Tab: Events ──────────────────────────────────────────────────────────
 
     private void renderEventsTab() {
-        tabContent.removeAll();
-
-        List<UUID> eventIds;
-        try {
-            eventIds = companyService.getAllEventsByCompany(companyId);
-        } catch (RuntimeException ex) {
-            tabContent.add(error("Couldn't load events: " + ex.getMessage()));
-            return;
-        }
-
-        Button addEvent = new Button("+ New event", e -> {
-            UI.getCurrent().getSession().setAttribute("managingCompanyId", this.companyId);
-            UI.getCurrent().navigate("event-create");
-        });
-        addEvent.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        Grid<UUID> grid = new Grid<>(UUID.class, false);
-        grid.addColumn(id -> id.toString().substring(0, 8)).setHeader("Event ID");
-        grid.addComponentColumn(id -> {
-            Button open = new Button("Open", ev -> {
-                UI.getCurrent().getSession().setAttribute("eventId", id.toString());
-                UI.getCurrent().getSession().setAttribute("managingCompanyId", this.companyId);
-                UI.getCurrent().navigate("EventDetails");
-            });
-            open.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-            return open;
-        }).setHeader("");
-        grid.setItems(eventIds);
-        grid.setAllRowsVisible(true);
-        grid.setWidthFull();
-
-        tabContent.add(addEvent, grid);
+        presenter.loadEventsForCurrentCompany();
     }
 
     // ── Tab: Roles ───────────────────────────────────────────────────────────
 
     private void renderRolesTab() {
-        tabContent.removeAll();
-
-        CompanyRolesViewDTO roles;
-        try {
-            roles = companyService.viewRolesAndPermissions(token, companyId);
-        } catch (RuntimeException ex) {
-            tabContent.add(error("Couldn't load roles: " + ex.getMessage()));
-            return;
-        }
-
-        Div section = new Div();
-        section.add(sectionTitle("Founder"));
-        section.add(new Paragraph(getMemberDisplayName(roles.getFounderId())));
-        section.add(sectionTitle("Owners"));
-        section.add(buildOwnersList(roles.getOwnerIds()));
-        section.add(appointBox("Appoint owner",
-                memberId -> companyService.appointAdditionalOwner(token, companyId, memberId)));
-
-        section.add(sectionTitle("Managers + permissions"));
-        section.add(buildManagersGrid(roles.getManagerPermissions()));
-        section.add(appointBox("Appoint manager",
-                memberId -> companyService.appointManager(token, companyId, memberId, Set.of())));
-
-        tabContent.add(section);
+        presenter.loadRolesForCurrentCompany();
     }
 
     private Component buildOwnersList(List<String> ownerIds) {
@@ -474,12 +376,7 @@ grid.addColumn(r -> r.role)
     try {
         String username = getMemberDisplayName(entry.getKey());
 
-        companyService.removeManagerAppointment(token, companyId, entry.getKey());
-
-        Notification.show("Removed " + username, 2500,
-                        Notification.Position.TOP_CENTER)
-                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
+        presenter.removeManager(entry.getKey());
         renderRolesTab();
 
     } catch (RuntimeException ex) {
@@ -568,7 +465,7 @@ grid.addColumn(r -> r.role)
         andOrGroup.setValue("OR (best discount)");
         andOrGroup.setWidthFull();
 
-        java.util.List<Policy> existing = policyService.getPoliciesForCompany(companyId);
+        java.util.List<Policy> existing = presenter.getPoliciesForCompany();
         existing.stream()
             .filter(p -> p instanceof DiscountPolicy)
             .map(p -> (DiscountPolicy) p)
@@ -665,7 +562,7 @@ grid.addColumn(r -> r.role)
             try {
                 if (discountRules.isEmpty()) { Notification.show("Add at least one rule"); return; }
                 boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
-                policyService.setDiscountRulesForCompany(token, companyId, discountRules, isAdditive);
+                presenter.setDiscountRulesForCompany(discountRules, isAdditive);
                 Notification.show("Discount policy saved", 2500, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } catch (RuntimeException ex) {
@@ -729,7 +626,7 @@ grid.addColumn(r -> r.role)
         maxTicketsField.setMin(1); maxTicketsField.setWidthFull();
         maxTicketsField.setPlaceholder("Leave empty = no limit");
 
-        policyService.getPoliciesForCompany(companyId).stream()
+        presenter.getPoliciesForCompany().stream()
             .filter(p -> p instanceof PurchasePolicy)
             .map(p -> (PurchasePolicy) p)
             .findFirst()
@@ -755,7 +652,7 @@ grid.addColumn(r -> r.role)
                 if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
                 if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
                 if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
-                policyService.setPurchaseRulesForCompany(token, companyId, rules, op);
+                presenter.setPurchaseRulesForCompany(rules, op);
                 Notification.show("Purchase policy saved", 2500, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } catch (RuntimeException ex) {
@@ -832,50 +729,14 @@ grid.addColumn(r -> r.role)
         p.getStyle().set("color", "#c62828").set("font-weight", "600");
         return p;
     }
-    //helper 
     private String getCurrentCompanyName() {
-    try {
-        for (CompanyDTO dto : companyService.getActiveCompanies()) {
-            if (dto.getCompanyId().equals(companyId)) {
-                return dto.getCompanyName();
-            }
-        }
-    } catch (RuntimeException ignored) {
+        return presenter.getCurrentCompanyName();
     }
-
-    return "Company";
-}
     private String getMemberDisplayName(String memberId) {
-    try {
-        Member member = userService.getMemberById(memberId);
-
-        if (member == null) {
-            return memberId;
-        }
-
-        // Use the real method names from your Member class.
-        // Example options:
-        if (member.getUsername() != null && !member.getUsername().isBlank()) {
-            return member.getUsername();
-        }
-
-        return memberId;
-
-    } catch (RuntimeException ex) {
-        return memberId;
+        return presenter.getMemberDisplayName(memberId);
     }
-}
+
     private String getMemberIdByUsername(String username) {
-    if (username == null || username.isBlank()) {
-        throw new RuntimeException("Username is required");
+        return presenter.getMemberIdByUsername(username);
     }
-
-    Member member = userService.getMemberByUsername(username.trim());
-
-    if (member == null) {
-        throw new RuntimeException("User not found: " + username);
-    }
-
-    return member.getMemberId();
-}
 }

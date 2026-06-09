@@ -289,30 +289,18 @@ public class NotificationService {
     }
 
     public String notifyLotteryWin(String recipientUsername, String eventName, String accessCode) {
-<<<<<<< HEAD
-        String message = "🎉 Congratulations! You won the lottery for event: " + eventName + ".";
-        if (accessCode != null && !accessCode.isBlank())
-            message += " Your access code is: " + accessCode + ".";
-=======
         String message = "🎉 Congratulations! You won the lottery for event: " + eventName + "."
                 + (accessCode != null && !accessCode.isBlank()
                    ? " Your access code is: " + accessCode + ". Use it to purchase your ticket."
                    : " You may now purchase your ticket.");
->>>>>>> main
         return createNotification(recipientUsername, message, NotificationType.LOTTERY_WIN);
     }
 
     public String notifyLotteryLoss(String recipientUsername, String eventName) {
         return createNotification(
                 recipientUsername,
-<<<<<<< HEAD
-                "Unfortunately, you were not selected in the lottery for event: " + eventName + ". Better luck next time!",
-                NotificationType.LOTTERY_LOSS
-        );
-=======
                 "Unfortunately, you were not selected in the lottery for event: " + eventName
                         + ". Better luck next time!",
                 NotificationType.LOTTERY_LOSS);
->>>>>>> main
     }
 }
