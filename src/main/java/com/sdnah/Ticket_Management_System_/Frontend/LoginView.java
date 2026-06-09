@@ -21,7 +21,7 @@ public class LoginView extends VerticalLayout {
     // We inject the Presenter instead of the UserService
     public LoginView(UserPresenter presenter) {
         this.presenter = presenter;
-        this.presenter.setView(this); // Link the view to the presenter
+        this.presenter.setLoginView(this); // Link the view to the presenter
 
         setSizeFull();
         setPadding(false);

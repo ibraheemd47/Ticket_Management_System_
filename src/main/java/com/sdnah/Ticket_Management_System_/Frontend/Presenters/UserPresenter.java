@@ -2,8 +2,10 @@ package com.sdnah.Ticket_Management_System_.Frontend.Presenters;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
+import com.sdnah.Ticket_Management_System_.Backend.endpoints.LoginPage;
 import com.sdnah.Ticket_Management_System_.Frontend.LoginView;
 import com.sdnah.Ticket_Management_System_.Frontend.SignUpView;
+import com.sdnah.Ticket_Management_System_.Frontend.VerifyAccountView;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.springframework.stereotype.Component;
 
@@ -11,25 +13,29 @@ import org.springframework.stereotype.Component;
 @UIScope
 public class UserPresenter {
 
+   
     private final UserService userService;
-    private LoginView view;
+    private LoginView Loginview;
     private SignUpView signUpView;
+    private VerifyAccountView verifyAccountView;
 
     public UserPresenter(UserService userService) {
         this.userService = userService;
     }
 
-    public void setView(LoginView view) {
-        this.view = view;
+    public void setLoginView(LoginView view) {
+        this.Loginview = view;
     }
      public void setSignUpView(SignUpView signUpView) {
         this.signUpView = signUpView;
     }
-
+    public void setVerifyAccountView(VerifyAccountView verifyAccountView) {
+            this.verifyAccountView = verifyAccountView;
+        }
     public void handleLogin(String username, String password) {
         // 1. Validation
         if (username == null || username.trim().isEmpty() || password == null || password.trim().isEmpty()) {
-            view.showNotification("Please enter username and password", true);
+            Loginview.showNotification("Please enter username and password", true);
             return;
         }
 
@@ -39,19 +45,19 @@ public class UserPresenter {
             String memberId = userService.getMemberIdByToken(token);
 
             // 3. Tell the view to store the session data
-            view.storeSessionData(token, memberId);
-            view.showNotification("Login successful", false);
+            Loginview.storeSessionData(token, memberId);
+            Loginview.showNotification("Login successful", false);
 
             // 4. Decide where to navigate
             if (userService.isSystemAdmin(token)) {
-                view.navigateTo("admin");
+                Loginview.navigateTo("admin");
             } else {
-                view.navigateTo("main");
+                Loginview.navigateTo("main");
             }
 
         } catch (Exception ex) {
             // Catch invalid credentials or other errors
-            view.showNotification(ex.getMessage(), true);
+            Loginview.showNotification(ex.getMessage(), true);
         }
     }
    
@@ -102,13 +108,29 @@ public class UserPresenter {
             signUpView.showNotification(ex.getMessage(), true);
         }
     }
-    public void verifyAccount(String username, String code) {
+   public void verifyAccount(String username, String password, String code) {
         try {
+            // 1. Verify the account using the code
             userService.verifyAccount(username, code);
-            view.showNotification("Account verified successfully! Please log in.", false);
-            view.navigateTo("login");
+
+            // 2. Automatically log them in using the credentials we passed in
+            String token = userService.login(username, password);
+            String memberId = userService.getMemberIdByToken(token);
+
+            // 3. Store the session data so the app knows they are logged in
+            verifyAccountView.storeSessionData(token, memberId);
+
+            // 4. Show success and send them to the main page!
+            verifyAccountView.showNotification("Account verified! Logging you in...", false);
+            
+            if (userService.isSystemAdmin(token)) {
+                verifyAccountView.navigateTo("admin");
+            } else {
+                verifyAccountView.navigateTo("main");
+            }
+
         } catch (Exception ex) {
-            view.showNotification(ex.getMessage(), true);
+            verifyAccountView.showNotification(ex.getMessage(), true);
         }
     }
 
@@ -116,7 +138,7 @@ public class UserPresenter {
         try {
             return userService.login(value, tempPassword);
         } catch (Exception ex) {
-            view.showNotification("Login failed: " + ex.getMessage(), true);
+            Loginview.showNotification("Login failed: " + ex.getMessage(), true);
             return null;
         }
     }
