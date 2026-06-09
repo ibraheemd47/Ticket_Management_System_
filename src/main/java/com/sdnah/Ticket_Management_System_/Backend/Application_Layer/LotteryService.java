@@ -126,6 +126,14 @@ public class LotteryService {
                 .collect(Collectors.toList());
     }
 
+    public List<LotteryEntryDTO> getEntriesByLottery(UUID lotteryId) {
+        Lottery lottery = lotteryRepository.findById(lotteryId)
+                .orElseThrow(() -> new IllegalArgumentException("Lottery not found: " + lotteryId));
+        return lottery.getEntries().stream()
+                .map(this::toEntryDTO)
+                .collect(Collectors.toList());
+    }
+
     // =========================================================================
     // Private helpers
     // =========================================================================
