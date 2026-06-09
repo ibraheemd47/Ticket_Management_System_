@@ -1,13 +1,9 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
-
-import com.vaadin.flow.theme.lumo.LumoUtility;
-
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import java.time.ZoneId;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
@@ -21,16 +17,17 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.SeatedArea
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.StandingArea;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.EventCreationPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -52,84 +49,75 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 //need to add the area type for the show creartion and add the policy for selling ot discount on events / shows
 @Route("event-create")
-public class EventCreationView extends VerticalLayout implements BeforeEnterObserver {
+public class EventCreationView extends VerticalLayout
+        implements BeforeEnterObserver, EventCreationPresenter.View {
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         Object token = UI.getCurrent().getSession().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
-        }
+        if (token == null) event.forwardTo(LoginView.class);
     }
 
-    private final company_managment_serivce companyService;
-    private final EventService eventService;
-    private final PolicyRepository policyRepo;
+    private final EventCreationPresenter presenter;
 
     private final List<ShowDTO> shows = new ArrayList<>();
     private Div showsContainer;
 
-    // Policy UI fields — selling
-    private ComboBox<SellingType> sellingTypeBox;
-    // — purchase
-    private IntegerField minAgeField;
-    private IntegerField minTicketsField;
-    private IntegerField maxTicketsField;
-    // — percentage discount
-    private NumberField  percentageField;
-    // — coupon discount
-    private TextField    couponCodeField;
-    private NumberField  couponPctField;
-    private DatePicker   couponExpiryPicker;
+    // ── Event fields ──
+    private TextField              nameField;
+    private TextField              venueField;
+    private ComboBox<show_type>    typeBox;
+    private DatePicker             startDatePicker;
+    private DatePicker             endDatePicker;
 
-    public EventCreationView(company_managment_serivce companyService, EventService eventService, PolicyRepository policyRepo) {
-        this.companyService = companyService;
-        this.eventService   = eventService;
-        this.policyRepo     = policyRepo;
-        addMockShows();
+    // ── Policy fields ──
+    private ComboBox<SellingType>  sellingTypeBox;
+    private IntegerField           minAgeField;
+    private IntegerField           minTicketsField;
+    private IntegerField           maxTicketsField;
+    private NumberField            percentageField;
+    private TextField              couponCodeField;
+    private NumberField            couponPctField;
+    private DatePicker             couponExpiryPicker;
 
-        setSizeFull();
-        setPadding(false);
-        setSpacing(false);
-        getStyle()
-                .set("background", "#f4f4f4")
-                .set("font-family", "Arial, sans-serif");
+    // ── Lottery fields (shown when SellingType == LOTTERY) ──
+    private com.vaadin.flow.component.datetimepicker.DateTimePicker lotteryDeadlinePicker;
+    private com.vaadin.flow.component.datetimepicker.DateTimePicker lotteryDrawTimePicker;
+    private Div                    lotteryFieldsDiv;
 
-        Div content = new Div(buildEventCard(), buildShowsCard(), buildPoliciesCard());
-        content.getStyle()
-                .set("max-width", "760px")
-                .set("margin", "40px auto")
-                .set("width", "100%")
-                .set("display", "flex")
-                .set("flex-direction", "column")
-                .set("gap", "24px");
+    public EventCreationView(EventCreationPresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setView(this);
 
-        add(buildHeader(), content);
-    }
+    
 
-    // ── Mock data ────────────────────────────────────────────────────────────
+    setSizeFull();
+    setPadding(false);
+    setSpacing(false);
 
-    private void addMockShows() {
-        ShowDTO s1 = new ShowDTO(null, "Opening Night", "Fireworks and live music to kick off the festival.", "The Midnight", LocalDate.of(2025, 7, 10));
-        s1.standingCapacity = 500;
-        s1.numBlocks = 4;
-        s1.rowsPerBlock = 10;
-        s1.seatsPerRow = 20;
-        shows.add(s1);
+    getStyle()
+            .set("background", "#f4f4f4")
+            .set("font-family", "Arial, sans-serif");
 
-        ShowDTO s2 = new ShowDTO(null, "Headline Act", "Main stage performance.", "Coldplay", LocalDate.of(2025, 7, 11));
-        s2.standingCapacity = 800;
-        shows.add(s2);
+    Div content = new Div(buildEventCard(), buildShowsCard(), buildPoliciesCard());
+    content.getStyle()
+            .set("max-width", "760px").set("margin", "40px auto").set("width", "100%")
+            .set("display", "flex").set("flex-direction", "column").set("gap", "24px");
 
-        ShowDTO s3 = new ShowDTO(null, "Closing Night", "Grand finale with special guests.", "Dua Lipa", LocalDate.of(2025, 7, 12));
-        s3.numBlocks = 6;
-        s3.rowsPerBlock = 12;
-        s3.seatsPerRow = 15;
-        shows.add(s3);
-    }
+    Button createBtn = new Button("Create Event", e -> handleCreate());
+    createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+    createBtn.getStyle().set("background", "#026cdf").set("color", "white")
+            .set("font-weight", "700").set("padding", "10px 28px");
+    Button cancelBtn = new Button("Cancel", e -> UI.getCurrent().navigate("company"));
+    cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+    HorizontalLayout actions = new HorizontalLayout(createBtn, cancelBtn);
+    actions.getStyle().set("max-width", "760px").set("margin", "0 auto 48px auto").set("width", "100%");
 
+    add(buildHeader(), content, actions);
+}
     // ── Header ───────────────────────────────────────────────────────────────
 
     private Div buildHeader() {
@@ -165,29 +153,26 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
         Div card = card();
 
         H1 title = new H1("Create New Event");
-        title.getStyle()
-                .set("margin", "0 0 24px 0")
-                .set("font-size", "26px")
-                .set("color", "#111");
+        title.getStyle().set("margin", "0 0 24px 0").set("font-size", "26px").set("color", "#111");
 
-        TextField nameField = new TextField("Event Name");
+        nameField = new TextField("Event Name");
         nameField.setPlaceholder("e.g. Summer Concert 2025");
         nameField.setWidthFull();
 
-        TextField venueField = new TextField("Venue / Location");
+        venueField = new TextField("Venue / Location");
         venueField.setPlaceholder("e.g. BGU Auditorium, Tel Aviv Hall");
         venueField.setWidthFull();
 
-        ComboBox<show_type> typeBox = new ComboBox<>("Event Type");
+        typeBox = new ComboBox<>("Event Type");
         typeBox.setItems(show_type.values());
         typeBox.setItemLabelGenerator(t -> capitalize(t.name()));
         typeBox.setWidthFull();
 
-        DatePicker startDatePicker = new DatePicker("Start Date");
+        startDatePicker = new DatePicker("Start Date");
         startDatePicker.setWidthFull();
         startDatePicker.setPlaceholder("Choose start date");
 
-        DatePicker endDatePicker = new DatePicker("End Date");
+        endDatePicker = new DatePicker("End Date");
         endDatePicker.setWidthFull();
         endDatePicker.setPlaceholder("Choose end date");
 
@@ -203,19 +188,7 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
             if (e.getValue() != null) startDatePicker.setMax(e.getValue());
         });
 
-        Button createBtn = new Button("Create Event");
-        createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        createBtn.getStyle().set("background", "#026cdf").set("color", "white")
-                .set("font-weight", "700").set("padding", "10px 28px");
-
-        Button cancelBtn = new Button("Cancel", e -> UI.getCurrent().navigate("company"));
-        cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-
-        createBtn.addClickListener(e ->
-                handleCreate(nameField, venueField, typeBox, startDatePicker, endDatePicker));
-
-        card.add(title, nameField, venueField, typeBox, startDatePicker, endDatePicker,
-                new HorizontalLayout(createBtn, cancelBtn));
+        card.add(title, nameField, venueField, typeBox, startDatePicker, endDatePicker);
         return card;
     }
 
@@ -552,186 +525,60 @@ public class EventCreationView extends VerticalLayout implements BeforeEnterObse
         couponExpiryPicker.setPlaceholder("Leave empty = never expires");
         couponExpiryPicker.setWidthFull();
 
-        Button savePoliciesBtn = new Button("Save Policies", e -> handleSavePolicies());
-        savePoliciesBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        savePoliciesBtn.getStyle()
-                .set("background", "#026cdf")
-                .set("color", "white")
-                .set("font-weight", "700")
-                .set("margin-top", "8px");
+        // ── Lottery fields (visible only when LOTTERY selected) ──
+        lotteryDeadlinePicker = new com.vaadin.flow.component.datetimepicker.DateTimePicker("Registration Deadline");
+        lotteryDeadlinePicker.setWidthFull();
+        lotteryDrawTimePicker = new com.vaadin.flow.component.datetimepicker.DateTimePicker("Draw Time");
+        lotteryDrawTimePicker.setWidthFull();
+        lotteryDeadlinePicker.addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                lotteryDrawTimePicker.setMin(e.getValue().plusMinutes(1));
+                if (lotteryDrawTimePicker.getValue() != null
+                        && !lotteryDrawTimePicker.getValue().isAfter(e.getValue()))
+                    lotteryDrawTimePicker.clear();
+            }
+        });
+        lotteryFieldsDiv = new Div(sectionLabel("Lottery Configuration"),
+                lotteryDeadlinePicker, lotteryDrawTimePicker);
+        lotteryFieldsDiv.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "8px");
+        lotteryFieldsDiv.setVisible(false);
+        sellingTypeBox.addValueChangeListener(e ->
+                lotteryFieldsDiv.setVisible(e.getValue() == SellingType.LOTTERY));
 
         card.add(title,
                 sectionLabel("Selling Policy"),
                 sellingTypeBox,
+                lotteryFieldsDiv,
                 sectionLabel("Purchase Policy (optional)"),
                 minAgeField, minTicketsField, maxTicketsField,
                 sectionLabel("Percentage Discount (optional)"),
                 percentageField,
                 sectionLabel("Coupon Discount (optional)"),
-                couponCodeField, couponPctField, couponExpiryPicker,
-                savePoliciesBtn);
+                couponCodeField, couponPctField, couponExpiryPicker);
         return card;
-    }
-
-    private void handleSavePolicies() {
-        Object eventIdObj   = UI.getCurrent().getSession().getAttribute("eventId");
-        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-
-        if (eventIdObj == null) {
-            Notification.show("No event selected — create an event first",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-        if (companyIdObj == null) {
-            Notification.show("No company selected — navigate from your company page",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-
-        UUID eventId   = UUID.fromString(eventIdObj.toString());
-        UUID companyId = UUID.fromString(companyIdObj.toString());
-
-        try {
-            // ── Selling Policy (always) ──
-            SellingType sellingType = sellingTypeBox.getValue() != null
-                    ? sellingTypeBox.getValue() : SellingType.REGULAR;
-            policyRepo.savePolicy(new SellingPolicy(
-                    Math.abs(UUID.randomUUID().hashCode()),
-                    sellingType.name() + " selling policy",
-                    sellingType, eventId, companyId));
-
-            // ── Purchase Policy (if any restriction set) ──
-            Integer minAge     = minAgeField.getValue();
-            Integer minTickets = minTicketsField.getValue();
-            Integer maxTickets = maxTicketsField.getValue();
-            if (minAge != null || minTickets != null || maxTickets != null) {
-                PurchasePolicy pp = new PurchasePolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
-                        "Purchase restrictions", eventId, companyId);
-                if (minAge     != null && minAge     >= 0) pp.addRule(new MinAgeRule(minAge));
-                if (minTickets != null && minTickets >  0) pp.addRule(new MinTicketsRule(minTickets));
-                if (maxTickets != null && maxTickets >  0) pp.addRule(new MaxTicketsRule(maxTickets));
-                policyRepo.savePolicy(pp);
-            }
-
-            // ── Percentage Discount (if filled) ──
-            Double pct = percentageField.getValue();
-            if (pct != null && pct > 0) {
-                DiscountPolicy dp = new DiscountPolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
-                        pct + "% discount", eventId, companyId);
-                dp.addRule(new PercentageDiscountRule(pct, pct + "% discount"));
-                policyRepo.savePolicy(dp);
-            }
-
-            // ── Coupon Discount (if code is provided) ──
-            String code = couponCodeField.getValue();
-            if (code != null && !code.isBlank()) {
-                Double cpct = couponPctField.getValue();
-                if (cpct == null || cpct <= 0) {
-                    Notification.show("Coupon percentage must be greater than 0",
-                            3000, Notification.Position.MIDDLE)
-                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                    return;
-                }
-                java.time.LocalDateTime expiry = couponExpiryPicker.getValue() != null
-                        ? couponExpiryPicker.getValue().atTime(23, 59, 59) : null;
-                DiscountPolicy dp = new DiscountPolicy(
-                        Math.abs(UUID.randomUUID().hashCode()),
-                        "Coupon: " + code.trim().toUpperCase(), eventId, companyId);
-                dp.addRule(new CouponDiscountRule(cpct, code.trim().toUpperCase(), expiry));
-                policyRepo.savePolicy(dp);
-            }
-
-            Notification.show("Policies saved for event " + eventId,
-                    3000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-        } catch (RuntimeException ex) {
-            Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
     }
 
     // ── Submit ───────────────────────────────────────────────────────────────
 
-    private void handleCreate(
-            TextField nameField,
-            TextField venueField,
-            ComboBox<show_type> typeBox,
-            DatePicker startDatePicker,
-            DatePicker endDatePicker) {
-
-        String name     = nameField.getValue();
-        String venue    = venueField.getValue();
-        show_type type  = typeBox.getValue();
-        LocalDate start = startDatePicker.getValue();
-        LocalDate end   = endDatePicker.getValue();
-
-        if (name == null || name.isBlank())  { error("Event name is required");          return; }
-        if (venue == null || venue.isBlank()) { error("Venue is required");               return; }
-        if (type == null)                     { error("Please select an event type");     return; }
-        if (start == null)                    { error("Start date is required");          return; }
-        if (end == null)                      { error("End date is required");            return; }
-        if (end.isBefore(start))              { error("End date cannot be before start"); return; }
-
-        Object tokenObj     = UI.getCurrent().getSession().getAttribute("token");
-        Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-
-        if (tokenObj == null) {
-            Notification.show("Not logged in — sign in first to save the event",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-        if (companyIdObj == null) {
-            Notification.show("No company selected — navigate from your company page",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-
-        String token    = tokenObj.toString();
-        UUID   companyId = UUID.fromString(companyIdObj.toString());
-
-        EventDto dto   = new EventDto();
-        dto.name       = name.trim();
-        dto.venue      = venue.trim();
-        dto.eventType  = type;
-        dto.startDate  = start;
-        dto.endDate    = end;
-
-        try {
-            EventDto created = companyService.addEvent(token, companyId, dto);
-
-            // Persist shows
-            Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
-            String memberId = userIdObj != null ? userIdObj.toString() : null;
-            for (ShowDTO s : shows) {
-                java.util.Date showDate = s.showDate != null
-                    ? java.util.Date.from(s.showDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
-                    : null;
-                show newShow = new show(created.id, s.name, s.description, s.singer, showDate);
-                newShow.setAreas(buildAreas(s));
-                newShow.setSeatedPrice(s.seatedPrice);
-                newShow.setStandingPrice(s.standingPrice);
-                try {
-                    eventService.addShowToEvent(created.id, newShow, memberId);
-                } catch (Exception ignored) {}
-            }
-
-            Notification.show("Event \"" + created.name + "\" created with " + shows.size() + " show(s)!",
-                    3000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-            UI.getCurrent().getSession().setAttribute("eventId", created.id.toString());
-            UI.getCurrent().navigate("company");
-        } catch (RuntimeException ex) {
-            Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
+    private void handleCreate() {
+        presenter.handleCreate(
+                nameField.getValue(),
+                venueField.getValue(),
+                typeBox.getValue(),
+                startDatePicker.getValue(),
+                endDatePicker.getValue(),
+                shows,
+                sellingTypeBox.getValue(),
+                minAgeField.getValue(),
+                minTicketsField.getValue(),
+                maxTicketsField.getValue(),
+                percentageField.getValue(),
+                couponCodeField.getValue(),
+                couponPctField.getValue(),
+                couponExpiryPicker.getValue(),
+                lotteryDeadlinePicker.getValue(),
+                lotteryDrawTimePicker.getValue()
+        );
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -807,4 +654,40 @@ card.addClassNames(LumoUtility.Padding.Vertical.XLARGE, LumoUtility.AlignSelf.ST
 
         return areas;
     }
+
+    // ── EventCreationPresenter.View implementation ───────────────────────────
+
+    @Override
+    public Object getSessionAttribute(String key) {
+        return UI.getCurrent().getSession().getAttribute(key);
+    }
+
+    @Override
+    public void setSessionAttribute(String key, Object value) {
+        UI.getCurrent().getSession().setAttribute(key, value);
+    }
+
+    @Override
+    public void showSuccess(String message) {
+        Notification.show(message, 3000, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    }
+
+    @Override
+    public void showError(String message) {
+        Notification.show(message, 3000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    @Override
+    public void showWarning(String message) {
+        Notification.show(message, 4000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_WARNING);
+    }
+
+    @Override
+    public void navigateToCompany() {
+        UI.getCurrent().navigate("company");
+    }
+
 }

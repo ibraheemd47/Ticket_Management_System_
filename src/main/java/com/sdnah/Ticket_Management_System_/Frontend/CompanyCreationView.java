@@ -1,6 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.CompanyCreationPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -14,32 +14,33 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
-import static com.vaadin.flow.data.binder.Result.error;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 
 @Route("company-create")
+public class CompanyCreationView extends VerticalLayout
+        implements BeforeEnterObserver, CompanyCreationPresenter.View {
 
-public class CompanyCreationView extends VerticalLayout implements BeforeEnterObserver {
+    private final CompanyCreationPresenter presenter;
 
-    @Override
-    public void beforeEnter(BeforeEnterEvent event) {
-        if (UI.getCurrent().getSession().getAttribute("token") == null) {
-            event.forwardTo(LoginView.class);
-        }
-    }
+    // Form fields promoted to instance fields so handleCreate can read them
+    private final IntegerField companyIdField;
+    private final TextField    companyNameField;
 
-    private final company_managment_serivce companyService;
+    public CompanyCreationView(CompanyCreationPresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setView(this);
 
-    public CompanyCreationView(company_managment_serivce companyService) {
-        this.companyService = companyService ;
-         setSizeFull();
+        setSizeFull();
         setPadding(false);
         setSpacing(false);
         getStyle()
                 .set("background", "#f4f4f4")
                 .set("font-family", "Arial, sans-serif");
+
+        companyIdField   = new IntegerField("Company ID");
+        companyNameField = new TextField("Company Name");
 
         Div content = new Div(buildCompanyCard());
         content.getStyle()
@@ -50,6 +51,15 @@ public class CompanyCreationView extends VerticalLayout implements BeforeEnterOb
         add(buildHeader(), content);
     }
 
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (UI.getCurrent().getSession().getAttribute("token") == null) {
+            event.forwardTo(LoginView.class);
+        }
+    }
+
+    // ── Card ─────────────────────────────────────────────────────────────────
+
     private Div buildCompanyCard() {
         Div card = card();
 
@@ -59,16 +69,15 @@ public class CompanyCreationView extends VerticalLayout implements BeforeEnterOb
                 .set("font-size", "26px")
                 .set("color", "#111");
 
-        IntegerField companyIdField = new IntegerField("Company ID");
         companyIdField.setPlaceholder("e.g. 1001");
         companyIdField.setWidthFull();
         companyIdField.setMin(1);
 
-        TextField companyNameField = new TextField("Company Name");
         companyNameField.setPlaceholder("e.g. Live Nation Israel");
         companyNameField.setWidthFull();
 
-        Button createBtn = new Button("Create Company");
+        Button createBtn = new Button("Create Company",
+                e -> presenter.handleCreate(companyIdField.getValue(), companyNameField.getValue()));
         createBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         createBtn.getStyle()
                 .set("background", "#026cdf")
@@ -76,22 +85,16 @@ public class CompanyCreationView extends VerticalLayout implements BeforeEnterOb
                 .set("font-weight", "700")
                 .set("padding", "10px 28px");
 
-        Button cancelBtn = new Button("Cancel", e -> UI.getCurrent().navigate("company"));
+        Button cancelBtn = new Button("Cancel",
+                e -> UI.getCurrent().navigate("company"));
         cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        createBtn.addClickListener(e ->
-                handleCreate(companyIdField, companyNameField)
-        );
-
-        card.add(
-                title,
-                companyIdField,
-                companyNameField,
-                new HorizontalLayout(createBtn, cancelBtn)
-        );
-
+        card.add(title, companyIdField, companyNameField,
+                new HorizontalLayout(createBtn, cancelBtn));
         return card;
     }
+
+    // ── Header ────────────────────────────────────────────────────────────────
 
     private Div buildHeader() {
         Div header = new Div();
@@ -111,7 +114,6 @@ public class CompanyCreationView extends VerticalLayout implements BeforeEnterOb
                 .set("font-size", "24px")
                 .set("font-weight", "900")
                 .set("cursor", "pointer");
-
         logo.addClickListener(e -> UI.getCurrent().navigate("main"));
 
         Div nav = new Div();
@@ -119,70 +121,59 @@ public class CompanyCreationView extends VerticalLayout implements BeforeEnterOb
                 .set("display", "flex")
                 .set("gap", "32px")
                 .set("align-items", "center");
-
         nav.add(
-                clickable("Home", () -> UI.getCurrent().navigate("main")),
-                clickable("Companies", () -> UI.getCurrent().navigate("company")),
-                clickable("👤 My Account", () -> UI.getCurrent().navigate("profile"))
-        );
+                clickable("Home",       () -> UI.getCurrent().navigate("main")),
+                clickable("Companies",  () -> UI.getCurrent().navigate("company")),
+                clickable("👤 My Account", () -> UI.getCurrent().navigate("profile")));
 
         header.add(logo, nav);
         return header;
     }
+
+    // ── CompanyCreationPresenter.View implementation ──────────────────────────
+
+    @Override
+    public Object getSessionAttribute(String key) {
+        return UI.getCurrent().getSession().getAttribute(key);
+    }
+
+    @Override
+    public void setSessionAttribute(String key, Object value) {
+        UI.getCurrent().getSession().setAttribute(key, value);
+    }
+
+    @Override
+    public void showSuccess(String message) {
+        Notification.show(message, 3000, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    }
+
+    @Override
+    public void showError(String message) {
+        Notification.show(message, 4000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    @Override
+    public void showWarning(String message) {
+        Notification.show(message, 4000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_WARNING);
+    }
+
+    @Override
+    public void navigateToCompany() {
+        UI.getCurrent().navigate("company");
+    }
+
+    // ── UI helpers ────────────────────────────────────────────────────────────
+
     private static Span clickable(String text, Runnable onClick) {
         Span s = new Span(text);
         s.getStyle().set("cursor", "pointer").set("font-weight", "700");
         s.addClickListener(e -> onClick.run());
         return s;
     }
-        private void handleCreate(IntegerField companyIdField, TextField companyNameField) {
-        Integer companyId = companyIdField.getValue();
-        String companyName = companyNameField.getValue();
 
-        if (companyId == null) {
-            error("Company ID is required");
-            return;
-        }
-
-        if (companyId <= 0) {
-            error("Company ID must be positive");
-            return;
-        }
-
-        if (companyName == null || companyName.isBlank()) {
-            error("Company name is required");
-            return;
-        }
-
-        Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
-
-        if (tokenObj == null) {
-            Notification.show("Not logged in — sign in first to create a company",
-                    4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-            return;
-        }
-
-        String token = tokenObj.toString();
-
-        try {
-            // openCompany was migrated: it no longer takes a caller-supplied
-            // companyId — the backend generates a UUID and returns it.
-            java.util.UUID newCompanyId = companyService.openCompany(token, companyName.trim());
-
-            Notification.show("Company \"" + companyName.trim() + "\" created successfully!",
-                    3000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-            UI.getCurrent().getSession().setAttribute("managingCompanyId", newCompanyId);
-
-            UI.getCurrent().navigate("company");
-
-        } catch (RuntimeException ex) {
-            Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
-    }
     private static Div card() {
         Div card = new Div();
         card.getStyle()
