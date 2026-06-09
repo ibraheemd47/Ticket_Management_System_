@@ -122,10 +122,8 @@ public class ActiveOrderService {
 
     public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
         logger.info("Starting ticket reservation for userToken {} event {}", userToken, eventId);
-        String buyerId = represnteUserService.requireMemberId(userToken);
-
-        Member buyer = represnteUserService.requireMember(userToken);
-        int buyerAge = buyer.getAge(); // ← קורס כי buyer=null בטסטים
+        String buyerId = resolveBuyerId(userToken);
+        int buyerAge = resolveBuyerAge(userToken, buyerId);
 
         if (seats == null || seats.isEmpty()) {
             throw new IllegalStateException("Order is empty");
@@ -179,9 +177,8 @@ public class ActiveOrderService {
 
     public OrderDTO addTicketToOrder(UUID orderId, String userToken, SeatRequest seat) {
         logger.info("addTicketToOrder | orderId={} userToken={}", orderId, userToken);
-        String buyerId = represnteUserService.requireMemberId(userToken);
-        Member buyer = represnteUserService.requireMember(userToken);
-        int buyerAge = buyer.getAge(); // ← קורס כי buyer=null בטסטים
+        String buyerId = resolveBuyerId(userToken);
+        int buyerAge = resolveBuyerAge(userToken, buyerId);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         try {
             boolean isLocked = orderRepo.isTicketLocked(seat.getTicketId());
@@ -200,17 +197,12 @@ public class ActiveOrderService {
 
     public OrderDTO removeFromOrder(UUID orderId, UUID itemId, String userToken) {
         logger.info("Removing item {} from order {} by user {}", itemId, orderId, userToken);
-        String buyerId = represnteUserService.requireMemberId(userToken);
+        String buyerId = resolveBuyerId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         OrderItem removed = order.removeTicket(itemId);
 
         // Record the action so the user can undo it (re-acquire the same seat).
         actionLogRepo.save(OrderActionLog.forRemovedTicket(order.getId(), removed));
-
-
-        //new:
-        Member buyer = represnteUserService.requireMember(userToken);
-        int buyerAge = buyer.getAge(); // ← קורס כי buyer=null בטסטים
 
         orderPolicyDomainService.applyDiscounts(order, order.getAppliedCouponCode());
         orderRepo.save(order);
@@ -225,7 +217,7 @@ public class ActiveOrderService {
      */
     public OrderDTO undoLast(UUID orderId, String userToken) {
         logger.info("Undo requested for order {} by user {}", orderId, userToken);
-        String buyerId = represnteUserService.requireMemberId(userToken);
+        String buyerId = resolveBuyerId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
 
         OrderActionLog last = actionLogRepo.findTopByOrderIdOrderByIdDesc(orderId)
@@ -263,11 +255,9 @@ public class ActiveOrderService {
 
     public PurchaseDTO checkout(UUID orderId, String userToken, PaymentDetailsDTO paymentDTO) {
         logger.info("Starting checkout for order {} by user {}", orderId, userToken);
-        String buyerId = represnteUserService.requireMemberId(userToken);
+        String buyerId = resolveBuyerId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
-
-        Member buyer = represnteUserService.requireMember(userToken);
-        int buyerAge = buyer.getAge(); // ← קורס כי buyer=null בטסטים
+        int buyerAge = resolveBuyerAge(userToken, buyerId);
         orderPolicyDomainService.validatePurchasePolicy(order, buyerAge, true);
 
         PaymentDetails details = new PaymentDetails(paymentDTO.getCardToken(), paymentDTO.getBillingName(),
@@ -296,7 +286,7 @@ public class ActiveOrderService {
 
     public OrderDTO getActiveOrder(String userToken, UUID eventId) {
         logger.info("Fetching active order for user {}", userToken);
-        String buyerId = represnteUserService.requireMemberId(userToken);
+        String buyerId = resolveBuyerId(userToken);
 
         return orderRepo.findActiveOrder(buyerId, eventId)
                 .map(order -> {
@@ -311,7 +301,7 @@ public class ActiveOrderService {
 
     public void cancelOrder(UUID orderId, String userToken) {
         logger.info("Cancelling order {} for user {}", orderId, userToken);
-        String buyerId = represnteUserService.requireMemberId(userToken);
+        String buyerId = resolveBuyerId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         try {
             ticketDomainService.releaseAllTickets(order.cancel());
@@ -325,7 +315,7 @@ public class ActiveOrderService {
 
     public OrderDTO applyCoupon(UUID orderId, String userToken, String couponCode) {
         logger.info("Applying coupon {} for user {} on order {}", couponCode, userToken, orderId);
-        String buyerId = represnteUserService.requireMemberId(userToken);
+        String buyerId = resolveBuyerId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         try {
             orderPolicyDomainService.applyDiscounts(order, couponCode);
@@ -346,7 +336,7 @@ public class ActiveOrderService {
     }
 
     public List<OrderDTO> getPendingOrdersByBuyer(String userToken) {
-        String buyerId = represnteUserService.requireMemberId(userToken);
+        String buyerId = resolveBuyerId(userToken);
         logger.info("Fetching active orders for buyer {}", buyerId);
         List<OrderDTO> result = OrderMapper.toDTOList(orderRepo.findPendingOrdersByBuyer(buyerId));
         logger.info("Found {} active orders for buyer {}", result.size(), buyerId);
@@ -355,7 +345,7 @@ public class ActiveOrderService {
 
     public OrderDTO getOrderById(UUID orderId, String userToken) {
         logger.info("getOrderById | orderId={} userToken={}", orderId, userToken);
-        String buyerId = represnteUserService.requireMemberId(userToken);
+        String buyerId = resolveBuyerId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         return OrderMapper.toDTO(order);
     }
@@ -404,6 +394,42 @@ public class ActiveOrderService {
         reservationRateSnapshot.set(reservationsLastMinute.getAndSet(0));
         logger.info("Reservation rate updated. rate={}/min", reservationRateSnapshot.get());
     }
+
+    // ── Guest helpers ──────────────────────────────────────────────────────────
+
+    private static boolean isGuest(String token) {
+        return token != null && token.startsWith("GUEST_");
+    }
+
+    /**
+     * Resolves a token to a buyerId safe to store in the DB.
+     *
+     * Guest token  ("GUEST_<uuid>") → strips the prefix, returns only the UUID
+     *   part (36 chars) so it fits any column type.
+     * Member token (JWT)            → validated, returns memberId.
+     */
+    private String resolveBuyerId(String userToken) {
+        if (isGuest(userToken)) {
+            // Strip "GUEST_" prefix — store only the plain UUID in the DB
+            return userToken.substring("GUEST_".length());
+        }
+        return represnteUserService.requireMemberId(userToken);
+    }
+
+    /**
+     * Resolves buyer age for policy checks.
+     * Guest (identified by the original token) → 0 (age unknown;
+     *   age-restricted shows will block them and prompt registration).
+     * Member → actual age from DB.
+     */
+    private int resolveBuyerAge(String userToken, String buyerId) {
+        if (isGuest(userToken)) {   // check the token, not buyerId
+            return 0;
+        }
+        return represnteUserService.requireMember(userToken).getAge();
+    }
+
+    // Order lookup 
 
     private ActiveOrder findValidOrder(UUID orderId, String buyerId) {
         logger.info("Checking order {} for user {}", orderId, buyerId);
