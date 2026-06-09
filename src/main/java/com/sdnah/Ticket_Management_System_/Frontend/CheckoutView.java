@@ -1,14 +1,16 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
@@ -23,13 +25,6 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 @Route("checkout")
 public class CheckoutView extends VerticalLayout implements BeforeEnterObserver {
@@ -61,11 +56,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
     @Override
     @SuppressWarnings("unchecked")
     public void beforeEnter(BeforeEnterEvent event) {
-        Object token = event.getUI().getSession().getAttribute("token");
-        if (token == null) {
-            event.rerouteTo("login");
-            return;
-        }
+      
         String orderIdStr = (String) event.getUI().getSession().getAttribute("checkoutOrderId");
         List<Map<String, String>> items = (List<Map<String, String>>) event.getUI().getSession()
                 .getAttribute("checkoutItems");
@@ -245,13 +236,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                         .map(ui -> ui.getSession().getAttribute("token"))
                         .orElse(null);
 
-                if (tokenObj == null || tokenObj.toString().isBlank()) {
-                    Notification.show("Session expired — please log in again");
-                    getUI().ifPresent(ui -> ui.navigate("login"));
-                    return;
-                }
-
-                String token = tokenObj.toString();
+                String token = tokenObj == null ? "" : tokenObj.toString();
 
                 String cleanCard = cardNumber.getValue().replaceAll("\\s+", "");
                 String last4 = cleanCard.length() >= 4
