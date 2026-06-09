@@ -38,16 +38,12 @@ import com.vaadin.flow.router.Route;
 public class MainView extends VerticalLayout {
 
     private final MainPresenter presenter;
-    private final NotificationService notificationService;
-    private final UserService userService; // Kept for NotificationBell
-
     private Grid<EventDto> eventGrid;
     private HorizontalLayout companyList;
 
-    public MainView(MainPresenter presenter, NotificationService notificationService, UserService userService) {
+    public MainView(MainPresenter presenter) {
         this.presenter = presenter;
-        this.notificationService = notificationService;
-        this.userService = userService;
+        
 
         // 1. Link this view directly to the Presenter
         this.presenter.setView(this);
@@ -183,7 +179,7 @@ public class MainView extends VerticalLayout {
                 presenter.logout(currentToken); // Delegated to presenter
             });
             
-            NotificationBell notifcation_bell = new NotificationBell(notificationService, userService);
+          NotificationBell notifcation_bell = presenter.CreateNotificationBell(); // Delegated to presenter
 
             logoutBtn.getStyle().set("background", "transparent").set("color", "white")
                     .set("border", "2px solid white").set("font-weight", "700")

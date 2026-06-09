@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.MainPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
@@ -20,10 +21,10 @@ import com.vaadin.flow.router.Route;
 @Route("my-complaints")
 public class MyComplaintsView extends VerticalLayout implements BeforeEnterObserver {
 
-    private final ComplaintService complaintService;
+    private final MainPresenter mainPresenter;
 
-    public MyComplaintsView(ComplaintService complaintService) {
-        this.complaintService = complaintService;
+    public MyComplaintsView(MainPresenter mainPresenter) {
+        this.mainPresenter = mainPresenter;
 
         setSizeFull();
         setPadding(false);
@@ -116,7 +117,7 @@ public class MyComplaintsView extends VerticalLayout implements BeforeEnterObser
                     .getSession()
                     .getAttribute("token");
 
-            List<ComplaintDTO> complaints = complaintService.getUserComplaints(token);
+            List<ComplaintDTO> complaints = mainPresenter.getUserComplaints(token);
 
             if (complaints == null || complaints.isEmpty()) {
                 Paragraph empty = new Paragraph("You have not submitted any complaints yet.");

@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.UserPresenter;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -13,10 +14,10 @@ import com.vaadin.flow.router.Route;
 @Route("verify-account")
 public class VerifyAccountView extends VerticalLayout {
 
-    private final UserService userService;
+    private final UserPresenter presenter;
 
-    public VerifyAccountView(UserService userService) {
-        this.userService = userService;
+    public VerifyAccountView(UserPresenter presenter) {
+        this.presenter = presenter;
 
         setSizeFull();
         setPadding(false);
@@ -85,7 +86,7 @@ public class VerifyAccountView extends VerticalLayout {
 
             try {
                 // 1. Verify the account
-                userService.verifyAccount(username.getValue(), code.getValue());
+                presenter.verifyAccount(username.getValue(), code.getValue());
 
                 // 2. Retrieve the temporary password from the session
                 String tempPassword = (String) getUI().get().getSession().getAttribute("pendingPassword");
@@ -93,7 +94,10 @@ public class VerifyAccountView extends VerticalLayout {
                 if (tempPassword != null) {
                     // 3. Call the login function! 
                     // (Assuming your login method returns the token, or an Optional<User> that contains it)
-                    String token = userService.login(username.getValue(), tempPassword); 
+                    
+                   presenter.handleLogin(username.getValue(), tempPassword);
+                    String token = presenter.loginAndGetToken(username.getValue(), tempPassword);
+                     // You would need to implement this method in your presenter
                     
                     // 4. Set the token so MainView knows we are logged in
                 getUI().get().getSession().setAttribute("token", token);

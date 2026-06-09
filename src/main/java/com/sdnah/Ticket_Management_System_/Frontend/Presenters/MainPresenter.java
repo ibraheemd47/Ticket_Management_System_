@@ -7,15 +7,21 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
+
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.UIScope;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Frontend.MainView;
+import com.sdnah.Ticket_Management_System_.Frontend.NotificationBell;
 
 @Component
 @UIScope
@@ -24,14 +30,18 @@ public class MainPresenter {
     private final EventService eventService;
     private final UserService userService;
     private final company_managment_serivce companyService;
+    private final NotificationService notificationService;
+     private final ComplaintService complaintService;
 
     private MainView view;
     private List<EventDto> allEventDtos; // State moves here!
 
-    public MainPresenter(EventService eventService, UserService userService, company_managment_serivce companyService) {
+    public MainPresenter(EventService eventService, UserService userService, company_managment_serivce companyService,NotificationService  notificationService, ComplaintService complaintService) {
         this.eventService = eventService;
         this.userService = userService;
         this.companyService = companyService;
+        this.notificationService = notificationService;
+        this.complaintService = complaintService;
     }
 
     public void setView(MainView view) {
@@ -126,6 +136,20 @@ public void loadInitialData() {
             view.showNotification("Search Error: " + ex.getMessage(), true);
             System.err.println("Search Error: " + ex.getMessage());
             ex.printStackTrace();
+        }
+    }
+
+    public NotificationBell CreateNotificationBell() {
+        NotificationBell notifcation_bell = new NotificationBell(notificationService, userService);
+      return notifcation_bell;
+    }
+
+    public List<ComplaintDTO> getUserComplaints(String token) {
+        try {
+            return complaintService.getUserComplaints(token);
+        } catch (Exception ex) {
+            view.showNotification("Error fetching complaints: " + ex.getMessage(), true);
+            return null;
         }
     }
 }
