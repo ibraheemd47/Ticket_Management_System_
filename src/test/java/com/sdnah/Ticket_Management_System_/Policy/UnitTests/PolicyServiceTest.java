@@ -66,7 +66,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenDiscountPolicy_WhenAddDiscountRuleToEvent_ThenRuleSaved() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Event policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy( "Event policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -94,7 +94,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenCompanyDiscountPolicy_WhenAddDiscountRuleToCompany_ThenRuleSaved() {
-        DiscountPolicy policy = new DiscountPolicy(2, "Company policy", null, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Company policy", null, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
@@ -112,7 +112,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenDiscountPolicy_WhenSetDiscountRulesForEvent_ThenRulesReplaced() {
-        DiscountPolicy policy = new DiscountPolicy(3, "Event policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Event policy", EVENT_ID, COMPANY_ID);
         policy.addRule(new PercentageDiscountRule(5.0, "5% off"));
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
@@ -131,7 +131,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenCompanyDiscountPolicy_WhenSetDiscountRulesForCompany_ThenRulesReplaced() {
-        DiscountPolicy policy = new DiscountPolicy(4, "Company policy", null, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Company policy", null, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
@@ -150,7 +150,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenPurchasePolicy_WhenAddPurchaseRuleToEvent_ThenRuleSaved() {
-        PurchasePolicy policy = new PurchasePolicy(5, "Event policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy( "Event policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -178,7 +178,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenCompanyPurchasePolicy_WhenAddPurchaseRuleToCompany_ThenRuleSaved() {
-        PurchasePolicy policy = new PurchasePolicy(6, "Company policy", null, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Company policy", null, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
@@ -195,7 +195,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenPurchasePolicy_WhenSetPurchaseRulesForEvent_ThenRulesReplaced() {
-        PurchasePolicy policy = new PurchasePolicy(7, "Event policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy( "Event policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -210,7 +210,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenPurchasePolicy_WhenSetPurchaseRulesOrForEvent_ThenOrLogicApplied() {
-        PurchasePolicy policy = new PurchasePolicy(8, "OR policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy( "OR policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -231,7 +231,7 @@ class PolicyServiceTest {
 
     @Test
     void GivenNonOwner_WhenAddDiscountRule_ThenThrowException() {
-        DiscountPolicy policy = new DiscountPolicy(9, "Policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy( "Policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(representUserService.requireMember(TOKEN)).thenReturn(actor);
         when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));

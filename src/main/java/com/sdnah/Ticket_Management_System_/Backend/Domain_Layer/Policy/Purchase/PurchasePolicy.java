@@ -32,8 +32,8 @@ public class PurchasePolicy extends Policy {
 
     protected PurchasePolicy() {}
 
-    public PurchasePolicy(int policyId, String description, UUID eventId, UUID companyId) {
-        super(policyId, description, eventId, companyId);
+    public PurchasePolicy( String description, UUID eventId, UUID companyId) {
+        super(description, eventId, companyId);
     }
 
     // ── Core API ───────────────────────────────────────────────────────────────
@@ -49,10 +49,10 @@ public class PurchasePolicy extends Policy {
                 .isAllowed();
     }
 
-    public boolean validatePurchase(int quantity, boolean createsSingleGap) {
-        return validate(new PurchaseContext(0, quantity, createsSingleGap, true, null))
-                .isAllowed();
-    }
+    // public boolean validatePurchase(int quantity, boolean createsSingleGap) {
+    //     return validate(new PurchaseContext(0, quantity, createsSingleGap, true, null))
+    //             .isAllowed();
+    // }
 
     // ── UC II.4.3 ─────────────────────────────────────────────────────────────
 

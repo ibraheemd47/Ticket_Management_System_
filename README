@@ -1,25 +1,45 @@
-# Ticket Management System
+# 🎫 Ticket Management System
 
-A Spring Boot web application for managing support tickets with real-time updates using WebSocket, security features with JWT authentication, and a Vaadin-based user interface.
+A Spring Boot web application for managing support tickets with a modern Vaadin-based user interface, JWT authentication, Spring Security, and real-time updates using WebSocket.
 
-## Technologies
+## 📌 Overview
 
-- **Framework**: Spring Boot 3.3.5
-- **Java Version**: 21
-- **UI Framework**: Vaadin 24.5.1
-- **Database**: H2 (embedded)
-- **Authentication**: JWT (JSON Web Tokens)
-- **Security**: Spring Security
-- **Build Tool**: Maven
-- **Real-time Communication**: WebSocket
+The **Ticket Management System** allows users to create, view, update, and manage support tickets through a web-based interface.
+The system includes secure authentication, ticket management functionality, real-time communication, and support for email notifications.
 
-## Prerequisites
+## ✨ Features
 
-- **Java 21** or higher
-- **Maven 3.6+** (or use the included Maven wrapper)
-- **Git**
+* 🔐 User authentication using JWT
+* 🛡️ Secure access control with Spring Security
+* 🎫 Create, view, update, and delete support tickets
+* ⚡ Real-time ticket updates using WebSocket
+* 🖥️ Vaadin-based responsive web interface
+* 🗄️ H2 embedded database for development and testing
+* 📧 Email notification support through SMTP configuration
 
-## Installation
+## 🛠️ Technologies Used
+
+| Technology           | Description                      |
+| -------------------- | -------------------------------- |
+| ☕ Java 21            | Main programming language        |
+| 🌱 Spring Boot 3.3.5 | Backend framework                |
+| 🎨 Vaadin 24.5.1     | Web UI framework                 |
+| 🛡️ Spring Security  | Authentication and authorization |
+| 🔑 JWT               | Token-based authentication       |
+| 🔄 WebSocket         | Real-time communication          |
+| 🗄️ H2 Database      | Embedded development database    |
+| 📦 Maven             | Build and dependency management  |
+
+## ✅ Prerequisites
+
+Before running the project, make sure you have the following installed:
+
+* ☕ Java 21 or higher
+* 📦 Maven 3.6+
+  Or use the included Maven wrapper
+* 🧩 Git
+
+## 🚀 Getting Started
 
 ### 1. Clone the Repository
 
@@ -28,62 +48,93 @@ git clone <repository-url>
 cd Ticket_Management_System_
 ```
 
+Replace `<repository-url>` with your actual GitHub repository URL.
+
 ### 2. Build the Project
 
-Using Maven wrapper (no need to install Maven separately):
-
-```bash
-# On Windows
-mvn clean install
-
-# On Linux/macOS
-./mvn clean install
-```
-
-Or if you have Maven installed:
+Using Maven:
 
 ```bash
 mvn clean install
 ```
 
-## Running the Application
+Or using the Maven wrapper:
 
-###  Using Maven
+#### 🪟 Windows
 
 ```bash
-# On Windows
+mvnw.cmd clean install
+```
+
+#### 🐧 Linux / macOS
+
+```bash
+./mvnw clean install
+```
+
+## ▶️ Running the Application
+
+Run the application using Maven:
+
+```bash
 mvn spring-boot:run
-
-````
-## Configuration
-
-The application uses default configuration from `application.properties` or `application.yml` in `src/main/resources/`.
-
-### Key Configurations:
-- **Port**: `8080` (default)
-- **Database**: H2 in-memory database (configurable)
-- **JWT Secret**: Configure in application properties
-- **WebSocket**: Enabled by default
-
-## Accessing the Application
-
-Once the application is running:
-
-1. Open your browser
-2. Navigate to: `http://localhost:8080`
-3. You should see the Vaadin web interface
-
-## Features
-
-- **User Authentication**: JWT-based authentication with Spring Security
-- **Ticket Management**: Create, view, update, and delete support tickets
-- **Real-time Updates**: WebSocket integration for live notifications
-- **Email Support**: Configured for email notifications (configure SMTP settings)
-- **Web-based UI**: Vaadin framework for responsive UI
-
-## Project Structure
-
 ```
+
+Or using the Maven wrapper:
+
+#### 🪟 Windows
+
+```bash
+mvnw.cmd spring-boot:run
+```
+
+#### 🐧 Linux / macOS
+
+```bash
+./mvnw spring-boot:run
+```
+
+## 🌐 Accessing the Application
+
+After the application starts successfully, open your browser and go to:
+
+```text
+http://localhost:8080
+```
+
+You should see the Vaadin web interface.
+
+## ⚙️ Configuration
+
+The application configuration is located in:
+
+```text
+src/main/resources/application.properties
+```
+
+or:
+
+```text
+src/main/resources/application.yml
+```
+
+Main configurable options include:
+
+* 🌐 Server port
+* 🗄️ H2 database settings
+* 🔑 JWT secret key
+* 🔄 WebSocket configuration
+* 📧 SMTP email settings
+
+By default, the application runs on:
+
+```text
+http://localhost:8080
+```
+
+## 📁 Project Structure
+
+```text
 src/
 ├── main/
 │   ├── java/
@@ -96,3 +147,33 @@ src/
     └── [Test classes]
 ```
 
+## 🧪 Running Tests
+
+To run the project tests:
+
+```bash
+mvn test
+```
+
+Or with the Maven wrapper:
+
+#### 🪟 Windows
+
+```bash
+mvnw.cmd test
+```
+
+#### 🐧 Linux / macOS
+
+```bash
+./mvnw test
+```
+
+## 📝 Notes
+
+This project uses an embedded H2 database, which is useful for development and testing.
+For production use, it is recommended to configure an external database and secure the JWT secret and email credentials properly.
+
+## 📄 License
+
+This project is for academic and learning purposes.

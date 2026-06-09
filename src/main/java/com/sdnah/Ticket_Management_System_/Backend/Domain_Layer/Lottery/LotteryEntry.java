@@ -16,6 +16,7 @@ import jakarta.persistence.*;
 @Table(name = "lottery_entries")
 public class LotteryEntry {
 
+    
     @Id
     private UUID id;
 

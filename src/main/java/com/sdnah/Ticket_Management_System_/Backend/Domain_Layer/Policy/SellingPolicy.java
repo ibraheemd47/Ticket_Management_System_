@@ -24,8 +24,8 @@ public class SellingPolicy extends Policy {
         // JPA
     }
 
-    public SellingPolicy(int policyId, String description, SellingType type, UUID eventId, UUID companyId) {
-        super(policyId, description, eventId, companyId);
+    public SellingPolicy( String description, SellingType type, UUID eventId, UUID companyId) {
+        super(description, eventId, companyId);
 
         if (type == null) {
             throw new IllegalArgumentException("Selling type cannot be null");

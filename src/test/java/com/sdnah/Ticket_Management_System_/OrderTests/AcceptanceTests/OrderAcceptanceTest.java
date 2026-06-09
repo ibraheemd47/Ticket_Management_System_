@@ -13,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -31,6 +30,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomai
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentTransaction;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Ticketcode;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
@@ -91,6 +91,10 @@ class OrderAcceptanceTest {
 
                 when(represnteUserService.requireMemberId(TOKEN_BUYER_1)).thenReturn(BUYER_1);
                 when(represnteUserService.requireMemberId(TOKEN_BUYER_2)).thenReturn(BUYER_2);
+                //new by yara:
+                Member mockBuyer = mock(Member.class);
+                when(mockBuyer.getAge()).thenReturn(25);
+                when(represnteUserService.requireMember(any())).thenReturn(mockBuyer);
 
                 when(policyRepository.findPurchasePolicyByEventId(any())).thenReturn(null);
                 when(policyRepository.findDiscountPolicyByEventId(any())).thenReturn(null);

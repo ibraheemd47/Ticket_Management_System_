@@ -126,7 +126,8 @@ public class Member {
         this.age = age;
     }
 
-     public int getAge() {
+    public int getAge() 
+    {
         return age;
     }
     public void setUsername(String username) {

@@ -11,6 +11,7 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "lotteries")
 public class Lottery {
+    
 
     @Id
     private UUID id;

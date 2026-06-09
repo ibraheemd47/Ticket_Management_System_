@@ -10,7 +10,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
-import javax.imageio.plugins.tiff.TIFFDirectory;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;

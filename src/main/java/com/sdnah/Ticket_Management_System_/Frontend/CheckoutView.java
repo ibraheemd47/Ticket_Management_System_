@@ -1,14 +1,16 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
@@ -23,13 +25,6 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 @Route("checkout")
 public class CheckoutView extends VerticalLayout implements BeforeEnterObserver {
@@ -61,17 +56,15 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
     @Override
     @SuppressWarnings("unchecked")
     public void beforeEnter(BeforeEnterEvent event) {
-        Object token = event.getUI().getSession().getAttribute("token");
-        if (token == null) {
-            event.rerouteTo("login");
-            return;
-        }
+      
         String orderIdStr = (String) event.getUI().getSession().getAttribute("checkoutOrderId");
         List<Map<String, String>> items = (List<Map<String, String>>) event.getUI().getSession()
                 .getAttribute("checkoutItems");
 
         String showName = (String) event.getUI().getSession().getAttribute("checkoutShowName");
         String eventIdStr = (String) event.getUI().getSession().getAttribute("checkoutEventId");
+        String finalPriceStr= (String) event.getUI().getSession().getAttribute("checkoutFinalPrice");
+        String discountStr= (String) event.getUI().getSession().getAttribute("checkoutDiscount");
 
         if (orderIdStr == null || orderIdStr.isBlank() || items == null || items.isEmpty()) {
             event.rerouteTo("main");
@@ -87,8 +80,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         }
 
         contentArea.removeAll();
-        contentArea.add(buildCheckoutContent(orderId, items, showName, eventIdStr));
-
+        contentArea.add(buildCheckoutContent(orderId, items, showName, eventIdStr, finalPriceStr, discountStr));
         // List<String> ticketIds = (List<String>)
         // event.getUI().getSession().getAttribute("checkoutTicketIds");
         // List<Map<String, String>> items = (List<Map<String, String>>)
@@ -140,11 +132,12 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
 
     // ── Two-column checkout layout ─────────────────────────────────────────────
 
-    private Div buildCheckoutContent(UUID orderId, // List<String> ticketIds,
-            List<Map<String, String>> items,
-            // String userId,
-            String showName,
-            String eventIdStr) {
+    private Div buildCheckoutContent(UUID orderId,
+        List<Map<String, String>> items,
+        String showName,
+        String eventIdStr,
+        String finalPriceStr,
+        String discountStr) {
         Div wrapper = new Div();
         wrapper.getStyle()
                 .set("display", "flex")
@@ -161,12 +154,23 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                 .set("width", "900px")
                 .set("max-width", "100%");
 
-        BigDecimal rawTotal = computeTotal(items);
-        BigDecimal[] finalTotalRef = { rawTotal }; // mutated by coupon section
+        // BigDecimal rawTotal = computeTotal(items);
+        // BigDecimal[] finalTotalRef = { rawTotal }; // mutated by coupon section
+        BigDecimal rawTotal = (finalPriceStr != null && discountStr != null)
+                ? new BigDecimal(finalPriceStr).add(new BigDecimal(discountStr))
+                : computeTotal(items);
+        System.out.println("DEBUG items=" + items);
+        System.out.println("DEBUG rawTotal=" + rawTotal);
+        System.out.println("DEBUG finalPriceStr=" + finalPriceStr);
+        System.out.println("DEBUG discountStr=" + discountStr);
+        BigDecimal finalPrice = (finalPriceStr != null && !finalPriceStr.isBlank())
+                ? new BigDecimal(finalPriceStr) : rawTotal;
+       BigDecimal discount = (discountStr != null && !discountStr.isBlank())
+        ? new BigDecimal(discountStr) : BigDecimal.ZERO;
+        BigDecimal[] finalTotalRef = { finalPrice };
         layout.add(
                 buildPaymentCard(orderId),
-                buildSummaryCard(items, rawTotal, finalTotalRef, eventIdStr, showName, orderId));
-        // layout.add(
+                buildSummaryCard(items, rawTotal, finalTotalRef, eventIdStr, showName, orderId, discount))     ;   // layout.add(
         // buildPaymentCard(ticketIds, userId, finalTotalRef),
         // buildSummaryCard(items, rawTotal, finalTotalRef, eventIdStr, showName));
         wrapper.add(layout);
@@ -232,13 +236,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                         .map(ui -> ui.getSession().getAttribute("token"))
                         .orElse(null);
 
-                if (tokenObj == null || tokenObj.toString().isBlank()) {
-                    Notification.show("Session expired — please log in again");
-                    getUI().ifPresent(ui -> ui.navigate("login"));
-                    return;
-                }
-
-                String token = tokenObj.toString();
+                String token = tokenObj == null ? "" : tokenObj.toString();
 
                 String cleanCard = cardNumber.getValue().replaceAll("\\s+", "");
                 String last4 = cleanCard.length() >= 4
@@ -407,11 +405,12 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
     // String eventIdStr,
     // String showName)
     private Div buildSummaryCard(List<Map<String, String>> items,
-            BigDecimal rawTotal,
-            BigDecimal[] finalTotalRef,
-            String eventIdStr,
-            String showName,
-            UUID orderId) {
+        BigDecimal rawTotal,
+        BigDecimal[] finalTotalRef,
+        String eventIdStr,
+        String showName,
+        UUID orderId,
+        BigDecimal initialDiscount) {
         Div card = createCard();
 
         H2 titleEl = new H2("Order Summary");
@@ -472,16 +471,16 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         discountValueSpan.getStyle().set("color", "#2e7d32").set("font-weight", "600");
         Span discountLabelSpan = new Span("Discount:");
         discountLabelSpan.getStyle().set("color", "#2e7d32");
-        Div discountRow = new Div(discountLabelSpan, discountValueSpan);
+         Div discountRow = new Div(discountLabelSpan, discountValueSpan);
         discountRow.getStyle()
                 .set("display", "flex").set("justify-content", "space-between")
                 .set("font-size", "14px").set("margin-bottom", "6px");
-        discountRow.setVisible(false);
+        
         card.add(discountRow);
+        
 
         // ── Total ─────────────────────────────────────────────────────────────
-        Span totalValueSpan = new Span(
-                "$" + rawTotal.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        Span totalValueSpan = new Span("$" + finalTotalRef[0].setScale(2, RoundingMode.HALF_UP).toPlainString());
         totalValueSpan.getStyle()
                 .set("font-weight", "700").set("font-size", "18px").set("color", "#026cdf");
         Span totalLabelSpan = new Span("Total:");
@@ -492,6 +491,13 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                 .set("margin", "6px 0 20px");
         card.add(totalRow);
 
+        if (initialDiscount != null && initialDiscount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+            discountValueSpan.setText("-$" + initialDiscount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
+            discountRow.setVisible(true);
+            totalValueSpan.setText("$" + finalTotalRef[0].setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
+        } else {
+            discountRow.setVisible(false);
+        }
         // ── Coupon section ────────────────────────────────────────────────────
         Span couponToggle = new Span("🏷 Have a coupon code?");
         couponToggle.getStyle()

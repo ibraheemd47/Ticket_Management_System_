@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ProfileResponse;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.UpdateProfileRequest;
@@ -14,8 +15,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRole
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.VerificationEmail;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
-
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService implements IrepresnteUserService {
@@ -157,6 +156,8 @@ public class UserService implements IrepresnteUserService {
             logger.warn("Password reset failed: member not found for email={}", email);
         }
     }
+
+   
 
     public Member getMemberByToken(String tokenValue) {
         if (tokenValue == null || tokenValue.isBlank()) {

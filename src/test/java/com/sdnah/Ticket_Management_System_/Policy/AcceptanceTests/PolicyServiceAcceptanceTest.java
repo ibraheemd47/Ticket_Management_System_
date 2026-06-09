@@ -66,7 +66,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenDiscountPolicy_WhenAddDiscountRuleToEvent_ThenRuleSaved")
     void GivenDiscountPolicy_WhenAddDiscountRuleToEvent_ThenRuleSaved() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Event policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Event policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -92,7 +92,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenNullDiscountRule_WhenAddDiscountRuleToEvent_ThenExceptionThrown")
     void GivenNullDiscountRule_WhenAddDiscountRuleToEvent_ThenExceptionThrown() {
-        DiscountPolicy policy = new DiscountPolicy(1, "Event policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Event policy", EVENT_ID, COMPANY_ID);
         lenient().when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         mockOwnerAuth();
 
@@ -103,7 +103,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenDiscountPolicy_WhenSetDiscountRulesForEvent_ThenRulesReplacedAndSaved")
     void GivenDiscountPolicy_WhenSetDiscountRulesForEvent_ThenRulesReplacedAndSaved() {
-        DiscountPolicy policy = new DiscountPolicy(2, "Event policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Event policy", EVENT_ID, COMPANY_ID);
         policy.addRule(new PercentageDiscountRule(5.0, "5% off"));
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
@@ -119,7 +119,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenDiscountPolicy_WhenSetDiscountRulesForEventAdditive_ThenSumApplied")
     void GivenDiscountPolicy_WhenSetDiscountRulesForEventAdditive_ThenSumApplied() {
-        DiscountPolicy policy = new DiscountPolicy(2, "Additive", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Additive", EVENT_ID, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -138,7 +138,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenDiscountPolicy_WhenSetEmptyRulesList_ThenExceptionThrown")
     void GivenDiscountPolicy_WhenSetEmptyRulesList_ThenExceptionThrown() {
-        DiscountPolicy policy = new DiscountPolicy(2, "Event policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Event policy", EVENT_ID, COMPANY_ID);
         lenient().when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         mockOwnerAuth();
 
@@ -154,7 +154,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenCompanyDiscountPolicy_WhenAddDiscountRuleToCompany_ThenRuleSaved")
     void GivenCompanyDiscountPolicy_WhenAddDiscountRuleToCompany_ThenRuleSaved() {
-        DiscountPolicy policy = new DiscountPolicy(3, "Company policy", null, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Company policy", null, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
@@ -169,7 +169,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenCompanyDiscountPolicy_WhenSetDiscountRulesForCompany_ThenRulesReplaced")
     void GivenCompanyDiscountPolicy_WhenSetDiscountRulesForCompany_ThenRulesReplaced() {
-        DiscountPolicy policy = new DiscountPolicy(4, "Company policy", null, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Company policy", null, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
@@ -190,7 +190,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenPurchasePolicy_WhenAddPurchaseRuleToEvent_ThenRuleSaved")
     void GivenPurchasePolicy_WhenAddPurchaseRuleToEvent_ThenRuleSaved() {
-        PurchasePolicy policy = new PurchasePolicy(5, "Event policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Event policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -216,7 +216,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenNullPurchaseRule_WhenAddPurchaseRuleToEvent_ThenExceptionThrown")
     void GivenNullPurchaseRule_WhenAddPurchaseRuleToEvent_ThenExceptionThrown() {
-        PurchasePolicy policy = new PurchasePolicy(5, "Event policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Event policy", EVENT_ID, COMPANY_ID);
         lenient().when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         mockOwnerAuth();
 
@@ -227,7 +227,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenPurchasePolicy_WhenSetPurchaseRulesForEvent_AndOperator_ThenAllMustPass")
     void GivenPurchasePolicy_WhenSetPurchaseRulesForEventAnd_ThenAllMustPass() {
-        PurchasePolicy policy = new PurchasePolicy(6, "AND policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("AND policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -245,7 +245,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenPurchasePolicy_WhenSetPurchaseRulesForEvent_OrOperator_ThenOneMustPass")
     void GivenPurchasePolicy_WhenSetPurchaseRulesForEventOr_ThenOneMustPass() {
-        PurchasePolicy policy = new PurchasePolicy(7, "OR policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("OR policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
         mockOwnerAuth();
@@ -267,7 +267,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenCompanyPurchasePolicy_WhenAddPurchaseRuleToCompany_ThenRuleSaved")
     void GivenCompanyPurchasePolicy_WhenAddPurchaseRuleToCompany_ThenRuleSaved() {
-        PurchasePolicy policy = new PurchasePolicy(8, "Company policy", null, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Company policy", null, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByCompanyIdAndEventIdIsNull(COMPANY_ID))
                 .thenReturn(Optional.of(policy));
         when(policyRepo.savePolicy(policy)).thenReturn(policy);
@@ -287,7 +287,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenNonOwner_WhenAddDiscountRule_ThenThrowException")
     void GivenNonOwner_WhenAddDiscountRule_ThenThrowException() {
-        DiscountPolicy policy = new DiscountPolicy(9, "Policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy( "Policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(representUserService.requireMember(TOKEN)).thenReturn(actor);
         when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
@@ -303,7 +303,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenInactiveMember_WhenAddDiscountRule_ThenThrowException")
     void GivenInactiveMember_WhenAddDiscountRule_ThenThrowException() {
-        DiscountPolicy policy = new DiscountPolicy(9, "Policy", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy( "Policy", EVENT_ID, COMPANY_ID);
         lenient().when(policyRepo.findDiscountPolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(representUserService.requireMember(TOKEN)).thenReturn(actor);
         when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
@@ -318,7 +318,7 @@ class PolicyServiceAcceptanceTest {
     @Test
     @DisplayName("GivenNonOwner_WhenAddPurchaseRule_ThenThrowException")
     void GivenNonOwner_WhenAddPurchaseRule_ThenThrowException() {
-        PurchasePolicy policy = new PurchasePolicy(9, "Policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Policy", EVENT_ID, COMPANY_ID);
         when(policyRepo.findPurchasePolicyByEventId(EVENT_ID)).thenReturn(Optional.of(policy));
         when(representUserService.requireMember(TOKEN)).thenReturn(actor);
         when(companyRepo.findById(COMPANY_ID)).thenReturn(Optional.of(company));
@@ -340,7 +340,7 @@ class PolicyServiceAcceptanceTest {
     @DisplayName("GivenManyConcurrentRequests_WhenComputingDiscount_ThenAllResultsConsistent")
     void GivenManyConcurrentRequests_WhenComputingDiscount_ThenAllResultsConsistent()
             throws Exception {
-        DiscountPolicy policy = new DiscountPolicy(10, "Concurrent discount", EVENT_ID, COMPANY_ID);
+        DiscountPolicy policy = new DiscountPolicy("Concurrent discount", EVENT_ID, COMPANY_ID);
         policy.addRule(new PercentageDiscountRule(25.0, "25% off"));
 
         int threads = 50;

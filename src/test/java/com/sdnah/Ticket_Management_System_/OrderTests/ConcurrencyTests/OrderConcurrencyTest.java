@@ -3,6 +3,7 @@ package com.sdnah.Ticket_Management_System_.OrderTests.ConcurrencyTests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.Payme
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
@@ -93,6 +95,11 @@ class OrderConcurrencyTest {
         // In these tests we use the token string itself as the buyerId.
         when(represnteUserService.requireMemberId(any(String.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        // NEW by yara:
+        Member mockBuyer = mock(Member.class);
+        when(mockBuyer.getAge()).thenReturn(25);
+        when(represnteUserService.requireMember(any())).thenReturn(mockBuyer);
 
         when(policyRepository.findPurchasePolicyByEventId(any(UUID.class))).thenReturn(null);
         when(policyRepository.findDiscountPolicyByEventId(any(UUID.class))).thenReturn(null);

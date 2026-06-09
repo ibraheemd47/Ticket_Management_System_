@@ -26,14 +26,14 @@ class PurchasePolicyTest {
 
     @Test
     void GivenDefaultPurchasePolicy_WhenQuantityOne_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Default", EVENT_ID, COMPANY_ID);
 
         assertTrue(policy.validatePurchase(1, 20, false));
     }
 
     @Test
     void GivenDefaultPurchasePolicy_WhenQuantityZero_ThenExceptionThrown() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Default", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Default", EVENT_ID, COMPANY_ID);
 
         // DiscountContext rejects quantity <= 0
         assertThrows(IllegalArgumentException.class,
@@ -46,7 +46,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenMaxTicketsTwo_WhenQuantityThree_ThenReturnFalse() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Max two", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Max two", EVENT_ID, COMPANY_ID);
         policy.addRule(new MaxTicketsRule(2));
 
         assertFalse(policy.validatePurchase(3, 20, false));
@@ -54,7 +54,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenMaxTicketsTwo_WhenQuantityTwo_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Max two", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Max two", EVENT_ID, COMPANY_ID);
         policy.addRule(new MaxTicketsRule(2));
 
         assertTrue(policy.validatePurchase(2, 20, false));
@@ -66,7 +66,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenMinTicketsTwo_WhenQuantityOne_ThenReturnFalse() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Min two", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Min two", EVENT_ID, COMPANY_ID);
         policy.addRule(new MinTicketsRule(2));
 
         assertFalse(policy.validatePurchase(1, 20, false));
@@ -74,7 +74,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenMinTicketsTwo_WhenQuantityTwo_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Min two", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Min two", EVENT_ID, COMPANY_ID);
         policy.addRule(new MinTicketsRule(2));
 
         assertTrue(policy.validatePurchase(2, 20, false));
@@ -86,7 +86,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenMinAge18_WhenBuyerAge16_ThenReturnFalse() {
-        PurchasePolicy policy = new PurchasePolicy(1, "18+ policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("18+ policy", EVENT_ID, COMPANY_ID);
         policy.addRule(new MinAgeRule(18));
 
         assertFalse(policy.validatePurchase(1, 16, false));
@@ -94,7 +94,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenMinAge18_WhenBuyerAge18_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "18+ policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("18+ policy", EVENT_ID, COMPANY_ID);
         policy.addRule(new MinAgeRule(18));
 
         assertTrue(policy.validatePurchase(1, 18, false));
@@ -106,7 +106,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenAndRule_WhenAllConditionsMet_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Age 18+ AND max 5", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Age 18+ AND max 5", EVENT_ID, COMPANY_ID);
         policy.setRules(List.of(new MinAgeRule(18), new MaxTicketsRule(5)),
                 PurchasePolicy.Operator.AND);
 
@@ -115,7 +115,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenAndRule_WhenOneConditionFails_ThenReturnFalse() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Age 18+ AND max 5", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Age 18+ AND max 5", EVENT_ID, COMPANY_ID);
         policy.setRules(List.of(new MinAgeRule(18), new MaxTicketsRule(5)),
                 PurchasePolicy.Operator.AND);
 
@@ -124,7 +124,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenOrRule_WhenOneConditionMet_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Max 2 OR Min 100", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Max 2 OR Min 100", EVENT_ID, COMPANY_ID);
         policy.setRules(List.of(new MaxTicketsRule(2), new MinTicketsRule(100)),
                 PurchasePolicy.Operator.OR);
 
@@ -134,7 +134,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenOrRule_WhenNoConditionMet_ThenReturnFalse() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Max 2 OR Min 100", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Max 2 OR Min 100", EVENT_ID, COMPANY_ID);
         policy.setRules(List.of(new MaxTicketsRule(2), new MinTicketsRule(100)),
                 PurchasePolicy.Operator.OR);
 
@@ -147,7 +147,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenMinAgeRule_WhenBuyerTooYoung_ThenDenialMessageContainsAge() {
-        PurchasePolicy policy = new PurchasePolicy(1, "18+ policy", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("18+ policy", EVENT_ID, COMPANY_ID);
         policy.addRule(new MinAgeRule(18));
 
         RuleResult result = policy.validate(
@@ -164,7 +164,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenPolicyWithRules_WhenClearRules_ThenAllPurchasesAllowed() {
-        PurchasePolicy policy = new PurchasePolicy(1, "With rules", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("With rules", EVENT_ID, COMPANY_ID);
         policy.addRule(new MinAgeRule(18));
 
         policy.clearRules();
@@ -178,7 +178,7 @@ class PurchasePolicyTest {
 
     @Test
     void GivenValidPolicy_WhenIsValid_ThenReturnTrue() {
-        PurchasePolicy policy = new PurchasePolicy(1, "Valid", EVENT_ID, COMPANY_ID);
+        PurchasePolicy policy = new PurchasePolicy("Valid", EVENT_ID, COMPANY_ID);
 
         assertTrue(policy.isValid());
     }

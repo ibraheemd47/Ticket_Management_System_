@@ -47,6 +47,7 @@ public class LotteryService {
     // =========================================================================
     // UC II.3.6 — CREATE LOTTERY - COMPANY OWNER ONLY
     // =========================================================================
+    
     @Transactional
     public LotteryDTO createLottery(String actorToken, UUID eventId, UUID companyId,
                                     LocalDateTime registrationDeadline,
@@ -165,6 +166,7 @@ public class LotteryService {
         );
     }
 
+    
     private LotteryEntryDTO toEntryDTO(LotteryEntry entry) {
         return new LotteryEntryDTO(
                 entry.getId(),

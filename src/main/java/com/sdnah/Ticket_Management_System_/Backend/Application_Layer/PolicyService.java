@@ -21,6 +21,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 
@@ -45,6 +46,28 @@ public class PolicyService {
     }
 
     
+    
+    // =========================================================================
+    // Policy management — used by frontend
+    // =========================================================================
+ 
+    public List<Policy> getPoliciesForCompany(UUID companyId) {
+        return policyRepo.findByCompanyIdAndEventIdIsNull(companyId);
+    }
+
+    public List<Policy> getPoliciesForEvent(UUID eventId) {
+        return policyRepo.findByEventId(eventId);
+    }
+ 
+    public <S extends Policy> S savePolicy(S policy) {
+        return policyRepo.savePolicy(policy);
+    }
+ 
+    public void removePolicy(int policyId) {
+        logger.info("Removing policy policyId={}", policyId);
+        policyRepo.deleteByPolicyId(policyId);
+        logger.info("Policy removed policyId={}", policyId);
+    }
 
     // =========================================================================
     // UC II.4.3 — Add discount rule to EVENT policy

@@ -14,6 +14,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.UserRole;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +37,7 @@ public class CompanyAcceptanceTest {
     private IEventRepository eventRepository;
     private IrepresnteUserService representUserService;
     private NotificationService notificationService;
+    private PolicyRepository policyRepo;
 
     private final Map<String, Member> membersById = new HashMap<>();
     private final Map<String, Member> membersByToken = new HashMap<>();
@@ -63,6 +65,7 @@ public class CompanyAcceptanceTest {
         eventRepository = mock(IEventRepository.class);
         representUserService = mock(IrepresnteUserService.class);
         notificationService = mock(NotificationService.class);
+        policyRepo = mock(PolicyRepository.class);
 
         companies = new HashMap<>();
 
@@ -116,14 +119,20 @@ public class CompanyAcceptanceTest {
             return event;
         });
 
+        //new
+        when(policyRepo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+
         companyService = new company_managment_serivce(
                 companyRepository,
                 userRepository,
                 eventRepository,
                 representUserService,
-                notificationService
+                notificationService,
+                policyRepo
         );
 
+        
         mockMember(FOUNDER_ID, "founder", FOUNDER_TOKEN);
         mockMember(USER_200_ID, "user200", USER_200_TOKEN);
         mockMember(USER_300_ID, "user300", USER_300_TOKEN);

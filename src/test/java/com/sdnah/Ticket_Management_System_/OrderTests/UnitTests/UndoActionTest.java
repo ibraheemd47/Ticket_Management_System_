@@ -28,7 +28,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrde
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.Lock;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderActionLog;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.OrderItem;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OrderActionLogRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PaymentTransactionRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
@@ -53,6 +56,8 @@ class UndoActionTest {
     private OrderActionLogRepository actionLogRepo;
     private ActiveOrderService service;
     private NotificationService notificationService;
+    private LotteryRepository lotteryRepo;
+    private IEventRepository eventRepo;
 
     private final String USER_TOKEN = "tok";
     private final String BUYER_ID   = "11111111-1111-1111-1111-111111111111";
@@ -71,6 +76,8 @@ class UndoActionTest {
         userService      = mock(IrepresnteUserService.class);
         actionLogRepo    = mock(OrderActionLogRepository.class);
         notificationService = mock(NotificationService.class);
+            lotteryRepo = mock(LotteryRepository.class);
+            eventRepo = mock(IEventRepository.class);
 
         service = new ActiveOrderService(
                 orderRepo,
@@ -83,11 +90,16 @@ class UndoActionTest {
                 ticketRepository,
                 policyRepository,
                 userService,
-                actionLogRepo
+                actionLogRepo,lotteryRepo,eventRepo
         );
 
         when(userService.requireMemberId(USER_TOKEN)).thenReturn(BUYER_ID);
         when(policyRepository.findDiscountPolicyByEventId(any())).thenReturn(null);
+
+        //NEW by yara:
+        Member mockBuyer = mock(Member.class);
+        when(mockBuyer.getAge()).thenReturn(25);
+        when(userService.requireMember(USER_TOKEN)).thenReturn(mockBuyer);
     }
 
     private ActiveOrder orderWithOneItem(String ticketId) {
