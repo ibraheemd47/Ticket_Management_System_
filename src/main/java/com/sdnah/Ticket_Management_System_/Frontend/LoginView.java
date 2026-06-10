@@ -1,12 +1,13 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.UserPresenter;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -15,10 +16,12 @@ import com.vaadin.flow.router.Route;
 @Route("login")
 public class LoginView extends VerticalLayout {
 
-    private final UserService userService;
+    private final UserPresenter presenter;
 
-    public LoginView(UserService userService) {
-        this.userService = userService;
+    // We inject the Presenter instead of the UserService
+    public LoginView(UserPresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setLoginView(this); // Link the view to the presenter
 
         setSizeFull();
         setPadding(false);
@@ -71,7 +74,7 @@ public class LoginView extends VerticalLayout {
                 .set("font-weight", "900")
                 .set("cursor", "pointer");
 
-        logo.addClickListener(event -> getUI().ifPresent(ui -> ui.navigate("main")));
+        logo.addClickListener(event -> navigateTo("main"));
 
         header.add(logo);
         return header;
@@ -166,36 +169,11 @@ public class LoginView extends VerticalLayout {
                 .set("cursor", "pointer")
                 .set("margin-top", "18px");
 
+        // --------------------------------------------------------
+        // DELEGATE LOGIN LOGIC TO PRESENTER
+        // --------------------------------------------------------
         continueButton.addClickListener(event -> {
-            if (username.isEmpty() || password.isEmpty()) {
-                Notification.show("Please enter username and password");
-                return;
-            }
-
-            try {
-                String token = userService.login(
-                        username.getValue(),
-                        password.getValue()
-                );
-
-                // Resolve the real member UUID from the token (not the Vaadin component id)
-                String memberId = userService.getMemberIdByToken(token);
-
-                getUI().ifPresent(ui -> ui.getSession().setAttribute("token", token));
-                getUI().ifPresent(ui -> ui.getSession().setAttribute("userId", memberId));
-                getUI().ifPresent(ui -> ui.getSession().setAttribute("managingCompanyId", null));
-
-                Notification.show("Login successful");
-                
-                if(userService.isSystemAdmin(token)) {
-                    getUI().ifPresent(ui -> ui.navigate("admin"));
-                } else {
-                    getUI().ifPresent(ui -> ui.navigate("main"));
-                }
-
-            } catch (Exception ex) {
-                Notification.show(ex.getMessage());
-            }
+            presenter.handleLogin(username.getValue(), password.getValue());
         });
 
         Paragraph createAccount = new Paragraph("New to the show? Create an account");
@@ -207,9 +185,33 @@ public class LoginView extends VerticalLayout {
                 .set("margin-top", "35px")
                 .set("cursor", "pointer");
 
-        createAccount.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("signup")));
+        createAccount.addClickListener(e -> navigateTo("signup"));
 
         right.add(title, subtitle, username, password, continueButton, createAccount);
         return right;
+    }
+
+    // =========================================================================
+    // PRESENTER CALLBACK METHODS (These let the presenter command the UI safely)
+    // =========================================================================
+
+    public void showNotification(String message, boolean isError) {
+        Notification notification = Notification.show(message, 4000, Notification.Position.MIDDLE);
+        if (isError) {
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        } else {
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        }
+    }
+
+    public void navigateTo(String route) {
+        getUI().ifPresent(ui -> ui.navigate(route));
+    }
+
+    public void storeSessionData(String token, String memberId) {
+        getUI().ifPresent(ui -> {
+            ui.getSession().setAttribute("token", token);
+            ui.getSession().setAttribute("userId", memberId);
+        });
     }
 }

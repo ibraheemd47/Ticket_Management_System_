@@ -1,6 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Waiting_QueueService;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.WaitingQueuePresenter;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
@@ -13,7 +13,6 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-//import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
@@ -24,12 +23,8 @@ import com.vaadin.flow.router.Route;
  * reacts in real time (via @Push) when the queue admits them — at that point
  * a "Claim your seat" button lights up.
  *
- * <p>Real-time delivery: this view registers its server-side {@code UI} with
- * {@link UiPushRegistry} on attach. When the backend admits this user (e.g.
- * inside {@code Waiting_QueueService.admitNextUsers(...)} or in
- * {@code RealtimeNotificationSender}), it should call
- * {@code uiPushRegistry.push(token, ui -> { ... })} to flip the view to the
- * "you're up" state. No polling.
+ * <p>Logic + state live in {@link WaitingQueuePresenter}; this class only
+ * builds the UI and exposes display methods.
  */
 // Note: @Push is enabled application-wide on TicketManagementSystemApplication,
 // so this view automatically gets server-push without re-annotating here.
@@ -49,23 +44,18 @@ public class WaitingQueueView extends VerticalLayout implements BeforeEnterObser
     /** Session key for the show the user is queueing for. */
     private static final String SESSION_SHOW_ID = "queueShowId";
 
-    private final Waiting_QueueService queueService;
-    private final UiPushRegistry pushRegistry;
+    private final WaitingQueuePresenter presenter;
 
-    private String token;
-    private long userId;
-    private long showId;
-
-    // UI handles we update after a refresh / push
+    // UI handles we update from the show* methods called by the presenter
     private final H1 positionLabel = new H1();
     private final Paragraph etaLabel = new Paragraph();
     private final Button claimButton = new Button("Claim your seat");
     private final Span statusBadge = new Span();
     private final Button refreshButton = new Button("Refresh");
 
-    public WaitingQueueView(Waiting_QueueService queueService, UiPushRegistry pushRegistry) {
-        this.queueService = queueService;
-        this.pushRegistry = pushRegistry;
+    public WaitingQueueView(WaitingQueuePresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setView(this);
 
         setSizeFull();
         setPadding(false);
@@ -90,49 +80,32 @@ public class WaitingQueueView extends VerticalLayout implements BeforeEnterObser
         Object mi = UI.getCurrent().getSession().getAttribute(SESSION_MEMBER_ID);
         Object si = UI.getCurrent().getSession().getAttribute(SESSION_SHOW_ID);
 
-        this.token  = t.toString();
-        this.userId = mi != null ? Long.parseLong(mi.toString()) : 101L;
-        this.showId = si != null ? Long.parseLong(si.toString()) : 42L;
+        String token  = t.toString();
+        long userId   = mi != null ? Long.parseLong(mi.toString()) : 101L;
+        long showId   = si != null ? Long.parseLong(si.toString()) : 42L;
 
-        try {
-            refreshFromBackend();
-        } catch (RuntimeException ex) {
-            positionLabel.setText("—");
-            etaLabel.setText("No live queue data: " + ex.getMessage());
-        }
+        presenter.bind(token, userId, showId);
+        presenter.refresh();
     }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        if (token != null) {
-            pushRegistry.register(token, attachEvent.getUI());
-        }
+        presenter.registerForPush(attachEvent.getUI());
     }
 
     @Override
     protected void onDetach(DetachEvent detachEvent) {
-        if (token != null) {
-            pushRegistry.unregister(token, detachEvent.getUI());
-        }
+        presenter.unregisterFromPush(detachEvent.getUI());
         super.onDetach(detachEvent);
     }
 
-    // ── State refresh ────────────────────────────────────────────────────────
+    // ── Display methods called by the presenter ──────────────────────────────
 
-    /** Pull current position + ETA from the service. */
-    private void refreshFromBackend() {
-        int position = queueService.getPosition(userId, showId);
-        int minutes  = queueService.calculateEstimatedWaitTimeInMinutes(userId, showId);
-
-        if (position < 0) {
-            // Either admitted or never joined. Surface the "you're up" UI.
-            showYoureUp();
-            return;
-        }
-        // position is 0-indexed; show "#1" for the head of the line.
-        positionLabel.setText("#" + (position + 1));
-        etaLabel.setText("Estimated wait: " + minutes + " min");
+    /** Render the "still waiting" state with the user's place in line. */
+    public void showWaitingState(int humanPosition, int etaMinutes) {
+        positionLabel.setText("#" + humanPosition);
+        etaLabel.setText("Estimated wait: " + etaMinutes + " min");
         statusBadge.setText("Waiting");
         statusBadge.getStyle()
                 .set("background", "#ffd34d")
@@ -145,7 +118,7 @@ public class WaitingQueueView extends VerticalLayout implements BeforeEnterObser
         refreshButton.setVisible(true);
     }
 
-    /** Called from the @Push side when the backend admits this user. */
+    /** Flip the view to the "you're up" state — also called from the push side. */
     public void showYoureUp() {
         positionLabel.setText("It's your turn!");
         etaLabel.setText("A seat is reserved for you. Click below before the timer runs out.");
@@ -162,6 +135,22 @@ public class WaitingQueueView extends VerticalLayout implements BeforeEnterObser
         Notification n = Notification.show("You've been admitted from the queue!", 4000,
                 Notification.Position.TOP_CENTER);
         n.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    }
+
+    /** Fallback when the backend can't be reached. */
+    public void showQueueError(String message) {
+        positionLabel.setText("—");
+        etaLabel.setText("No live queue data: " + message);
+    }
+
+    /** Lightweight notifications used by the presenter for transient feedback. */
+    public void showInfo(String message) {
+        Notification.show(message, 2500, Notification.Position.TOP_CENTER);
+    }
+
+    public void showError(String message) {
+        Notification.show(message, 3500, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 
     // ── Layout ───────────────────────────────────────────────────────────────
@@ -247,23 +236,13 @@ public class WaitingQueueView extends VerticalLayout implements BeforeEnterObser
                 .set("font-weight", "700")
                 .set("padding", "10px 24px")
                 .set("border-radius", "8px");
-        refreshButton.addClickListener(e -> refreshFromBackend());
+        refreshButton.addClickListener(e -> presenter.refresh());
 
         // Dev helper — lets you actually join the queue from the UI so you can
         // see real "#1, #2…" states. Remove once a real "no seats → queue me"
         // hand-off exists upstream.
-        Button joinDev = new Button("(Dev) Join this queue as user " + userId, e -> {
-            try {
-                boolean joined = queueService.joinQueue(userId, showId);
-                Notification.show(joined ? "Joined the queue." : "Already in the queue.",
-                        2500, Notification.Position.TOP_CENTER);
-                refreshFromBackend();
-            } catch (RuntimeException ex) {
-                Notification.show("Join failed: " + ex.getMessage(), 3500,
-                                Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
+        Button joinDev = new Button("(Dev) Join this queue as user " + presenter.getUserId(),
+                e -> presenter.joinQueueAsDev());
         joinDev.getStyle()
                 .set("margin-top", "12px")
                 .set("background", "#fff")

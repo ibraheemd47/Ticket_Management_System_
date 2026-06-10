@@ -3,7 +3,8 @@ package com.sdnah.Ticket_Management_System_.Frontend;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
-
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.NotificationBellPresenter;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.UserPresenter;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
@@ -17,17 +18,17 @@ import com.vaadin.flow.server.VaadinSession;
 @Route("notification-bell-test")
 public class NotificationBellTestView extends VerticalLayout {
 
-    private final NotificationService notificationService;
-    private final IrepresnteUserService userService;
+    private final NotificationBellPresenter presenter;
+    private final UserPresenter userpresenter;
 
     private NotificationBell notificationBell;
     private final VerticalLayout bellContainer = new VerticalLayout();
     private final Span status = new Span();
 
-    public NotificationBellTestView(NotificationService notificationService,
-                                    IrepresnteUserService userService) {
-        this.notificationService = notificationService;
-        this.userService = userService;
+    public NotificationBellTestView(NotificationBellPresenter presenter,
+                                    UserPresenter userPresenter) {
+        this.presenter = presenter;
+        this.userpresenter = userPresenter;
 
         setPadding(true);
         setSpacing(true);
@@ -55,7 +56,7 @@ public class NotificationBellTestView extends VerticalLayout {
             }
 
             try {
-                String memberId = userService.requireMemberId(token.trim());
+                String memberId = userpresenter.requireMemberId(token.trim());
 
                 VaadinSession.getCurrent().setAttribute("token", token.trim());
 
@@ -80,16 +81,16 @@ public class NotificationBellTestView extends VerticalLayout {
             }
 
             try {
-                String memberId = userService.requireMemberId(tokenObj.toString());
+                String memberId = userpresenter.requireMemberId(tokenObj.toString());
 
-                notificationService.createNotification(
+                this.presenter.createNotification(
                         memberId,
                         "Hello from NotificationBell test page",
                         NotificationType.ROLE_CHANGED
                 );
 
                 if (notificationBell != null) {
-                    notificationBell.refreshUnreadCount();
+                    this.presenter.refreshUnreadCount();
                 }
 
                 Notification.show("Test notification created for memberId: " + memberId);
@@ -114,7 +115,7 @@ public class NotificationBellTestView extends VerticalLayout {
 
         if (existingToken != null) {
             try {
-                String memberId = userService.requireMemberId(existingToken.toString());
+                String memberId = userpresenter.requireMemberId(existingToken.toString());
                 status.setText("Logged-in memberId: " + memberId);
                 loadBell();
             } catch (Exception ignored) {
@@ -126,7 +127,7 @@ public class NotificationBellTestView extends VerticalLayout {
     private void loadBell() {
         bellContainer.removeAll();
 
-        notificationBell = new NotificationBell(notificationService, userService);
+        notificationBell = presenter.CreateNotificationBell();
 
         bellContainer.add(notificationBell);
     }

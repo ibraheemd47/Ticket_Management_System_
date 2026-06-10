@@ -1,8 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.NotificationDTO;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.NotificationBellPresenter;
 
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.UI;
@@ -21,21 +20,18 @@ import java.util.List;
 
 public class NotificationBell extends Div {
 
-    private final NotificationService notificationService;
-    private final IrepresnteUserService userService;
+    private final NotificationBellPresenter presenter;
 
     private final Button bellButton = new Button();
     private final Span badge = new Span();
-
     private final Dialog dialog = new Dialog();
     private final VerticalLayout notificationList = new VerticalLayout();
     private Registration pollRegistration;
-    private String currentMemberId;
 
-    public NotificationBell(NotificationService notificationService,
-            IrepresnteUserService userService) {
-        this.notificationService = notificationService;
-        this.userService = userService;
+    // We pass the Presenter instead of the Services!
+    public NotificationBell(NotificationBellPresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setView(this);
 
         buildBellButton();
         buildDialog();
@@ -43,34 +39,19 @@ public class NotificationBell extends Div {
         add(bellButton);
     }
 
-    // When the page loads, the bell updates itself.
+    // --- VAADIN LIFECYCLE ---
+
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
 
-        if (!resolveCurrentUser()) {
-            setVisible(false);
-            return;
-        }
+        presenter.initAndRefresh(getCurrentToken());
 
-        setVisible(true);
-        refreshUnreadCount();
         UI ui = attachEvent.getUI();
-
-        // Poll every 3 seconds to update the badge automatically
         ui.setPollInterval(3000);
 
         pollRegistration = ui.addPollListener(event -> {
-            if (!resolveCurrentUser()) {
-                setVisible(false);
-                return;
-            }
-
-            refreshUnreadCount();
-
-            if (dialog.isOpened()) {
-                refreshNotificationList();
-            }
+            presenter.initAndRefresh(getCurrentToken());
         });
     }
 
@@ -80,9 +61,10 @@ public class NotificationBell extends Div {
             pollRegistration.remove();
             pollRegistration = null;
         }
-
         super.onDetach(detachEvent);
     }
+
+    // --- UI SETUP ---
 
     private void buildBellButton() {
         bellButton.setText("🔔");
@@ -115,15 +97,9 @@ public class NotificationBell extends Div {
 
         bellButton.getElement().appendChild(badge.getElement());
 
+        // DELEGATE TO PRESENTER
         bellButton.addClickListener(event -> {
-            if (!resolveCurrentUser()) {
-                Notification.show("Please login first.");
-                return;
-            }
-
-            refreshUnreadCount();
-            refreshNotificationList();
-            dialog.open();
+            presenter.openDialogAndLoadNotifications(getCurrentToken());
         });
     }
 
@@ -133,18 +109,12 @@ public class NotificationBell extends Div {
         dialog.setMaxHeight("600px");
 
         Button refreshButton = new Button("Refresh", event -> {
-            refreshNotificationList();
-            refreshUnreadCount();
+            presenter.initAndRefresh(getCurrentToken());
         });
 
+        // DELEGATE TO PRESENTER
         Button markAllButton = new Button("Mark all as read", event -> {
-            if (!resolveCurrentUser()) {
-                return;
-            }
-
-            notificationService.markAllAsRead(currentMemberId);
-            refreshNotificationList();
-            refreshUnreadCount();
+            presenter.markAllAsRead(getCurrentToken());
         });
 
         Div actions = new Div();
@@ -166,64 +136,6 @@ public class NotificationBell extends Div {
         dialog.add(content);
     }
 
-    private boolean resolveCurrentUser() {
-        Object tokenObj = VaadinSession.getCurrent().getAttribute("token");
-
-        if (tokenObj == null) {
-            return false;
-        }
-
-        String token = tokenObj.toString();
-
-        if (token.isBlank()) {
-            return false;
-        }
-
-        try {
-            currentMemberId = userService.requireMemberId(token);
-            return currentMemberId != null && !currentMemberId.isBlank();
-        } catch (Exception e) {
-            currentMemberId = null;
-            return false;
-        }
-    }
-
-    public void refreshUnreadCount() {
-        if (currentMemberId == null || currentMemberId.isBlank()) {
-            return;
-        }
-
-        long unreadCount = notificationService.getUnreadCount(currentMemberId);
-
-        if (unreadCount <= 0) {
-            badge.setText("");
-            badge.getStyle().set("display", "none");
-        } else {
-            badge.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
-            badge.getStyle().set("display", "inline-flex");
-        }
-    }
-
-    public void refreshNotificationList() {
-        notificationList.removeAll();
-
-        if (currentMemberId == null || currentMemberId.isBlank()) {
-            notificationList.add(emptyState("Please login to see notifications."));
-            return;
-        }
-
-        List<NotificationDTO> unreadNotifications = notificationService.getUnreadNotificationsForUser(currentMemberId);
-
-        if (unreadNotifications.isEmpty()) {
-            notificationList.add(emptyState("No unread notifications."));
-            return;
-        }
-
-        for (NotificationDTO notification : unreadNotifications) {
-            notificationList.add(createNotificationCard(notification));
-        }
-    }
-
     private Div createNotificationCard(NotificationDTO notification) {
         Div card = new Div();
         card.getStyle()
@@ -236,28 +148,18 @@ public class NotificationBell extends Div {
                 .set("box-sizing", "border-box");
 
         H3 title = new H3(getNotificationTitle(notification));
-        title.getStyle()
-                .set("font-size", "15px")
-                .set("margin", "0 0 6px 0")
-                .set("color", "#111827");
+        title.getStyle().set("font-size", "15px").set("margin", "0 0 6px 0").set("color", "#111827");
 
         Div message = new Div();
         message.setText(notification.getMessage());
-        message.getStyle()
-                .set("font-size", "14px")
-                .set("color", "#374151")
-                .set("line-height", "1.5")
-                .set("margin-bottom", "10px");
+        message.getStyle().set("font-size", "14px").set("color", "#374151").set("line-height", "1.5").set("margin-bottom", "10px");
 
         Span meta = new Span(getNotificationMeta(notification));
-        meta.getStyle()
-                .set("font-size", "12px")
-                .set("color", "#6b7280");
+        meta.getStyle().set("font-size", "12px").set("color", "#6b7280");
 
+        // DELEGATE TO PRESENTER
         Button markReadButton = new Button("Mark as read", event -> {
-            notificationService.markAsRead(notification.getId(), currentMemberId);
-            refreshNotificationList();
-            refreshUnreadCount();
+            presenter.markSingleAsRead(getCurrentToken(), notification.getId());
         });
 
         markReadButton.getStyle()
@@ -271,7 +173,43 @@ public class NotificationBell extends Div {
         return card;
     }
 
-    private Div emptyState(String text) {
+    // --- PRESENTER CALLBACKS & HELPERS ---
+
+    public void hideBell() {
+        setVisible(false);
+    }
+
+    public void showBell() {
+        setVisible(true);
+    }
+
+    public void openDialog() {
+        dialog.open();
+    }
+
+    public boolean isDialogOpen() {
+        return dialog.isOpened();
+    }
+
+    public void updateBadgeCount(long unreadCount) {
+        if (unreadCount <= 0) {
+            badge.setText("");
+            badge.getStyle().set("display", "none");
+        } else {
+            badge.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
+            badge.getStyle().set("display", "inline-flex");
+        }
+    }
+
+    public void displayNotifications(List<NotificationDTO> notifications) {
+        notificationList.removeAll();
+        for (NotificationDTO notification : notifications) {
+            notificationList.add(createNotificationCard(notification));
+        }
+    }
+
+    public void showEmptyState(String text) {
+        notificationList.removeAll();
         Div empty = new Div();
         empty.setText(text);
         empty.getStyle()
@@ -281,55 +219,43 @@ public class NotificationBell extends Div {
                 .set("background", "#f9fafb")
                 .set("border-radius", "10px")
                 .set("border", "1px dashed #d1d5db");
-        return empty;
+        notificationList.add(empty);
+    }
+
+    public void showToastMessage(String message) {
+        Notification.show(message);
+    }
+
+    // Extracts the token directly from VaadinSession to pass to Presenter
+    private String getCurrentToken() {
+        Object tokenObj = VaadinSession.getCurrent().getAttribute("token");
+        return tokenObj != null ? tokenObj.toString() : null;
     }
 
     private String getNotificationTitle(NotificationDTO notification) {
-        if (notification.getType() == null) {
-            return "Notification";
-        }
-
-        return notification.getType().toString()
-                .replace("_", " ")
-                .toLowerCase();
+        if (notification.getType() == null) return "Notification";
+        return notification.getType().toString().replace("_", " ").toLowerCase();
     }
 
     private String getNotificationMeta(NotificationDTO notification) {
-        if (notification.getCreatedAt() == null) {
-            return "";
-        }
-
+        if (notification.getCreatedAt() == null) return "";
         try {
-            return notification.getCreatedAt()
-                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+            return notification.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
         } catch (Exception e) {
             return notification.getCreatedAt().toString();
         }
     }
 
-    /**
-     * Call this later from live notification integration.
-     * For now, it is useful if another component wants to refresh the bell.
-     */
     public void onNewNotification(NotificationDTO notification) {
         UI ui = UI.getCurrent();
-
-        if (ui == null) {
-            refreshUnreadCount();
-            return;
+        if (ui != null) {
+            ui.access(() -> {
+                presenter.initAndRefresh(getCurrentToken());
+                Notification.show(notification.getMessage(), 4000, Notification.Position.TOP_END);
+            });
+        } else {
+            presenter.initAndRefresh(getCurrentToken());
         }
-
-        ui.access(() -> {
-            refreshUnreadCount();
-
-            Notification.show(
-                    notification.getMessage(),
-                    4000,
-                    Notification.Position.TOP_END);
-
-            if (dialog.isOpened()) {
-                refreshNotificationList();
-            }
-        });
     }
+    
 }

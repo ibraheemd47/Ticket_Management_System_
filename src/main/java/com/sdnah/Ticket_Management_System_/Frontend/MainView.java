@@ -7,12 +7,12 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.MainPresenter;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.NotificationBellPresenter;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -36,22 +36,20 @@ import com.vaadin.flow.router.Route;
 
 @Route("main")
 public class MainView extends VerticalLayout {
-    private final EventService eventService;
-    private final NotificationService notificationService;
-    // private final IrepresnteUserService userService;
-    private final UserService userService;
-    private final company_managment_serivce companyService;
+
+    private final MainPresenter presenter;
+    private final NotificationBellPresenter notificationBell;
     private Grid<EventDto> eventGrid;
-private List<EventDto> allEventDtos;
+    private HorizontalLayout companyList;
 
-    public MainView(EventService eventService, NotificationService notificationService,
-            UserService userService,company_managment_serivce companyService) {
-        this.eventService = eventService;
-        this.notificationService = notificationService;
-        this.userService = userService;
-        this.companyService = companyService;
+    public MainView(MainPresenter presenter, NotificationBellPresenter notificationBell) {
+        this.presenter = presenter;
+        this.notificationBell = notificationBell;
 
-        // 1. Match the overall page background and spacing from ProfileView
+        // 1. Link this view directly to the Presenter
+        this.presenter.setView(this);
+        this.notificationBell.setView(this);
+
         setSizeFull();
         setPadding(false);
         setSpacing(false);
@@ -61,20 +59,19 @@ private List<EventDto> allEventDtos;
                 .set("font-family", "Arial, sans-serif");
 
         setupHeader();
-        setupQuickAccessBar(); // links to /queue, /manager/order, /company
+        setupQuickAccessBar(); 
         setupEventSection();
         setupCompanySection();
-        setupHottestArtistsSection(); // Added Artists Section
-        setupFooter(); // Added About Us & Socials Footer
+        setupHottestArtistsSection(); 
+        setupFooter(); 
+
+        // 2. Ask presenter to load initial data into the view
+        this.presenter.loadInitialData();
     }
 
-    /**
-     * Quick links to the role-specific views. Only rendered when the user is
-     * logged in — anonymous visitors have no reason to see these.
-     */
     private void setupQuickAccessBar() {
         if (UI.getCurrent().getSession().getAttribute("token") == null) {
-            return; // hide the entire bar for anonymous visitors
+            return; 
         }
 
         HorizontalLayout bar = new HorizontalLayout();
@@ -121,7 +118,7 @@ private List<EventDto> allEventDtos;
 
         H1 logo = new H1("TICKET MANAGEMENT");
         logo.getStyle()
-                .set("color", "black") // Changed back to white for contrast on blue
+                .set("color", "black") 
                 .set("margin", "0")
                 .set("font-size", "24px")
                 .set("font-weight", "900")
@@ -151,62 +148,57 @@ private List<EventDto> allEventDtos;
             profileBtn.getStyle().set("background", "white").set("color", "#026cdf")
                     .set("font-weight", "700").set("border-radius", "8px").set("cursor", "pointer");
 
-            String currentToken = (String) UI.getCurrent().getSession().getAttribute("token");
+            String currentToken = (String) token;
+            boolean isGuest = currentToken.startsWith("GUEST_"); // ← GUEST SUPPORT
 
-            // Admin button - only for system admins
-            if (currentToken != null && userService.isSystemAdmin(currentToken)) {
-                Button adminBtn = new Button("Admin Dashboard",
-                        e -> UI.getCurrent().navigate("admin"));
+            if (!isGuest) {
+                // ── Member-only header buttons ──────────────────────────────
 
-                adminBtn.getStyle()
-                        .set("background", "#111827")
-                        .set("color", "white")
-                        .set("font-weight", "700")
-                        .set("border-radius", "8px")
-                        .set("cursor", "pointer");
-
-                authButtons.add(adminBtn);
-            }
-
-            Button complaintBtn = new Button("File Complaint",
-                     e -> UI.getCurrent().navigate("complaints"));
-
-            complaintBtn.getStyle()
-                    .set("background", "white")
-                    .set("color", "#026cdf")
-                    .set("font-weight", "700")
-                    .set("border-radius", "8px")
-                    .set("cursor", "pointer");
-                    
-                authButtons.add(complaintBtn);    
-
-
-
-            Button logoutBtn = new Button("Logout", e -> {
-                // 1. Get the current token from the session
-               // String currentToken = (String) UI.getCurrent().getSession().getAttribute("token");
-
-                // 2. Call your backend UserService logout function
-                if (currentToken != null) {
-                    userService.logout(currentToken);
-                    // Note: If your logout function takes a username instead of a token,
-                    // pass the username here!
+                // Admin button - Delegated to Presenter
+                if (presenter.isSystemAdmin(currentToken)) {
+                    Button adminBtn = new Button("Admin Dashboard",
+                            e -> UI.getCurrent().navigate("admin"));
+                    adminBtn.getStyle()
+                            .set("background", "#111827").set("color", "white")
+                            .set("font-weight", "700").set("border-radius", "8px")
+                            .set("cursor", "pointer");
+                    authButtons.add(adminBtn);
                 }
 
-                // 3. Clear the session attribute so the UI knows the user is logged out
-                UI.getCurrent().getSession().setAttribute("token", null);
-                UI.getCurrent().getSession().setAttribute("managingCompanyId", null);
+                Button complaintBtn = new Button("File Complaint",
+                        e -> UI.getCurrent().navigate("complaints"));
+                complaintBtn.getStyle()
+                        .set("background", "white").set("color", "#026cdf")
+                        .set("font-weight", "700").set("border-radius", "8px")
+                        .set("cursor", "pointer");
+                authButtons.add(complaintBtn);
 
-                // 4. THE FIX: Reload the page to refresh the header buttons
-                UI.getCurrent().getPage().reload();
-            });
-            NotificationBell notifcation_bell = new NotificationBell(notificationService, userService);
+                Button logoutBtn = new Button("Logout", e -> {
+                    presenter.logout(currentToken);
+                });
+                logoutBtn.getStyle().set("background", "transparent").set("color", "white")
+                        .set("border", "2px solid white").set("font-weight", "700")
+                        .set("border-radius", "8px").set("cursor", "pointer");
 
-            logoutBtn.getStyle().set("background", "transparent").set("color", "white")
-                    .set("border", "2px solid white").set("font-weight", "700")
-                    .set("border-radius", "8px").set("cursor", "pointer");
+                NotificationBell notifcation_bell = notificationBell.CreateNotificationBell();
+                authButtons.add(notifcation_bell, profileBtn, logoutBtn);
 
-            authButtons.add( notifcation_bell, profileBtn, logoutBtn);
+            } else {
+                // ── Guest: show Login + Sign Up buttons ─────────────────────
+                Button loginBtn = new Button("Login",
+                        e -> UI.getCurrent().navigate("login"));
+                loginBtn.getStyle().set("background", "white").set("color", "#026cdf")
+                        .set("font-weight", "700").set("border-radius", "8px")
+                        .set("cursor", "pointer");
+
+                Button signupBtn = new Button("Sign Up",
+                        e -> UI.getCurrent().navigate("signup"));
+                signupBtn.getStyle().set("background", "transparent").set("color", "white")
+                        .set("border", "2px solid white").set("font-weight", "700")
+                        .set("border-radius", "8px").set("cursor", "pointer");
+
+                authButtons.add(loginBtn, signupBtn);
+            }
         }
 
         header.add(logo, searchBarLayout, authButtons);
@@ -234,49 +226,17 @@ private List<EventDto> allEventDtos;
             return btn;
         }).setHeader("").setAutoWidth(true);
 
-        try {
-           List<Event> events = eventService.getAllEvents();
-           
-           allEventDtos = events.stream()
-    .map(ev -> {
-        LocalDateTime start = ev.getStartDate().toInstant()
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDateTime();
-
-        LocalDateTime end;
-               end = ev.getEndDate().toInstant()
-                       .atZone(ZoneId.systemDefault())
-                       .toLocalDateTime();
-
-        return new EventDto(
-            ev.getEventId(),
-            ev.getName(),
-            start,
-            end,
-            ev.getEventType(),
-            ev.getVenue(),
-            ev.getPhotoUrl()
-        );
-    })
-    .collect(Collectors.toList());
-
-eventGrid.setItems(allEventDtos);
-        } catch (Exception ignored) {
-        }
-
         eventGrid.setAllRowsVisible(true);
         eventGrid.getStyle().set("border-radius", "0 0 8px 8px");
         container.add(headerContainer, eventGrid);
         add(container);
-        // 3. Custom styled buttons for the blue background
-        HorizontalLayout authButtons = new HorizontalLayout();
     }
 
     private void setupCompanySection() {
         Div container = createSectionContainer();
         Div headerContainer = createBlueHeaderContainer("Our Partner Companies");
 
-        HorizontalLayout companyList = new HorizontalLayout();
+        companyList = new HorizontalLayout();
         companyList.setWidthFull();
         companyList.setSpacing(true);
         companyList.getStyle()
@@ -284,51 +244,10 @@ eventGrid.setItems(allEventDtos);
                 .set("padding", "20px")
                 .set("border-radius", "0 0 8px 8px");
 
-        // Example Company Mock
-         companyList.add(companyService.getActiveCompanies().stream().map(c -> {
-            VerticalLayout companyCard = new VerticalLayout();
-            companyCard.setAlignItems(Alignment.CENTER);
-            companyCard.setPadding(false);
-            companyCard.setSpacing(false);
-            companyCard.getStyle()
-                    .set("width", "150px")
-                    .set("cursor", "pointer")
-                    .set("transition", "transform 0.2s");
-
-            // Hover effect
-            companyCard.getElement().addEventListener("mouseover",
-                    e -> companyCard.getStyle().set("transform", "scale(1.05)"));
-            companyCard.getElement().addEventListener("mouseout",
-                    e -> companyCard.getStyle().set("transform", "scale(1)"));
-
-            Image logo = new Image(c.getLogoURL() != null ? c.getLogoURL() : "https://via.placeholder.com/100?text=No+Logo",
-                    c.getCompanyName());
-            logo.setWidth("80px");
-            logo.setHeight("80px");
-            logo.getStyle()
-                    .set("border-radius", "50%")
-                    .set("object-fit", "cover")
-                    .set("box-shadow", "0 4px 10px rgba(0,0,0,0.1)");
-
-            H3 name = new H3(c.getCompanyName());
-            name.getStyle().set("margin-top", "10px").set("color", "#111827");
-
-            companyCard.add(logo, name);
-            companyCard.addClickListener(e -> {
-                UI.getCurrent().getSession().setAttribute("companyId", c.getCompanyId().toString());
-                UI.getCurrent().navigate("company");
-            });
-
-            return companyCard;
-
-        }).collect(Collectors.toList()));
-
         container.add(headerContainer, companyList);
         add(container);
-        
     }
 
-    // --- NEW: Hottest Artists Section ---
     private void setupHottestArtistsSection() {
         Div container = createSectionContainer();
         Div headerContainer = createBlueHeaderContainer("Hottest Artists");
@@ -341,35 +260,29 @@ eventGrid.setItems(allEventDtos);
                 .set("padding", "40px 20px")
                 .set("border-radius", "0 0 8px 8px");
 
-        // Add the artists. Ensure you place the actual images in:
-        // src/main/resources/META-INF/resources/images/
-        // I am using external placeholder URLs temporarily so you can see the layout
-        // immediately
         artistList.add(
                 createArtistCard("Drake",
-                        "https://ui-avatars.com/api/?name=Drake&background=0D8ABC&color=fff&size=150"),
+                        "https://ui-avatars.com/api/?name=Drake&background=0D8ABC&color=fff&size=100"),
                 createArtistCard("J. Cole",
-                        "https://ui-avatars.com/api/?name=J+Cole&background=111827&color=fff&size=150"),
+                        "https://ui-avatars.com/api/?name=J+Cole&background=111827&color=fff&size=100"),
                 createArtistCard("Kendrick Lamar",
-                        "https://ui-avatars.com/api/?name=Kendrick+Lamar&background=E53E3E&color=fff&size=150"),
+                        "https://ui-avatars.com/api/?name=Kendrick+Lamar&background=E53E3E&color=fff&size=100"),
                 createArtistCard("The Weeknd",
-                        "https://ui-avatars.com/api/?name=The+Weeknd&background=D69E2E&color=fff&size=150"));
+                        "https://ui-avatars.com/api/?name=The+Weeknd&background=D69E2E&color=fff&size=100"));
 
         container.add(headerContainer, artistList);
         add(container);
     }
 
-    // Helper for creating individual clickable artist cards
     private Div createArtistCard(String name, String imageUrl) {
         Div card = new Div();
         card.getStyle()
                 .set("display", "flex")
                 .set("flex-direction", "column")
                 .set("align-items", "center")
-                .set("cursor", "pointer") // Makes mouse pointer a hand
+                .set("cursor", "pointer") 
                 .set("transition", "transform 0.2s");
 
-        // Hover effect for the card
         card.getElement().addEventListener("mouseover", e -> card.getStyle().set("transform", "scale(1.05)"));
         card.getElement().addEventListener("mouseout", e -> card.getStyle().set("transform", "scale(1)"));
 
@@ -377,7 +290,7 @@ eventGrid.setItems(allEventDtos);
         img.setWidth("100px");
         img.setHeight("100px");
         img.getStyle()
-                .set("border-radius", "50%") // Makes image a perfect circle
+                .set("border-radius", "50%") 
                 .set("object-fit", "cover")
                 .set("box-shadow", "0 4px 10px rgba(0,0,0,0.1)");
 
@@ -386,29 +299,25 @@ eventGrid.setItems(allEventDtos);
 
         card.add(img, artistName);
 
-        // Navigation listener
         card.addClickListener(e -> {
-            // e.g., UI.getCurrent().navigate("search?artist=" + name);
             System.out.println("Navigating to shows for: " + name);
         });
 
         return card;
     }
 
-    // --- NEW: About Us & Socials Footer ---
     private void setupFooter() {
         Div footer = new Div();
         footer.setWidthFull();
         footer.getStyle()
-                .set("background", "#111827") // Dark modern background
+                .set("background", "#111827") 
                 .set("color", "white")
                 .set("padding", "50px 52px")
-                .set("margin-top", "60px") // Pushes footer down
+                .set("margin-top", "60px") 
                 .set("display", "flex")
                 .set("justify-content", "space-between")
                 .set("box-sizing", "border-box");
 
-        // About Us Left Side
         Div aboutSection = new Div();
         aboutSection.setWidth("50%");
         H2 aboutTitle = new H2("About VibePass");
@@ -419,7 +328,6 @@ eventGrid.setItems(allEventDtos);
         aboutDesc.getStyle().set("line-height", "1.6").set("color", "#9ca3af");
         aboutSection.add(aboutTitle, aboutDesc);
 
-        // Social Media Right Side
         Div socialSection = new Div();
         H2 socialTitle = new H2("Follow Us");
         socialTitle.getStyle().set("margin-top", "0").set("color", "white");
@@ -439,7 +347,6 @@ eventGrid.setItems(allEventDtos);
         add(footer);
     }
 
-    // Helper to create styled, clickable social icons
     private Icon createSocialIcon(VaadinIcon vaadinIcon) {
         Icon icon = vaadinIcon.create();
         icon.getStyle()
@@ -452,264 +359,227 @@ eventGrid.setItems(allEventDtos);
         return icon;
     }
 
+    private VerticalLayout setupSearchBar() {
+        VerticalLayout searchWrapper = new VerticalLayout();
+        searchWrapper.setPadding(false);
+        searchWrapper.setSpacing(false);
+        searchWrapper.setAlignItems(Alignment.CENTER);
+        searchWrapper.getStyle().set("max-width", "850px").set("flex-grow", "1");
 
-private VerticalLayout setupSearchBar() {
-    VerticalLayout searchWrapper = new VerticalLayout();
-    searchWrapper.setPadding(false);
-    searchWrapper.setSpacing(false);
-    searchWrapper.setAlignItems(Alignment.CENTER);
-    searchWrapper.getStyle().set("max-width", "850px").set("flex-grow", "1");
+        HorizontalLayout pills = new HorizontalLayout();
+        pills.setSpacing(true);
+        pills.getStyle().set("margin-bottom", "10px");
 
-    HorizontalLayout pills = new HorizontalLayout();
-    pills.setSpacing(true);
-    pills.getStyle().set("margin-bottom", "10px");
+        Button eventPill = createPill("Event", VaadinIcon.TICKET);
+        Button companyPill = createPill("Company", VaadinIcon.OFFICE);
+        Button venuePill = createPill("Venue", VaadinIcon.MAP_MARKER);
 
-    Button eventPill = createPill("Event", VaadinIcon.TICKET);
-    Button companyPill = createPill("Company", VaadinIcon.OFFICE);
-    Button venuePill = createPill("Venue", VaadinIcon.MAP_MARKER);
+        pills.add(eventPill, companyPill, venuePill);
 
-    pills.add(eventPill, companyPill, venuePill);
+        HorizontalLayout searchBox = new HorizontalLayout();
+        searchBox.setWidthFull();
+        searchBox.setDefaultVerticalComponentAlignment(Alignment.CENTER);
+        searchBox.getStyle()
+                .set("background", "white")
+                .set("border-radius", "50px")
+                .set("padding", "6px 8px 6px 24px")
+                .set("box-shadow", "0 4px 15px rgba(0,0,0,0.15)");
 
-    HorizontalLayout searchBox = new HorizontalLayout();
-    searchBox.setWidthFull();
-    searchBox.setDefaultVerticalComponentAlignment(Alignment.CENTER);
-    searchBox.getStyle()
-            .set("background", "white")
-            .set("border-radius", "50px")
-            .set("padding", "6px 8px 6px 24px")
-            .set("box-shadow", "0 4px 15px rgba(0,0,0,0.15)");
+        TextField searchInput = new TextField();
+        searchInput.setPrefixComponent(VaadinIcon.SEARCH.create());
+        searchInput.setWidthFull();
+        searchInput.setValueChangeMode(ValueChangeMode.EAGER);
+        searchInput.getStyle()
+                .set("--vaadin-input-field-border-width", "0")
+                .set("background", "transparent");
 
-    TextField searchInput = new TextField();
-    searchInput.setPrefixComponent(VaadinIcon.SEARCH.create());
-    searchInput.setWidthFull();
-    searchInput.setValueChangeMode(ValueChangeMode.EAGER);
-    searchInput.getStyle()
-            .set("--vaadin-input-field-border-width", "0")
-            .set("background", "transparent");
+        Div divider = new Div();
+        divider.getStyle()
+                .set("width", "1px")
+                .set("height", "30px")
+                .set("background", "#e5e7eb")
+                .set("margin", "0 10px");
 
-    Div divider = new Div();
-    divider.getStyle()
-            .set("width", "1px")
-            .set("height", "30px")
-            .set("background", "#e5e7eb")
-            .set("margin", "0 10px");
+        DatePicker startDate = new DatePicker();
+        startDate.setPlaceholder("Start date");
+        startDate.setWidth("140px");
+        startDate.getStyle().set("--vaadin-input-field-border-width", "0");
 
-    DatePicker startDate = new DatePicker();
-    startDate.setPlaceholder("Start date");
-    startDate.setWidth("140px");
-    startDate.getStyle().set("--vaadin-input-field-border-width", "0");
+        DatePicker endDate = new DatePicker();
+        endDate.setPlaceholder("End date");
+        endDate.setWidth("140px");
+        endDate.getStyle().set("--vaadin-input-field-border-width", "0");
 
-    DatePicker endDate = new DatePicker();
-    endDate.setPlaceholder("End date");
-    endDate.setWidth("140px");
-    endDate.getStyle().set("--vaadin-input-field-border-width", "0");
+        AtomicReference<String> activeFilter = new AtomicReference<>("Event");
 
-    searchInput.addValueChangeListener(e -> {
-        String value = e.getValue() != null ? e.getValue().trim() : "";
+        searchInput.addValueChangeListener(e -> {
+            String value = e.getValue() != null ? e.getValue().trim() : "";
+            if (value.isEmpty() && startDate.getValue() == null && endDate.getValue() == null) {
+                presenter.performSearch(activeFilter.get(), "", null, null);
+            }
+        });
 
-        if (value.isEmpty()
-                && startDate.getValue() == null
-                && endDate.getValue() == null
-                && eventGrid != null
-                && allEventDtos != null) {
-            eventGrid.setItems(allEventDtos);
-        }
-    });
+        Button searchBtn = new Button("Search");
+        searchBtn.getStyle()
+                .set("background", "#026cdf")
+                .set("color", "white")
+                .set("border-radius", "50px")
+                .set("padding", "0 28px")
+                .set("height", "44px")
+                .set("font-weight", "bold")
+                .set("cursor", "pointer");
 
-    Button searchBtn = new Button("Search");
-    searchBtn.getStyle()
-            .set("background", "#026cdf")
-            .set("color", "white")
-            .set("border-radius", "50px")
-            .set("padding", "0 28px")
-            .set("height", "44px")
-            .set("font-weight", "bold")
-            .set("cursor", "pointer");
+        searchBox.add(searchInput, divider, startDate, endDate, searchBtn);
 
-    searchBox.add(searchInput, divider, startDate, endDate, searchBtn);
+        Runnable updateUI = () -> {
+            eventPill.getStyle().set("background", "transparent").set("color", "white");
+            companyPill.getStyle().set("background", "transparent").set("color", "white");
+            venuePill.getStyle().set("background", "transparent").set("color", "white");
 
-    AtomicReference<String> activeFilter = new AtomicReference<>("Event");
+            String current = activeFilter.get();
 
-    Runnable updateUI = () -> {
-        eventPill.getStyle().set("background", "transparent").set("color", "white");
-        companyPill.getStyle().set("background", "transparent").set("color", "white");
-        venuePill.getStyle().set("background", "transparent").set("color", "white");
+            if (current.equals("Event")) {
+                eventPill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
+                searchInput.setPlaceholder("Search concerts, shows, sports...");
+                divider.setVisible(true);
+                startDate.setVisible(true);
+                endDate.setVisible(true);
+            } else if (current.equals("Company")) {
+                companyPill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
+                searchInput.setPlaceholder("Search promoters, organizers...");
+                divider.setVisible(true);
+                startDate.setVisible(true);
+                endDate.setVisible(true);
+            } else if (current.equals("Venue")) {
+                venuePill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
+                searchInput.setPlaceholder("Search arenas, theaters, clubs...");
+                divider.setVisible(false);
+                startDate.setVisible(false);
+                endDate.setVisible(false);
+            }
+        };
 
-        String current = activeFilter.get();
+        eventPill.addClickListener(e -> {
+            activeFilter.set("Event");
+            updateUI.run();
+        });
 
-        if (current.equals("Event")) {
-            eventPill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
-            searchInput.setPlaceholder("Search concerts, shows, sports...");
-            divider.setVisible(true);
-            startDate.setVisible(true);
-            endDate.setVisible(true);
-        } else if (current.equals("Company")) {
-            companyPill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
-            searchInput.setPlaceholder("Search promoters, organizers...");
-            divider.setVisible(true);
-            startDate.setVisible(true);
-            endDate.setVisible(true);
-        } else if (current.equals("Venue")) {
-            venuePill.getStyle().set("background", "white").set("color", "#026cdf").set("border-radius", "20px");
-            searchInput.setPlaceholder("Search arenas, theaters, clubs...");
-            divider.setVisible(false);
-            startDate.setVisible(false);
-            endDate.setVisible(false);
-        }
-    };
+        companyPill.addClickListener(e -> {
+            activeFilter.set("Company");
+            updateUI.run();
+        });
 
-    eventPill.addClickListener(e -> {
-        activeFilter.set("Event");
+        venuePill.addClickListener(e -> {
+            activeFilter.set("Venue");
+            updateUI.run();
+        });
+
         updateUI.run();
-    });
 
-    companyPill.addClickListener(e -> {
-        activeFilter.set("Company");
-        updateUI.run();
-    });
+        searchBtn.addClickListener(e -> {
+            Date start = startDate.getValue() != null
+                    ? Date.from(startDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
+                    : null;
 
-    venuePill.addClickListener(e -> {
-        activeFilter.set("Venue");
-        updateUI.run();
-    });
+            Date end = endDate.getValue() != null
+                    ? Date.from(endDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
+                    : null;
 
-    updateUI.run();
+            // Delegated to presenter
+            presenter.performSearch(activeFilter.get(), searchInput.getValue(), start, end);
+        });
 
-    searchBtn.addClickListener(e -> {
-        Date start = startDate.getValue() != null
-                ? Date.from(startDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
-                : null;
-
-        Date end = endDate.getValue() != null
-                ? Date.from(endDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
-                : null;
-
-        performModernSearch(activeFilter.get(), searchInput.getValue(), start, end);
-    });
-
-    searchWrapper.add(pills, searchBox);
-    return searchWrapper;
-}
-
-// Helper to style the tab pills
-private Button createPill(String text, VaadinIcon icon) {
-    Button btn = new Button(text, icon.create());
-    btn.getStyle()
-            .set("background", "transparent")
-            .set("color", "white")
-            .set("border", "none")
-            .set("font-weight", "600")
-            .set("padding", "6px 16px")
-            .set("cursor", "pointer");
-    return btn;
-}
-private void performModernSearch(String filterMode, String query, Date startDate, Date endDate) {
-    String text = query != null ? query.trim() : "";
-    List<EventDto> results = null;
-
-    try {
-        if (text.isEmpty() && startDate == null && endDate == null) {
-            if (allEventDtos != null) {
-                eventGrid.setItems(allEventDtos);
-            }
-            return;
-        }
-
-        if (filterMode.equals("Event")) {
-            if (!text.isEmpty()) {
-                results = eventService.searchEventByName(text);
-            } else if (startDate != null && endDate != null) {
-                results = eventService.searchEventsByDateRange(startDate, endDate);
-            } else if (startDate != null) {
-                results = eventService.searchEventsByStartDate(startDate);
-            } else if (endDate != null) {
-                results = eventService.searchEventsByEndDate(endDate);
-            }
-        } else if (filterMode.equals("Company")) {
-            if (!text.isEmpty()) {
-                if (startDate != null && endDate != null) {
-                    results = companyService.searchEventsInCompanyByDateRange(text, startDate, endDate);
-                } else if (startDate != null) {
-                    results = companyService.searchEventsInCompanyByStartDate(text, startDate);
-                } else if (endDate != null) {
-                    results = companyService.searchEventsInCompanyByEndDate(text, endDate);
-                } else {
-                    results = companyService.searchEventsInCompanyByKeyword(text, text);
-                }
-            }
-        } else if (filterMode.equals("Venue")) {
-            if (!text.isEmpty()) {
-                results = eventService.searchEventsByVenue(text);
-            }
-        }
-
-        if (results != null && !results.isEmpty()) {
-            eventGrid.setItems(results);
-        } else {
-            eventGrid.setItems();
-            Notification.show("No events were found matching your search.", 4000, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
-        }
-
-    } catch (Exception ex) {
-        Notification.show("Search Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_CENTER)
-                .addThemeVariants(NotificationVariant.LUMO_ERROR);
-
-        System.err.println("Search Error: " + ex.getMessage());
-        ex.printStackTrace();
+        searchWrapper.add(pills, searchBox);
+        return searchWrapper;
     }
-}
 
-    // private Div createSectionContainer() {
-    // Div container = new Div();
-    // container.getStyle()
-    // .set("padding", "40px 52px 0 52px")
-    // .set("width", "100%")
-    // .set("box-sizing", "border-box");
-    // return container;
-    // }
+    private Button createPill(String text, VaadinIcon icon) {
+        Button btn = new Button(text, icon.create());
+        btn.getStyle()
+                .set("background", "transparent")
+                .set("color", "white")
+                .set("border", "none")
+                .set("font-weight", "600")
+                .set("padding", "6px 16px")
+                .set("cursor", "pointer");
+        return btn;
+    }
 
-    // authButtons.add(loginBtn, signupBtn);
-    // } else {
+    // --- REPLACES 'performModernSearch' - THESE ARE CALLED BY THE PRESENTER ---
 
-    // H2 header = new H2(titleText);
-    // header.getStyle()
-    // .set("color", "white") // Fixed to white so it looks good on the blue
-    // background
-    // .set("margin", "0")
-    // .set("font-size", "22px");
+    public void showEvents(List<EventDto> events) {
+        eventGrid.setItems(events);
+    }
 
-    // NotificationBell notificationBell = new NotificationBell(notificationService,
-    // userService);
-    // profileBtn.getStyle()
-    // .set("background", "white")
-    // .set("color", "#026cdf")
-    // .set("font-weight", "700")
-    // .set("border-radius", "8px")
-    // .set("cursor", "pointer");
+    public void clearEvents() {
+        eventGrid.setItems();
+    }
 
-    // Button logoutBtn = new Button("Logout", e -> {
-    // UI.getCurrent().getSession().setAttribute("token", null);
-    // UI.getCurrent().navigate("main");
-    // });
+    public void showNotification(String message, boolean isError) {
+        Notification notification = Notification.show(message, 4000, Notification.Position.MIDDLE);
+        if (isError) {
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        } else {
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
+        }
+    }
 
-    // logoutBtn.getStyle()
-    // .set("background", "transparent")
-    // .set("color", "white")
-    // .set("border", "2px solid white")
-    // .set("font-weight", "700")
-    // .set("border-radius", "8px")
-    // .set("cursor", "pointer");
+    public void reloadPage() {
+        UI.getCurrent().getSession().setAttribute("token", null);
+        UI.getCurrent().getPage().reload();
+    }
 
-    // authButtons.add(notificationBell, profileBtn, logoutBtn);//<= to add if need
-    // in others
+ public void showCompanies(List<com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO> companies) {
+        companyList.removeAll();
 
-    // // authButtons.add(profileBtn, logoutBtn);
+        companyList.add(companies.stream().map(c -> {
+            VerticalLayout companyCard = new VerticalLayout();
+            companyCard.setAlignItems(Alignment.CENTER);
+            companyCard.setPadding(false);
+            companyCard.setSpacing(false);
+            companyCard.getStyle()
+                    .set("width", "150px")
+                    .set("cursor", "pointer")
+                    .set("transition", "transform 0.2s");
 
-    // header.add(logo, searchField, authButtons);
-    // header.expand(searchField);
+            // Hover effect
+            companyCard.getElement().addEventListener("mouseover",
+                    e -> companyCard.getStyle().set("transform", "scale(1.05)"));
+            companyCard.getElement().addEventListener("mouseout",
+                    e -> companyCard.getStyle().set("transform", "scale(1)"));
 
-    // add(header);
+            // Using the properties from the DTO
+           String imageUrl = (c.getLogoURL() != null && !c.getLogoURL().isEmpty()) 
+                          ? c.getLogoURL() 
+                          : "https://ui-avatars.com/api/?name=" + c.getCompanyName().replace(" ", "+") + "&background=026cdf&color=fff&size=150";
+
+        Image logo = new Image(imageUrl, c.getCompanyName());
+            logo.setWidth("80px");
+            logo.setHeight("80px");
+            
+            logo.getStyle()
+                    .set("min-width", "100px")  
+                    .set("min-height", "100px") 
+                    .set("flex-shrink", "0")
+                    .set("border-radius", "50%")
+                    .set("object-fit", "cover")
+                    .set("box-shadow", "0 4px 10px rgba(0,0,0,0.1)");
+
+            H3 name = new H3(c.getCompanyName());
+            name.getStyle().set("margin-top", "10px").set("color", "#111827");
+
+            companyCard.add(logo, name);
+            companyCard.addClickListener(e -> {
+                UI.getCurrent().getSession().setAttribute("companyId", c.getCompanyId().toString());
+                UI.getCurrent().navigate("company");
+            });
+
+            return companyCard;
+            
+        }).collect(Collectors.toList()));
+    }
+
+    // --------------------------------------------------------------------------
 
     private Div createSectionContainer() {
         Div container = new Div();
@@ -719,8 +589,6 @@ private void performModernSearch(String filterMode, String query, Date startDate
                 .set("box-sizing", "border-box");
         return container;
     }
-
-    // --- Helper Methods for Consistent Styling ---
 
     private Div createBlueHeaderContainer(String titleText) {
         Div headerContainer = new Div();
@@ -737,5 +605,19 @@ private void performModernSearch(String filterMode, String query, Date startDate
 
         headerContainer.add(header);
         return headerContainer;
+    }
+
+    public String getCurrentToken() {
+        String token = "";
+        try {
+            Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+            if (tokenObj != null) {
+                token = tokenObj.toString();
+            }
+        } catch (Exception e) {
+            // Handle any exceptions related to session access
+            e.printStackTrace();
+        }
+        return token;
     }
 }

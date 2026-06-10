@@ -2,9 +2,9 @@ package com.sdnah.Ticket_Management_System_.Frontend;
 
 import java.util.UUID;
 
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderItemDTO;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.ManagerOrderDetailsPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
@@ -25,7 +25,7 @@ import com.vaadin.flow.router.Route;
 /**
  * Read-only / lightly mutating view a company manager opens to inspect a
  * single ActiveOrder + its purchase: items, totals, applied coupon, status.
- * Provides a "Cancel order" button (delegates to {@link ActiveOrderService}).
+ * Provides a "Cancel order" button (delegates to the presenter).
  *
  * <p>Routing convention used here:
  * the previous view sets the target orderId on the Vaadin session under
@@ -37,14 +37,11 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
     private static final String SESSION_TOKEN     = "token";
     private static final String SESSION_ORDER_ID  = "managerOrderId";
 
-    private final ActiveOrderService orderService;
+    private final ManagerOrderDetailsPresenter presenter;
 
-    private String token;
-    private UUID orderId;
-    private OrderDTO order;
-
-    public ManagerOrderDetails(ActiveOrderService orderService) {
-        this.orderService = orderService;
+    public ManagerOrderDetails(ManagerOrderDetailsPresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setView(this);
 
         setSizeFull();
         setPadding(false);
@@ -63,28 +60,41 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
             event.forwardTo(LoginView.class);
             return;
         }
-        this.token = t.toString();
-
-        Object o = UI.getCurrent().getSession().getAttribute(SESSION_ORDER_ID);
-        if (o == null) {
-            add(orderPickerCard());
-            return;
-        }
-        try {
-            this.orderId = UUID.fromString(o.toString());
-            this.order   = orderService.getOrderById(orderId, token);
-            add(buildContent(order));
-        } catch (IllegalArgumentException badUuid) {
-            add(orderPickerCard("Invalid order id: " + o));
-        } catch (RuntimeException ex) {
-            add(orderPickerCard("Couldn't load order: " + ex.getMessage()));
-        }
+        Object orderId = UI.getCurrent().getSession().getAttribute(SESSION_ORDER_ID);
+        presenter.loadFromSession(t.toString(), orderId);
     }
 
-    /** Fallback when no order id is set — lets the user paste one and load it. */
-    private Div orderPickerCard() {
-        return orderPickerCard(null);
+    // ── Display methods called by the presenter ──────────────────────────────
+
+    /** Render the full order details page. */
+    public void showOrder(OrderDTO order) {
+        add(buildContent(order));
     }
+
+    /** Render the order-id picker (no order id was in the session). */
+    public void showPicker() {
+        add(orderPickerCard(null));
+    }
+
+    /** Render the order-id picker with an error banner explaining what went wrong. */
+    public void showPickerWithError(String errorMessage) {
+        add(orderPickerCard(errorMessage));
+    }
+
+    public void onCancelSucceeded() {
+        Notification.show("Order cancelled", 3000, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        UI.getCurrent().navigate("company");
+    }
+
+    public void onCancelFailed(String message) {
+        Notification.show("Couldn't cancel: " + message, 4000,
+                        Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    // ── Layout ───────────────────────────────────────────────────────────────
+
     private Div orderPickerCard(String errorMsg) {
         Div card = new Div();
         card.getStyle()
@@ -137,8 +147,6 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
     }
 
 
-    // ── Layout ───────────────────────────────────────────────────────────────
-
     private Div buildHeader() {
         Div header = new Div();
         header.getStyle()
@@ -156,8 +164,10 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
 
         Span back = new Span("⟵ Back");
         back.getStyle().set("cursor", "pointer").set("font-weight", "700");
-        back.addClickListener(e ->
-        UI.getCurrent().navigate("orders?tab=active"));
+        // Guests go back to their orders page; members go to company dashboard
+        Object token = UI.getCurrent().getSession().getAttribute("token");
+        boolean isGuest = token != null && token.toString().startsWith("GUEST_");
+        back.addClickListener(e -> UI.getCurrent().navigate(isGuest ? "orders" : "company"));
 
         header.add(logo, back);
         return header;
@@ -227,21 +237,8 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
         dialog.setCancelable(true);
         dialog.setConfirmText("Cancel order");
         dialog.setConfirmButtonTheme("error primary");
-        dialog.addConfirmListener(e -> doCancel());
+        dialog.addConfirmListener(e -> presenter.cancelOrder());
         dialog.open();
-    }
-
-    private void doCancel() {
-        try {
-            orderService.cancelOrder(orderId, token);
-            Notification.show("Order cancelled", 3000, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            UI.getCurrent().navigate("company");
-        } catch (RuntimeException ex) {
-            Notification.show("Couldn't cancel: " + ex.getMessage(), 4000,
-                            Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
     }
 
     // ── Small UI helpers ─────────────────────────────────────────────────────

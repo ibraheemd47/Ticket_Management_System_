@@ -13,6 +13,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
@@ -24,11 +26,16 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.LotteryStatus;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.LotteryStatus;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.CompositePurchaseRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
@@ -36,10 +43,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.CompositePurchaseRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.EventDetailsPresenter;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -75,9 +82,10 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
 
 @Route("EventDetails")
-public class EventDetailsView extends VerticalLayout {
+public class EventDetailsView extends VerticalLayout implements EventDetailsPresenter.View {
 
-    private final ActiveOrderService orderService;
+    // ── Presenter ─────────────────────────────────────────────────────────────
+    private final EventDetailsPresenter presenter;
 
     private static final SimpleDateFormat DATE_FMT = new SimpleDateFormat("MMM d, yyyy");
     private static final SimpleDateFormat DATETIME_FMT = new SimpleDateFormat("MMM d, yyyy  h:mm a");
@@ -86,19 +94,11 @@ public class EventDetailsView extends VerticalLayout {
     };
 
     // ── Seat-map data records (no JPA lazy-load risk in the view) ─────────────
-    record BlockData(long id, String label, List<RowData> rows) {
-    }
-
-    record RowData(long id, String label, List<SeatData> seats) {
-    }
-
-    record SeatData(long id, String label, boolean available) {
-    }
-
+    record BlockData(long id, String label, List<RowData> rows) {}
+    record RowData(long id, String label, List<SeatData> seats) {}
+    record SeatData(long id, String label, boolean available) {}
     record AreaInfo(UUID id, String name, boolean isSeated,
-            int standingMax, int standingAvail, List<BlockData> blocks) {
-    }
-
+            int standingMax, int standingAvail, List<BlockData> blocks) {}
     record CartEntry(String description, java.math.BigDecimal unitPrice, int quantity,
             boolean isSeated, UUID areaId, Long seatId) {
         java.math.BigDecimal total() {
@@ -106,101 +106,115 @@ public class EventDetailsView extends VerticalLayout {
         }
     }
 
-    private final EventService eventService;
-    private final TicketService ticketService;
-    //private final PolicyRepository policyRepo;
-    private final PolicyService policyService;
-    private final UserService userService;
-    private final LotteryService lotteryService;
-    private final com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService notificationService;
-
     // Areas preloaded during construction (while JPA session may be open)
     private final Map<UUID, List<Area>> showAreasCache = new HashMap<>();
 
-    private UUID cachedEventId;
-    private UUID cachedUserId;
-    private Event cachedEvent;
-    private List<show> cachedShows = new ArrayList<>();
+    // Shortcuts to presenter state (kept for code that hasn't been fully migrated)
+    private UUID        cachedEventId;
+    private UUID        cachedUserId;
+    private Event       cachedEvent;
+    private List<show>  cachedShows = new ArrayList<>();
 
-    public EventDetailsView(EventService eventService, TicketService ticketService, PolicyService policyService,
-            ActiveOrderService orderService, UserService userService, LotteryService lotteryService,
-            com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService notificationService) {
-        this.eventService = eventService;
-        this.ticketService = ticketService;
-        this.policyService = policyService;
-        this.userService = userService;
-        this.lotteryService = lotteryService;
-        this.orderService = orderService;
-        this.notificationService = notificationService;
+    public EventDetailsView(EventDetailsPresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setView(this);
 
         setSizeFull();
         setPadding(false);
         setSpacing(false);
-        getStyle()
-                .set("background", "#f4f4f4")
-                .set("font-family", "Arial, sans-serif");
+        getStyle().set("background", "#f4f4f4").set("font-family", "Arial, sans-serif");
 
-        Object eventIdObj = UI.getCurrent().getSession().getAttribute("eventId");
+        // Resolve userId for legacy code paths
         Object userIdObj = UI.getCurrent().getSession().getAttribute("userId");
         if (userIdObj != null) {
-            try {
-                System.out.println("Cached user ID: " + userIdObj.toString());
-                cachedUserId = UUID.fromString(userIdObj.toString());
-                System.out.println("Parsed user ID: " + cachedUserId.toString());
-            } catch (Exception ignored) {
-                cachedUserId = UUID.randomUUID();
-            }
+            try { cachedUserId = UUID.fromString(userIdObj.toString()); }
+            catch (Exception ignored) { cachedUserId = UUID.randomUUID(); }
         }
 
-        Event ev;
-        List<show> shows;
+        presenter.loadData(); // delegates to renderEvent() below when successful
+    }
 
-        if (eventIdObj == null) {
-            ev = mockEvent();
-            shows = List.of(mockShow());
-        } else {
-            try {
-                UUID eventId = UUID.fromString(eventIdObj.toString());
-                cachedEventId = eventId;
-                ev = eventService.getEventDetails(eventId);
-                shows = eventService.getShowsForEvent(eventId);
-            } catch (RuntimeException ex) {
-                add(buildHeader());
-                add(emptyState("Could not load event: " + ex.getMessage()));
-                return;
-            }
-        }
+    // ── EventDetailsPresenter.View implementation ────────────────────────────
 
-        // Preload areas for each show while we are still in the construction context
+    @Override
+    public Object getSessionAttribute(String key) {
+        return UI.getCurrent().getSession().getAttribute(key);
+    }
+
+    @Override
+    public void showSuccess(String message) {
+        Notification.show(message, 3000, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    }
+
+    @Override
+    public void showError(String message) {
+        Notification.show(message, 3000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    @Override
+    public void showWarning(String message) {
+        Notification.show(message, 4000, Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_WARNING);
+    }
+
+    @Override
+    public void reloadPage() { UI.getCurrent().getPage().reload(); }
+
+    @Override
+    public void navigateToCompany() { UI.getCurrent().navigate("company"); }
+
+    @Override
+    public void refreshPolicies() { UI.getCurrent().getPage().reload(); }
+
+    /** Called by the presenter after event data has been loaded successfully. */
+    @Override
+    public void renderEvent(Event ev, List<show> shows) {
+        cachedEvent   = ev;
+        cachedEventId = presenter.getCachedEventId();
+        cachedShows   = new ArrayList<>(shows);
+
+        // Preload areas for each show while we are in a valid JPA context
         for (show s : shows) {
-            if (s.getShowid() == null)
-                continue;
+            if (s.getShowid() == null) continue;
             try {
                 List<Area> areas = s.getAreas();
-                if (areas != null)
-                    showAreasCache.put(s.getShowid(), new ArrayList<>(areas));
-            } catch (Exception ignored) {
-                // lazy loading not available outside transaction — cache stays empty
-            }
+                if (areas != null) showAreasCache.put(s.getShowid(), new ArrayList<>(areas));
+            } catch (Exception ignored) {}
         }
 
-        cachedEvent = ev;
-        cachedShows = new ArrayList<>(shows);
+        // ── Build the full page layout ─────────────────────────────────────
+        removeAll();
 
-        add(buildHeader());
-
-        Div content = new Div(buildEventInfoCard(ev), buildShowsCard(shows));
-        if (cachedEventId != null)
-            content.add(buildLotteryCard());
-        content.getStyle()
-                .set("max-width", "860px")
-                .set("margin", "40px auto")
-                .set("width", "100%")
+        Div page = new Div();
+        page.getStyle()
+                .set("max-width", "960px")
+                .set("margin", "0 auto")
+                .set("padding", "32px 24px")
                 .set("display", "flex")
                 .set("flex-direction", "column")
-                .set("gap", "24px");
+                .set("gap", "28px");
 
-        add(content);
+        page.add(buildEventInfoCard(ev));
+        page.add(buildShowsCard(shows));
+
+        // Policies section (managers / owners only)
+        if (isManagerOrOwner()) {
+            Div policiesCard = card();
+            policiesCard.add(new com.vaadin.flow.component.html.H2("Policies"));
+            policiesCard.add(buildEditPoliciesSection());
+            page.add(policiesCard);
+        }
+
+        // Lottery section (if selling type is LOTTERY, or manager can create one)
+        try {
+            if (presenter.isLotteryEvent() || isManagerOrOwner()) {
+                page.add(buildLotteryCard());
+            }
+        } catch (Exception ignored) {}
+
+        add(buildHeader(), page);
     }
 
     // ── Header ───────────────────────────────────────────────────────────────
@@ -301,22 +315,11 @@ public class EventDetailsView extends VerticalLayout {
     // ── Manager check ────────────────────────────────────────────────────────
 
     private boolean isManagerOrOwner() {
-        if (cachedEvent == null) return false;
-        Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
-        if (tokenObj == null) return false;
-        try {
-            UUID companyId = cachedEvent.getCompanyId();
-            var member = userService.getMemberByToken(tokenObj.toString());
-            return member.isOwnerInCompany(companyId) || member.isManagerInCompany(companyId);
-        } catch (Exception e) {
-            return false;
-        }
+        return presenter.isManagerOrOwner();
     }
 
-    private String getManagerId() {
-        Object obj = UI.getCurrent().getSession().getAttribute("userId");
-        return obj != null ? obj.toString() : null;
-    }
+    // getManagerId() is exposed via managerId() shortcut above — kept for any stray calls
+    private String getManagerId() { return presenter.getManagerId(); }
 
     // ── Edit dialog ──────────────────────────────────────────────────────────
 
@@ -400,38 +403,13 @@ public class EventDetailsView extends VerticalLayout {
         descField.setMinHeight("80px");
 
         Button saveBtn = new Button("Save Details", e -> {
-            String name = nameField.getValue();
-            if (name == null || name.isBlank()) {
-                error("Name is required");
-                return;
-            }
-            String mgr = getManagerId();
-            if (mgr == null) {
-                error("Session expired — please log in again");
-                return;
-            }
-            UUID evId = cachedEvent.getEventId();
-            try {
-                eventService.editEventName(evId, name.trim(), mgr);
-                eventService.editEventVenue(evId, venueField.getValue().trim(), mgr);
-                if (typeBox.getValue() != null)
-                    eventService.editEventType(evId, typeBox.getValue(), mgr);
-                eventService.editEventDescription(evId, descField.getValue().trim(), mgr);
-
-                LocalDate s = startPicker.getValue();
-                LocalDate en = endPicker.getValue();
-                Date startDate = s != null ? Date.from(s.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
-                Date endDate = en != null ? Date.from(en.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
-                eventService.editEventDates(evId, startDate, endDate, mgr);
-
-                Notification.show("Event details saved",
-                        3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                UI.getCurrent().getPage().reload();
-            } catch (RuntimeException ex) {
-                Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
+            presenter.saveEventDetails(
+                    nameField.getValue(),
+                    venueField.getValue(),
+                    typeBox.getValue(),
+                    startPicker.getValue(),
+                    endPicker.getValue(),
+                    descField.getValue());
         });
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveBtn.getStyle().set("background", "#026cdf").set("color", "white").set("font-weight", "700");
@@ -569,17 +547,6 @@ public class EventDetailsView extends VerticalLayout {
 
         // ── Save ──────────────────────────────────────────────────────────────
         Button saveBtn = new Button(isEdit ? "Save" : "Add Show", e -> {
-            String sName = nameField.getValue();
-            if (sName == null || sName.isBlank()) {
-                error("Show name is required");
-                return;
-            }
-            String mgr = getManagerId();
-            if (mgr == null) {
-                error("Session expired — please log in again");
-                return;
-            }
-
             java.math.BigDecimal seatedPrice = seatedPriceField.getValue() != null
                     ? java.math.BigDecimal.valueOf(seatedPriceField.getValue())
                     : new java.math.BigDecimal("50.00");
@@ -590,30 +557,21 @@ public class EventDetailsView extends VerticalLayout {
             Date showDate = datePicker.getValue() != null
                     ? Date.from(datePicker.getValue().atZone(ZoneId.systemDefault()).toInstant())
                     : null;
+            LocalDate showDateLocal = datePicker.getValue() != null
+                    ? datePicker.getValue().toLocalDate() : null;
+
+            String sName = nameField.getValue() != null ? nameField.getValue() : "";
 
             try {
                 if (isEdit) {
-                    // ── Edit: update fields in place — never delete seats ─────
-                    eventService.updateShowBasicFields(
-                            cachedEventId, existing.getShowid(),
-                            sName.trim(), descField.getValue().trim(),
-                            singerField.getValue().trim(), showDate,
-                            seatedPrice, standingPrice, mgr);
-
-                    // Reflect changes locally so the list in the Edit dialog updates
-                    existing.setName(sName.trim());
-                    existing.setDescription(descField.getValue().trim());
-                    existing.setSinger(singerField.getValue().trim());
-                    existing.setShowDate(showDate);
-                    existing.setSeatedPrice(seatedPrice);
-                    existing.setStandingPrice(standingPrice);
-
+                    presenter.updateShow(existing, sName.trim(),
+                            singerField.getValue().trim(), descField.getValue().trim(),
+                            showDateLocal, seatedPrice, standingPrice);
                 } else {
-                    // ── Add: validate areas and create the new show ───────────
-                    int standingCap = standingCapField.getValue() != null ? standingCapField.getValue() : 0;
-                    int numBlocks = blocksField.getValue() != null ? blocksField.getValue() : 0;
-                    int rowsPerBlock = rowsField.getValue() != null ? rowsField.getValue() : 0;
-                    int seatsPerRow = seatsField.getValue() != null ? seatsField.getValue() : 0;
+                    int standingCap  = standingCapField.getValue() != null ? standingCapField.getValue() : 0;
+                    int numBlocks    = blocksField.getValue()       != null ? blocksField.getValue()       : 0;
+                    int rowsPerBlock = rowsField.getValue()         != null ? rowsField.getValue()         : 0;
+                    int seatsPerRow  = seatsField.getValue()        != null ? seatsField.getValue()        : 0;
 
                     if (standingCap == 0 && numBlocks == 0) {
                         error("Add at least one area (standing or seated)");
@@ -624,15 +582,10 @@ public class EventDetailsView extends VerticalLayout {
                         error("Seated area requires Blocks, Rows per Block, and Seats per Row all > 0");
                         return;
                     }
-
-                    show newShow = new show(cachedEventId, sName.trim(),
-                            descField.getValue().trim(), singerField.getValue().trim(), showDate);
-                    newShow.setAreas(buildShowAreas(standingCap, numBlocks, rowsPerBlock, seatsPerRow));
-                    newShow.setSeatedPrice(seatedPrice);
-                    newShow.setStandingPrice(standingPrice);
-
-                    eventService.addShowToEvent(cachedEventId, newShow, mgr);
-                    cachedShows.add(newShow);
+                    presenter.addShow(sName.trim(), singerField.getValue().trim(),
+                            descField.getValue().trim(), showDateLocal,
+                            standingCap, numBlocks, rowsPerBlock, seatsPerRow,
+                            standingPrice, seatedPrice);
                 }
 
                 refresh[0].run();
@@ -648,6 +601,7 @@ public class EventDetailsView extends VerticalLayout {
                 Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
+            dialog.close();
         });
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveBtn.getStyle().set("background", "#026cdf").set("color", "white").set("font-weight", "700");
@@ -693,12 +647,7 @@ public class EventDetailsView extends VerticalLayout {
             return;
         }
 
-        int ticketCount = 0;
-        try {
-            if (s.getShowid() != null)
-                ticketCount = eventService.countTicketsForShow(s.getShowid());
-        } catch (Exception ignored) {
-        }
+        int ticketCount = s.getShowid() != null ? presenter.countTicketsForShow(s.getShowid()) : 0;
 
         Dialog confirm = new Dialog();
         confirm.setHeaderTitle("Delete Show");
@@ -726,23 +675,9 @@ public class EventDetailsView extends VerticalLayout {
 
         confirm.add(body);
 
-        final int finalTicketCount = ticketCount;
         Button confirmBtn = new Button("Yes, Delete", e -> {
-            try {
-                eventService.removeShowFromEvent(cachedEventId, s, mgr);
-                cachedShows.remove(s);
-                confirm.close();
-                Notification.show(
-                        "Show deleted" + (finalTicketCount > 0
-                                ? " along with " + finalTicketCount + " ticket(s)."
-                                : "."),
-                        3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                UI.getCurrent().getPage().reload();
-            } catch (RuntimeException ex) {
-                Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
+            presenter.deleteShow(s);
+            confirm.close();
         });
         confirmBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmBtn.getStyle().set("font-weight", "700");
@@ -762,15 +697,7 @@ public class EventDetailsView extends VerticalLayout {
             return;
         }
 
-        // Count total tickets across all shows
-        int totalTickets = 0;
-        for (show s : cachedShows) {
-            try {
-                if (s.getShowid() != null)
-                    totalTickets += eventService.countTicketsForShow(s.getShowid());
-            } catch (Exception ignored) {
-            }
-        }
+        int totalTickets = presenter.countTotalTickets();
         int totalShows = cachedShows.size();
 
         Dialog confirm = new Dialog();
@@ -801,22 +728,9 @@ public class EventDetailsView extends VerticalLayout {
 
         confirm.add(body);
 
-        final int finalTickets = totalTickets;
         Button confirmBtn = new Button("Yes, Delete Event", e -> {
-            try {
-                eventService.deleteEvent(cachedEventId, mgr);
-                confirm.close();
-                Notification.show(
-                        "Event deleted" + (finalTickets > 0
-                                ? " along with " + finalTickets + " ticket(s)."
-                                : "."),
-                        3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                UI.getCurrent().navigate("company");
-            } catch (RuntimeException ex) {
-                Notification.show(ex.getMessage(), 4000, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
+            confirm.close();
+            presenter.deleteEvent();
         });
         confirmBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmBtn.getStyle().set("font-weight", "700");
@@ -904,8 +818,7 @@ public class EventDetailsView extends VerticalLayout {
             listContainer.removeAll();
             List<Policy> policies;
             try {
-                //policies = policyRepo.findByEventId(cachedEventId);
-                policies = policyService.getPoliciesForEvent(cachedEventId);
+                policies = presenter.getPolicies();
 
             } catch (Exception ex) {
                 Span errSpan = new Span("Could not load policies: " + ex.getMessage());
@@ -968,9 +881,7 @@ public class EventDetailsView extends VerticalLayout {
 
         Button removeBtn = new Button("Remove", ev -> {
             try {
-                //policyRepo.deleteByPolicyId(p.getPolicyId());
-                policyService.removePolicy(p.getPolicyId());
-
+                presenter.deletePolicy(p);
                 refresh[0].run();
             } catch (Exception ex) {
                 error("Could not remove: " + ex.getMessage());
@@ -1005,7 +916,7 @@ public class EventDetailsView extends VerticalLayout {
             typeBox.setItems("Selling", "Purchase", "Discount");
             typeBox.setEnabled(false);
         } else {
-            List<Policy> existingPolicies = policyService.getPoliciesForEvent(cachedEventId);
+            List<Policy> existingPolicies = presenter.getPolicies();
             boolean hasSelling  = existingPolicies.stream().anyMatch(p -> p instanceof SellingPolicy);
             boolean hasPurchase = existingPolicies.stream().anyMatch(p -> p instanceof PurchasePolicy);
             boolean hasDiscount = existingPolicies.stream().anyMatch(p -> p instanceof DiscountPolicy);
@@ -1281,23 +1192,14 @@ public class EventDetailsView extends VerticalLayout {
                 error("Please select a policy type");
                 return;
             }
-            Object companyIdObj = UI.getCurrent().getSession().getAttribute("managingCompanyId");
-            if (companyIdObj == null) {
-                error("No company session — please log in again");
-                return;
-            }
-            UUID companyId = UUID.fromString(companyIdObj.toString());
             try {
-                if (isEdit)
-                    policyService.removePolicy(existing.getPolicyId());
-
                 switch (t) {
                     case "Selling" -> {
                         SellingType st = sellingTypeBox.getValue() != null
                                 ? sellingTypeBox.getValue()
                                 : SellingType.REGULAR;
-                        policyService.savePolicy(new SellingPolicy(
-                                st.name() + " selling policy", st, cachedEventId, companyId));
+                        presenter.savePolicy(isEdit ? existing : null, "Selling",
+                                st, null, null, null, null, null, null, null);
                     }
                     case "Purchase" -> {
                         Integer minAge = minAgeField.getValue();
@@ -1307,53 +1209,19 @@ public class EventDetailsView extends VerticalLayout {
                             error("At least one purchase restriction is required");
                             return;
                         }
-                        PurchasePolicy pp = new PurchasePolicy(
-                                   "Purchase restrictions", cachedEventId, companyId);
-                        // if (minAge != null && minAge >= 0)
-                        //     pp.addRule(new MinAgeRule(minAge));
-                        // if (minTix != null && minTix > 0)
-                        //     pp.addRule(new MinTicketsRule(minTix));
-                        // if (maxTix != null && maxTix > 0)
-                        //     pp.addRule(new MaxTicketsRule(maxTix));
-                        // policyService.savePolicy(pp);
-                        PurchasePolicy.Operator op = "OR (at least one must pass)"
-                                .equals(purchaseOperatorGroup.getValue())
-                                ? PurchasePolicy.Operator.OR
-                                : PurchasePolicy.Operator.AND;
-
-                        List<PurchaseRule> rules = new ArrayList<>();
-                        if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
-                        if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
-                        if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
-                        pp.setRules(rules, op);
-                        policyService.savePolicy(pp);
+                        presenter.savePolicy(isEdit ? existing : null, "Purchase",
+                                null, minAge, minTix, maxTix, null, null, null, null);
                     }
                     case "Discount" -> {
                         if (discountRules.isEmpty()) {
                             error("At least one discount rule is required");
                             return;
                         }
-                        // Delete old policy first
-                        policyService.getPoliciesForEvent(cachedEventId).stream()
-                            .filter(p -> p instanceof DiscountPolicy)
-                            .forEach(p -> policyService.removePolicy(p.getPolicyId()));
                         boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
-                        List<DiscountRule> freshRules = discountRules.stream()
-                        .map(r -> {
-                            if (r instanceof PercentageDiscountRule pr)
-                                return (DiscountRule) new PercentageDiscountRule(pr.getPercentage(), pr.getDescription());
-                            if (r instanceof CouponDiscountRule cr)
-                                return (DiscountRule) new CouponDiscountRule(cr.getPercentage(), cr.getCouponCode(), cr.getExpiry());
-                            if (r instanceof QuantityConditionalDiscountRule qr)
-                                return (DiscountRule) new QuantityConditionalDiscountRule(qr.getMinTickets(), qr.getPercentage());
-                            if (r instanceof DateRangeDiscountRule dr)
-                                return (DiscountRule) new DateRangeDiscountRule(dr.getPercentage(), dr.getFrom(), dr.getUntil());
-                            return r;
-                        })
-                        .collect(java.util.stream.Collectors.toList());
-                    DiscountPolicy dp = new DiscountPolicy("Discount policy", cachedEventId, companyId);
-                    dp.setRules(freshRules, isAdditive);
-                    policyService.savePolicy(dp);
+                        presenter.saveDiscountPolicy(isEdit ? existing : null, discountRules, isAdditive);
+                        refresh[0].run();
+                        dialog.close();
+                        return;
                     }
                     // case "Percentage Discount" -> {
                     //     Double pct = percentageField.getValue();
@@ -1567,8 +1435,8 @@ public class EventDetailsView extends VerticalLayout {
                 return "—";
             }
             try {
-                show fullShow = eventService.loadShowFully(cachedEventId, s.getShowid());
-                Map<Long, Boolean> seatAvailability = ticketService.getSeatAvailability(s.getShowid());
+                show fullShow = presenter.loadShowFully(s.getShowid());
+                Map<Long, Boolean> seatAvailability = presenter.getSeatAvailability(s.getShowid());
 
                 int total = 0;
                 int available = 0;
@@ -1603,14 +1471,9 @@ public class EventDetailsView extends VerticalLayout {
 
             // Block ticket purchase if this is a lottery event and the draw hasn't happened yet
             try {
-                boolean isLotteryEvent = cachedEventId != null &&
-                        policyService.getPoliciesForEvent(cachedEventId).stream()
-                                .anyMatch(p -> p instanceof SellingPolicy sp
-                                        && sp.getType() == SellingType.LOTTERY);
+                boolean isLotteryEvent = presenter.isLotteryEvent();
                 if (isLotteryEvent) {
-                    boolean drawDone = cachedEventId != null &&
-                            lotteryService.getLotteriesByEvent(cachedEventId).stream()
-                                    .anyMatch(l -> l.getStatus() == LotteryStatus.DRAWN);
+                    boolean drawDone = presenter.hasDrawnLottery();
                     if (!drawDone) {
                         seatBtn.setEnabled(false);
                         seatBtn.getElement().setAttribute("title",
@@ -1746,7 +1609,7 @@ public class EventDetailsView extends VerticalLayout {
      */
     private int showCapacity(show s) {
         try {
-            show full = eventService.loadShowFully(cachedEventId, s.getShowid());
+            show full = presenter.loadShowFully(s.getShowid());
             int total = 0;
             if (full.getAreas() == null) return 0;
             for (Area area : full.getAreas()) {
@@ -1772,18 +1635,7 @@ public class EventDetailsView extends VerticalLayout {
      * selected to fill every seat/standing spot in the busiest show.
      */
     private int computeMaxShowCapacity() {
-        if (cachedEventId == null) return 0;
-        try {
-            java.util.List<show> shows = eventService.getShowsForEvent(cachedEventId);
-            int max = 0;
-            for (show s : shows) {
-                int cap = showCapacity(s);
-                if (cap > max) max = cap;
-            }
-            return max;
-        } catch (Exception e) {
-            return 0;
-        }
+        return presenter.computeMaxShowCapacity();
     }
 
     // ── Lottery card (all users) ──────────────────────────────────────────────
@@ -1800,7 +1652,7 @@ public class EventDetailsView extends VerticalLayout {
         refresh[0] = () -> {
             body.removeAll();
             try {
-                java.util.List<LotteryDTO> lotteries = lotteryService.getLotteriesByEvent(cachedEventId);
+                java.util.List<LotteryDTO> lotteries = presenter.getLotteriesByEvent();
                 if (lotteries.isEmpty()) {
                     if (isManagerOrOwner()) {
                         body.add(buildCreateLotteryForm(refresh));
@@ -1854,14 +1706,8 @@ public class EventDetailsView extends VerticalLayout {
                 error("Both registration deadline and draw time are required");
                 return;
             }
-            Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
-            if (tokenObj == null) { error("Session expired"); return; }
             try {
-                lotteryService.createLottery(tokenObj.toString(), cachedEventId,
-                        cachedEvent.getCompanyId(),
-                        deadlinePicker.getValue(), drawTimePicker.getValue());
-                Notification.show("Lottery created!", 2500, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                presenter.createLottery(deadlinePicker.getValue(), drawTimePicker.getValue());
                 refresh[0].run();
             } catch (Exception ex) { error(ex.getMessage()); }
         });
@@ -1932,7 +1778,7 @@ public class EventDetailsView extends VerticalLayout {
         // ── Winners panel (manager/owner only, after draw) ──────────────────
         if (isManagerOrOwner() && dto.getStatus() == LotteryStatus.DRAWN) {
             try {
-                java.util.List<LotteryEntryDTO> allEntries = lotteryService.getEntriesByLottery(dto.getId());
+                java.util.List<LotteryEntryDTO> allEntries = presenter.getEntriesByLottery(dto.getId());
                 java.util.List<LotteryEntryDTO> winnerEntries = allEntries.stream()
                         .filter(LotteryEntryDTO::isWinner)
                         .collect(java.util.stream.Collectors.toList());
@@ -1954,12 +1800,7 @@ public class EventDetailsView extends VerticalLayout {
                     winnersPanel.add(none);
                 } else {
                     for (LotteryEntryDTO w : winnerEntries) {
-                        String username;
-                        try {
-                            username = userService.getMemberById(w.getMemberId()).getUsername();
-                        } catch (Exception ex) {
-                            username = w.getMemberId(); // fallback to raw id
-                        }
+                        String username = presenter.resolveUsername(w.getMemberId());
                         Div winnerLine = new Div();
                         winnerLine.getStyle()
                                 .set("display", "flex").set("align-items", "center")
@@ -1999,13 +1840,8 @@ public class EventDetailsView extends VerticalLayout {
             Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
             if (tokenObj != null) {
                 Button registerBtn = new Button("🎟 Register for Lottery", e -> {
-                    Object tok = UI.getCurrent().getSession().getAttribute("token");
-                    if (tok == null) { error("Please log in to register"); return; }
                     try {
-                        lotteryService.registerToLottery(tok.toString(), dto.getId());
-                        Notification.show("You're registered! Good luck 🍀",
-                                3000, Notification.Position.TOP_CENTER)
-                                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                        presenter.registerToLottery(dto.getId());
                         refresh[0].run();
                     } catch (Exception ex) {
                         error(ex.getMessage());
@@ -2039,58 +1875,8 @@ public class EventDetailsView extends VerticalLayout {
             int drawCount = maxCapacity > 0 ? Math.min(maxCapacity, participants) : participants;
 
             Button drawBtn = new Button("🎲 Draw Lottery", e -> {
-                if (participants == 0) { error("No participants registered yet"); return; }
-                Object tok = UI.getCurrent().getSession().getAttribute("token");
-                if (tok == null) { error("Session expired"); return; }
-                int count = computeMaxShowCapacity();
-                count = count > 0 ? Math.min(count, dto.getEntryCount()) : dto.getEntryCount();
                 try {
-                    java.util.List<LotteryEntryDTO> winners =
-                            lotteryService.drawLottery(tok.toString(), dto.getId(), count);
-
-                    // Collect winner member IDs for quick lookup
-                    java.util.Set<String> winnerMemberIds = winners.stream()
-                            .map(LotteryEntryDTO::getMemberId)
-                            .collect(java.util.stream.Collectors.toSet());
-
-                    // Fetch all entries so we can notify losers too
-                    java.util.List<LotteryEntryDTO> allEntries;
-                    try {
-                        allEntries = lotteryService.getEntriesByLottery(dto.getId());
-                    } catch (Exception ex) {
-                        allEntries = winners; // fallback: only notify winners
-                    }
-
-                    String eventName = cachedEvent != null ? cachedEvent.getName() : "the event";
-                    int notifiedWinners = 0, notifiedLosers = 0;
-
-                    for (LotteryEntryDTO entry : allEntries) {
-                        try {
-                            com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member m =
-                                    userService.getMemberById(entry.getMemberId());
-                            if (winnerMemberIds.contains(entry.getMemberId())) {
-                                // Find matching winner entry to get access code
-                                String code = winners.stream()
-                                        .filter(w -> w.getMemberId().equals(entry.getMemberId()))
-                                        .map(LotteryEntryDTO::getAccessCode)
-                                        .findFirst().orElse(null);
-                                notificationService.notifyLotteryWin(m.getUsername(), eventName, code);
-                                notifiedWinners++;
-                            } else {
-                                notificationService.notifyLotteryLoss(m.getUsername(), eventName);
-                                notifiedLosers++;
-                            }
-                        } catch (Exception notifyEx) {
-                            System.err.println("Could not notify member " + entry.getMemberId()
-                                    + ": " + notifyEx.getMessage());
-                        }
-                    }
-
-                    Notification.show("🎉 Draw complete! " + winners.size() + " winner(s) — "
-                                    + notifiedWinners + " win notifications and "
-                                    + notifiedLosers + " loss notifications sent.",
-                            6000, Notification.Position.TOP_CENTER)
-                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    presenter.drawLotteryWithNotifications(dto.getId());
                     refresh[0].run();
                 } catch (Exception ex) { error(ex.getMessage()); }
             });
@@ -2292,8 +2078,8 @@ public class EventDetailsView extends VerticalLayout {
         List<AreaInfo> areas;
         if (cachedEventId != null && s.getShowid() != null) {
             try {
-                show full = eventService.loadShowFully(cachedEventId, s.getShowid());
-                Map<Long, Boolean> avail = ticketService.getSeatAvailability(s.getShowid());
+                show full = presenter.loadShowFully(s.getShowid());
+                Map<Long, Boolean> avail = presenter.getSeatAvailability(s.getShowid());
                 areas = new ArrayList<>();
                 if (full.getAreas() != null)
                     for (Area a : full.getAreas())
@@ -2366,16 +2152,19 @@ public class EventDetailsView extends VerticalLayout {
         totalSpan.getStyle().set("font-weight", "700").set("font-size", "14px").set("color", "#111");
 
         Button checkoutBtn = new Button("Proceed to Checkout →", e -> {
+            e.getSource().setEnabled(false); // prevent double-click
             if (cart.isEmpty()) {
+                e.getSource().setEnabled(true);
                 error("Add at least one ticket first");
                 return;
             }
+            // ── GUEST SUPPORT: הוספה ── אם אין userId, צור UUID לגסט
             if (cachedUserId == null) {
-                Notification.show("Please log in to checkout",
-                        3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_WARNING);
-                return;
+                cachedUserId = UUID.randomUUID();
+                UI.getCurrent().getSession().setAttribute("userId", cachedUserId.toString());
             }
+            // ────────────────────────────────────────────────────
+
             List<String> ticketIds = new ArrayList<>();
             List<SeatRequest> seatRequests = new ArrayList<>();
 
@@ -2383,13 +2172,13 @@ public class EventDetailsView extends VerticalLayout {
             int checker = 0;
             try {
                 Object tokenObj = UI.getCurrent().getSession().getAttribute("token");
+                // ── GUEST SUPPORT: הוספה ── אם אין token, צור guest token מה-UUID שנוצר
                 if (tokenObj == null || tokenObj.toString().isBlank()) {
-                    Notification.show("Please log in to checkout",
-                            3000,
-                            Notification.Position.TOP_CENTER)
-                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
-                    return;
+                    String guestToken = "GUEST_" + cachedUserId;
+                    UI.getCurrent().getSession().setAttribute("token", guestToken);
+                    tokenObj = guestToken;
                 }
+                // ────────────────────────────────────────────────
                 String token = tokenObj.toString();
                 checker++;
                 for (CartEntry entry : cart) {
@@ -2414,8 +2203,7 @@ public class EventDetailsView extends VerticalLayout {
                         checkoutItems.add(item);
                     }
                     if (entry.isSeated()) {
-                        ticket t = eventService.reserveSeat(
-                                cachedEventId, s.getShowid(), entry.areaId(), entry.seatId(), cachedUserId);
+                        ticket t = presenter.reserveSeat(s.getShowid(), entry.areaId(), entry.seatId(), cachedUserId);
                         ticketIds.add(t.getTicketId().toString());
                         seatRequests.add(new SeatRequest(
                                 t.getTicketId().toString(),
@@ -2424,8 +2212,7 @@ public class EventDetailsView extends VerticalLayout {
                                 entry.unitPrice()));
                     } else {
                         for (int i = 0; i < entry.quantity(); i++) {
-                            ticket t = eventService.reserveStanding(
-                                    cachedEventId, s.getShowid(), entry.areaId(), cachedUserId);
+                            ticket t = presenter.reserveStanding(s.getShowid(), entry.areaId(), cachedUserId);
                             ticketIds.add(t.getTicketId().toString());
                             seatRequests.add(new SeatRequest(
                                     t.getTicketId().toString(),
@@ -2436,7 +2223,7 @@ public class EventDetailsView extends VerticalLayout {
                     }
                 }
                 checker++;
-                OrderDTO order = orderService.reserveTickets(token, cachedEventId, seatRequests);
+                OrderDTO order = presenter.reserveTickets(token, seatRequests);
                 checker++;
                 var session = UI.getCurrent().getSession();
                 session.setAttribute("checkoutOrderId", order.getOrderId().toString());
@@ -2466,7 +2253,20 @@ public class EventDetailsView extends VerticalLayout {
                 parentDialog.close();
                 UI.getCurrent().navigate("checkout");
             } catch (RuntimeException ex) {
-                error("Reservation failed: " + ex.getMessage() + " (step " + checker + ")");
+                String msg = ex.getMessage();
+                // ── GUEST SUPPORT: הוספה ── הגבלת גיל לגסט → הפנייה להרשמה
+                Object tok = UI.getCurrent().getSession().getAttribute("token");
+                if (msg != null && msg.toLowerCase().contains("age")
+                        && tok != null && tok.toString().startsWith("GUEST_")) {
+                    Notification.show(
+                            "This show has an age restriction. Please register to continue.",
+                            5000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
+                // ────────────────────────────────────────────────
+                error("Reservation failed: " + msg + " (step " + checker + ")");
+                e.getSource().setEnabled(true); // re-enable on error so user can retry
             }
         });
         checkoutBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -2836,7 +2636,7 @@ public class EventDetailsView extends VerticalLayout {
 
         if (area instanceof StandingArea sa) {
             int max = sa.getMaxCapacity();
-            int available = ticketService.getStandingAvailableCount(showId, area.getId(), max);
+            int available = presenter.getStandingAvailableCount(showId, area.getId(), max);
 
             return new AreaInfo(
                     area.getId(),
@@ -2898,13 +2698,14 @@ public class EventDetailsView extends VerticalLayout {
         return wrapper;
     }
 
+
     private record SeatCount(int total, int available) {
     }
 
     private SeatCount countAreaSeats(UUID showId, Area area, Map<Long, Boolean> seatAvailability) {
         if (area instanceof StandingArea standingArea) {
             int total = standingArea.getMaxCapacity();
-            int available = ticketService.getStandingAvailableCount(showId, area.getId(), total);
+            int available = presenter.getStandingAvailableCount(showId, area.getId(), total);
 
             return new SeatCount(total, available);
         }
