@@ -1687,14 +1687,16 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         com.vaadin.flow.component.datetimepicker.DateTimePicker deadlinePicker =
                 new com.vaadin.flow.component.datetimepicker.DateTimePicker("Registration Deadline");
         deadlinePicker.setWidthFull();
+        deadlinePicker.setStep(java.time.Duration.ofMinutes(5));
 
         com.vaadin.flow.component.datetimepicker.DateTimePicker drawTimePicker =
                 new com.vaadin.flow.component.datetimepicker.DateTimePicker("Draw Time");
         drawTimePicker.setWidthFull();
+        drawTimePicker.setStep(java.time.Duration.ofMinutes(5));
 
         deadlinePicker.addValueChangeListener(e -> {
             if (e.getValue() != null) {
-                drawTimePicker.setMin(e.getValue().plusMinutes(1));
+                drawTimePicker.setMin(e.getValue().plusMinutes(5));
                 if (drawTimePicker.getValue() != null &&
                         !drawTimePicker.getValue().isAfter(e.getValue()))
                     drawTimePicker.clear();
@@ -1716,6 +1718,46 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
         form.add(hint, deadlinePicker, drawTimePicker, createBtn);
         return form;
+    }
+
+    private void openDrawDialog(UUID lotteryId, int participants, int defaultWinners, Runnable[] refresh) {
+        Dialog dlg = new Dialog();
+        dlg.setHeaderTitle("🎲 Draw Lottery");
+
+        VerticalLayout body = new VerticalLayout();
+        body.setPadding(false);
+        body.setSpacing(true);
+
+        Span info = new Span(participants + " participant" + (participants == 1 ? "" : "s") + " registered");
+        info.getStyle().set("color", "#555").set("font-size", "13px");
+
+        com.vaadin.flow.component.textfield.IntegerField winnerField = new com.vaadin.flow.component.textfield.IntegerField("Number of winners");
+        winnerField.setValue(defaultWinners > 0 ? defaultWinners : participants);
+        winnerField.setMin(1);
+        winnerField.setMax(participants);
+        winnerField.setStepButtonsVisible(true);
+        winnerField.setHelperText("Default: " + defaultWinners + " (max show capacity). Max: " + participants);
+        winnerField.setWidthFull();
+
+        body.add(info, winnerField);
+        dlg.add(body);
+
+        Button confirmBtn = new Button("Draw", ev -> {
+            Integer val = winnerField.getValue();
+            int count = (val != null && val > 0) ? Math.min(val, participants) : (defaultWinners > 0 ? defaultWinners : participants);
+            dlg.close();
+            try {
+                presenter.drawLotteryWithNotifications(lotteryId, count);
+                refresh[0].run();
+            } catch (Exception ex) { error(ex.getMessage()); }
+        });
+        confirmBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+
+        Button cancelBtn = new Button("Cancel", ev -> dlg.close());
+        cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        dlg.getFooter().add(cancelBtn, confirmBtn);
+        dlg.open();
     }
 
     private Div buildLotteryRow(LotteryDTO dto, Runnable[] refresh) {
@@ -1864,23 +1906,15 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         if (isManagerOrOwner() && dto.getStatus() == LotteryStatus.OPEN) {
             int maxCapacity = computeMaxShowCapacity();
             int participants = dto.getEntryCount();
+            int defaultWinners = maxCapacity > 0 ? Math.min(maxCapacity, participants) : participants;
 
             Span infoSpan = new Span(
                     participants + " participant" + (participants == 1 ? "" : "s") + " registered" +
-                    (maxCapacity > 0 ? "  ·  " + maxCapacity + " seat" + (maxCapacity == 1 ? "" : "s") + " available" : ""));
+                    (maxCapacity > 0 ? "  ·  " + maxCapacity + " seat" + (maxCapacity == 1 ? "" : "s") + " available (default)" : ""));
             infoSpan.getStyle().set("color", "#555").set("font-size", "13px").set("align-self", "center");
 
-            // Draw exactly as many winners as there are seats in the largest show
-            // (capped to participant count so we never request more winners than entrants)
-            int drawCount = maxCapacity > 0 ? Math.min(maxCapacity, participants) : participants;
-
-            Button drawBtn = new Button("🎲 Draw Lottery", e -> {
-                try {
-                    presenter.drawLotteryWithNotifications(dto.getId());
-                    refresh[0].run();
-                } catch (Exception ex) { error(ex.getMessage()); }
-            });
-            if (drawCount == 0) drawBtn.setEnabled(false);
+            Button drawBtn = new Button("🎲 Draw Lottery", e -> openDrawDialog(dto.getId(), participants, defaultWinners, refresh));
+            if (participants == 0) drawBtn.setEnabled(false);
             drawBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
             drawBtn.getStyle().set("font-weight", "700");
 

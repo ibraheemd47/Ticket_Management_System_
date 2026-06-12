@@ -432,17 +432,15 @@ public class EventDetailsPresenter {
      * then sends win/loss notifications to ALL participants.
      * Returns the drawn winners list, or empty if draw failed.
      */
-    public List<LotteryEntryDTO> drawLotteryWithNotifications(UUID lotteryId) {
+    public List<LotteryEntryDTO> drawLotteryWithNotifications(UUID lotteryId, int winnerCount) {
         String token = getToken();
         if (token == null) { view.showError("Session expired"); return List.of(); }
         try {
-            int capacity = computeMaxShowCapacity();
-            // fetch current entry count via DTO
             List<LotteryEntryDTO> allBeforeDraw = lotteryService.getEntriesByLottery(lotteryId);
             int participants = allBeforeDraw.size();
             if (participants == 0) { view.showError("No participants registered yet"); return List.of(); }
 
-            int drawCount = capacity > 0 ? Math.min(capacity, participants) : participants;
+            int drawCount = Math.min(Math.max(winnerCount, 1), participants);
 
             List<LotteryEntryDTO> winners = lotteryService.drawLottery(token, lotteryId, drawCount);
 
