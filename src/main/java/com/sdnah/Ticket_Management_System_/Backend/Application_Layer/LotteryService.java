@@ -21,6 +21,8 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+
 
 @Service
 public class LotteryService {
@@ -33,6 +35,8 @@ public class LotteryService {
     private final IrepresnteUserService representUserService;
     private final KeyedLock keyedLock;
     private final LotteryAuthDomainService lotteryAuth;
+    private final NotificationService notificationService;
+
 
     @org.springframework.beans.factory.annotation.Autowired
     private com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository policyRepository;
@@ -40,12 +44,20 @@ public class LotteryService {
     public LotteryService(LotteryRepository lotteryRepository,
                           CompanyRepository companyRepository,
                           IrepresnteUserService representUserService,
-                          KeyedLock keyedLock) {
+                          KeyedLock keyedLock,
+                          NotificationService notificationService) 
+    {
+        if (lotteryRepository == null) throw new IllegalArgumentException("lotteryRepository cannot be null");
+        if (companyRepository == null) throw new IllegalArgumentException("companyRepository cannot be null");
+        if (representUserService == null) throw new IllegalArgumentException("representUserService cannot be null");
+        if (keyedLock == null) throw new IllegalArgumentException("keyedLock cannot be null");
+        if (notificationService == null) throw new IllegalArgumentException("notificationService cannot be null");
         this.lotteryRepository  = lotteryRepository;
         this.companyRepository  = companyRepository;
         this.representUserService = representUserService;
         this.keyedLock          = keyedLock;
         this.lotteryAuth        = new LotteryAuthDomainService();
+        this.notificationService = notificationService;
     }
 
     // =========================================================================
@@ -127,7 +139,7 @@ public class LotteryService {
             List<LotteryEntry> winners = lottery.draw(winnersCount, openSaleTime);
             lotteryRepository.save(lottery);
 
-            // TODO (Half B): notify winners + losers here, once NotificationService is wired
+            notifyDrawResults(lottery);
 
             logger.info("Lottery {} drawn, winners={}", lotteryId, winners.size());
             return winners.stream().map(this::toEntryDTO).collect(Collectors.toList());
@@ -149,7 +161,7 @@ public class LotteryService {
                     // automatic draw: exactly 1 winner, public sale opens 24h later
                     lottery.draw(1, LocalDateTime.now().plusHours(24));
                     lotteryRepository.save(lottery);
-                    // TODO (Half B): notify here too
+                    notifyDrawResults(lottery);
                     logger.info("Auto-drew lottery {} (1 winner)", lottery.getId());
                 } catch (Exception ex) {
                     logger.error("Auto-draw failed for lottery {}: {}", lottery.getId(), ex.getMessage());
@@ -289,6 +301,22 @@ public class LotteryService {
                     e.markCodeUsed();
                     lotteryRepository.save(e.getLottery());
                 });
+    }
+
+    private void notifyDrawResults(Lottery lottery) {
+        String eventName = lottery.getEventId().toString();   // or a real name if you can resolve it
+        for (LotteryEntry e : lottery.getEntries()) {
+            try {
+                if (e.isWinner()) {
+                    notificationService.notifyLotteryWin(e.getMemberId(), eventName, e.getAccessCode());
+                } else {
+                    notificationService.notifyLotteryLoss(e.getMemberId(), eventName);
+                }
+            } catch (Exception ex) {
+                logger.warn("Failed to notify member {} for lottery {}: {}",
+                        e.getMemberId(), lottery.getId(), ex.getMessage());
+            }
+        }
     }
 
 }

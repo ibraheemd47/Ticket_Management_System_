@@ -305,6 +305,10 @@ public class EventDetailsPresenter {
     }
 
     public void deletePolicy(Policy policy) {
+        if (policy instanceof SellingPolicy && hasActiveLottery()) {
+            view.showError("Cannot delete the selling policy while a lottery is open for this event.");
+            return;
+        }
         try {
             policyRepo.deleteByPolicyId(policy.getPolicyId());
             view.showSuccess("Policy removed");
@@ -316,10 +320,16 @@ public class EventDetailsPresenter {
                             Integer minAge, Integer minTickets, Integer maxTickets,
                             Double percentage, String couponCode, Double couponPct,
                             LocalDate couponExpiry) {
+                                
         if (cachedEventId == null) { view.showError("No event loaded"); return; }
         Object companyIdObj = view.getSessionAttribute("managingCompanyId");
         if (companyIdObj == null) { view.showError("No company session"); return; }
         UUID companyId = UUID.fromString(companyIdObj.toString());
+         // Block changing the selling policy while a lottery is open
+        if ("Selling".equals(policyType) && hasActiveLottery()) {
+            view.showError("Cannot change the selling policy while a lottery is open for this event.");
+            return;
+        }
         try {
             if (existing != null) policyRepo.deleteByPolicyId(existing.getPolicyId());
             switch (policyType) {
@@ -501,6 +511,14 @@ public class EventDetailsPresenter {
         try {
             return lotteryService.getLotteriesByEvent(cachedEventId).stream()
                     .anyMatch(l -> l.getStatus() == LotteryStatus.DRAWN);
+        } catch (Exception e) { return false; }
+    }
+    /** True if any lottery for this event is still OPEN (locks the selling policy). */
+    public boolean hasActiveLottery() {
+        if (cachedEventId == null) return false;
+        try {
+            return lotteryService.getLotteriesByEvent(cachedEventId).stream()
+                    .anyMatch(l -> l.getStatus() == LotteryStatus.OPEN);
         } catch (Exception e) { return false; }
     }
 

@@ -4,6 +4,7 @@ package com.sdnah.Ticket_Management_System_.Lottery.UnitTests;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
@@ -29,6 +30,7 @@ public class LotteryServiceTest {
     private LotteryRepository lotteryRepository;
     private CompanyRepository companyRepository;
     private IrepresnteUserService representUserService;
+    private NotificationService notificationService;
     private Member ownerMember;
     private Member regularMember;
     private Company company;
@@ -40,12 +42,13 @@ public class LotteryServiceTest {
         lotteryRepository    = mock(LotteryRepository.class);
         companyRepository    = mock(CompanyRepository.class);
         representUserService = mock(IrepresnteUserService.class);
-
+        notificationService = mock(NotificationService.class);
         lotteryService = new LotteryService(
                 lotteryRepository,
                 companyRepository,
                 representUserService,
-                new KeyedLock());
+                new KeyedLock(),
+                notificationService);
 
         ownerMember = mock(Member.class);
         when(ownerMember.getMemberId()).thenReturn("owner-1");

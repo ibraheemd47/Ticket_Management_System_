@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
@@ -36,6 +37,7 @@ public class LotteryAcceptanceTest {
     @Mock private LotteryRepository lotteryRepository;
     @Mock private CompanyRepository companyRepository;
     @Mock private IrepresnteUserService representUserService;
+    @Mock private NotificationService notificationService;
 
     private LotteryService lotteryService;
 
@@ -55,7 +57,7 @@ public class LotteryAcceptanceTest {
                 lotteryRepository,
                 companyRepository,
                 representUserService,
-                new KeyedLock());
+                new KeyedLock(),notificationService);
 
         ownerMember = mock(Member.class);
         when(ownerMember.getMemberId()).thenReturn("owner-1");
