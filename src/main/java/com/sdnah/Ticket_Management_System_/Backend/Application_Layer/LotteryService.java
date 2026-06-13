@@ -273,7 +273,8 @@ public class LotteryService {
                 lottery.getRegistrationDeadline(),
                 lottery.getDrawTime(),
                 lottery.getStatus(),
-                lottery.getEntries().size()
+                lottery.getEntries().size() ,
+                lottery.getOpenSaleTime()
         );
     }
 

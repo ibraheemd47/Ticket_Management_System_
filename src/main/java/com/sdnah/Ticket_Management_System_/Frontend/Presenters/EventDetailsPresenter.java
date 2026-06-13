@@ -304,16 +304,30 @@ public class EventDetailsPresenter {
         return policyRepo.findByEventId(cachedEventId);
     }
 
+    // public void deletePolicy(Policy policy) {
+    //     if (policy instanceof SellingPolicy && hasActiveLottery()) {
+    //         view.showError("Cannot delete the selling policy while a lottery is open for this event.");
+    //         return;
+    //     }
+    //     try {
+    //         policyRepo.deleteByPolicyId(policy.getPolicyId());
+    //         view.showSuccess("Policy removed");
+    //         view.refreshPolicies();
+    //     } catch (RuntimeException ex) { view.showError("Could not remove: " + ex.getMessage()); }
+    // }
     public void deletePolicy(Policy policy) {
         if (policy instanceof SellingPolicy && hasActiveLottery()) {
-            view.showError("Cannot delete the selling policy while a lottery is open for this event.");
+            view.showError("Cannot delete the selling policy while the lottery is active or before public sale opens.");
             return;
         }
+
         try {
             policyRepo.deleteByPolicyId(policy.getPolicyId());
             view.showSuccess("Policy removed");
             view.refreshPolicies();
-        } catch (RuntimeException ex) { view.showError("Could not remove: " + ex.getMessage()); }
+        } catch (RuntimeException ex) {
+            view.showError("Could not remove: " + ex.getMessage());
+        }
     }
 
     public void savePolicy(Policy existing, String policyType, SellingType sellingType,
@@ -327,7 +341,7 @@ public class EventDetailsPresenter {
         UUID companyId = UUID.fromString(companyIdObj.toString());
          // Block changing the selling policy while a lottery is open
         if ("Selling".equals(policyType) && hasActiveLottery()) {
-            view.showError("Cannot change the selling policy while a lottery is open for this event.");
+            view.showError("Cannot change the selling policy while the lottery is active or before public sale opens.");
             return;
         }
         try {
@@ -421,7 +435,7 @@ public class EventDetailsPresenter {
             return lotteryService.isWinnerWindowOpen(cachedEventId);
         } catch (Exception e) { return false; }
     }
-    
+
     public List<LotteryDTO> getLotteriesByEvent() {
         if (cachedEventId == null) return List.of();
         return lotteryService.getLotteriesByEvent(cachedEventId);
@@ -521,13 +535,45 @@ public class EventDetailsPresenter {
         } catch (Exception e) { return false; }
     }
     /** True if any lottery for this event is still OPEN (locks the selling policy). */
+   
+    // public boolean hasActiveLottery() {
+    //     if (cachedEventId == null) return false;
+
+    //     try {
+    //         LocalDateTime now = LocalDateTime.now();
+
+    //         return lotteryService.getLotteriesByEvent(cachedEventId).stream()
+    //                 .anyMatch(l ->
+    //                         l.getStatus() == LotteryStatus.OPEN
+    //                         || (
+    //                             l.getStatus() == LotteryStatus.DRAWN
+    //                             && l.getOpenSaleTime() != null
+    //                             && now.isBefore(l.getOpenSaleTime())
+    //                         )
+    //                 );
+    //     } catch (Exception e) {
+    //         return false;
+    //     }
+    // }
     public boolean hasActiveLottery() {
-        if (cachedEventId == null) return false;
-        try {
-            return lotteryService.getLotteriesByEvent(cachedEventId).stream()
-                    .anyMatch(l -> l.getStatus() == LotteryStatus.OPEN);
-        } catch (Exception e) { return false; }
+    if (cachedEventId == null) return false;
+
+    try {
+        LocalDateTime now = LocalDateTime.now();
+
+        return lotteryService.getLotteriesByEvent(cachedEventId).stream()
+                .anyMatch(l ->
+                        l.getStatus() == LotteryStatus.OPEN
+                        || (
+                            l.getStatus() == LotteryStatus.DRAWN
+                            && l.getOpenSaleTime() != null
+                            && now.isBefore(l.getOpenSaleTime())
+                        )
+                );
+    } catch (Exception e) {
+        return false;
     }
+}
 
     /** Resolves a lottery entry's memberId to a username, returns the raw id on failure. */
     public String resolveUsername(String memberId) {

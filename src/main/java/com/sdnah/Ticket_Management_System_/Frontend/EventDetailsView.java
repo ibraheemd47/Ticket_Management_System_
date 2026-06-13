@@ -93,6 +93,7 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             "#1565c0", "#283593", "#0277bd", "#00838f", "#2e7d32", "#558b2f", "#6a1b9a"
     };
 
+
     // ── Seat-map data records (no JPA lazy-load risk in the view) ─────────────
     record BlockData(long id, String label, List<RowData> rows) {}
     record RowData(long id, String label, List<SeatData> seats) {}
@@ -114,6 +115,7 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
     private Event       cachedEvent;
     private List<show>  cachedShows = new ArrayList<>();
     private String pendingAccessCode;
+    private boolean lotteryPollingStarted = false;
 
     public EventDetailsView(EventDetailsPresenter presenter) {
         this.presenter = presenter;
@@ -1652,19 +1654,69 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
     // ── Lottery card (all users) ──────────────────────────────────────────────
 
+    // private Div buildLotteryCard() {
+    //     Div card = card();
+    //     H2 title = new H2("🎟 Lottery");
+    //     title.getStyle().set("margin", "0 0 16px 0").set("font-size", "20px").set("color", "#111");
+    //     card.add(title);
+
+    //     Div body = new Div();
+    //     body.setWidthFull();
+    //     Runnable[] refresh = { null };
+    //     refresh[0] = () -> {
+    //         body.removeAll();
+    //         try {
+    //             java.util.List<LotteryDTO> lotteries = presenter.getLotteriesByEvent();
+    //             if (lotteries.isEmpty()) {
+    //                 if (isManagerOrOwner() && presenter.isLotteryEvent()) {
+    //                     body.add(buildCreateLotteryForm(refresh));
+    //                 } else if (isManagerOrOwner()) {
+    //                     Paragraph note = new Paragraph(
+    //                             "This event's selling policy is not LOTTERY. Set it to LOTTERY in the Policies editor to run a lottery.");
+    //                     note.getStyle().set("color", "#888");
+    //                     body.add(note);
+    //                 } else {
+    //                     Paragraph none = new Paragraph("No lottery has been set up for this event yet.");
+    //                     none.getStyle().set("color", "#888");
+    //                     body.add(none);
+    //                 }
+    //             } else {
+    //                 for (LotteryDTO dto : lotteries)
+    //                     body.add(buildLotteryRow(dto, refresh));
+    //             }
+    //         } catch (Exception ex) {
+    //             Paragraph err = new Paragraph("Could not load lottery: " + ex.getMessage());
+    //             err.getStyle().set("color", "#c62828");
+    //             body.add(err);
+    //             if (isManagerOrOwner()) body.add(buildCreateLotteryForm(refresh));
+    //         }
+    //     };
+    //     refresh[0].run();
+    //     card.add(body);
+
+    //     return card;
+    // }
     private Div buildLotteryCard() {
         Div card = card();
+
         H2 title = new H2("🎟 Lottery");
-        title.getStyle().set("margin", "0 0 16px 0").set("font-size", "20px").set("color", "#111");
+        title.getStyle()
+                .set("margin", "0 0 16px 0")
+                .set("font-size", "20px")
+                .set("color", "#111");
         card.add(title);
 
         Div body = new Div();
         body.setWidthFull();
+
         Runnable[] refresh = { null };
+
         refresh[0] = () -> {
             body.removeAll();
+
             try {
                 java.util.List<LotteryDTO> lotteries = presenter.getLotteriesByEvent();
+
                 if (lotteries.isEmpty()) {
                     if (isManagerOrOwner() && presenter.isLotteryEvent()) {
                         body.add(buildCreateLotteryForm(refresh));
@@ -1678,20 +1730,61 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                         none.getStyle().set("color", "#888");
                         body.add(none);
                     }
-                } else {
-                    for (LotteryDTO dto : lotteries)
-                        body.add(buildLotteryRow(dto, refresh));
+
+                    return;
                 }
+
+                for (LotteryDTO dto : lotteries) {
+                    body.add(buildLotteryRow(dto, refresh));
+                }
+
+                startLotteryPollingIfNeeded(refresh, lotteries);
+
             } catch (Exception ex) {
                 Paragraph err = new Paragraph("Could not load lottery: " + ex.getMessage());
                 err.getStyle().set("color", "#c62828");
                 body.add(err);
-                if (isManagerOrOwner()) body.add(buildCreateLotteryForm(refresh));
+
+                if (isManagerOrOwner()) {
+                    body.add(buildCreateLotteryForm(refresh));
+                }
             }
         };
+
         refresh[0].run();
         card.add(body);
+
         return card;
+    }
+    private void startLotteryPollingIfNeeded(Runnable[] refresh, java.util.List<LotteryDTO> lotteries) {
+        if (lotteryPollingStarted) {
+            return;
+        }
+
+        boolean needsPolling = lotteries.stream().anyMatch(l ->
+                l.getStatus() == LotteryStatus.OPEN
+                || (
+                    l.getStatus() == LotteryStatus.DRAWN
+                    && l.getOpenSaleTime() != null
+                    && LocalDateTime.now().isBefore(l.getOpenSaleTime())
+                )
+        );
+
+        if (!needsPolling) {
+            return;
+        }
+
+        lotteryPollingStarted = true;
+
+        UI ui = UI.getCurrent();
+        ui.setPollInterval(5000);
+
+        ui.addPollListener(e -> {
+            try {
+                refresh[0].run();
+            } catch (Exception ignored) {
+            }
+        });
     }
 
     private Div buildCreateLotteryForm(Runnable[] refresh) {
@@ -1807,15 +1900,42 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         //         refresh[0].run();
         //     } catch (Exception ex) { error(ex.getMessage()); }
         // });
+        // Button confirmBtn = new Button("Draw", ev -> {
+        //     Integer val = winnerField.getValue();
+        //     int count = (val != null && val > 0) ? Math.min(val, participants) : (defaultWinners > 0 ? defaultWinners : participants);
+        //     dlg.close();
+        //     try {
+        //         presenter.drawLotteryWithNotifications(lotteryId, count);
+        //         refresh[0].run();
+        //     } catch (Exception ex) { error(ex.getMessage()); }
+        // });
         Button confirmBtn = new Button("Draw", ev -> {
-            Integer val = winnerField.getValue();
-            int count = (val != null && val > 0) ? Math.min(val, participants) : (defaultWinners > 0 ? defaultWinners : participants);
-            dlg.close();
-            try {
-                presenter.drawLotteryWithNotifications(lotteryId, count);
-                refresh[0].run();
-            } catch (Exception ex) { error(ex.getMessage()); }
-        });
+        Integer val = winnerField.getValue();
+        int count = (val != null && val > 0)
+                ? Math.min(val, participants)
+                : (defaultWinners > 0 ? defaultWinners : participants);
+
+        LocalDateTime openSaleTime = openSalePicker.getValue();
+
+        if (openSaleTime == null) {
+            error("Public sale open time is required");
+            return;
+        }
+
+        if (!openSaleTime.isAfter(LocalDateTime.now())) {
+            error("Public sale open time must be in the future");
+            return;
+        }
+
+        dlg.close();
+
+        try {
+            presenter.drawLotteryWithNotifications(lotteryId, count, openSaleTime);
+            refresh[0].run();
+        } catch (Exception ex) {
+            error(ex.getMessage());
+        }
+    });
         confirmBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 
         Button cancelBtn = new Button("Cancel", ev -> dlg.close());
@@ -1880,6 +2000,28 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             }
         }
 
+        if (dto.getStatus() == LotteryStatus.DRAWN && dto.getOpenSaleTime() != null) {
+        boolean publicSalePending = java.time.LocalDateTime.now().isBefore(dto.getOpenSaleTime());
+
+        if (publicSalePending) {
+            Div timerBox = buildTimerBox(
+                    "🔓 Public sale opens in",
+                    "#fff3e0", "#e65100",
+                    dto.getOpenSaleTime().atZone(zone).toInstant().toEpochMilli()
+            );
+            row.add(timerBox);
+        } else {
+            Div openBox = new Div(new Span("✅ Public sale is open to everyone now"));
+            openBox.getStyle()
+                    .set("background", "#e8f5e9")
+                    .set("color", "#2e7d32")
+                    .set("border-radius", "8px")
+                    .set("padding", "10px 16px")
+                    .set("font-weight", "600")
+                    .set("font-size", "14px");
+            row.add(openBox);
+        }
+    }
         row.add(topRow, infoGrid);
 
         // ── Winners panel (manager/owner only, after draw) ──────────────────
@@ -2187,17 +2329,29 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         dialog.setHeaderTitle("Enter your access code");
 
         Paragraph hint = new Paragraph(
-                "This is a lottery event. Enter the access code from the notification you received after the draw.");
+        "If you received a winner access code, enter it here. If the public sale is already open, type anything to continue.");
         hint.getStyle().set("color", "#666").set("font-size", "13px").set("margin", "0");
 
         TextField codeField = new TextField("Access code");
         codeField.setPlaceholder("e.g. A1B2C3D4E5F6");
         codeField.setWidthFull();
 
+        // Button cont = new Button("Continue to seats", ev -> {
+        //     String code = codeField.getValue();
+        //     if (code == null || code.isBlank()) { error("Please enter your access code"); return; }
+        //     pendingAccessCode = code.trim().toUpperCase();
+        //     dialog.close();
+        //     openSeatDialog(s);
+        // });
         Button cont = new Button("Continue to seats", ev -> {
             String code = codeField.getValue();
-            if (code == null || code.isBlank()) { error("Please enter your access code"); return; }
-            pendingAccessCode = code.trim().toUpperCase();
+
+            if (code == null || code.isBlank()) {
+                pendingAccessCode = null;
+            } else {
+                pendingAccessCode = code.trim().toUpperCase();
+            }
+
             dialog.close();
             openSeatDialog(s);
         });

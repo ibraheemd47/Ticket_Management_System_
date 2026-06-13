@@ -167,20 +167,31 @@ public class OrderPolicyDomainService {
     }
 
     public void validateSellingPolicy(ActiveOrder order, String memberId, String enteredCode) {
-        Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
-        SellingPolicy policy = toSellingPolicy(result);
+        // Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
+        // SellingPolicy policy = toSellingPolicy(result);
 
-        if (policy == null || policy.getType() == SellingPolicy.SellingType.REGULAR) {
-            return;
-        }
+        // if (policy == null || policy.getType() == SellingPolicy.SellingType.REGULAR) {
+        //     return;
+        // }
+        
 
-         // Model B: once the exclusive window has passed, the event is open to everyone
-        Lottery lottery = lotteryRepository.findByEventId(order.getEventId())
-                .stream().findFirst().orElse(null);
-        if (lottery != null
-                && lottery.getOpenSaleTime() != null
-                && !LocalDateTime.now().isBefore(lottery.getOpenSaleTime())) {
-            return;   // window passed — code no longer needed
+        LocalDateTime now = LocalDateTime.now();
+
+        Lottery lottery = lotteryRepository.findByEventId(order.getEventId()).stream()
+            .filter(l -> l.getStatus() == Lottery.LotteryStatus.DRAWN)
+            .max(java.util.Comparator.comparing(Lottery::getDrawTime))
+            .orElseThrow(() -> new IllegalStateException("Lottery has not been drawn yet"));
+
+        // boolean hasOpenLottery = lotteryRepository.findByEventId(order.getEventId()).stream()
+        // .anyMatch(l -> l.getStatus() == Lottery.LotteryStatus.OPEN);
+        // if (hasOpenLottery) {
+        //     throw new IllegalStateException("Lottery has not been drawn yet");
+        // }
+    
+
+        if (lottery.getOpenSaleTime() != null
+            && !now.isBefore(lottery.getOpenSaleTime())) {
+            return; // public sale is open — code is no longer needed
         }
 
         String code = enteredCode == null ? "" : enteredCode.trim();
