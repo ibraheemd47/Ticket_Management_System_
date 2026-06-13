@@ -276,4 +276,19 @@ public class LotteryService {
                 entry.getAccessCodeExpiresAt()
         );
     }
+
+    @Transactional
+    public void redeemAccessCode(UUID eventId, String memberId) {
+        lotteryRepository.findByEventId(eventId).stream()
+                .flatMap(l -> l.getEntries().stream())
+                .filter(e -> e.getMemberId().equals(memberId))
+                .filter(LotteryEntry::isWinner)
+                .filter(e -> e.getUsedAt() == null)
+                .findFirst()
+                .ifPresent(e -> {
+                    e.markCodeUsed();
+                    lotteryRepository.save(e.getLottery());
+                });
+    }
+
 }

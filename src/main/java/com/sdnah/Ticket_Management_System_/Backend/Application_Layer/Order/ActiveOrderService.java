@@ -26,6 +26,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentDet
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Ticket_Domain_Service;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.LotteryEntry;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
@@ -277,6 +278,19 @@ public class ActiveOrderService {
             purchaseRepo.save(result.getPurchase());
             paymentService.saveTransaction(result.getTransaction());
             orderRepo.save(order);
+            
+            // consume the lottery access code (no-op for non-lottery events / non-winners)
+            lotteryRepository.findByEventId(order.getEventId()).stream()
+                    .flatMap(l -> l.getEntries().stream())
+                    .filter(e -> e.getMemberId().equals(buyerId))
+                    .filter(LotteryEntry::isWinner)
+                    .filter(e -> e.getUsedAt() == null)
+                    .findFirst()
+                    .ifPresent(e -> {
+                        e.markCodeUsed();
+                        lotteryRepository.save(e.getLottery());
+                    });
+
             // notify buyer about successful purchase
             notificationService.notifyPurchaseSuccess(
                     buyerId,
