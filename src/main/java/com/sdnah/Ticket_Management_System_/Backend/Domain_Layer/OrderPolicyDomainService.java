@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.LotteryEntry;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
@@ -161,7 +162,28 @@ public class OrderPolicyDomainService {
     // =========================================================================
     // Selling policy validation (for lottery access code)
     // =========================================================================
+    // public void validateSellingPolicy(ActiveOrder order, String memberId) {
+    //     Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
+    //     SellingPolicy policy = toSellingPolicy(result);
+
+    //     if (policy == null || policy.getType() == SellingPolicy.SellingType.REGULAR) {
+    //         return;
+    //     }
+
+    //     lotteryRepository.findByEventId(order.getEventId()).stream()
+    //             .flatMap(l -> l.getEntries().stream())
+    //             .filter(e -> e.getMemberId().equals(memberId))
+    //             .filter(LotteryEntry::isAccessCodeValid)
+    //             .findFirst()
+    //             .orElseThrow(() -> new IllegalStateException(
+    //                     "No valid lottery access code for this event"));
+    // }
+    // Backward-compatible overload (no code) — keeps existing callers/tests intact
     public void validateSellingPolicy(ActiveOrder order, String memberId) {
+        validateSellingPolicy(order, memberId, null);
+    }
+
+    public void validateSellingPolicy(ActiveOrder order, String memberId, String enteredCode) {
         Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
         SellingPolicy policy = toSellingPolicy(result);
 
@@ -169,13 +191,25 @@ public class OrderPolicyDomainService {
             return;
         }
 
+         // Model B: once the exclusive window has passed, the event is open to everyone
+        Lottery lottery = lotteryRepository.findByEventId(order.getEventId())
+                .stream().findFirst().orElse(null);
+        if (lottery != null
+                && lottery.getOpenSaleTime() != null
+                && LocalDateTime.now().isAfter(lottery.getOpenSaleTime())) {
+            return;   // window passed — code no longer needed
+        }
+
+        String code = enteredCode == null ? "" : enteredCode.trim();
+
         lotteryRepository.findByEventId(order.getEventId()).stream()
                 .flatMap(l -> l.getEntries().stream())
                 .filter(e -> e.getMemberId().equals(memberId))
                 .filter(LotteryEntry::isAccessCodeValid)
+                .filter(e -> e.getAccessCode().equalsIgnoreCase(code))   // ← הקוד סוף סוף עושה עבודה
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
-                        "No valid lottery access code for this event"));
+                        "Invalid or missing lottery access code for this event"));
     }
 
     // =========================================================================

@@ -108,12 +108,12 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
     // Areas preloaded during construction (while JPA session may be open)
     private final Map<UUID, List<Area>> showAreasCache = new HashMap<>();
-
     // Shortcuts to presenter state (kept for code that hasn't been fully migrated)
     private UUID        cachedEventId;
     private UUID        cachedUserId;
     private Event       cachedEvent;
     private List<show>  cachedShows = new ArrayList<>();
+    private String pendingAccessCode;
 
     public EventDetailsView(EventDetailsPresenter presenter) {
         this.presenter = presenter;
@@ -1466,7 +1466,11 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             detailsBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
             actions.add(detailsBtn);
 
-            Button seatBtn = new Button("Select Seat", e -> openSeatDialog(s));
+            //Button seatBtn = new Button("Select Seat", e -> openSeatDialog(s));
+            Button seatBtn = new Button("Select Seat", e -> {
+                if (presenter.isLotteryEvent()) openAccessCodeDialog(s);
+                else openSeatDialog(s);
+            });
             seatBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
             // Block ticket purchase if this is a lottery event and the draw hasn't happened yet
@@ -1654,8 +1658,13 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             try {
                 java.util.List<LotteryDTO> lotteries = presenter.getLotteriesByEvent();
                 if (lotteries.isEmpty()) {
-                    if (isManagerOrOwner()) {
+                    if (isManagerOrOwner() && presenter.isLotteryEvent()) {
                         body.add(buildCreateLotteryForm(refresh));
+                    } else if (isManagerOrOwner()) {
+                        Paragraph note = new Paragraph(
+                                "This event's selling policy is not LOTTERY. Set it to LOTTERY in the Policies editor to run a lottery.");
+                        note.getStyle().set("color", "#888");
+                        body.add(note);
                     } else {
                         Paragraph none = new Paragraph("No lottery has been set up for this event yet.");
                         none.getStyle().set("color", "#888");
@@ -2106,6 +2115,37 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         return wrapper;
     }
 
+    private void openAccessCodeDialog(show s) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Enter your access code");
+
+        Paragraph hint = new Paragraph(
+                "This is a lottery event. Enter the access code from the notification you received after the draw.");
+        hint.getStyle().set("color", "#666").set("font-size", "13px").set("margin", "0");
+
+        TextField codeField = new TextField("Access code");
+        codeField.setPlaceholder("e.g. A1B2C3D4E5F6");
+        codeField.setWidthFull();
+
+        Button cont = new Button("Continue to seats", ev -> {
+            String code = codeField.getValue();
+            if (code == null || code.isBlank()) { error("Please enter your access code"); return; }
+            pendingAccessCode = code.trim().toUpperCase();
+            dialog.close();
+            openSeatDialog(s);
+        });
+        cont.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button cancel = new Button("Cancel", ev -> dialog.close());
+
+        VerticalLayout body = new VerticalLayout(hint, codeField);
+        body.setSpacing(true);
+        body.setPadding(true);
+        dialog.add(body);
+        dialog.getFooter().add(cancel, cont);
+        dialog.open();
+    }
+
     // ── Seat / ticket selection dialog (multi-ticket + cart) ─────────────────
 
     private void openSeatDialog(show s) {
@@ -2257,7 +2297,9 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                     }
                 }
                 checker++;
-                OrderDTO order = presenter.reserveTickets(token, seatRequests);
+                //OrderDTO order = presenter.reserveTickets(token, seatRequests);
+                OrderDTO order = presenter.reserveTickets(token, seatRequests, pendingAccessCode);
+                pendingAccessCode = null;   // אפס אחרי שימוש כדי שלא יישאר תקוע לרכישה הבאה
                 checker++;
                 var session = UI.getCurrent().getSession();
                 session.setAttribute("checkoutOrderId", order.getOrderId().toString());

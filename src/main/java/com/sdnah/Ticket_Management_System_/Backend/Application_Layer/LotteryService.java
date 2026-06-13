@@ -33,6 +33,9 @@ public class LotteryService {
     private final KeyedLock keyedLock;
     private final LotteryAuthDomainService lotteryAuth;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository policyRepository;
+
     public LotteryService(LotteryRepository lotteryRepository,
                           CompanyRepository companyRepository,
                           IrepresnteUserService representUserService,
@@ -54,9 +57,20 @@ public class LotteryService {
                                     LocalDateTime drawTime) {
         logger.info("Creating lottery for eventId={}, companyId={}", eventId, companyId);
 
+        Object sp = policyRepository.findSellingPolicyByEventId(eventId);
+        com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy policy =
+                (sp instanceof java.util.Optional<?> o)
+                        ? (com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy) o.orElse(null)
+                        : (com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy) sp;
+        if (policy == null|| policy.getType() != com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType.LOTTERY) {
+            throw new IllegalStateException(
+                    "Cannot create a lottery: the event's selling policy is not LOTTERY");
+        }
+
         Member actor = getActorFromToken(actorToken);
         Company company = getCompanyOrThrow(companyId);
         lotteryAuth.assertCanCreateLottery(actor, company);
+
 
         Lottery lottery = new Lottery(eventId, companyId, registrationDeadline, drawTime);
         lotteryRepository.save(lottery);

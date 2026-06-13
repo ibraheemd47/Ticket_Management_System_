@@ -34,6 +34,8 @@ public class Lottery {
         CLOSED      // CLOSED FOR ANY ACTIONS
     }
 
+    private LocalDateTime openSaleTime;   // ← when exclusivity ends and anyone can buy
+
     protected Lottery() {}
 
     public Lottery(UUID eventId, UUID companyId,
@@ -84,6 +86,8 @@ public class Lottery {
 
         winners.forEach(LotteryEntry::markAsWinner);
         this.status = LotteryStatus.DRAWN;
+       
+        this.openSaleTime = LocalDateTime.now().plusHours(24);   // ← exclusive window = 24h, matches the code expiry
         return winners;
     }
 
@@ -105,4 +109,5 @@ public class Lottery {
     public LocalDateTime getDrawTime() { return drawTime; }
     public LotteryStatus getStatus() { return status; }
     public List<LotteryEntry> getEntries() { return Collections.unmodifiableList(entries); }
+    public LocalDateTime getOpenSaleTime() { return openSaleTime; }
 }

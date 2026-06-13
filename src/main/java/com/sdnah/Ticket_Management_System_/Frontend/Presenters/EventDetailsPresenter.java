@@ -284,8 +284,15 @@ public class EventDetailsPresenter {
         return eventService.reserveStanding(cachedEventId, showId, areaId, userId);
     }
 
+    // public OrderDTO reserveTickets(String token, List<SeatRequest> requests) {
+    //     return orderService.reserveTickets(token, cachedEventId, requests);
+    // }
     public OrderDTO reserveTickets(String token, List<SeatRequest> requests) {
-        return orderService.reserveTickets(token, cachedEventId, requests);
+        return reserveTickets(token, requests, null);
+    }
+
+    public OrderDTO reserveTickets(String token, List<SeatRequest> requests, String accessCode) {
+        return orderService.reserveTickets(token, cachedEventId, requests, accessCode);
     }
 
     // =========================================================================
