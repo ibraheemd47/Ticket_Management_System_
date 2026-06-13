@@ -1748,15 +1748,46 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         winnerField.setHelperText("Default: " + defaultWinners + " (max show capacity). Max: " + participants);
         winnerField.setWidthFull();
 
-        body.add(info, winnerField);
+        com.vaadin.flow.component.textfield.IntegerField windowAmount =
+                new com.vaadin.flow.component.textfield.IntegerField("Winner-exclusive window");
+        windowAmount.setValue(24);
+        windowAmount.setMin(1);
+        windowAmount.setStepButtonsVisible(true);
+        windowAmount.setHelperText("How long winners have exclusive access before public sale opens");
+        windowAmount.setWidthFull();
+
+        com.vaadin.flow.component.combobox.ComboBox<String> windowUnit =
+                new com.vaadin.flow.component.combobox.ComboBox<>("Unit");
+        windowUnit.setItems("Hours", "Days");
+        windowUnit.setValue("Hours");
+        windowUnit.setWidthFull();
+
+        //body.add(info, winnerField);
+        body.add(info, winnerField, windowAmount, windowUnit);
         dlg.add(body);
 
+        // Button confirmBtn = new Button("Draw", ev -> {
+        //     Integer val = winnerField.getValue();
+        //     int count = (val != null && val > 0) ? Math.min(val, participants) : (defaultWinners > 0 ? defaultWinners : participants);
+        //     dlg.close();
+        //     try {
+        //         presenter.drawLotteryWithNotifications(lotteryId, count);
+        //         refresh[0].run();
+        //     } catch (Exception ex) { error(ex.getMessage()); }
+        // });
         Button confirmBtn = new Button("Draw", ev -> {
             Integer val = winnerField.getValue();
             int count = (val != null && val > 0) ? Math.min(val, participants) : (defaultWinners > 0 ? defaultWinners : participants);
+
+            Integer amt = windowAmount.getValue();
+            if (amt == null || amt < 1) { error("Window must be at least 1"); return; }
+            java.time.Duration window = "Days".equals(windowUnit.getValue())
+                    ? java.time.Duration.ofDays(amt)
+                    : java.time.Duration.ofHours(amt);
+
             dlg.close();
             try {
-                presenter.drawLotteryWithNotifications(lotteryId, count);
+                presenter.drawLotteryWithNotifications(lotteryId, count, window);
                 refresh[0].run();
             } catch (Exception ex) { error(ex.getMessage()); }
         });
@@ -1922,8 +1953,19 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                     (maxCapacity > 0 ? "  ·  " + maxCapacity + " seat" + (maxCapacity == 1 ? "" : "s") + " available (default)" : ""));
             infoSpan.getStyle().set("color", "#555").set("font-size", "13px").set("align-self", "center");
 
+            // Button drawBtn = new Button("🎲 Draw Lottery", e -> openDrawDialog(dto.getId(), participants, defaultWinners, refresh));
+            // if (participants == 0) drawBtn.setEnabled(false);
+            // drawBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            // drawBtn.getStyle().set("font-weight", "700");
             Button drawBtn = new Button("🎲 Draw Lottery", e -> openDrawDialog(dto.getId(), participants, defaultWinners, refresh));
-            if (participants == 0) drawBtn.setEnabled(false);
+            boolean deadlinePassed = dto.getRegistrationDeadline() != null
+                    && java.time.LocalDateTime.now().isAfter(dto.getRegistrationDeadline());
+            if (participants == 0 || !deadlinePassed) {
+                drawBtn.setEnabled(false);
+                if (!deadlinePassed)
+                    drawBtn.getElement().setAttribute("title",
+                            "Drawing opens after the registration deadline");
+            }
             drawBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
             drawBtn.getStyle().set("font-weight", "700");
 

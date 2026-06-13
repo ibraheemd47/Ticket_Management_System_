@@ -434,12 +434,15 @@ public class EventDetailsPresenter {
         return lotteryService.getEntriesByLottery(lotteryId);
     }
 
+    public List<LotteryEntryDTO> drawLotteryWithNotifications(UUID lotteryId, int winnerCount) {
+        return drawLotteryWithNotifications(lotteryId, winnerCount, java.time.Duration.ofHours(24));
+    }
     /**
      * Draws the lottery using max-show-capacity as winner count,
      * then sends win/loss notifications to ALL participants.
      * Returns the drawn winners list, or empty if draw failed.
      */
-    public List<LotteryEntryDTO> drawLotteryWithNotifications(UUID lotteryId, int winnerCount) {
+    public List<LotteryEntryDTO> drawLotteryWithNotifications(UUID lotteryId, int winnerCount,java.time.Duration window) {
         String token = getToken();
         if (token == null) { view.showError("Session expired"); return List.of(); }
         try {
@@ -449,7 +452,7 @@ public class EventDetailsPresenter {
 
             int drawCount = Math.min(Math.max(winnerCount, 1), participants);
 
-            List<LotteryEntryDTO> winners = lotteryService.drawLottery(token, lotteryId, drawCount);
+            List<LotteryEntryDTO> winners = lotteryService.drawLottery(token, lotteryId, drawCount, window);
 
             // Notify all participants
             java.util.Set<String> winnerIds = winners.stream()

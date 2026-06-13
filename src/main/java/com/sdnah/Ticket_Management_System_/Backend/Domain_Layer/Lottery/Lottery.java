@@ -72,22 +72,49 @@ public class Lottery {
     }
 
     // this method can be called by admin to draw winners after registration deadline has passed
+    
+    // public List<LotteryEntry> draw(int winnersCount) {
+    //     if (status != LotteryStatus.OPEN)
+    //         throw new IllegalStateException("Lottery is not open");
+    //     if (LocalDateTime.now().isBefore(registrationDeadline))
+    //         throw new IllegalStateException("Cannot draw before the registration deadline has passed");
+    //     if (winnersCount <= 0)
+    //         throw new IllegalArgumentException("winnersCount must be positive");
+
+    //     List<LotteryEntry> shuffled = new ArrayList<>(entries);
+    //     Collections.shuffle(shuffled);
+
+    //     int count = Math.min(winnersCount, shuffled.size());
+    //     List<LotteryEntry> winners = shuffled.subList(0, count);
+
+    //     winners.forEach(LotteryEntry::markAsWinner);
+    //     this.status = LotteryStatus.DRAWN;
+       
+    //     this.openSaleTime = LocalDateTime.now().plusHours(24);   // ← exclusive window = 24h, matches the code expiry
+    //     return winners;
+    // }
     public List<LotteryEntry> draw(int winnersCount) {
+        return draw(winnersCount, java.time.Duration.ofHours(24));   // default, keeps old callers working
+    }
+
+    public List<LotteryEntry> draw(int winnersCount, java.time.Duration exclusiveWindow) {
         if (status != LotteryStatus.OPEN)
             throw new IllegalStateException("Lottery is not open");
+        if (LocalDateTime.now().isBefore(registrationDeadline))
+            throw new IllegalStateException("Cannot draw before the registration deadline has passed");
         if (winnersCount <= 0)
             throw new IllegalArgumentException("winnersCount must be positive");
+        if (exclusiveWindow == null || exclusiveWindow.isZero() || exclusiveWindow.isNegative())
+            throw new IllegalArgumentException("exclusiveWindow must be positive");
 
         List<LotteryEntry> shuffled = new ArrayList<>(entries);
         Collections.shuffle(shuffled);
-
         int count = Math.min(winnersCount, shuffled.size());
         List<LotteryEntry> winners = shuffled.subList(0, count);
 
-        winners.forEach(LotteryEntry::markAsWinner);
+        winners.forEach(e -> e.markAsWinner(exclusiveWindow));   // ← same window for every winner's code
         this.status = LotteryStatus.DRAWN;
-       
-        this.openSaleTime = LocalDateTime.now().plusHours(24);   // ← exclusive window = 24h, matches the code expiry
+        this.openSaleTime = LocalDateTime.now().plus(exclusiveWindow);   // ← and for the public open-sale moment
         return winners;
     }
 

@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -105,11 +106,75 @@ public class LotteryService {
     // =========================================================================
     // UC II.3.6 — DRAW LOTTERY (COMPANY OWNER ONLY)
     // =========================================================================
+    // @Scheduled(fixedRate = 60000)   // check every minute
+    // @Transactional
+    // public void runDueDraws() {
+    //     List<Lottery> due = lotteryRepository
+    //             .findByStatusAndDrawTimeBefore(Lottery.LotteryStatus.OPEN, LocalDateTime.now());
+    //     for (Lottery lottery : due) {
+    //         keyedLock.callLocked(LOCK_NS, lottery.getId().toString(), () -> {
+    //             int winnersCount = lottery.getEntries().size();   // or a capacity-based number
+    //             lottery.draw(winnersCount);
+    //             lotteryRepository.save(lottery);
+    //             return null;
+    //         });
+    //     }
+    // }
+    @Scheduled(fixedRate = 60000)   // check every minute
+    @Transactional
+    public void runDueDraws() {
+        List<Lottery> due = lotteryRepository
+                .findByStatusAndDrawTimeBefore(Lottery.LotteryStatus.OPEN, LocalDateTime.now());
+        for (Lottery lottery : due) {
+            keyedLock.callLocked(LOCK_NS, lottery.getId().toString(), () -> {
+                try {
+                    int winnersCount = lottery.getEntries().size();
+                    if (winnersCount == 0) {
+                        logger.info("Auto-draw skipped (no participants) lottery={}", lottery.getId());
+                        return null;   // nothing to draw; leave it for the manager or close it
+                    }
+                    lottery.draw(winnersCount, java.time.Duration.ofHours(24));   // auto-draw default window
+                    lotteryRepository.save(lottery);
+                    logger.info("Auto-drew lottery {} with {} winner(s)", lottery.getId(), winnersCount);
+                } catch (Exception ex) {
+                    logger.error("Auto-draw failed for lottery {}: {}", lottery.getId(), ex.getMessage());
+                }
+                return null;
+            });
+        }
+    }
+
+    // @Transactional
+    // public List<LotteryEntryDTO> drawLottery(String actorToken, UUID lotteryId, int winnersCount) {
+    //     Member actor = getActorFromToken(actorToken);
+
+    //     logger.info("Drawing lottery {}, winnersCount={}", lotteryId, winnersCount);
+
+    //     return keyedLock.callLocked(LOCK_NS, lotteryId.toString(), () -> {
+    //         Lottery lottery = lotteryRepository.findById(lotteryId)
+    //                 .orElseThrow(() -> new IllegalArgumentException("Lottery not found: " + lotteryId));
+
+    //         Company company = getCompanyOrThrow(lottery.getCompanyId());
+    //         lotteryAuth.assertCanDrawLottery(actor, company);
+
+    //         List<LotteryEntry> winners = lottery.draw(winnersCount);
+    //         lotteryRepository.save(lottery);
+
+    //         logger.info("Lottery {} drawn, winners={}", lotteryId, winners.size());
+    //         return winners.stream().map(this::toEntryDTO).collect(Collectors.toList());
+    //     });
+    // }
     @Transactional
     public List<LotteryEntryDTO> drawLottery(String actorToken, UUID lotteryId, int winnersCount) {
+        return drawLottery(actorToken, lotteryId, winnersCount, java.time.Duration.ofHours(24));
+    }
+
+    @Transactional
+    public List<LotteryEntryDTO> drawLottery(String actorToken, UUID lotteryId, int winnersCount,
+                                             java.time.Duration exclusiveWindow) {
         Member actor = getActorFromToken(actorToken);
 
-        logger.info("Drawing lottery {}, winnersCount={}", lotteryId, winnersCount);
+        logger.info("Drawing lottery {}, winnersCount={}, window={}", lotteryId, winnersCount, exclusiveWindow);
 
         return keyedLock.callLocked(LOCK_NS, lotteryId.toString(), () -> {
             Lottery lottery = lotteryRepository.findById(lotteryId)
@@ -118,7 +183,7 @@ public class LotteryService {
             Company company = getCompanyOrThrow(lottery.getCompanyId());
             lotteryAuth.assertCanDrawLottery(actor, company);
 
-            List<LotteryEntry> winners = lottery.draw(winnersCount);
+            List<LotteryEntry> winners = lottery.draw(winnersCount, exclusiveWindow);
             lotteryRepository.save(lottery);
 
             logger.info("Lottery {} drawn, winners={}", lotteryId, winners.size());

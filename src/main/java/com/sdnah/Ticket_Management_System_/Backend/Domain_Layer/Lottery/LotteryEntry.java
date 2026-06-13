@@ -45,10 +45,19 @@ public class LotteryEntry {
         this.registeredAt = LocalDateTime.now();
     }
 
+    // public void markAsWinner() {
+    //     this.winner = true;
+    //     this.accessCode = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+    //     this.accessCodeExpiresAt = LocalDateTime.now().plusHours(24);
+    // }
     public void markAsWinner() {
+        markAsWinner(java.time.Duration.ofHours(24));
+    }
+
+    public void markAsWinner(java.time.Duration exclusiveWindow) {
         this.winner = true;
         this.accessCode = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
-        this.accessCodeExpiresAt = LocalDateTime.now().plusHours(24);
+        this.accessCodeExpiresAt = LocalDateTime.now().plus(exclusiveWindow);
     }
 
     public boolean isAccessCodeValid() {
