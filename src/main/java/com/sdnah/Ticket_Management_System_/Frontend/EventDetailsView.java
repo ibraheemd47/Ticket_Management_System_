@@ -2358,7 +2358,7 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                 checker++;
                 //OrderDTO order = presenter.reserveTickets(token, seatRequests);
                 OrderDTO order = presenter.reserveTickets(token, seatRequests, pendingAccessCode);
-                pendingAccessCode = null;   // אפס אחרי שימוש כדי שלא יישאר תקוע לרכישה הבאה
+                //pendingAccessCode = null;   // 
                 checker++;
                 var session = UI.getCurrent().getSession();
                 session.setAttribute("checkoutOrderId", order.getOrderId().toString());
