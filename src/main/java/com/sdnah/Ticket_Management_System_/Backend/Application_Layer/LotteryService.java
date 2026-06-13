@@ -319,4 +319,9 @@ public class LotteryService {
         }
     }
 
+    public boolean isWinnerWindowOpen(UUID eventId) {
+        return lotteryRepository.findByEventId(eventId).stream()
+                .anyMatch(l -> l.getOpenSaleTime() != null
+                        && LocalDateTime.now().isBefore(l.getOpenSaleTime()));
+    }   
 }

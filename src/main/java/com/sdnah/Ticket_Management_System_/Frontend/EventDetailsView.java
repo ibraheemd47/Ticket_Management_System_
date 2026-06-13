@@ -1468,7 +1468,7 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
             //Button seatBtn = new Button("Select Seat", e -> openSeatDialog(s));
             Button seatBtn = new Button("Select Seat", e -> {
-                if (presenter.isLotteryEvent()) openAccessCodeDialog(s);
+                if (presenter.isLotteryEvent() && presenter.isWinnerWindowOpen()) openAccessCodeDialog(s);
                 else openSeatDialog(s);
             });
             seatBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

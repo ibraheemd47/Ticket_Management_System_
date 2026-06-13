@@ -415,6 +415,13 @@ public class EventDetailsPresenter {
     // Lottery
     // =========================================================================
 
+    public boolean isWinnerWindowOpen() {
+        if (cachedEventId == null) return false;
+        try {
+            return lotteryService.isWinnerWindowOpen(cachedEventId);
+        } catch (Exception e) { return false; }
+    }
+    
     public List<LotteryDTO> getLotteriesByEvent() {
         if (cachedEventId == null) return List.of();
         return lotteryService.getLotteriesByEvent(cachedEventId);
