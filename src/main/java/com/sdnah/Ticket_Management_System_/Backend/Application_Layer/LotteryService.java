@@ -151,6 +151,7 @@ public class LotteryService {
     public void runDueDraws() {
         List<Lottery> due = lotteryRepository.findByStatusAndDrawTimeBefore(
                 Lottery.LotteryStatus.OPEN, LocalDateTime.now());
+        //logger.info("RUN DUE DRAWS - found: {}", due.size());
         for (Lottery lottery : due) {
             keyedLock.callLocked(LOCK_NS, lottery.getId().toString(), () -> {
                 try {
@@ -320,8 +321,11 @@ public class LotteryService {
     }
 
     public boolean isWinnerWindowOpen(UUID eventId) {
-        return lotteryRepository.findByEventId(eventId).stream()
-                .anyMatch(l -> l.getOpenSaleTime() != null
-                        && LocalDateTime.now().isBefore(l.getOpenSaleTime()));
-    }   
+    LocalDateTime now = LocalDateTime.now();
+
+    return lotteryRepository.findByEventId(eventId).stream()
+            .filter(l -> l.getStatus() == Lottery.LotteryStatus.DRAWN)
+            .filter(l -> l.getOpenSaleTime() != null)
+            .anyMatch(l -> now.isBefore(l.getOpenSaleTime()));
+} 
 }

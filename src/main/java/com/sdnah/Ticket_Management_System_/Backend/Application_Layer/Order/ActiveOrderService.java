@@ -135,7 +135,7 @@ public class ActiveOrderService {
 
             ActiveOrder order = existingOrder.get();
             // Lottery gate: only a winner with a valid access code may reserve for a LOTTERY event
-            orderPolicyDomainService.validateSellingPolicy(order, buyerId);
+            orderPolicyDomainService.validateSellingPolicy(order, buyerId, accessCode);
 
             for (SeatRequest seat : seats) {
 
@@ -162,7 +162,7 @@ public class ActiveOrderService {
         ActiveOrder order = new ActiveOrder(buyerId, eventId, TTL_MINUTES);
 
          // Lottery gate: only a winner with a valid access code may reserve for a LOTTERY event
-        orderPolicyDomainService.validateSellingPolicy(order, buyerId);
+        orderPolicyDomainService.validateSellingPolicy(order, buyerId, accessCode);
 
         try {
             List<Boolean> lockedStatuses = seats.stream().map(seat -> orderRepo.isTicketLocked(seat.getTicketId()))
@@ -278,7 +278,7 @@ public class ActiveOrderService {
             purchaseRepo.save(result.getPurchase());
             paymentService.saveTransaction(result.getTransaction());
             orderRepo.save(order);
-            
+
             // consume the lottery access code (no-op for non-lottery events / non-winners)
             lotteryRepository.findByEventId(order.getEventId()).stream()
                     .flatMap(l -> l.getEntries().stream())

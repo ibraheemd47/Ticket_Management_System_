@@ -1467,10 +1467,18 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             actions.add(detailsBtn);
 
             //Button seatBtn = new Button("Select Seat", e -> openSeatDialog(s));
+            // Button seatBtn = new Button("Select Seat", e -> {
+            //     if (presenter.isLotteryEvent() && presenter.isWinnerWindowOpen()) openAccessCodeDialog(s);
+            //     else openSeatDialog(s);
+            // });
             Button seatBtn = new Button("Select Seat", e -> {
-                if (presenter.isLotteryEvent() && presenter.isWinnerWindowOpen()) openAccessCodeDialog(s);
-                else openSeatDialog(s);
-            });
+            if (presenter.isLotteryEvent() && presenter.isWinnerWindowOpen()) {
+                openAccessCodeDialog(s);
+            } else {
+                pendingAccessCode = null;
+                openSeatDialog(s);
+            }
+});
             seatBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
             // Block ticket purchase if this is a lottery event and the draw hasn't happened yet

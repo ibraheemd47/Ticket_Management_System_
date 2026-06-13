@@ -179,7 +179,7 @@ public class OrderPolicyDomainService {
                 .stream().findFirst().orElse(null);
         if (lottery != null
                 && lottery.getOpenSaleTime() != null
-                && LocalDateTime.now().isAfter(lottery.getOpenSaleTime())) {
+                && !LocalDateTime.now().isBefore(lottery.getOpenSaleTime())) {
             return;   // window passed — code no longer needed
         }
 
