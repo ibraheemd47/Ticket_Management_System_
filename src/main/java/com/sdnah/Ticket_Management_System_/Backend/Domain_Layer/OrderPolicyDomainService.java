@@ -167,13 +167,7 @@ public class OrderPolicyDomainService {
     }
 
     public void validateSellingPolicy(ActiveOrder order, String memberId, String enteredCode) {
-        // Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
-        // SellingPolicy policy = toSellingPolicy(result);
-
-        // if (policy == null || policy.getType() == SellingPolicy.SellingType.REGULAR) {
-        //     return;
-        // }
-        
+       
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -182,13 +176,7 @@ public class OrderPolicyDomainService {
             .max(java.util.Comparator.comparing(Lottery::getDrawTime))
             .orElseThrow(() -> new IllegalStateException("Lottery has not been drawn yet"));
 
-        // boolean hasOpenLottery = lotteryRepository.findByEventId(order.getEventId()).stream()
-        // .anyMatch(l -> l.getStatus() == Lottery.LotteryStatus.OPEN);
-        // if (hasOpenLottery) {
-        //     throw new IllegalStateException("Lottery has not been drawn yet");
-        // }
     
-
         if (lottery.getOpenSaleTime() != null
             && !now.isBefore(lottery.getOpenSaleTime())) {
             return; // public sale is open — code is no longer needed
@@ -210,11 +198,7 @@ public class OrderPolicyDomainService {
     // Helpers
     // =========================================================================
 
-    // private UUID getCompanyIdFromEvent(ActiveOrder order) {
-    //     Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
-    //     SellingPolicy sp = toSellingPolicy(result);
-    //     return sp != null ? sp.getCompanyId() : null;
-    // }
+ 
      private UUID getCompanyIdFromEvent(ActiveOrder order) {
         // Try SellingPolicy first
         Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
