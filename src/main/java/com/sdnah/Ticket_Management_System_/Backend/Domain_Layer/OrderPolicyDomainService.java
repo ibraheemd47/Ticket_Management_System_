@@ -162,23 +162,6 @@ public class OrderPolicyDomainService {
     // =========================================================================
     // Selling policy validation (for lottery access code)
     // =========================================================================
-    // public void validateSellingPolicy(ActiveOrder order, String memberId) {
-    //     Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
-    //     SellingPolicy policy = toSellingPolicy(result);
-
-    //     if (policy == null || policy.getType() == SellingPolicy.SellingType.REGULAR) {
-    //         return;
-    //     }
-
-    //     lotteryRepository.findByEventId(order.getEventId()).stream()
-    //             .flatMap(l -> l.getEntries().stream())
-    //             .filter(e -> e.getMemberId().equals(memberId))
-    //             .filter(LotteryEntry::isAccessCodeValid)
-    //             .findFirst()
-    //             .orElseThrow(() -> new IllegalStateException(
-    //                     "No valid lottery access code for this event"));
-    // }
-    // Backward-compatible overload (no code) — keeps existing callers/tests intact
     public void validateSellingPolicy(ActiveOrder order, String memberId) {
         validateSellingPolicy(order, memberId, null);
     }
