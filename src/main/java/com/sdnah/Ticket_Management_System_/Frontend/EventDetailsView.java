@@ -1748,22 +1748,30 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         winnerField.setHelperText("Default: " + defaultWinners + " (max show capacity). Max: " + participants);
         winnerField.setWidthFull();
 
-        com.vaadin.flow.component.textfield.IntegerField windowAmount =
-                new com.vaadin.flow.component.textfield.IntegerField("Winner-exclusive window");
-        windowAmount.setValue(24);
-        windowAmount.setMin(1);
-        windowAmount.setStepButtonsVisible(true);
-        windowAmount.setHelperText("How long winners have exclusive access before public sale opens");
-        windowAmount.setWidthFull();
+        // com.vaadin.flow.component.textfield.IntegerField windowAmount =
+        //         new com.vaadin.flow.component.textfield.IntegerField("Winner-exclusive window");
+        // windowAmount.setValue(24);
+        // windowAmount.setMin(1);
+        // windowAmount.setStepButtonsVisible(true);
+        // windowAmount.setHelperText("How long winners have exclusive access before public sale opens");
+        // windowAmount.setWidthFull();
 
-        com.vaadin.flow.component.combobox.ComboBox<String> windowUnit =
-                new com.vaadin.flow.component.combobox.ComboBox<>("Unit");
-        windowUnit.setItems("Hours", "Days");
-        windowUnit.setValue("Hours");
-        windowUnit.setWidthFull();
+        // com.vaadin.flow.component.combobox.ComboBox<String> windowUnit =
+        //         new com.vaadin.flow.component.combobox.ComboBox<>("Unit");
+        // windowUnit.setItems("Hours", "Days");
+        // windowUnit.setValue("Hours");
+        // windowUnit.setWidthFull();
+         com.vaadin.flow.component.datetimepicker.DateTimePicker openSalePicker =
+                new com.vaadin.flow.component.datetimepicker.DateTimePicker("Public sale opens at");
+        openSalePicker.setStep(java.time.Duration.ofMinutes(5));
+        openSalePicker.setMin(java.time.LocalDateTime.now().plusMinutes(5));
+        openSalePicker.setValue(java.time.LocalDateTime.now().plusHours(24));   // sensible default
+        openSalePicker.setHelperText("Until this time, only winners can buy. After it, sale opens to everyone.");
+        openSalePicker.setWidthFull();
+
 
         //body.add(info, winnerField);
-        body.add(info, winnerField, windowAmount, windowUnit);
+        body.add(info, winnerField, openSalePicker);
         dlg.add(body);
 
         // Button confirmBtn = new Button("Draw", ev -> {
@@ -1775,19 +1783,28 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         //         refresh[0].run();
         //     } catch (Exception ex) { error(ex.getMessage()); }
         // });
+        // Button confirmBtn = new Button("Draw", ev -> {
+        //     Integer val = winnerField.getValue();
+        //     int count = (val != null && val > 0) ? Math.min(val, participants) : (defaultWinners > 0 ? defaultWinners : participants);
+
+        //     Integer amt = windowAmount.getValue();
+        //     if (amt == null || amt < 1) { error("Window must be at least 1"); return; }
+        //     java.time.Duration window = "Days".equals(windowUnit.getValue())
+        //             ? java.time.Duration.ofDays(amt)
+        //             : java.time.Duration.ofHours(amt);
+
+        //     dlg.close();
+        //     try {
+        //         presenter.drawLotteryWithNotifications(lotteryId, count, window);
+        //         refresh[0].run();
+        //     } catch (Exception ex) { error(ex.getMessage()); }
+        // });
         Button confirmBtn = new Button("Draw", ev -> {
             Integer val = winnerField.getValue();
             int count = (val != null && val > 0) ? Math.min(val, participants) : (defaultWinners > 0 ? defaultWinners : participants);
-
-            Integer amt = windowAmount.getValue();
-            if (amt == null || amt < 1) { error("Window must be at least 1"); return; }
-            java.time.Duration window = "Days".equals(windowUnit.getValue())
-                    ? java.time.Duration.ofDays(amt)
-                    : java.time.Duration.ofHours(amt);
-
             dlg.close();
             try {
-                presenter.drawLotteryWithNotifications(lotteryId, count, window);
+                presenter.drawLotteryWithNotifications(lotteryId, count);
                 refresh[0].run();
             } catch (Exception ex) { error(ex.getMessage()); }
         });
