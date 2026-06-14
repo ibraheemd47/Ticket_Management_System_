@@ -23,6 +23,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import org.springframework.test.util.ReflectionTestUtils;
 
 public class LotteryServiceTest {
 
@@ -128,6 +129,9 @@ public class LotteryServiceTest {
         lottery.register("member-1");
         lottery.register("member-2");
 
+        forceRegistrationDeadlinePassed(lottery);
+
+
         when(lotteryRepository.findById(lottery.getId())).thenReturn(Optional.of(lottery));
 
         List<LotteryEntryDTO> winners = lotteryService.drawLottery("owner-token", lottery.getId(), 1);
@@ -145,6 +149,9 @@ public class LotteryServiceTest {
                 LocalDateTime.now().plusDays(2));
         lottery.register("member-1");
 
+        forceRegistrationDeadlinePassed(lottery);
+
+
         when(lotteryRepository.findById(any())).thenReturn(Optional.of(lottery));
 
         assertThrows(RuntimeException.class,
@@ -159,4 +166,13 @@ public class LotteryServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> lotteryService.drawLottery("owner-token", UUID.randomUUID(), 1));
     }
+
+    //helper:
+    private void forceRegistrationDeadlinePassed(Lottery lottery) {
+        ReflectionTestUtils.setField(
+                lottery,
+                "registrationDeadline",
+                LocalDateTime.now().minusMinutes(1)
+        );
+     }
 }
