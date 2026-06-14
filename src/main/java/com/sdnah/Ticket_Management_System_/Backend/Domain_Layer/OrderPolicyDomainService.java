@@ -168,6 +168,13 @@ public class OrderPolicyDomainService {
 
     public void validateSellingPolicy(ActiveOrder order, String memberId, String enteredCode) {
        
+        //new:
+        Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
+        SellingPolicy policy = toSellingPolicy(result);
+
+        if (policy == null || policy.getType() == SellingPolicy.SellingType.REGULAR) {
+            return;
+        }
 
         LocalDateTime now = LocalDateTime.now();
 

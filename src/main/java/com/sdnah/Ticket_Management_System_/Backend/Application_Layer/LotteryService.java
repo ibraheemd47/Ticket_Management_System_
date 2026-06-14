@@ -17,6 +17,8 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.LotteryAuthDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.LotteryEntry;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
@@ -70,26 +72,53 @@ public class LotteryService {
                                     LocalDateTime drawTime) {
         logger.info("Creating lottery for eventId={}, companyId={}", eventId, companyId);
 
-        Object sp = policyRepository.findSellingPolicyByEventId(eventId);
-        com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy policy =
-                (sp instanceof java.util.Optional<?> o)
-                        ? (com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy) o.orElse(null)
-                        : (com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy) sp;
-        if (policy == null|| policy.getType() != com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType.LOTTERY) {
-            throw new IllegalStateException(
-                    "Cannot create a lottery: the event's selling policy is not LOTTERY");
-        }
+        // Object sp = policyRepository.findSellingPolicyByEventId(eventId);
+        // com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy policy =
+        //         (sp instanceof java.util.Optional<?> o)
+        //                 ? (com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy) o.orElse(null)
+        //                 : (com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy) sp;
+        // if (policy == null|| policy.getType() != com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType.LOTTERY) {
+        //     throw new IllegalStateException(
+        //             "Cannot create a lottery: the event's selling policy is not LOTTERY");
+       // }
 
         Member actor = getActorFromToken(actorToken);
         Company company = getCompanyOrThrow(companyId);
         lotteryAuth.assertCanCreateLottery(actor, company);
 
+        //new fix:
+        SellingPolicy policy = findEventSellingPolicyOrNull(eventId);
+        if (policy != null &&
+                policy.getType() != SellingType.LOTTERY) {
+            throw new IllegalStateException(
+                    "Cannot create a lottery: the event's selling policy is not LOTTERY");
+        }
 
         Lottery lottery = new Lottery(eventId, companyId, registrationDeadline, drawTime);
         lotteryRepository.save(lottery);
 
         logger.info("Lottery created with id={}", lottery.getId());
         return toDTO(lottery);
+    }
+
+    private SellingPolicy findEventSellingPolicyOrNull(UUID eventId) {
+        if (policyRepository == null) {
+            return null;
+        }
+
+        Object sp = policyRepository.findSellingPolicyByEventId(eventId);
+
+        if (sp == null) {
+            return null;
+        }
+
+        if (sp instanceof java.util.Optional<?> opt) {
+            return (SellingPolicy)
+                    opt.orElse(null);
+        }
+
+        return (SellingPolicy) sp;
+        
     }
 
     // =========================================================================

@@ -116,6 +116,8 @@ public class ActiveOrderService {
         this.policyRepository = policyRepository;
          this.orderPolicyDomainService = new OrderPolicyDomainService(
             policyRepository, lotteryRepository, eventRepository);
+        this.lotteryRepository = lotteryRepository;
+        this.eventRepository = eventRepository;
 
 
     }
