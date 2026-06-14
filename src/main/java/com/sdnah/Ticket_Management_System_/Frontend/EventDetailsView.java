@@ -1654,48 +1654,6 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
     // ── Lottery card (all users) ──────────────────────────────────────────────
 
-    // private Div buildLotteryCard() {
-    //     Div card = card();
-    //     H2 title = new H2("🎟 Lottery");
-    //     title.getStyle().set("margin", "0 0 16px 0").set("font-size", "20px").set("color", "#111");
-    //     card.add(title);
-
-    //     Div body = new Div();
-    //     body.setWidthFull();
-    //     Runnable[] refresh = { null };
-    //     refresh[0] = () -> {
-    //         body.removeAll();
-    //         try {
-    //             java.util.List<LotteryDTO> lotteries = presenter.getLotteriesByEvent();
-    //             if (lotteries.isEmpty()) {
-    //                 if (isManagerOrOwner() && presenter.isLotteryEvent()) {
-    //                     body.add(buildCreateLotteryForm(refresh));
-    //                 } else if (isManagerOrOwner()) {
-    //                     Paragraph note = new Paragraph(
-    //                             "This event's selling policy is not LOTTERY. Set it to LOTTERY in the Policies editor to run a lottery.");
-    //                     note.getStyle().set("color", "#888");
-    //                     body.add(note);
-    //                 } else {
-    //                     Paragraph none = new Paragraph("No lottery has been set up for this event yet.");
-    //                     none.getStyle().set("color", "#888");
-    //                     body.add(none);
-    //                 }
-    //             } else {
-    //                 for (LotteryDTO dto : lotteries)
-    //                     body.add(buildLotteryRow(dto, refresh));
-    //             }
-    //         } catch (Exception ex) {
-    //             Paragraph err = new Paragraph("Could not load lottery: " + ex.getMessage());
-    //             err.getStyle().set("color", "#c62828");
-    //             body.add(err);
-    //             if (isManagerOrOwner()) body.add(buildCreateLotteryForm(refresh));
-    //         }
-    //     };
-    //     refresh[0].run();
-    //     card.add(body);
-
-    //     return card;
-    // }
     private Div buildLotteryCard() {
         Div card = card();
 
@@ -1753,6 +1711,27 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
         refresh[0].run();
         card.add(body);
+
+        //new: to delete if it messed up the polling
+        try {
+            java.util.List<LotteryDTO> lotteries = presenter.getLotteriesByEvent();
+
+            if (!lotteries.isEmpty() && !lotteryPollingStarted) {
+                lotteryPollingStarted = true;
+
+                UI ui = UI.getCurrent();
+                ui.setPollInterval(2000);
+
+                ui.addPollListener(e -> {
+                    try {
+                        refresh[0].run();
+                    } catch (Exception ignored) {
+                    }
+                });
+            }
+        } catch (Exception ignored) {
+        }
+
 
         return card;
     }

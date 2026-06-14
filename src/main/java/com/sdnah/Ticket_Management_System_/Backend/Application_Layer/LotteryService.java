@@ -175,7 +175,7 @@ public class LotteryService {
         });
     }
 
-    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 60000)
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 5000)
     @Transactional
     public void runDueDraws() {
         List<Lottery> due = lotteryRepository.findByStatusAndDrawTimeBefore(
