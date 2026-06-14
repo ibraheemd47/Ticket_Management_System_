@@ -114,6 +114,14 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             return;
         }
         presenter.bind(token, UUID.fromString(c.toString()));
+        if (!presenter.userHasAccessToCurrentCompany()) {
+            // Stale session id left behind by a previous user — drop it and
+            // fall back to the chooser instead of showing a company the
+            // current user has no role in.
+            UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, null);
+            UI.getCurrent().getPage().reload();
+            return;
+        }
         add(buildShell());
         presenter.loadEventsForCurrentCompany();
     }

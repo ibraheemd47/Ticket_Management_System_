@@ -65,6 +65,30 @@ public class ManagingCompanyPresenter {
         return companyId;
     }
 
+    /**
+     * Defensive guard against stale session state — verifies the currently
+     * bound user has *any* role assignment in the bound company. Used by the
+     * view before it renders the detail shell, so a {@code managingCompanyId}
+     * left over in the session by a previous user can't leak that company's
+     * details to whoever logs in next.
+     *
+     * @return {@code true} iff the resolved member has a role on the bound
+     *         company; {@code false} on missing state or any failure
+     *         (lookup error → treat as denied).
+     */
+    public boolean userHasAccessToCurrentCompany() {
+        if (token == null || companyId == null) return false;
+        try {
+            Member me = userService.getMemberByToken(token);
+            for (CompanyRoleAssignment a : me.getCompanyRoles()) {
+                if (companyId.equals(a.getCompanyId())) return true;
+            }
+            return false;
+        } catch (RuntimeException ex) {
+            return false;
+        }
+    }
+
     // ── Chooser (list mode) ─────────────────────────────────────────────────
 
     /** Load the companies this member owns/manages and pass them to the view. */
