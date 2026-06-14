@@ -26,6 +26,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.PaymentDet
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.OrderPolicyDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Ticket_Domain_Service;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.LotteryEntry;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ActiveOrderRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
@@ -115,12 +116,14 @@ public class ActiveOrderService {
         this.policyRepository = policyRepository;
          this.orderPolicyDomainService = new OrderPolicyDomainService(
             policyRepository, lotteryRepository, eventRepository);
+        this.lotteryRepository = lotteryRepository;
+        this.eventRepository = eventRepository;
 
 
     }
 
 
-    public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
+    public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats, String accessCode) {
         logger.info("Starting ticket reservation for userToken {} event {}", userToken, eventId);
         String buyerId = resolveBuyerId(userToken);
         int buyerAge = resolveBuyerAge(userToken, buyerId);
@@ -133,6 +136,8 @@ public class ActiveOrderService {
         if (existingOrder.isPresent()) {
 
             ActiveOrder order = existingOrder.get();
+            // Lottery gate: only a winner with a valid access code may reserve for a LOTTERY event
+            orderPolicyDomainService.validateSellingPolicy(order, buyerId, accessCode);
 
             for (SeatRequest seat : seats) {
 
@@ -158,6 +163,9 @@ public class ActiveOrderService {
         logger.info("Creating new order for user {} and event {}", buyerId, eventId);
         ActiveOrder order = new ActiveOrder(buyerId, eventId, TTL_MINUTES);
 
+         // Lottery gate: only a winner with a valid access code may reserve for a LOTTERY event
+        orderPolicyDomainService.validateSellingPolicy(order, buyerId, accessCode);
+
         try {
             List<Boolean> lockedStatuses = seats.stream().map(seat -> orderRepo.isTicketLocked(seat.getTicketId()))
                     .collect(Collectors.toList());
@@ -173,6 +181,10 @@ public class ActiveOrderService {
             logger.error("reserveTickets FAILED rollback done userToken={}", userToken, e);
             throw e;
         }
+    }
+
+    public synchronized OrderDTO reserveTickets(String userToken, UUID eventId, List<SeatRequest> seats) {
+        return reserveTickets(userToken, eventId, seats, null);
     }
 
     public OrderDTO addTicketToOrder(UUID orderId, String userToken, SeatRequest seat) {
@@ -268,6 +280,19 @@ public class ActiveOrderService {
             purchaseRepo.save(result.getPurchase());
             paymentService.saveTransaction(result.getTransaction());
             orderRepo.save(order);
+
+            // consume the lottery access code (no-op for non-lottery events / non-winners)
+            lotteryRepository.findByEventId(order.getEventId()).stream()
+                    .flatMap(l -> l.getEntries().stream())
+                    .filter(e -> e.getMemberId().equals(buyerId))
+                    .filter(LotteryEntry::isWinner)
+                    .filter(e -> e.getUsedAt() == null)
+                    .findFirst()
+                    .ifPresent(e -> {
+                        e.markCodeUsed();
+                        lotteryRepository.save(e.getLottery());
+                    });
+
             // notify buyer about successful purchase
             notificationService.notifyPurchaseSuccess(
                     buyerId,

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
@@ -20,6 +21,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.com
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 
@@ -110,6 +112,15 @@ public class LotteryIntegrationTest {
 
         lotteryService.registerToLottery(memberToken, lotteryDTO.getId());
 
+        //new:
+        Lottery lottery = lotteryRepository.findById(lotteryDTO.getId()).orElseThrow();
+        ReflectionTestUtils.setField(
+                lottery,
+                "registrationDeadline",
+                LocalDateTime.now().minusMinutes(1)
+        );
+        lotteryRepository.save(lottery);
+
         List<LotteryEntryDTO> winners = lotteryService.drawLottery(ownerToken, lotteryDTO.getId(), 1);
 
         assertEquals(1, winners.size());
@@ -128,22 +139,52 @@ public class LotteryIntegrationTest {
 
         lotteryService.registerToLottery(memberToken, lotteryDTO.getId());
 
+        Lottery lottery = lotteryRepository.findById(lotteryDTO.getId()).orElseThrow();
+
+        //new:
+        ReflectionTestUtils.setField(
+                lottery,
+                "registrationDeadline",
+                LocalDateTime.now().minusMinutes(1)
+        );
+        lotteryRepository.save(lottery);
+
         assertThrows(RuntimeException.class,
                 () -> lotteryService.registerToLottery(memberToken, lotteryDTO.getId()));
     }
 
-    @Test
-    @DisplayName("Given drawn lottery, when drawing again, then exception is thrown")
-    void givenDrawnLottery_WhenDrawingAgain_ThenExceptionIsThrown() {
+   @Test
+   @DisplayName("Given drawn lottery, when drawing again, then exception is thrown")
+   void givenDrawnLottery_WhenDrawingAgain_ThenExceptionIsThrown() {
         LotteryDTO lotteryDTO = lotteryService.createLottery(
                 ownerToken, eventId, companyId,
                 LocalDateTime.now().plusDays(1),
                 LocalDateTime.now().plusDays(2));
 
         lotteryService.registerToLottery(memberToken, lotteryDTO.getId());
+
+        Lottery lottery = lotteryRepository.findById(lotteryDTO.getId()).orElseThrow();
+
+        ReflectionTestUtils.setField(
+                lottery,
+                "registrationDeadline",
+                LocalDateTime.now().minusMinutes(1)
+        );
+
+        lotteryRepository.save(lottery);
+
         lotteryService.drawLottery(ownerToken, lotteryDTO.getId(), 1);
 
         assertThrows(IllegalStateException.class,
                 () -> lotteryService.drawLottery(ownerToken, lotteryDTO.getId(), 1));
-    }
+}
+
+    ////helper:
+    private void forceRegistrationDeadlinePassed(Lottery lottery) {
+        ReflectionTestUtils.setField(
+                lottery,
+                "registrationDeadline",
+                LocalDateTime.now().minusMinutes(1)
+        );
+     }
 }

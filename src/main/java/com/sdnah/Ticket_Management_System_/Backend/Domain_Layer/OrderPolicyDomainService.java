@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.LotteryEntry;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
@@ -162,6 +163,12 @@ public class OrderPolicyDomainService {
     // Selling policy validation (for lottery access code)
     // =========================================================================
     public void validateSellingPolicy(ActiveOrder order, String memberId) {
+        validateSellingPolicy(order, memberId, null);
+    }
+
+    public void validateSellingPolicy(ActiveOrder order, String memberId, String enteredCode) {
+       
+        //new:
         Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
         SellingPolicy policy = toSellingPolicy(result);
 
@@ -169,24 +176,36 @@ public class OrderPolicyDomainService {
             return;
         }
 
+        LocalDateTime now = LocalDateTime.now();
+
+        Lottery lottery = lotteryRepository.findByEventId(order.getEventId()).stream()
+            .filter(l -> l.getStatus() == Lottery.LotteryStatus.DRAWN)
+            .max(java.util.Comparator.comparing(Lottery::getDrawTime))
+            .orElseThrow(() -> new IllegalStateException("Lottery has not been drawn yet"));
+
+    
+        if (lottery.getOpenSaleTime() != null
+            && !now.isBefore(lottery.getOpenSaleTime())) {
+            return; // public sale is open — code is no longer needed
+        }
+
+        String code = enteredCode == null ? "" : enteredCode.trim();
+
         lotteryRepository.findByEventId(order.getEventId()).stream()
                 .flatMap(l -> l.getEntries().stream())
                 .filter(e -> e.getMemberId().equals(memberId))
                 .filter(LotteryEntry::isAccessCodeValid)
+                .filter(e -> e.getAccessCode().equalsIgnoreCase(code))   // ← הקוד סוף סוף עושה עבודה
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
-                        "No valid lottery access code for this event"));
+                        "Invalid or missing lottery access code for this event"));
     }
 
     // =========================================================================
     // Helpers
     // =========================================================================
 
-    // private UUID getCompanyIdFromEvent(ActiveOrder order) {
-    //     Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
-    //     SellingPolicy sp = toSellingPolicy(result);
-    //     return sp != null ? sp.getCompanyId() : null;
-    // }
+ 
      private UUID getCompanyIdFromEvent(ActiveOrder order) {
         // Try SellingPolicy first
         Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());

@@ -284,8 +284,15 @@ public class EventDetailsPresenter {
         return eventService.reserveStanding(cachedEventId, showId, areaId, userId);
     }
 
+    // public OrderDTO reserveTickets(String token, List<SeatRequest> requests) {
+    //     return orderService.reserveTickets(token, cachedEventId, requests);
+    // }
     public OrderDTO reserveTickets(String token, List<SeatRequest> requests) {
-        return orderService.reserveTickets(token, cachedEventId, requests);
+        return reserveTickets(token, requests, null);
+    }
+
+    public OrderDTO reserveTickets(String token, List<SeatRequest> requests, String accessCode) {
+        return orderService.reserveTickets(token, cachedEventId, requests, accessCode);
     }
 
     // =========================================================================
@@ -297,22 +304,46 @@ public class EventDetailsPresenter {
         return policyRepo.findByEventId(cachedEventId);
     }
 
+    // public void deletePolicy(Policy policy) {
+    //     if (policy instanceof SellingPolicy && hasActiveLottery()) {
+    //         view.showError("Cannot delete the selling policy while a lottery is open for this event.");
+    //         return;
+    //     }
+    //     try {
+    //         policyRepo.deleteByPolicyId(policy.getPolicyId());
+    //         view.showSuccess("Policy removed");
+    //         view.refreshPolicies();
+    //     } catch (RuntimeException ex) { view.showError("Could not remove: " + ex.getMessage()); }
+    // }
     public void deletePolicy(Policy policy) {
+        if (policy instanceof SellingPolicy && hasActiveLottery()) {
+            view.showError("Cannot delete the selling policy while the lottery is active or before public sale opens.");
+            return;
+        }
+
         try {
             policyRepo.deleteByPolicyId(policy.getPolicyId());
             view.showSuccess("Policy removed");
             view.refreshPolicies();
-        } catch (RuntimeException ex) { view.showError("Could not remove: " + ex.getMessage()); }
+        } catch (RuntimeException ex) {
+            view.showError("Could not remove: " + ex.getMessage());
+        }
     }
 
     public void savePolicy(Policy existing, String policyType, SellingType sellingType,
                             Integer minAge, Integer minTickets, Integer maxTickets,
                             Double percentage, String couponCode, Double couponPct,
                             LocalDate couponExpiry) {
+                                
         if (cachedEventId == null) { view.showError("No event loaded"); return; }
         Object companyIdObj = view.getSessionAttribute("managingCompanyId");
         if (companyIdObj == null) { view.showError("No company session"); return; }
         UUID companyId = UUID.fromString(companyIdObj.toString());
+         // Block changing the selling policy while a lottery is open
+        if ("Selling".equals(policyType) && hasActiveLottery()) {
+            view.showError("Cannot change the selling policy while the lottery is active or before public sale opens.");
+            return;
+        }
         try {
             if (existing != null) policyRepo.deleteByPolicyId(existing.getPolicyId());
             switch (policyType) {
@@ -398,6 +429,13 @@ public class EventDetailsPresenter {
     // Lottery
     // =========================================================================
 
+    public boolean isWinnerWindowOpen() {
+        if (cachedEventId == null) return false;
+        try {
+            return lotteryService.isWinnerWindowOpen(cachedEventId);
+        } catch (Exception e) { return false; }
+    }
+
     public List<LotteryDTO> getLotteriesByEvent() {
         if (cachedEventId == null) return List.of();
         return lotteryService.getLotteriesByEvent(cachedEventId);
@@ -427,12 +465,15 @@ public class EventDetailsPresenter {
         return lotteryService.getEntriesByLottery(lotteryId);
     }
 
+    public List<LotteryEntryDTO> drawLotteryWithNotifications(UUID lotteryId, int winnerCount) {
+        return drawLotteryWithNotifications(lotteryId, winnerCount, java.time.LocalDateTime.now().plusHours(24));
+    }
     /**
      * Draws the lottery using max-show-capacity as winner count,
      * then sends win/loss notifications to ALL participants.
      * Returns the drawn winners list, or empty if draw failed.
      */
-    public List<LotteryEntryDTO> drawLotteryWithNotifications(UUID lotteryId, int winnerCount) {
+    public List<LotteryEntryDTO> drawLotteryWithNotifications(UUID lotteryId, int winnerCount,java.time.LocalDateTime openSaleTime) {
         String token = getToken();
         if (token == null) { view.showError("Session expired"); return List.of(); }
         try {
@@ -442,7 +483,7 @@ public class EventDetailsPresenter {
 
             int drawCount = Math.min(Math.max(winnerCount, 1), participants);
 
-            List<LotteryEntryDTO> winners = lotteryService.drawLottery(token, lotteryId, drawCount);
+            List<LotteryEntryDTO> winners = lotteryService.drawLottery(token, lotteryId, drawCount, openSaleTime);
 
             // Notify all participants
             java.util.Set<String> winnerIds = winners.stream()
@@ -493,6 +534,46 @@ public class EventDetailsPresenter {
                     .anyMatch(l -> l.getStatus() == LotteryStatus.DRAWN);
         } catch (Exception e) { return false; }
     }
+    /** True if any lottery for this event is still OPEN (locks the selling policy). */
+   
+    // public boolean hasActiveLottery() {
+    //     if (cachedEventId == null) return false;
+
+    //     try {
+    //         LocalDateTime now = LocalDateTime.now();
+
+    //         return lotteryService.getLotteriesByEvent(cachedEventId).stream()
+    //                 .anyMatch(l ->
+    //                         l.getStatus() == LotteryStatus.OPEN
+    //                         || (
+    //                             l.getStatus() == LotteryStatus.DRAWN
+    //                             && l.getOpenSaleTime() != null
+    //                             && now.isBefore(l.getOpenSaleTime())
+    //                         )
+    //                 );
+    //     } catch (Exception e) {
+    //         return false;
+    //     }
+    // }
+    public boolean hasActiveLottery() {
+    if (cachedEventId == null) return false;
+
+    try {
+        LocalDateTime now = LocalDateTime.now();
+
+        return lotteryService.getLotteriesByEvent(cachedEventId).stream()
+                .anyMatch(l ->
+                        l.getStatus() == LotteryStatus.OPEN
+                        || (
+                            l.getStatus() == LotteryStatus.DRAWN
+                            && l.getOpenSaleTime() != null
+                            && now.isBefore(l.getOpenSaleTime())
+                        )
+                );
+    } catch (Exception e) {
+        return false;
+    }
+}
 
     /** Resolves a lottery entry's memberId to a username, returns the raw id on failure. */
     public String resolveUsername(String memberId) {
