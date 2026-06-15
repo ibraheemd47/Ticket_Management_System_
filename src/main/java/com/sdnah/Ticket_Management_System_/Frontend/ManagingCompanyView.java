@@ -196,7 +196,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
         Div section = new Div();
         section.add(sectionTitle("Founder"));
-        section.add(new Paragraph(roles.getFounderId()));
+        section.add(new Paragraph(presenter.getMemberDisplayName(roles.getFounderId())));
 
         section.add(sectionTitle("Owners"));
         section.add(buildOwnersList(roles.getOwnerIds()));
