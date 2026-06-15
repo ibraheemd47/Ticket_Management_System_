@@ -28,8 +28,11 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
     List<Event> findByNameContainingIgnoreCase(String keyword);
 
     // ── Custom JPQL queries ──────────────────────────────────────────────────
-    @Query("SELECT e FROM Event e")
+    // @Query("SELECT e FROM Event e")
+    // List<Event> findAllEvents();
+    @Query("SELECT e FROM Event e WHERE NOT EXISTS (SELECT c FROM Company c WHERE c.companyId = e.companyId AND c.isOpen = false)")
     List<Event> findAllEvents();
+    
 
     @Query("SELECT e FROM Event e WHERE :managerId MEMBER OF e.managerIds")
     List<Event> findByManagerId(@Param("managerId") String managerId);
