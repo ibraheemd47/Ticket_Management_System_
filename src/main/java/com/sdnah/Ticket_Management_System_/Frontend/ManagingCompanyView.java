@@ -381,17 +381,12 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
                 e.getValue().stream().map(Enum::name).sorted().toList())).setHeader("Permissions");
         grid.addComponentColumn(entry -> {
             Button remove = new Button("Remove", ev -> {
-    try {
-        String username = getMemberDisplayName(entry.getKey());
-
-        presenter.removeManager(entry.getKey());
-        renderRolesTab();
-
-    } catch (RuntimeException ex) {
-        Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                .addThemeVariants(NotificationVariant.LUMO_ERROR);
-    }
-});
+                // Presenter owns the full flow — it catches errors, shows
+                // a success/error notification, and reloads the roles tab.
+                // Adding our own try/catch + reload here would double-fire
+                // the notification and re-render twice.
+                presenter.removeManager(entry.getKey());
+            });
             remove.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
             return remove;
         }).setHeader("");
@@ -402,40 +397,43 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     }
 
     private Component appointBox(String label, java.util.function.Consumer<String> action) {
-    TextField usernameField = new TextField();
-    usernameField.setPlaceholder("username");
+        TextField usernameField = new TextField();
+        usernameField.setPlaceholder("username");
 
-    Button go = new Button(label, e -> {
-        String username = usernameField.getValue();
+        Button go = new Button(label, e -> {
+            String username = usernameField.getValue();
 
-        if (username == null || username.isBlank()) {
-            Notification.show("Username required", 2500, Notification.Position.MIDDLE);
-            return;
-        }
+            if (username == null || username.isBlank()) {
+                Notification.show("Username required", 2500, Notification.Position.MIDDLE);
+                return;
+            }
 
-        try {
-            String memberId = getMemberIdByUsername(username);
+            // Resolve username → memberId in its own try/catch (this is a
+            // local lookup, not the presenter's responsibility).
+            String memberId;
+            try {
+                memberId = getMemberIdByUsername(username);
+            } catch (RuntimeException ex) {
+                Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
 
+            // Presenter owns the appoint flow — it catches its own errors,
+            // shows success / error notifications, and reloads the roles
+            // tab on success. We must NOT show our own "Done" notification
+            // or call renderRolesTab() here, otherwise we'd double-notify
+            // (or, on backend error, see both an error AND a "Done").
             action.accept(memberId);
+        });
 
-            Notification.show("Done", 2500, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        go.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-            renderRolesTab();
+        HorizontalLayout row = new HorizontalLayout(usernameField, go);
+        row.getStyle().set("margin-top", "8px");
 
-        } catch (RuntimeException ex) {
-            Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
-    });
-
-    go.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-    HorizontalLayout row = new HorizontalLayout(usernameField, go);
-    row.getStyle().set("margin-top", "8px");
-
-    return row;
-}
+        return row;
+    }
 
     // ── Tab: Policies ────────────────────────────────────────────────────────
 

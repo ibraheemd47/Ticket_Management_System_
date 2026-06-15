@@ -41,6 +41,7 @@ class EventServiceCoverageTest {
     @Mock private NotificationService notificationService;
     @Mock private TransactionTemplate transactionTemplate;
     @Mock private TicketRepository ticketRepository;
+    @Mock private com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository companyRepository;
 
     private EventService service;
 
@@ -59,7 +60,8 @@ class EventServiceCoverageTest {
     void setUp() {
         service = new EventService(
                 eventRepository, purchaseRepository, notificationService,
-                new KeyedLock(), transactionTemplate, ticketRepository);
+                new KeyedLock(), transactionTemplate, ticketRepository,
+                companyRepository);
 
         eventA = mockEvent("Rock Night", "Loud and proud", "MSG",
                 show_type.PERFORMANCE, DAY_1, DAY_5, "alice", 5);
