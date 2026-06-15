@@ -68,7 +68,6 @@ public class SystemAdminService {
         this.keyedLock = keyedLock;
     }
 
-    @Transactional
     public void assign_system_admin(String token, String target_member_id) {
         logger.info("Assign system admin requested for targetMemberId={}", target_member_id);
 
@@ -88,6 +87,7 @@ public class SystemAdminService {
             userRepository.delete(to_assign);
             userRepository.flush();
             systemAdminRepository.save(new_admin);
+            systemAdminRepository.flush();
         });
     }
 
