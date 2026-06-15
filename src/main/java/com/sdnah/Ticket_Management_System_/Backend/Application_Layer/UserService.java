@@ -40,7 +40,6 @@ public class UserService implements IrepresnteUserService {
         this.keyedLock = keyedLock;
     }
 
-
     public String login(String username, String password) {
         logger.info("Login attempt for username={}", username);
 
@@ -51,9 +50,9 @@ public class UserService implements IrepresnteUserService {
                 });
 
         // Check if account is suspended
-        if (member.isSuspended()) 
-        {
-            logger.warn("Login failed: account is suspended until {}, username={}, memberId={}", member.getSuspendedUntil(), username, member.getMemberId());
+        if (member.isSuspended()) {
+            logger.warn("Login failed: account is suspended until {}, username={}, memberId={}",
+                    member.getSuspendedUntil(), username, member.getMemberId());
             throw new RuntimeException("Your account is suspended.");
         }
         if (!member.isActive()) {
@@ -62,7 +61,8 @@ public class UserService implements IrepresnteUserService {
         }
 
         if (!member.isVerified()) {
-            logger.error("Login failed: account is not verified, username={}, memberId={}", username, member.getMemberId());
+            logger.error("Login failed: account is not verified, username={}, memberId={}", username,
+                    member.getMemberId());
             throw new RuntimeException("Account is not verified");
         }
 
@@ -85,7 +85,7 @@ public class UserService implements IrepresnteUserService {
         }
 
         Member member = getMemberByToken(tokenValue);
-    
+
         member.logout();
         userRepository.save(member);
 
@@ -101,7 +101,7 @@ public class UserService implements IrepresnteUserService {
 
     public void validateCompanyRoleRequest(CompanyRoleAssignment assignment) {
         logger.debug("Validating company role request for companyId={}", assignment.getCompanyId());
-        if (assignment.getCompanyId() ==null) {
+        if (assignment.getCompanyId() == null) {
             logger.error("Company role validation failed: missing company id");
             throw new RuntimeException("Company id cannot be empty");
         }
@@ -157,8 +157,6 @@ public class UserService implements IrepresnteUserService {
         }
     }
 
-   
-
     public Member getMemberByToken(String tokenValue) {
         if (tokenValue == null || tokenValue.isBlank()) {
             logger.error("Token validation failed: token is empty");
@@ -191,7 +189,8 @@ public class UserService implements IrepresnteUserService {
     }
 
     private boolean validatePassword(String password) {
-        if (password == null || password.length() < 2) {  ///<= zaki replace that 
+
+        if (password == null || password.length() < 6) { /// <= zaki replace that
             logger.error("Password validation failed: below minimum length");
             throw new RuntimeException("Password must contain at least 2 characters");
         }
@@ -206,7 +205,7 @@ public class UserService implements IrepresnteUserService {
         }
         if (username.length() < 1) {
             logger.error("Username validation failed: username too short, username={}", username);
-            throw new RuntimeException("Username must contain at least 3 characters");
+            throw new RuntimeException("Username must contain at least 2 characters");
         }
         logger.debug("Username validation passed for username={}", username);
         return true;
@@ -216,7 +215,7 @@ public class UserService implements IrepresnteUserService {
     public String register(String username,
             String password,
             String email,
-            String phone,int age,
+            String phone, int age,
             VerificationMethod verificationMethod) {
         logger.info("Register with verification requested for username={}, method={}", username, verificationMethod);
         //////// validation/////////////////////////
@@ -429,6 +428,7 @@ public class UserService implements IrepresnteUserService {
 
         return member;
     }
+
     public boolean isSystemAdmin(String tokenValue) {
         Member member = getMemberByToken(tokenValue);
         return member.isSystemAdmin();
