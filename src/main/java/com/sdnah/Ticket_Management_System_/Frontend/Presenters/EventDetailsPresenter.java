@@ -557,6 +557,7 @@ public class EventDetailsPresenter {
             return winners;
         } catch (RuntimeException ex) { view.showError(ex.getMessage()); return List.of(); }
     }
+   
 
     /** Returns true if this event has a LOTTERY selling policy. */
     public boolean isLotteryEvent() {
