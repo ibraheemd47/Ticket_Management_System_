@@ -107,6 +107,6 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer> {
     void deleteByPolicyId(int policyId);
 
     default <S extends Policy> S savePolicy(S policy) {
-        return save(policy);
+        return saveAndFlush(policy);
     }
 }

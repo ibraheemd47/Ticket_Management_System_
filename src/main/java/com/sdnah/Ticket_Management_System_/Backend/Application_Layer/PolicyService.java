@@ -24,6 +24,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PolicyService {
@@ -113,6 +114,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Set discount rules for EVENT policy
     // =========================================================================
+    @Transactional
     public void setDiscountRulesForEvent(String actorToken, UUID companyId, UUID eventId,
                                           List<DiscountRule> rules, boolean isAdditive) {
         logger.info("Set discount rules for event, companyId={}, eventId={}", companyId, eventId);
@@ -134,6 +136,7 @@ public class PolicyService {
     // =========================================================================
     // UC II.4.3 — Set discount rules for COMPANY policy
     // =========================================================================
+    @Transactional
     public void setDiscountRulesForCompany(String actorToken, UUID companyId,
                                             List<DiscountRule> rules, boolean isAdditive) {
         logger.info("Set discount rules for company, companyId={}", companyId);

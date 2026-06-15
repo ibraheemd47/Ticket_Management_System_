@@ -199,9 +199,14 @@ public class ManagingCompanyPresenter {
         }
     }
 
+   
     public List<Policy> getPoliciesForCompany() {
-        try { return policyService.getPoliciesForCompany(companyId); }
-        catch (RuntimeException ex) { return List.of(); }
+        try {
+            return policyService.getPoliciesForCompany(companyId);
+        } catch (RuntimeException ex) {
+            view.showError("Could not load company policies: " + ex.getMessage());
+            return List.of();
+        }
     }
 
     public void setDiscountRulesForCompany(List<DiscountRule> rules, boolean isAdditive) {
