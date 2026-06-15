@@ -565,16 +565,17 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         addRuleBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
 
         Button saveBtn = new Button("Save Discount Policy", ev -> {
-            try {
-                if (discountRules.isEmpty()) { Notification.show("Add at least one rule"); return; }
-                boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
-                presenter.setDiscountRulesForCompany(discountRules, isAdditive);
-                Notification.show("Discount policy saved", 2500, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            } catch (RuntimeException ex) {
-                Notification.show("Error: " + ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            // Local pre-validation only — keep its notification because the
+            // presenter is never called in that case.
+            if (discountRules.isEmpty()) {
+                Notification.show("Add at least one rule");
+                return;
             }
+            boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
+            // Presenter owns the save flow — it catches its own errors and
+            // shows the success / error notification. Adding our own would
+            // double-notify (the original bug behaviour).
+            presenter.setDiscountRulesForCompany(discountRules, isAdditive);
         });
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -645,26 +646,25 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             });
 
         Button saveBtn = new Button("Save Purchase Policy", ev -> {
-            try {
-                Integer minAge = minAgeField.getValue();
-                Integer minTix = minTicketsField.getValue();
-                Integer maxTix = maxTicketsField.getValue();
-                if (minAge == null && minTix == null && maxTix == null) {
-                    Notification.show("At least one restriction is required"); return;
-                }
-                PurchasePolicy.Operator op = "OR (at least one must pass)".equals(operatorGroup.getValue())
-                        ? PurchasePolicy.Operator.OR : PurchasePolicy.Operator.AND;
-                java.util.List<PurchaseRule> rules = new ArrayList<>();
-                if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
-                if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
-                if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
-                presenter.setPurchaseRulesForCompany(rules, op);
-                Notification.show("Purchase policy saved", 2500, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            } catch (RuntimeException ex) {
-                Notification.show("Error: " + ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            Integer minAge = minAgeField.getValue();
+            Integer minTix = minTicketsField.getValue();
+            Integer maxTix = maxTicketsField.getValue();
+            // Local pre-validation only — presenter is never called below
+            // when nothing was filled in.
+            if (minAge == null && minTix == null && maxTix == null) {
+                Notification.show("At least one restriction is required");
+                return;
             }
+            PurchasePolicy.Operator op = "OR (at least one must pass)".equals(operatorGroup.getValue())
+                    ? PurchasePolicy.Operator.OR : PurchasePolicy.Operator.AND;
+            java.util.List<PurchaseRule> rules = new ArrayList<>();
+            if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
+            if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
+            if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
+            // Presenter owns the save flow — it catches its own errors and
+            // shows the success / error notification. Adding our own would
+            // double-notify (the original bug behaviour).
+            presenter.setPurchaseRulesForCompany(rules, op);
         });
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
