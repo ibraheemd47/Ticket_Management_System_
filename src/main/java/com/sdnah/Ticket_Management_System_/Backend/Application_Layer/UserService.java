@@ -190,9 +190,9 @@ public class UserService implements IrepresnteUserService {
 
     private boolean validatePassword(String password) {
 
-        if (password == null || password.length() < 6) { /// <= zaki replace that
+        if (password == null || password.length() < 6) {
             logger.error("Password validation failed: below minimum length");
-            throw new RuntimeException("Password must contain at least 2 characters");
+            throw new RuntimeException("Password must contain at least 6 characters");
         }
         logger.debug("Password validation passed");
         return true;
