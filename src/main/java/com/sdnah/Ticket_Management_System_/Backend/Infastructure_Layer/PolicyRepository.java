@@ -1,9 +1,14 @@
 package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
@@ -14,28 +19,93 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.
 @Repository
 public interface PolicyRepository extends JpaRepository<Policy, Integer> {
 
-       // ── Basic queries ──────────────────────────────────────────────────────────
     Optional<Policy> findByPolicyId(int policyId);
-    List<Policy>     findByEventId(UUID eventId);
-    List<Policy> findByCompanyIdAndEventIdIsNull(UUID companyId);
 
- 
-    // ── By eventId (event-scoped policy) ──────────────────────────────────────
-    Optional<DiscountPolicy> findDiscountPolicyByEventId(UUID eventId);
-    Optional<PurchasePolicy> findPurchasePolicyByEventId(UUID eventId);
-    Optional<SellingPolicy>  findSellingPolicyByEventId(UUID eventId);
- 
-    // ── By companyId (company-scoped policy, eventId = null) ──────────────────
-    Optional<DiscountPolicy> findDiscountPolicyByCompanyIdAndEventIdIsNull(UUID companyId);
-    Optional<PurchasePolicy> findPurchasePolicyByCompanyIdAndEventIdIsNull(UUID companyId);
-    Optional<SellingPolicy>  findSellingPolicyByCompanyIdAndEventIdIsNull(UUID companyId);
- 
-    // ── Delete ────────────────────────────────────────────────────────────────
+    // =========================================================
+    // Safe "all policies" queries
+    // Do NOT query Policy directly here because subclasses have rootRule.
+    // =========================================================
+
+    default List<Policy> findByEventId(UUID eventId) {
+        List<Policy> policies = new ArrayList<>();
+
+        findSellingPolicyByEventId(eventId).ifPresent(policies::add);
+        findPurchasePolicyByEventId(eventId).ifPresent(policies::add);
+        findDiscountPolicyByEventId(eventId).ifPresent(policies::add);
+
+        return policies;
+    }
+
+    default List<Policy> findByCompanyIdAndEventIdIsNull(UUID companyId) {
+        List<Policy> policies = new ArrayList<>();
+
+        findSellingPolicyByCompanyIdAndEventIdIsNull(companyId).ifPresent(policies::add);
+        findPurchasePolicyByCompanyIdAndEventIdIsNull(companyId).ifPresent(policies::add);
+        findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId).ifPresent(policies::add);
+
+        return policies;
+    }
+
+    // =========================================================
+    // Event policies — query each concrete subclass directly
+    // =========================================================
+
+    @Query("""
+           SELECT d
+           FROM DiscountPolicy d
+           WHERE d.eventId = :eventId
+           """)
+    Optional<DiscountPolicy> findDiscountPolicyByEventId(@Param("eventId") UUID eventId);
+
+    @Query("""
+           SELECT p
+           FROM PurchasePolicy p
+           WHERE p.eventId = :eventId
+           """)
+    Optional<PurchasePolicy> findPurchasePolicyByEventId(@Param("eventId") UUID eventId);
+
+    @Query("""
+           SELECT s
+           FROM SellingPolicy s
+           WHERE s.eventId = :eventId
+           """)
+    Optional<SellingPolicy> findSellingPolicyByEventId(@Param("eventId") UUID eventId);
+
+    // =========================================================
+    // Company policies — query each concrete subclass directly
+    // =========================================================
+
+    @Query("""
+           SELECT d
+           FROM DiscountPolicy d
+           WHERE d.companyId = :companyId
+           AND d.eventId IS NULL
+           """)
+    Optional<DiscountPolicy> findDiscountPolicyByCompanyIdAndEventIdIsNull(
+            @Param("companyId") UUID companyId);
+
+    @Query("""
+           SELECT p
+           FROM PurchasePolicy p
+           WHERE p.companyId = :companyId
+           AND p.eventId IS NULL
+           """)
+    Optional<PurchasePolicy> findPurchasePolicyByCompanyIdAndEventIdIsNull(
+            @Param("companyId") UUID companyId);
+
+    @Query("""
+           SELECT s
+           FROM SellingPolicy s
+           WHERE s.companyId = :companyId
+           AND s.eventId IS NULL
+           """)
+    Optional<SellingPolicy> findSellingPolicyByCompanyIdAndEventIdIsNull(
+            @Param("companyId") UUID companyId);
+
     @org.springframework.transaction.annotation.Transactional
-    @org.springframework.data.jpa.repository.Modifying
+    @Modifying
     void deleteByPolicyId(int policyId);
 
-    // ── Save any Policy subtype ───────────────────────────────────
     default <S extends Policy> S savePolicy(S policy) {
         return save(policy);
     }

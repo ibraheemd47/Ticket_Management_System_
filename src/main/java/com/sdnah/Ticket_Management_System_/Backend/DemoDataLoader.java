@@ -242,6 +242,7 @@ public class DemoDataLoader implements CommandLineRunner {
 
                 return suspended;
         }
+        
 
         private Company createCompanyIfMissing(String name, Member founder) {
                 return companyRepository.findAll()

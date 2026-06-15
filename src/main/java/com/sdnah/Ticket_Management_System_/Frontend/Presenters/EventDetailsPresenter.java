@@ -404,26 +404,68 @@ public class EventDetailsPresenter {
      * @param isAdditive true → AND (sum discounts), false → OR (best discount)
      */
     public void saveDiscountPolicy(Policy existing, List<DiscountRule> rules, boolean isAdditive) {
-        if (cachedEventId == null) { view.showError("No event loaded"); return; }
+        if (cachedEventId == null) {
+            view.showError("No event loaded");
+            return;
+        }
+
         Object companyIdObj = view.getSessionAttribute("managingCompanyId");
-        if (companyIdObj == null) { view.showError("No company session"); return; }
-        if (rules == null || rules.isEmpty()) { view.showError("At least one discount rule is required"); return; }
+        if (companyIdObj == null) {
+            view.showError("No company session");
+            return;
+        }
+
+        if (rules == null || rules.isEmpty()) {
+            view.showError("At least one discount rule is required");
+            return;
+        }
+
         UUID companyId = UUID.fromString(companyIdObj.toString());
+
         try {
-            // Remove existing discount policies for this event first
-            policyRepo.findByEventId(cachedEventId).stream()
-                    .filter(p -> p instanceof DiscountPolicy)
-                    .forEach(p -> policyRepo.deleteByPolicyId(p.getPolicyId()));
-            if (existing != null) {
-                try { policyRepo.deleteByPolicyId(existing.getPolicyId()); } catch (Exception ignored) {}
+            DiscountPolicy dp;
+
+            if (existing instanceof DiscountPolicy existingDiscountPolicy) {
+                dp = existingDiscountPolicy;
+            } else {
+                dp = policyRepo.findByEventId(cachedEventId).stream()
+                        .filter(DiscountPolicy.class::isInstance)
+                        .map(DiscountPolicy.class::cast)
+                        .findFirst()
+                        .orElseGet(() -> new DiscountPolicy("Discount policy", cachedEventId, companyId));
             }
-            DiscountPolicy dp = new DiscountPolicy("Discount policy", cachedEventId, companyId);
-            dp.setRules(rules, isAdditive);
+
+            dp.setRules(new ArrayList<>(rules), isAdditive);
             policyRepo.savePolicy(dp);
+
             view.showSuccess("Discount policy saved");
             view.refreshPolicies();
-        } catch (RuntimeException ex) { view.showError(ex.getMessage()); }
+
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
     }
+    // public void saveDiscountPolicy(Policy existing, List<DiscountRule> rules, boolean isAdditive) {
+    //     if (cachedEventId == null) { view.showError("No event loaded"); return; }
+    //     Object companyIdObj = view.getSessionAttribute("managingCompanyId");
+    //     if (companyIdObj == null) { view.showError("No company session"); return; }
+    //     if (rules == null || rules.isEmpty()) { view.showError("At least one discount rule is required"); return; }
+    //     UUID companyId = UUID.fromString(companyIdObj.toString());
+    //     try {
+    //         // Remove existing discount policies for this event first
+    //         policyRepo.findByEventId(cachedEventId).stream()
+    //                 .filter(p -> p instanceof DiscountPolicy)
+    //                 .forEach(p -> policyRepo.deleteByPolicyId(p.getPolicyId()));
+    //         if (existing != null) {
+    //             try { policyRepo.deleteByPolicyId(existing.getPolicyId()); } catch (Exception ignored) {}
+    //         }
+    //         DiscountPolicy dp = new DiscountPolicy("Discount policy", cachedEventId, companyId);
+    //         dp.setRules(rules, isAdditive);
+    //         policyRepo.savePolicy(dp);
+    //         view.showSuccess("Discount policy saved");
+    //         view.refreshPolicies();
+    //     } catch (RuntimeException ex) { view.showError(ex.getMessage()); }
+    // }
 
     // =========================================================================
     // Lottery
