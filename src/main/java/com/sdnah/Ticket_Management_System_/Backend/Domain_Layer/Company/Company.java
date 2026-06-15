@@ -150,6 +150,18 @@ public class Company {
         associatedEventIds.remove(eventId);
     }
 
+    /**
+     * Drop {@code eventId} from {@link #associatedEventIds} without permission
+     * or existence checks. Cleanup helper for when an event has already been
+     * deleted at the Event aggregate level and we just need to forget its id
+     * here. No-op if the id isn't present.
+     */
+    public synchronized void removeEventIfPresent(UUID eventId) {
+        if (eventId != null) {
+            associatedEventIds.remove(eventId);
+        }
+    }
+
     public void validateEventBelongsToCompany(UUID eventId) {
         if (eventId == null) {
             throw new IllegalArgumentException("event id cannot be null.");

@@ -16,10 +16,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteUserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.KeyedLock;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
@@ -36,6 +38,7 @@ public class LotteryAcceptanceTest {
     @Mock private LotteryRepository lotteryRepository;
     @Mock private CompanyRepository companyRepository;
     @Mock private IrepresnteUserService representUserService;
+    @Mock private NotificationService notificationService;
 
     private LotteryService lotteryService;
 
@@ -55,7 +58,7 @@ public class LotteryAcceptanceTest {
                 lotteryRepository,
                 companyRepository,
                 representUserService,
-                new KeyedLock());
+                new KeyedLock(),notificationService);
 
         ownerMember = mock(Member.class);
         when(ownerMember.getMemberId()).thenReturn("owner-1");
@@ -199,6 +202,9 @@ public class LotteryAcceptanceTest {
         lottery.register("member-2");
         lottery.register("member-3");
 
+        forceRegistrationDeadlinePassed(lottery);
+
+
         when(lotteryRepository.findById(lottery.getId())).thenReturn(Optional.of(lottery));
 
         List<LotteryEntryDTO> winners = lotteryService.drawLottery(OWNER_TOKEN, lottery.getId(), 2);
@@ -222,6 +228,9 @@ public class LotteryAcceptanceTest {
                 LocalDateTime.now().plusDays(2));
         lottery.register("member-1");
 
+        forceRegistrationDeadlinePassed(lottery);
+
+
         when(lotteryRepository.findById(lottery.getId())).thenReturn(Optional.of(lottery));
 
         List<LotteryEntryDTO> winners = lotteryService.drawLottery(OWNER_TOKEN, lottery.getId(), 10);
@@ -240,6 +249,8 @@ public class LotteryAcceptanceTest {
                 LocalDateTime.now().plusDays(2));
         lottery.register("member-1");
 
+        forceRegistrationDeadlinePassed(lottery);
+
         when(lotteryRepository.findById(lottery.getId())).thenReturn(Optional.of(lottery));
 
         assertThrows(RuntimeException.class,
@@ -257,6 +268,8 @@ public class LotteryAcceptanceTest {
                 LocalDateTime.now().plusDays(1),
                 LocalDateTime.now().plusDays(2));
         lottery.register("member-1");
+        forceRegistrationDeadlinePassed(lottery);
+
         lottery.draw(1);
 
         when(lotteryRepository.findById(lottery.getId())).thenReturn(Optional.of(lottery));
@@ -274,4 +287,13 @@ public class LotteryAcceptanceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> lotteryService.drawLottery(OWNER_TOKEN, UUID.randomUUID(), 1));
     }
+
+    ////helper:
+    private void forceRegistrationDeadlinePassed(Lottery lottery) {
+        ReflectionTestUtils.setField(
+                lottery,
+                "registrationDeadline",
+                LocalDateTime.now().minusMinutes(1)
+        );
+     }
 }

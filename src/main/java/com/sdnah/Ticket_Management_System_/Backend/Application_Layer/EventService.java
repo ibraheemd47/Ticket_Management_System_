@@ -52,13 +52,15 @@ public class EventService {
 
     private final NotificationService notificationService;
     private final PurchaseRepository purchaseRepository;
+    private final com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository companyRepository;
 
     public EventService(IEventRepository eventRepository,
             PurchaseRepository purchaseRepository,
             NotificationService notificationService,
             KeyedLock keyedLock,
             TransactionTemplate transactionTemplate,
-            TicketRepository ticketRepository) {
+            TicketRepository ticketRepository,
+            com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository companyRepository) {
                 if (notificationService == null)
                 throw new IllegalArgumentException("notificationService required");
                 if (purchaseRepository == null)
@@ -69,6 +71,7 @@ public class EventService {
                 this.transactionTemplate = transactionTemplate;
                 this.purchaseRepository = purchaseRepository;
                 this.ticketRepository = ticketRepository;
+                this.companyRepository = companyRepository;
     }
 
     // ── Creation / Deletion ──────────────────────────────────────────────────
@@ -106,9 +109,24 @@ public class EventService {
                     }
                 }
 
+                // Remember the company id BEFORE deleting the event — the Event
+                // entity becomes detached after delete().
+                UUID owningCompanyId = event.getCompanyId();
+
                 // Now delete the event — JPA cascades handle shows, areas, blocks, rows, seats
                 eventRepository.delete(event);
                 eventRepository.flush();
+
+                // Clean up the owning Company's associatedEventIds collection
+                // (the company_events join table) so the events list in the
+                // managing-company view no longer shows the deleted event.
+                if (owningCompanyId != null) {
+                    companyRepository.findById(owningCompanyId).ifPresent(c -> {
+                        c.removeEventIfPresent(eventId);
+                        companyRepository.save(c);
+                    });
+                }
+
                 logger.info("Event {} deleted by manager {}", eventId, managerId);
             });
         });

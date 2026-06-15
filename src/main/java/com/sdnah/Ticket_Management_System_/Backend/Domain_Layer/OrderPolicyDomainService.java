@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.LotteryEntry;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
@@ -44,7 +45,8 @@ public class OrderPolicyDomainService {
         validatePurchasePolicy(order, findEventPurchasePolicy(order), buyerAge, isMember);
         validatePurchasePolicy(order, findCompanyPurchasePolicy(order), buyerAge, isMember);
         // Discount: event-first, company-fallback
-        applyDiscountPolicy(order, findDiscountPolicy(order), couponCode);
+        // applyDiscountPolicy(order, findDiscountPolicy(order), couponCode);
+        applyCombinedDiscounts(order, findEventDiscountPolicy(order), findCompanyDiscountPolicy(order), couponCode);
     }
 
     // =========================================================================
@@ -52,7 +54,11 @@ public class OrderPolicyDomainService {
     // =========================================================================
     public void applyDiscounts(ActiveOrder order, String couponCode) {
         validateOrder(order);
-        applyDiscountPolicy(order, findDiscountPolicy(order), couponCode);
+        //applyDiscountPolicy(order, findDiscountPolicy(order), couponCode);
+        applyCombinedDiscounts(order,
+        findEventDiscountPolicy(order),
+        findCompanyDiscountPolicy(order),
+        couponCode);
     }
 
     // =========================================================================
@@ -85,50 +91,96 @@ public class OrderPolicyDomainService {
     }
    
 
+    //old : 
     // discount: event-first, company-fallback
-    private DiscountPolicy findDiscountPolicy(ActiveOrder order) {
+    // private DiscountPolicy findDiscountPolicy(ActiveOrder order) {
+    //     Object result = policyRepository.findDiscountPolicyByEventId(order.getEventId());
+    //     DiscountPolicy eventPolicy = toPolicy(result, DiscountPolicy.class);
+
+    //     System.out.println("DEBUG eventPolicy=" + eventPolicy);
+    //     if (eventPolicy != null) System.out.println("DEBUG rootRule=" + eventPolicy.getRootRule());
+
+    //     if (eventPolicy != null && eventPolicy.getRootRule() != null) return eventPolicy;
+
+    //     UUID companyId = getCompanyIdFromEvent(order);
+    //     System.out.println("DEBUG companyId=" + companyId);
+
+    //     if (companyId == null) return null;
+    //     DiscountPolicy companyPolicy = policyRepository
+    //             .findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId)
+    //             .orElse(null);
+    //     System.out.println("DEBUG companyPolicy=" + companyPolicy);
+    //     if (companyPolicy != null) System.out.println("DEBUG companyRootRule=" + companyPolicy.getRootRule());
+    //     return companyPolicy;
+    // }
+
+    //new:
+    // Instead of findDiscountPolicy that picks one — fetch both
+    private DiscountPolicy findEventDiscountPolicy(ActiveOrder order) {
         Object result = policyRepository.findDiscountPolicyByEventId(order.getEventId());
-        DiscountPolicy eventPolicy = toPolicy(result, DiscountPolicy.class);
+        DiscountPolicy p = toPolicy(result, DiscountPolicy.class);
+        return (p != null && p.getRootRule() != null) ? p : null;
+    }
 
-        System.out.println("DEBUG eventPolicy=" + eventPolicy);
-        if (eventPolicy != null) System.out.println("DEBUG rootRule=" + eventPolicy.getRootRule());
-
-        if (eventPolicy != null && eventPolicy.getRootRule() != null) return eventPolicy;
-
+    private DiscountPolicy findCompanyDiscountPolicy(ActiveOrder order) {
         UUID companyId = getCompanyIdFromEvent(order);
-        System.out.println("DEBUG companyId=" + companyId);
-
         if (companyId == null) return null;
-        DiscountPolicy companyPolicy = policyRepository
+        DiscountPolicy p = policyRepository
                 .findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId)
                 .orElse(null);
-        System.out.println("DEBUG companyPolicy=" + companyPolicy);
-        if (companyPolicy != null) System.out.println("DEBUG companyRootRule=" + companyPolicy.getRootRule());
-        return companyPolicy;
+        return (p != null && p.getRootRule() != null) ? p : null;
     }
+    //end of new
 
     // =========================================================================
     // UC II.2.8 — Apply discount policy to order
     // =========================================================================
-    public void applyDiscountPolicy(ActiveOrder order, DiscountPolicy policy, String couponCode) {
+    //old :
+    // public void applyDiscountPolicy(ActiveOrder order, DiscountPolicy policy, String couponCode) {
+    //     validateOrder(order);
+    //     double originalTotal = order.getTotal().doubleValue();
+    //     int    quantity      = order.getItems().size();
+
+    //     if (policy == null) {
+    //         order.updateFinalPrice(originalTotal);
+    //         return;
+    //     }
+
+    //     DiscountContext context = new DiscountContext(
+    //             quantity,
+    //             LocalDateTime.now(),
+    //             couponCode,
+    //             originalTotal,
+    //             order.getEventId()
+    //     );
+
+    //     double finalPrice = policy.computeFinalPrice(originalTotal, context);
+    //     order.updateFinalPrice(finalPrice);
+
+    //     if (couponCode != null && !couponCode.isBlank()) {
+    //         order.setAppliedCouponCode(couponCode);
+    //     }
+    // }
+    //new:
+    public void applyCombinedDiscounts(ActiveOrder order,
+                                   DiscountPolicy eventPolicy,
+                                   DiscountPolicy companyPolicy,
+                                   String couponCode) {
         validateOrder(order);
         double originalTotal = order.getTotal().doubleValue();
         int    quantity      = order.getItems().size();
 
-        if (policy == null) {
-            order.updateFinalPrice(originalTotal);
-            return;
-        }
-
         DiscountContext context = new DiscountContext(
-                quantity,
-                LocalDateTime.now(),
-                couponCode,
-                originalTotal,
-                order.getEventId()
-        );
+                quantity, LocalDateTime.now(), couponCode, originalTotal, order.getEventId());
 
-        double finalPrice = policy.computeFinalPrice(originalTotal, context);
+        // each policy returns a percentage; whichever doesn't recognize the coupon returns 0
+        double eventPct   = eventPolicy   != null ? eventPolicy.computeDiscount(context)   : 0.0;
+        double companyPct = companyPolicy != null ? companyPolicy.computeDiscount(context) : 0.0;
+
+        // stacking = add the percentages, clamped to 0..100
+        double combinedPct = Math.max(0.0, Math.min(100.0, eventPct + companyPct));
+
+        double finalPrice = originalTotal * (1.0 - combinedPct / 100.0);
         order.updateFinalPrice(finalPrice);
 
         if (couponCode != null && !couponCode.isBlank()) {
@@ -162,6 +214,12 @@ public class OrderPolicyDomainService {
     // Selling policy validation (for lottery access code)
     // =========================================================================
     public void validateSellingPolicy(ActiveOrder order, String memberId) {
+        validateSellingPolicy(order, memberId, null);
+    }
+
+    public void validateSellingPolicy(ActiveOrder order, String memberId, String enteredCode) {
+       
+        //new:
         Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
         SellingPolicy policy = toSellingPolicy(result);
 
@@ -169,24 +227,36 @@ public class OrderPolicyDomainService {
             return;
         }
 
+        LocalDateTime now = LocalDateTime.now();
+
+        Lottery lottery = lotteryRepository.findByEventId(order.getEventId()).stream()
+            .filter(l -> l.getStatus() == Lottery.LotteryStatus.DRAWN)
+            .max(java.util.Comparator.comparing(Lottery::getDrawTime))
+            .orElseThrow(() -> new IllegalStateException("Lottery has not been drawn yet"));
+
+    
+        if (lottery.getOpenSaleTime() != null
+            && !now.isBefore(lottery.getOpenSaleTime())) {
+            return; // public sale is open — code is no longer needed
+        }
+
+        String code = enteredCode == null ? "" : enteredCode.trim();
+
         lotteryRepository.findByEventId(order.getEventId()).stream()
                 .flatMap(l -> l.getEntries().stream())
                 .filter(e -> e.getMemberId().equals(memberId))
                 .filter(LotteryEntry::isAccessCodeValid)
+                .filter(e -> e.getAccessCode().equalsIgnoreCase(code))   // ← הקוד סוף סוף עושה עבודה
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
-                        "No valid lottery access code for this event"));
+                        "Invalid or missing lottery access code for this event"));
     }
 
     // =========================================================================
     // Helpers
     // =========================================================================
 
-    // private UUID getCompanyIdFromEvent(ActiveOrder order) {
-    //     Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());
-    //     SellingPolicy sp = toSellingPolicy(result);
-    //     return sp != null ? sp.getCompanyId() : null;
-    // }
+ 
      private UUID getCompanyIdFromEvent(ActiveOrder order) {
         // Try SellingPolicy first
         Object result = policyRepository.findSellingPolicyByEventId(order.getEventId());

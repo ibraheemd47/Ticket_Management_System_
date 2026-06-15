@@ -34,6 +34,7 @@ public class LotteryEntry {
     // access code for winners to claim their tickets
     private String accessCode;
     private LocalDateTime accessCodeExpiresAt;
+    private LocalDateTime usedAt;
 
     protected LotteryEntry() {}
 
@@ -45,18 +46,31 @@ public class LotteryEntry {
         this.registeredAt = LocalDateTime.now();
     }
 
+   
     public void markAsWinner() {
+        markAsWinner(LocalDateTime.now().plusHours(24));
+    }
+
+    public void markAsWinner(LocalDateTime expiresAt) {
         this.winner = true;
         this.accessCode = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
-        this.accessCodeExpiresAt = LocalDateTime.now().plusHours(24);
+        this.accessCodeExpiresAt = expiresAt;
     }
 
     public boolean isAccessCodeValid() {
         if (!winner || accessCode == null) return false;
+        if (usedAt != null) return false;       // already redeemed — single use
+
         return LocalDateTime.now().isBefore(accessCodeExpiresAt);
     }
+    public void markCodeUsed() {
+        this.usedAt = LocalDateTime.now();
+    }
+
+    
 
     // Getters
+    public LocalDateTime getUsedAt() { return usedAt; }
     public UUID getId() { return id; }
     public String getMemberId() { return memberId; }
     public boolean isWinner() { return winner; }

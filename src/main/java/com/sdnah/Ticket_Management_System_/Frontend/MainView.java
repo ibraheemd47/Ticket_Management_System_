@@ -524,8 +524,23 @@ public class MainView extends VerticalLayout {
         }
     }
 
+    /**
+     * Logout handler. Clears every session attribute the previous user left
+     * behind — not just {@code token} — so per-flow state (managingCompanyId,
+     * eventId, managerOrderId, queueShowId, checkout*, etc.) doesn't leak
+     * across users sharing the same browser session.
+     *
+     * <p>We iterate the wrapped HttpSession instead of calling {@code
+     * invalidate()} so Vaadin's own session-management state stays intact.
+     */
     public void reloadPage() {
-        UI.getCurrent().getSession().setAttribute("token", null);
+        com.vaadin.flow.server.WrappedSession session =
+                UI.getCurrent().getSession().getSession();
+        // Copy the names first to avoid ConcurrentModificationException while removing.
+        java.util.Set<String> names = new java.util.HashSet<>(session.getAttributeNames());
+        for (String name : names) {
+            session.removeAttribute(name);
+        }
         UI.getCurrent().getPage().reload();
     }
 
