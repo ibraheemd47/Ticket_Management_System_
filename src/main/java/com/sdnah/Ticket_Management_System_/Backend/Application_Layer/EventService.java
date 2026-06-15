@@ -609,80 +609,62 @@ public class EventService {
     public List<EventDto> searchEventByName(String name) {
         logger.info("Searching events by name: {}", name);
         if (name == null || name.isBlank()) return List.of();
-        String kw = name.toLowerCase().trim();
-        return eventRepository.findAll().stream()
-                .filter(e -> e.getName() != null && e.getName().toLowerCase().contains(kw))
-                .map(this::toEventDto)
-                .toList();
+        return eventRepository.searchEventsByName(name.trim())
+                .stream().map(this::toEventDto).toList();
     }
 
-    // search by description only
+    // search by description only — DB has no index on description, use JPQL filter
     public List<EventDto> searchEventsByDescription(String description) {
         logger.info("Searching events by description: {}", description);
         if (description == null || description.isBlank()) return List.of();
-        String d = description.toLowerCase().trim();
-        return eventRepository.findAll().stream()
-                .filter(e -> e.getDescription() != null && e.getDescription().toLowerCase().contains(d))
-                .map(this::toEventDto)
-                .toList();
+        return eventRepository.searchEventsByDescription(description.trim())
+                .stream().map(this::toEventDto).toList();
     }
 
     // search by category / event type
     public List<EventDto> searchEventsByCategory(show_type category) {
         logger.info("Searching events by category: {}", category);
         if (category == null) return List.of();
-        return eventRepository.findAll().stream()
-                .filter(e -> category.equals(e.getEventType()))
-                .map(this::toEventDto)
-                .toList();
+        return eventRepository.searchEventsByType(category)
+                .stream().map(this::toEventDto).toList();
     }
 
     // search by start date (events starting on or after this date)
     public List<EventDto> searchEventsByStartDate(Date startDate) {
         logger.info("Searching events by start date: {}", startDate);
         if (startDate == null) return List.of();
-        return eventRepository.findAll().stream()
-                .filter(e -> e.getStartDate() != null && !e.getStartDate().before(startDate))
-                .map(this::toEventDto)
-                .toList();
+        return eventRepository.getEventsByFilter(null, null, startDate, null)
+                .stream().map(this::toEventDto).toList();
     }
 
     // search by end date (events ending on or before this date)
     public List<EventDto> searchEventsByEndDate(Date endDate) {
         logger.info("Searching events by end date: {}", endDate);
         if (endDate == null) return List.of();
-        return eventRepository.findAll().stream()
-                .filter(e -> e.getEndDate() != null && !e.getEndDate().after(endDate))
-                .map(this::toEventDto)
-                .toList();
+        return eventRepository.getEventsByFilter(null, null, null, endDate)
+                .stream().map(this::toEventDto).toList();
     }
 
     // search by date range
     public List<EventDto> searchEventsByDateRange(Date fromDate, Date toDate) {
         logger.info("Searching events by date range: {} to {}", fromDate, toDate);
-        return eventRepository.findAll().stream()
-                .filter(e -> e.getStartDate() != null)
-                .filter(e -> fromDate == null || !e.getStartDate().before(fromDate))
-                .filter(e -> toDate   == null || !e.getStartDate().after(toDate))
-                .map(this::toEventDto)
-                .toList();
+        return eventRepository.getEventsByFilter(null, null, fromDate, toDate)
+                .stream().map(this::toEventDto).toList();
     }
 
     // search by venue (substring match, case-insensitive)
     public List<EventDto> searchEventsByVenue(String venue) {
         logger.info("Searching events by venue: {}", venue);
         if (venue == null || venue.isBlank()) return List.of();
-        String v = venue.toLowerCase().trim();
-        return eventRepository.findAll().stream()
-                .filter(e -> e.getVenue() != null && e.getVenue().toLowerCase().contains(v))
-                .map(this::toEventDto)
-                .toList();
+        return eventRepository.searchEventsByVenue(venue.trim())
+                .stream().map(this::toEventDto).toList();
     }
 
-    // search by minimum event rating (average of user reviews, 1-5)
+    // search by minimum event rating — rating is computed in-memory from reviews map,
+    // no DB column exists for it; load only active events then filter
     public List<EventDto> searchEventsByMinRating(double minRating) {
         logger.info("Searching events by min rating: {}", minRating);
-        return eventRepository.findAll().stream()
+        return eventRepository.findAllEvents().stream()
                 .filter(e -> averageEventRating(e) >= minRating)
                 .map(this::toEventDto)
                 .toList();

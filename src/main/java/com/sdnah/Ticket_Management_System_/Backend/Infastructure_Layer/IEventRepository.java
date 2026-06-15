@@ -48,6 +48,12 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
     @Query("SELECT e FROM Event e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))")
     List<Event> searchEventsByName(@Param("name") String name);
 
+    @Query("SELECT e FROM Event e WHERE LOWER(e.description) LIKE LOWER(CONCAT('%', :desc, '%'))")
+    List<Event> searchEventsByDescription(@Param("desc") String desc);
+
+    @Query("SELECT e FROM Event e WHERE LOWER(e.venue) LIKE LOWER(CONCAT('%', :venue, '%'))")
+    List<Event> searchEventsByVenue(@Param("venue") String venue);
+
     @Query("SELECT e FROM Event e WHERE e.eventType = :eventType")
     List<Event> searchEventsByType(@Param("eventType") show_type eventType);
 

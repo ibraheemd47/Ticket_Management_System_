@@ -87,6 +87,9 @@ public class CompanyAcceptanceTest {
 
         when(companyRepository.findAll()).thenAnswer(invocation -> new ArrayList<>(companies.values()));
 
+        when(companyRepository.findByIsOpenTrue(true)).thenAnswer(invocation ->
+                companies.values().stream().filter(Company::isOpen).collect(java.util.stream.Collectors.toList()));
+
         doAnswer(invocation -> {
             UUID companyId = invocation.getArgument(0);
             companies.remove(companyId);

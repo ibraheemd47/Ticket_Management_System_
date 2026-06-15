@@ -30,4 +30,8 @@ public interface ActiveOrderRepository extends JpaRepository<ActiveOrder, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     boolean isTicketLocked(@Param("ticketId") String ticketId);
 
+    /** Count non-expired active orders directly in the DB — avoids loading all rows. */
+    @Query("SELECT COUNT(o) FROM ActiveOrder o WHERE o.status = 'ACTIVE' AND o.expiresAt > CURRENT_TIMESTAMP")
+    long countActiveOrders();
+
 }

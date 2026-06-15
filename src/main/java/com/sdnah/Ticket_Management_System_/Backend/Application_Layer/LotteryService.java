@@ -1,10 +1,14 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.Notification;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -267,6 +271,7 @@ public class LotteryService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<LotteryEntryDTO> getEntriesByLottery(UUID lotteryId) {
         Lottery lottery = lotteryRepository.findById(lotteryId)
                 .orElseThrow(() -> new IllegalArgumentException("Lottery not found: " + lotteryId));
@@ -335,19 +340,26 @@ public class LotteryService {
     }
 
     private void notifyDrawResults(Lottery lottery) {
-        String eventName = lottery.getEventId().toString();   // or a real name if you can resolve it
+        String eventName = lottery.getEventId().toString();
+        List<Notification> batch = new ArrayList<>();
         for (LotteryEntry e : lottery.getEntries()) {
             try {
                 if (e.isWinner()) {
-                    notificationService.notifyLotteryWin(e.getMemberId(), eventName, e.getAccessCode());
+                    String msg = "🎉 You won the lottery for \"" + eventName
+                            + "\"! Your access code: " + e.getAccessCode();
+                    batch.add(new Notification(e.getMemberId(), msg, NotificationType.LOTTERY_WIN));
                 } else {
-                    notificationService.notifyLotteryLoss(e.getMemberId(), eventName);
+                    String msg = "Better luck next time! You were not selected in the lottery for \""
+                            + eventName + "\".";
+                    batch.add(new Notification(e.getMemberId(), msg, NotificationType.LOTTERY_LOSS));
                 }
             } catch (Exception ex) {
-                logger.warn("Failed to notify member {} for lottery {}: {}",
+                logger.warn("Failed to build notification for member {} in lottery {}: {}",
                         e.getMemberId(), lottery.getId(), ex.getMessage());
             }
         }
+        // Single batch INSERT instead of N individual saves
+        notificationService.createNotificationsBatch(batch);
     }
 
     public boolean isWinnerWindowOpen(UUID eventId) {

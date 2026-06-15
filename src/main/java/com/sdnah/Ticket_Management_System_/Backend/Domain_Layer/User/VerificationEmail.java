@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PasswordHasher;
@@ -25,6 +26,7 @@ public class VerificationEmail {
     // =========================================================
     // ACCOUNT VERIFICATION
     // =========================================================
+    @Async
     public void createAndSendCode(Member member, VerificationMethod verificationMethod) {
         if (member == null) {
             throw new RuntimeException("Member cannot be null");

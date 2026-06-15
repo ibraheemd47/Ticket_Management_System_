@@ -9,7 +9,11 @@ import java.util.UUID;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "lotteries")
+@Table(name = "lotteries", indexes = {
+    @Index(name = "idx_lottery_event_id",   columnList = "eventId"),
+    @Index(name = "idx_lottery_company_id", columnList = "companyId"),
+    @Index(name = "idx_lottery_status",     columnList = "status")
+})
 public class Lottery {
     
 
@@ -27,7 +31,7 @@ public class Lottery {
     @Enumerated(EnumType.STRING)
     private LotteryStatus status;
     
-    @OneToMany(mappedBy = "lottery", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "lottery", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<LotteryEntry> entries = new ArrayList<>();
 
     public enum LotteryStatus {
