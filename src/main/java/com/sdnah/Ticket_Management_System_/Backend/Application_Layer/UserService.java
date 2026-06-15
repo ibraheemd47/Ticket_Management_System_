@@ -191,9 +191,9 @@ public class UserService implements IrepresnteUserService {
     }
 
     private boolean validatePassword(String password) {
-        if (password == null || password.length() < 6) {
+        if (password == null || password.length() < 2) {  ///<= zaki replace that 
             logger.error("Password validation failed: below minimum length");
-            throw new RuntimeException("Password must contain at least 6 characters");
+            throw new RuntimeException("Password must contain at least 2 characters");
         }
         logger.debug("Password validation passed");
         return true;
@@ -204,7 +204,7 @@ public class UserService implements IrepresnteUserService {
             logger.error("Username validation failed: empty username");
             throw new RuntimeException("Username cannot be empty");
         }
-        if (username.length() < 3) {
+        if (username.length() < 1) {
             logger.error("Username validation failed: username too short, username={}", username);
             throw new RuntimeException("Username must contain at least 3 characters");
         }
