@@ -381,17 +381,12 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
                 e.getValue().stream().map(Enum::name).sorted().toList())).setHeader("Permissions");
         grid.addComponentColumn(entry -> {
             Button remove = new Button("Remove", ev -> {
-    try {
-        String username = getMemberDisplayName(entry.getKey());
-
-        presenter.removeManager(entry.getKey());
-        renderRolesTab();
-
-    } catch (RuntimeException ex) {
-        Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                .addThemeVariants(NotificationVariant.LUMO_ERROR);
-    }
-});
+                // Presenter owns the full flow — it catches errors, shows
+                // a success/error notification, and reloads the roles tab.
+                // Adding our own try/catch + reload here would double-fire
+                // the notification and re-render twice.
+                presenter.removeManager(entry.getKey());
+            });
             remove.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
             return remove;
         }).setHeader("");
@@ -402,40 +397,43 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     }
 
     private Component appointBox(String label, java.util.function.Consumer<String> action) {
-    TextField usernameField = new TextField();
-    usernameField.setPlaceholder("username");
+        TextField usernameField = new TextField();
+        usernameField.setPlaceholder("username");
 
-    Button go = new Button(label, e -> {
-        String username = usernameField.getValue();
+        Button go = new Button(label, e -> {
+            String username = usernameField.getValue();
 
-        if (username == null || username.isBlank()) {
-            Notification.show("Username required", 2500, Notification.Position.MIDDLE);
-            return;
-        }
+            if (username == null || username.isBlank()) {
+                Notification.show("Username required", 2500, Notification.Position.MIDDLE);
+                return;
+            }
 
-        try {
-            String memberId = getMemberIdByUsername(username);
+            // Resolve username → memberId in its own try/catch (this is a
+            // local lookup, not the presenter's responsibility).
+            String memberId;
+            try {
+                memberId = getMemberIdByUsername(username);
+            } catch (RuntimeException ex) {
+                Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
 
+            // Presenter owns the appoint flow — it catches its own errors,
+            // shows success / error notifications, and reloads the roles
+            // tab on success. We must NOT show our own "Done" notification
+            // or call renderRolesTab() here, otherwise we'd double-notify
+            // (or, on backend error, see both an error AND a "Done").
             action.accept(memberId);
+        });
 
-            Notification.show("Done", 2500, Notification.Position.TOP_CENTER)
-                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        go.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-            renderRolesTab();
+        HorizontalLayout row = new HorizontalLayout(usernameField, go);
+        row.getStyle().set("margin-top", "8px");
 
-        } catch (RuntimeException ex) {
-            Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
-    });
-
-    go.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-    HorizontalLayout row = new HorizontalLayout(usernameField, go);
-    row.getStyle().set("margin-top", "8px");
-
-    return row;
-}
+        return row;
+    }
 
     // ── Tab: Policies ────────────────────────────────────────────────────────
 
@@ -567,16 +565,17 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         addRuleBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
 
         Button saveBtn = new Button("Save Discount Policy", ev -> {
-            try {
-                if (discountRules.isEmpty()) { Notification.show("Add at least one rule"); return; }
-                boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
-                presenter.setDiscountRulesForCompany(discountRules, isAdditive);
-                Notification.show("Discount policy saved", 2500, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            } catch (RuntimeException ex) {
-                Notification.show("Error: " + ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            // Local pre-validation only — keep its notification because the
+            // presenter is never called in that case.
+            if (discountRules.isEmpty()) {
+                Notification.show("Add at least one rule");
+                return;
             }
+            boolean isAdditive = "AND (sum discounts)".equals(andOrGroup.getValue());
+            // Presenter owns the save flow — it catches its own errors and
+            // shows the success / error notification. Adding our own would
+            // double-notify (the original bug behaviour).
+            presenter.setDiscountRulesForCompany(discountRules, isAdditive);
         });
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -647,26 +646,25 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             });
 
         Button saveBtn = new Button("Save Purchase Policy", ev -> {
-            try {
-                Integer minAge = minAgeField.getValue();
-                Integer minTix = minTicketsField.getValue();
-                Integer maxTix = maxTicketsField.getValue();
-                if (minAge == null && minTix == null && maxTix == null) {
-                    Notification.show("At least one restriction is required"); return;
-                }
-                PurchasePolicy.Operator op = "OR (at least one must pass)".equals(operatorGroup.getValue())
-                        ? PurchasePolicy.Operator.OR : PurchasePolicy.Operator.AND;
-                java.util.List<PurchaseRule> rules = new ArrayList<>();
-                if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
-                if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
-                if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
-                presenter.setPurchaseRulesForCompany(rules, op);
-                Notification.show("Purchase policy saved", 2500, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            } catch (RuntimeException ex) {
-                Notification.show("Error: " + ex.getMessage(), 3500, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            Integer minAge = minAgeField.getValue();
+            Integer minTix = minTicketsField.getValue();
+            Integer maxTix = maxTicketsField.getValue();
+            // Local pre-validation only — presenter is never called below
+            // when nothing was filled in.
+            if (minAge == null && minTix == null && maxTix == null) {
+                Notification.show("At least one restriction is required");
+                return;
             }
+            PurchasePolicy.Operator op = "OR (at least one must pass)".equals(operatorGroup.getValue())
+                    ? PurchasePolicy.Operator.OR : PurchasePolicy.Operator.AND;
+            java.util.List<PurchaseRule> rules = new ArrayList<>();
+            if (minAge != null && minAge >= 0) rules.add(new MinAgeRule(minAge));
+            if (minTix != null && minTix > 0)  rules.add(new MinTicketsRule(minTix));
+            if (maxTix != null && maxTix > 0)  rules.add(new MaxTicketsRule(maxTix));
+            // Presenter owns the save flow — it catches its own errors and
+            // shows the success / error notification. Adding our own would
+            // double-notify (the original bug behaviour).
+            presenter.setPurchaseRulesForCompany(rules, op);
         });
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 

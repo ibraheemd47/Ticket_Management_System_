@@ -173,7 +173,7 @@ public class ManagingCompanyPresenter {
     public void removeManager(String memberId) {
         try {
             companyService.removeManagerAppointment(token, companyId, memberId);
-            view.onRoleMutationSucceeded("Removed " + memberId);
+            view.onRoleMutationSucceeded("Manager removed");
         } catch (RuntimeException ex) {
             view.showError(ex.getMessage());
         }

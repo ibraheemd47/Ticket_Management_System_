@@ -301,7 +301,22 @@ public class EventDetailsPresenter {
 
     public List<Policy> getPolicies() {
         if (cachedEventId == null) return List.of();
-        return policyRepo.findByEventId(cachedEventId);
+        // Workaround for the Hibernate polymorphic load error
+        // ("Could not resolve property: rootRule of: Policy"). Querying
+        // by the typed subclass finders avoids the failing polymorphic
+        // SELECT that {@code findByEventId} triggers. Each finder is
+        // already exposed on {@link PolicyRepository}.
+        List<Policy> out = new java.util.ArrayList<>();
+        try {
+            policyRepo.findDiscountPolicyByEventId(cachedEventId).ifPresent(out::add);
+        } catch (RuntimeException ignored) { /* no discount policy for this event */ }
+        try {
+            policyRepo.findPurchasePolicyByEventId(cachedEventId).ifPresent(out::add);
+        } catch (RuntimeException ignored) { /* no purchase policy for this event */ }
+        try {
+            policyRepo.findSellingPolicyByEventId(cachedEventId).ifPresent(out::add);
+        } catch (RuntimeException ignored) { /* no selling policy for this event */ }
+        return out;
     }
 
     // public void deletePolicy(Policy policy) {
