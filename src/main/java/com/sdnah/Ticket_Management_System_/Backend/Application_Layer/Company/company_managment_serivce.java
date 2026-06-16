@@ -71,14 +71,14 @@ public class company_managment_serivce {
     // --- II.2.1: View Active Production Companies ---
     @Cacheable("active-companies")
     public List<CompanyDTO> getActiveCompanies() {
-        return companyRepository.findByIsOpenTrue(true).stream()
+        return companyRepository.findByIsOpen(true).stream()
                 .map(this::toDTO)
                 .toList();
     }
 
     // II.2.1 - Get all upcoming events from active companies
     public List<UUID> getAllUpComingEventsForHomePage() {
-        return companyRepository.findByIsOpenTrue(true).stream()
+        return companyRepository.findByIsOpen(true).stream()
                 .flatMap(company -> company.getAssociatedEventIds().stream())
                 .toList();
     }
@@ -479,6 +479,7 @@ public class company_managment_serivce {
 
 
     // --- II.6.1: Close Production Company by System Admin ---
+    @CacheEvict(value = "active-companies", allEntries = true)
     @Transactional
     public boolean adminCloseCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
@@ -547,7 +548,7 @@ public class company_managment_serivce {
     }
 
     public List<CompanyDTO> showCompaniesByRating() {
-        return companyRepository.findByIsOpenTrue(true).stream()
+        return companyRepository.findByIsOpen(true).stream()
                 .sorted(Comparator.comparingDouble(Company::getRating).reversed())
                 .map(this::toDTO)
                 .toList();

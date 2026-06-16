@@ -128,7 +128,7 @@ class company_managment_serivceTest {
 
         closedCompany.closeCompany(FOUNDER);
 
-        when(repo.findByIsOpenTrue(true)).thenReturn(List.of(mainCompany));
+        when(repo.findByIsOpen(true)).thenReturn(List.of(mainCompany));
 
         List<CompanyDTO> active = service.getActiveCompanies();
 
