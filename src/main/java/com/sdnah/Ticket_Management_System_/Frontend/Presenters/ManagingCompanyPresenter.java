@@ -141,6 +141,19 @@ public class ManagingCompanyPresenter {
         }
     }
 
+    /** Return the name for a given event UUID (falls back to short UUID on error). */
+    public String getEventName(UUID eventId) {
+        try {
+            return companyService.getAllEventsByCompany(companyId).stream()
+                    .filter(e -> eventId.equals(e.id))
+                    .map(e -> e.name)
+                    .findFirst()
+                    .orElse(eventId.toString().substring(0, 8));
+        } catch (RuntimeException ex) {
+            return eventId.toString().substring(0, 8);
+        }
+    }
+
     // ── Roles tab ───────────────────────────────────────────────────────────
 
     public void loadRolesForCurrentCompany() {

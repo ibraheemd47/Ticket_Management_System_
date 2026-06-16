@@ -341,6 +341,11 @@ public class EventCreationView extends VerticalLayout
         descField.setMinHeight("72px");
         DatePicker datePicker = new DatePicker("Show Date");
         datePicker.setWidthFull();
+        // Constrain to the event's date range (set by startDatePicker / endDatePicker above)
+        if (startDatePicker.getValue() != null)
+            datePicker.setMin(startDatePicker.getValue().toLocalDate());
+        if (endDatePicker.getValue() != null)
+            datePicker.setMax(endDatePicker.getValue().toLocalDate());
 
         TextField standingCapField = new TextField("Standing Area — Capacity");
         standingCapField.setPlaceholder("0 = no standing area");
@@ -504,6 +509,16 @@ public class EventCreationView extends VerticalLayout
                     lotteryDrawTimePicker.clear();
             }
         });
+
+        // Lottery deadline and draw time must both be before the event starts
+        java.util.function.Consumer<java.time.LocalDateTime> applyEventStartMax = eventStart -> {
+            if (eventStart != null) {
+                lotteryDeadlinePicker.setMax(eventStart);
+                lotteryDrawTimePicker.setMax(eventStart);
+            }
+        };
+        applyEventStartMax.accept(startDatePicker.getValue());
+        startDatePicker.addValueChangeListener(ev -> applyEventStartMax.accept(ev.getValue()));
 
         lotteryFieldsDiv = new Div(
                 sectionLabel("Lottery Configuration"),
