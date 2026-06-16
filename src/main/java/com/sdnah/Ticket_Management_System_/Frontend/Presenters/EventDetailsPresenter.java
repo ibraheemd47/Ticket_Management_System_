@@ -301,11 +301,6 @@ public class EventDetailsPresenter {
 
     public List<Policy> getPolicies() {
         if (cachedEventId == null) return List.of();
-        // Workaround for the Hibernate polymorphic load error
-        // ("Could not resolve property: rootRule of: Policy"). Querying
-        // by the typed subclass finders avoids the failing polymorphic
-        // SELECT that {@code findByEventId} triggers. Each finder is
-        // already exposed on {@link PolicyRepository}.
         List<Policy> out = new java.util.ArrayList<>();
         try {
             policyRepo.findDiscountPolicyByEventId(cachedEventId).ifPresent(out::add);
@@ -319,18 +314,9 @@ public class EventDetailsPresenter {
         return out;
     }
 
-    // public void deletePolicy(Policy policy) {
-    //     if (policy instanceof SellingPolicy && hasActiveLottery()) {
-    //         view.showError("Cannot delete the selling policy while a lottery is open for this event.");
-    //         return;
-    //     }
-    //     try {
-    //         policyRepo.deleteByPolicyId(policy.getPolicyId());
-    //         view.showSuccess("Policy removed");
-    //         view.refreshPolicies();
-    //     } catch (RuntimeException ex) { view.showError("Could not remove: " + ex.getMessage()); }
-    // }
+    
     public void deletePolicy(Policy policy) {
+        canManageEvent();
         if (policy instanceof SellingPolicy && hasActiveLottery()) {
             view.showError("Cannot delete the selling policy while the lottery is active or before public sale opens.");
             return;
@@ -353,6 +339,7 @@ public class EventDetailsPresenter {
         if (cachedEventId == null) { view.showError("No event loaded"); return; }
         Object companyIdObj = view.getSessionAttribute("managingCompanyId");
         if (companyIdObj == null) { view.showError("No company session"); return; }
+        canManageEvent();
         UUID companyId = UUID.fromString(companyIdObj.toString());
          // Block changing the selling policy while a lottery is open
         if ("Selling".equals(policyType) && hasActiveLottery()) {
@@ -419,6 +406,7 @@ public class EventDetailsPresenter {
      * @param isAdditive true → AND (sum discounts), false → OR (best discount)
      */
     public void saveDiscountPolicy(Policy existing, List<DiscountRule> rules, boolean isAdditive) {
+        canManageEvent();
         if (cachedEventId == null) {
             view.showError("No event loaded");
             return;
@@ -460,28 +448,36 @@ public class EventDetailsPresenter {
             view.showError(ex.getMessage());
         }
     }
-    // public void saveDiscountPolicy(Policy existing, List<DiscountRule> rules, boolean isAdditive) {
-    //     if (cachedEventId == null) { view.showError("No event loaded"); return; }
-    //     Object companyIdObj = view.getSessionAttribute("managingCompanyId");
-    //     if (companyIdObj == null) { view.showError("No company session"); return; }
-    //     if (rules == null || rules.isEmpty()) { view.showError("At least one discount rule is required"); return; }
-    //     UUID companyId = UUID.fromString(companyIdObj.toString());
-    //     try {
-    //         // Remove existing discount policies for this event first
-    //         policyRepo.findByEventId(cachedEventId).stream()
-    //                 .filter(p -> p instanceof DiscountPolicy)
-    //                 .forEach(p -> policyRepo.deleteByPolicyId(p.getPolicyId()));
-    //         if (existing != null) {
-    //             try { policyRepo.deleteByPolicyId(existing.getPolicyId()); } catch (Exception ignored) {}
-    //         }
-    //         DiscountPolicy dp = new DiscountPolicy("Discount policy", cachedEventId, companyId);
-    //         dp.setRules(rules, isAdditive);
-    //         policyRepo.savePolicy(dp);
-    //         view.showSuccess("Discount policy saved");
-    //         view.refreshPolicies();
-    //     } catch (RuntimeException ex) { view.showError(ex.getMessage()); }
-    // }
 
+    public boolean canManageEvent() {
+        if (cachedEvent == null) return false;
+
+        String token = getToken();
+        if (token == null) return false;
+
+        try {
+            Member member = userService.getMemberByToken(token);
+            UUID companyId = cachedEvent.getCompanyId();
+
+            if (member.isOwnerInCompany(companyId)) {
+                return true;
+            }
+
+            return member.getCompanyRoles().stream()
+                    .anyMatch(a ->
+                            companyId.equals(a.getCompanyId())
+                            && a.isManager()
+                            && a.getPermissions() != null
+                            && a.getPermissions().contains(
+                                    com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission.MANAGE_EVENTS
+                            )
+                    );
+
+        } catch (RuntimeException ex) {
+            return false;
+        }
+    }
+  
     // =========================================================================
     // Lottery
     // =========================================================================
