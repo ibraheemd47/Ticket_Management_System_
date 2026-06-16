@@ -75,7 +75,6 @@ class SystemInitializationTest {
     }
 
     // ── InitialStateLoader validation ─────────────────────────────────────────
-
     @Test
     @DisplayName("INIT: InitialStateLoader skips execution when disabled")
     void initialStateLoader_disabled_doesNotThrow() throws Exception {
