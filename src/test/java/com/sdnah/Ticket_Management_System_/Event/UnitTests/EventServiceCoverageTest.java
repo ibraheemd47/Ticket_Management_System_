@@ -41,6 +41,7 @@ class EventServiceCoverageTest {
     @Mock private NotificationService notificationService;
     @Mock private TransactionTemplate transactionTemplate;
     @Mock private TicketRepository ticketRepository;
+    @Mock private com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository companyRepository;
 
     private EventService service;
 
@@ -59,7 +60,8 @@ class EventServiceCoverageTest {
     void setUp() {
         service = new EventService(
                 eventRepository, purchaseRepository, notificationService,
-                new KeyedLock(), transactionTemplate, ticketRepository);
+                new KeyedLock(), transactionTemplate, ticketRepository,
+                companyRepository);
 
         eventA = mockEvent("Rock Night", "Loud and proud", "MSG",
                 show_type.PERFORMANCE, DAY_1, DAY_5, "alice", 5);
@@ -89,7 +91,7 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventByName matches case-insensitively on the name field")
     void searchEventByName_matchesSubstring() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.searchEventsByName("rock")).thenReturn(List.of(eventA));
 
         List<EventDto> hits = service.searchEventByName("rock");
 
@@ -109,7 +111,7 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventsByDescription matches substring case-insensitively")
     void searchEventsByDescription_match() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.searchEventsByDescription("stand")).thenReturn(List.of(eventC));
 
         List<EventDto> hits = service.searchEventsByDescription("stand");
 
@@ -128,7 +130,7 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventsByCategory keeps only matching event type")
     void searchEventsByCategory_match() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.searchEventsByType(show_type.PERFORMANCE)).thenReturn(List.of(eventA, eventC));
 
         List<EventDto> hits = service.searchEventsByCategory(show_type.PERFORMANCE);
 
@@ -146,7 +148,7 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventsByStartDate keeps events starting on/after the given date")
     void searchEventsByStartDate_filters() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.getEventsByFilter(null, null, DAY_5, null)).thenReturn(List.of(eventB, eventC));
 
         List<EventDto> hits = service.searchEventsByStartDate(DAY_5);
 
@@ -164,7 +166,7 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventsByEndDate keeps events ending on/before the given date and excludes events without endDate")
     void searchEventsByEndDate_filters() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.getEventsByFilter(null, null, null, DAY_5)).thenReturn(List.of(eventA));
 
         List<EventDto> hits = service.searchEventsByEndDate(DAY_5);
 
@@ -184,7 +186,7 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventsByDateRange filters by start in [from, to]")
     void searchEventsByDateRange_range() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.getEventsByFilter(null, null, DAY_1, DAY_5)).thenReturn(List.of(eventA, eventB));
 
         List<EventDto> hits = service.searchEventsByDateRange(DAY_1, DAY_5);
 
@@ -195,7 +197,9 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventsByDateRange handles open-ended ranges (null fromDate/toDate)")
     void searchEventsByDateRange_openEnded() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.getEventsByFilter(null, null, null, null)).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.getEventsByFilter(null, null, DAY_5, null)).thenReturn(List.of(eventB, eventC));
+        when(eventRepository.getEventsByFilter(null, null, null, DAY_5)).thenReturn(List.of(eventA, eventB));
 
         // All events with a start date qualify when both bounds are null.
         assertEquals(3, service.searchEventsByDateRange(null, null).size());
@@ -212,7 +216,7 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventsByVenue matches substring case-insensitively")
     void searchEventsByVenue_match() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.searchEventsByVenue("msg")).thenReturn(List.of(eventA, eventC));
 
         List<EventDto> hits = service.searchEventsByVenue("msg");
 
@@ -231,7 +235,7 @@ class EventServiceCoverageTest {
     @Test
     @DisplayName("searchEventsByMinRating uses average review rating")
     void searchEventsByMinRating_filters() {
-        when(eventRepository.findAll()).thenReturn(List.of(eventA, eventB, eventC));
+        when(eventRepository.findAllEvents()).thenReturn(List.of(eventA, eventB, eventC));
 
         List<EventDto> hits = service.searchEventsByMinRating(4.0);
 
@@ -244,7 +248,7 @@ class EventServiceCoverageTest {
     void searchEventsByMinRating_noReviews() {
         Event noReviews = mock(Event.class);
         when(noReviews.getReviews()).thenReturn(Map.of());
-        when(eventRepository.findAll()).thenReturn(List.of(noReviews));
+        when(eventRepository.findAllEvents()).thenReturn(List.of(noReviews));
 
         // A min rating of 0 keeps it; any positive cutoff excludes it.
         assertEquals(1, service.searchEventsByMinRating(0.0).size());

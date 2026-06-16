@@ -10,11 +10,15 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "purchases")
+@Table(name = "purchases", indexes = {
+    @Index(name = "idx_purchase_buyer_id", columnList = "buyerId"),
+    @Index(name = "idx_purchase_event_id", columnList = "eventId")
+})
 public class Purchase {
 
     @Id

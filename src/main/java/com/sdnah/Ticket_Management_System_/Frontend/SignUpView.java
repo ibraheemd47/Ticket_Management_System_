@@ -1,13 +1,13 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.UserPresenter; // Make sure this path is correct!
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -16,10 +16,11 @@ import com.vaadin.flow.router.Route;
 @Route("signup")
 public class SignUpView extends VerticalLayout {
 
-    private final UserService userService;
+    private final UserPresenter presenter;
 
-    public SignUpView(UserService userService) {
-        this.userService = userService;
+    public SignUpView(UserPresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setSignUpView(this); // Link the view to the presenter
 
         setSizeFull();
         setPadding(false);
@@ -72,7 +73,7 @@ public class SignUpView extends VerticalLayout {
                 .set("font-weight", "900")
                 .set("cursor", "pointer");
 
-        logo.addClickListener(event -> getUI().ifPresent(ui -> ui.navigate("")));
+        logo.addClickListener(event -> navigateTo(""));
 
         header.add(logo);
         return header;
@@ -155,8 +156,8 @@ public class SignUpView extends VerticalLayout {
         TextField email = new TextField("Email Address");
         email.setWidthFull();
 
-        TextField Age = new TextField("Age");
-        Age.setWidthFull();
+        TextField age = new TextField("Age");
+        age.setWidthFull();
 
         TextField phone = new TextField("Phone");
         phone.setWidthFull();
@@ -179,55 +180,18 @@ public class SignUpView extends VerticalLayout {
                 .set("cursor", "pointer")
                 .set("margin-top", "20px");
 
+        // --------------------------------------------------------
+        // DELEGATE SIGNUP LOGIC TO PRESENTER
+        // --------------------------------------------------------
         signupButton.addClickListener(event -> {
-            // 1. Check for empty fields
-            if (username.isEmpty() || email.isEmpty() || phone.isEmpty()
-                    || password.isEmpty() || confirmPassword.isEmpty()) {
-                Notification.show("Please fill in all fields.");
-                return;
-            }
-
-            // 2. Validate Phone Number (Exactly 10 digits, starts with 050-058)
-            String phoneRegex = "^05[0-8]\\d{7}$";
-            if (!phone.getValue().matches(phoneRegex)) {
-                Notification.show("Invalid phone number. It must be exactly 10 digits and start with 050-058.");
-                return;
-            }
-            String AgeRegex = "^(1[89]|[2-9]\\d)$"; // Validates age between 18 and 99
-            if (!Age.getValue().matches(AgeRegex)) {
-                Notification.show("Invalid age. You must be at least 18 years old.");
-                return;
-            }
-
-            // 3. Validate Passwords match
-            if (!password.getValue().equals(confirmPassword.getValue())) {
-                Notification.show("Passwords do not match!");
-                return;
-            }
-
-            // 4. Proceed with Registration
-            try {
-                userService.register(
-                        username.getValue(),
-                        password.getValue(),
-                        email.getValue(),
-                        phone.getValue(),
-                        Integer.parseInt(Age.getValue()),
-                        VerificationMethod.EMAIL
-                );
-
-                Notification.show("Account created. Please enter the verification code.");
-
-                getUI().ifPresent(ui -> {
-                    ui.getSession().setAttribute("pendingUsername", username.getValue());
-                    // ADD THIS LINE: temporarily store the password
-                    ui.getSession().setAttribute("pendingPassword", password.getValue()); 
-                    ui.navigate("verify-account");
-                });
-
-            } catch (Exception ex) {
-                Notification.show(ex.getMessage());
-            }
+            presenter.handleSignUp(
+                    username.getValue(),
+                    email.getValue(),
+                    age.getValue(),
+                    phone.getValue(),
+                    password.getValue(),
+                    confirmPassword.getValue()
+            );
         });
 
         Paragraph alreadyAccount = new Paragraph("Already have an account? Sign in");
@@ -239,9 +203,33 @@ public class SignUpView extends VerticalLayout {
                 .set("margin-top", "25px")
                 .set("cursor", "pointer");
 
-        alreadyAccount.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("login")));
+        alreadyAccount.addClickListener(e -> navigateTo("login"));
 
-        right.add(title, subtitle, username, email, Age, phone, password, confirmPassword, signupButton, alreadyAccount);
+        right.add(title, subtitle, username, email, age, phone, password, confirmPassword, signupButton, alreadyAccount);
         return right;
+    }
+
+    // =========================================================================
+    // PRESENTER CALLBACK METHODS 
+    // =========================================================================
+
+    public void showNotification(String message, boolean isError) {
+        Notification notification = Notification.show(message, 4000, Notification.Position.MIDDLE);
+        if (isError) {
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        } else {
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        }
+    }
+
+    public void navigateTo(String route) {
+        getUI().ifPresent(ui -> ui.navigate(route));
+    }
+
+    public void storePendingSessionData(String username, String password) {
+        getUI().ifPresent(ui -> {
+            ui.getSession().setAttribute("pendingUsername", username);
+            ui.getSession().setAttribute("pendingPassword", password);
+        });
     }
 }

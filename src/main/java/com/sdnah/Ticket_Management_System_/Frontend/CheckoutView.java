@@ -7,11 +7,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PaymentDetailsDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.PurchaseDTO;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.CheckoutPresenter;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -28,16 +26,14 @@ import com.vaadin.flow.router.Route;
 
 @Route("checkout")
 public class CheckoutView extends VerticalLayout implements BeforeEnterObserver {
+    private final CheckoutPresenter presenter;
 
-    private final TicketService ticketService;
-    private final PolicyRepository policyRepo;
+  
     private final Div contentArea = new Div();
-    private final ActiveOrderService order;
 
-    public CheckoutView(TicketService ticketService, PolicyRepository policyRepo, ActiveOrderService order) {
-        this.ticketService = ticketService;
-        this.policyRepo = policyRepo;
-        this.order = order;
+    public CheckoutView(ActiveOrderService order) {
+       
+        this.presenter = new CheckoutPresenter(order);
 
         setSizeFull();
         setPadding(false);
@@ -238,17 +234,12 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
 
                 String token = tokenObj == null ? "" : tokenObj.toString();
 
-                String cleanCard = cardNumber.getValue().replaceAll("\\s+", "");
-                String last4 = cleanCard.length() >= 4
-                        ? cleanCard.substring(cleanCard.length() - 4)
-                        : cleanCard;
 
-                PaymentDetailsDTO paymentDTO = new PaymentDetailsDTO(
-                        "CARD-" + last4,
-                        fullName.getValue().trim(),
-                        "CREDIT_CARD");
-
-                PurchaseDTO purchase = order.checkout(orderId, token, paymentDTO);
+               PurchaseDTO purchase = presenter.checkout(
+                          orderId,
+                          token,
+                          fullName.getValue(),
+                          cardNumber.getValue());
 
                 getUI().ifPresent(ui -> {
                     ui.getSession().setAttribute("checkoutOrderId", null);
@@ -295,107 +286,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
         return id == null ? "—" : id.toString().substring(0, 8);
     }
 
-    private Div buildPaymentCard(List<String> ticketIds,
-            String userId,
-            BigDecimal[] finalTotalRef) {
-        Div card = createCard();
 
-        H1 title = new H1("Checkout");
-        title.getStyle().set("font-size", "34px").set("margin", "0 0 8px 0");
-
-        Paragraph subtitle = new Paragraph("Enter your details to complete the purchase.");
-        subtitle.getStyle().set("color", "#6b7280").set("margin", "0 0 28px 0");
-
-        TextField fullName = new TextField("Full Name");
-        fullName.setWidthFull();
-        TextField email = new TextField("Email");
-        email.setWidthFull();
-        TextField cardNumber = new TextField("Card Number");
-        cardNumber.setWidthFull();
-        cardNumber.setPlaceholder("1234 5678 9012 3456");
-
-        Div rowDiv = new Div();
-        rowDiv.getStyle().set("display", "grid")
-                .set("grid-template-columns", "1fr 1fr").set("gap", "16px");
-        TextField expiry = new TextField("Expiry Date");
-        expiry.setPlaceholder("MM/YY");
-        TextField cvv = new TextField("CVV");
-        cvv.setPlaceholder("123");
-        rowDiv.add(expiry, cvv);
-
-        // ── Confirm button ────────────────────────────────────────────────────
-        Button confirm = new Button("Confirm Purchase");
-        confirm.setWidthFull();
-        confirm.getStyle()
-                .set("background", "#026cdf").set("color", "white")
-                .set("font-weight", "700").set("padding", "14px")
-                .set("border-radius", "8px").set("margin-top", "24px");
-
-        confirm.addClickListener(e -> {
-            try {
-                if (fullName.isEmpty() || email.isEmpty()
-                        || cardNumber.isEmpty() || expiry.isEmpty() || cvv.isEmpty()) {
-                    Notification.show("Please fill all checkout fields");
-                    return;
-                }
-                if (userId == null || userId.isBlank()) {
-                    Notification.show("Session expired — please log in again");
-                    getUI().ifPresent(ui -> ui.navigate("login"));
-                    return;
-                }
-
-                UUID userUUID = UUID.fromString(userId);
-                int confirmed = 0;
-                for (String tid : ticketIds) {
-                    try {
-                        if (ticketService.confirmPurchase(UUID.fromString(tid), userUUID)) {
-                            confirmed++;
-                        }
-                    } catch (Exception ex) {
-                        Notification.show("Failed to confirm a ticket: " + ex.getMessage(),
-                                4000, Notification.Position.TOP_CENTER)
-                                .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                    }
-                }
-
-                if (confirmed == ticketIds.size()) {
-                    // Clear checkout session data
-                    getUI().ifPresent(ui -> {
-                        ui.getSession().setAttribute("checkoutTicketIds", null);
-                        ui.getSession().setAttribute("checkoutItems", null);
-                        ui.getSession().setAttribute("checkoutUserId", null);
-                        ui.getSession().setAttribute("checkoutShowName", null);
-                        ui.getSession().setAttribute("checkoutEventId", null);
-                    });
-                    Notification.show("Purchase completed! Enjoy the show 🎉",
-                            4000, Notification.Position.TOP_CENTER)
-                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    getUI().ifPresent(ui -> ui.navigate("orders?tab=past"));
-                } else {
-                    Notification.show(confirmed + " of " + ticketIds.size()
-                            + " tickets confirmed. Check My Orders for details.",
-                            5000, Notification.Position.TOP_CENTER)
-                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
-                }
-            } catch (Exception ex) {
-                Notification.show("An error occurred: " + ex.getMessage(),
-                        4000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-
-        // ── Cancel button ─────────────────────────────────────────────────────
-        Button cancel = new Button("Cancel — go back");
-        cancel.setWidthFull();
-        cancel.getStyle()
-                .set("background", "white").set("border", "2px solid #026cdf")
-                .set("color", "#026cdf").set("font-weight", "700")
-                .set("padding", "14px").set("border-radius", "8px").set("margin-top", "12px");
-        cancel.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("orders?tab=active")));
-
-        card.add(title, subtitle, fullName, email, cardNumber, rowDiv, confirm, cancel);
-        return card;
-    }
 
     // ── Right card: order summary + coupon ─────────────────────────────────────
 
@@ -590,10 +481,11 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                     return;
                 }
 
-                OrderDTO updatedOrder = order.applyCoupon(
-                        orderId,
-                        tokenObj.toString(),
-                        code.trim());
+                OrderDTO updatedOrder = presenter.applyCoupon(
+
+                            orderId,
+                            tokenObj.toString(),
+                            code);
 
                 BigDecimal discount = updatedOrder.getDiscount()
                         .setScale(2, RoundingMode.HALF_UP);

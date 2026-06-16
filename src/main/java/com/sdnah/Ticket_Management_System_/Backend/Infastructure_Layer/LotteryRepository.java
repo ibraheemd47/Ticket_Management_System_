@@ -1,5 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,4 +15,6 @@ public interface LotteryRepository extends JpaRepository<Lottery, UUID> {
     List<Lottery> findByEventId(UUID eventId);
 
     List<Lottery> findByCompanyId(UUID companyId);
+
+    List<Lottery> findByStatusAndDrawTimeBefore(Lottery.LotteryStatus status, LocalDateTime now);
 }

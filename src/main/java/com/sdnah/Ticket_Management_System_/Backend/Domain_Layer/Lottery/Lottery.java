@@ -9,7 +9,11 @@ import java.util.UUID;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "lotteries")
+@Table(name = "lotteries", indexes = {
+    @Index(name = "idx_lottery_event_id",   columnList = "eventId"),
+    @Index(name = "idx_lottery_company_id", columnList = "companyId"),
+    @Index(name = "idx_lottery_status",     columnList = "status")
+})
 public class Lottery {
     
 
@@ -21,11 +25,13 @@ public class Lottery {
 
     private LocalDateTime registrationDeadline;
     private LocalDateTime drawTime;
+    private LocalDateTime openSaleTime;   // ← when exclusivity ends and anyone can buy
+
 
     @Enumerated(EnumType.STRING)
     private LotteryStatus status;
     
-    @OneToMany(mappedBy = "lottery", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "lottery", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<LotteryEntry> entries = new ArrayList<>();
 
     public enum LotteryStatus {
@@ -33,6 +39,7 @@ public class Lottery {
         DRAWN,      // DRAWN BUT NOT CLOSED YET
         CLOSED      // CLOSED FOR ANY ACTIONS
     }
+
 
     protected Lottery() {}
 
@@ -69,23 +76,58 @@ public class Lottery {
         return entry;
     }
 
-    // this method can be called by admin to draw winners after registration deadline has passed
     public List<LotteryEntry> draw(int winnersCount) {
+        return draw(winnersCount, LocalDateTime.now().plusHours(24));
+    }
+
+    public List<LotteryEntry> draw(int winnersCount, LocalDateTime openSaleTime) {
         if (status != LotteryStatus.OPEN)
             throw new IllegalStateException("Lottery is not open");
+        if (LocalDateTime.now().isBefore(registrationDeadline))
+            throw new IllegalStateException("Cannot draw before the registration deadline has passed");
         if (winnersCount <= 0)
             throw new IllegalArgumentException("winnersCount must be positive");
+        if (openSaleTime == null || openSaleTime.isBefore(LocalDateTime.now()))
+            throw new IllegalArgumentException("openSaleTime must be in the future");
 
         List<LotteryEntry> shuffled = new ArrayList<>(entries);
         Collections.shuffle(shuffled);
-
         int count = Math.min(winnersCount, shuffled.size());
         List<LotteryEntry> winners = shuffled.subList(0, count);
 
-        winners.forEach(LotteryEntry::markAsWinner);
+        winners.forEach(e -> e.markAsWinner(openSaleTime));
         this.status = LotteryStatus.DRAWN;
+        this.openSaleTime = openSaleTime;
         return winners;
     }
+    
+  
+    // public List<LotteryEntry> draw(int winnersCount) {
+    //     return draw(winnersCount, java.time.Duration.ofHours(24));   // default, keeps old callers working
+    // }
+
+    // public List<LotteryEntry> draw(int winnersCount, java.time.Duration exclusiveWindow) {
+    //     if (status != LotteryStatus.OPEN)
+    //         throw new IllegalStateException("Lottery is not open");
+    //     if (LocalDateTime.now().isBefore(registrationDeadline))
+    //         throw new IllegalStateException("Cannot draw before the registration deadline has passed");
+    //     if (winnersCount <= 0)
+    //         throw new IllegalArgumentException("winnersCount must be positive");
+    //     if (exclusiveWindow == null || exclusiveWindow.isZero() || exclusiveWindow.isNegative())
+    //         throw new IllegalArgumentException("exclusiveWindow must be positive");
+
+    //     List<LotteryEntry> shuffled = new ArrayList<>(entries);
+    //     Collections.shuffle(shuffled);
+    //     int count = Math.min(winnersCount, shuffled.size());
+    //     List<LotteryEntry> winners = shuffled.subList(0, count);
+
+    //     winners.forEach(e -> e.markAsWinner(exclusiveWindow));   // ← same window for every winner's code
+    //     this.status = LotteryStatus.DRAWN;
+    //     //this.openSaleTime = LocalDateTime.now().plus(exclusiveWindow);   // ← and for the public open-sale moment
+    //     this.openSaleTime = openSaleTime;
+    //     return winners;
+    // }
+
 
     public boolean isAlreadyRegistered(String memberId) {
         return entries.stream()
@@ -105,4 +147,5 @@ public class Lottery {
     public LocalDateTime getDrawTime() { return drawTime; }
     public LotteryStatus getStatus() { return status; }
     public List<LotteryEntry> getEntries() { return Collections.unmodifiableList(entries); }
+    public LocalDateTime getOpenSaleTime() { return openSaleTime; }
 }

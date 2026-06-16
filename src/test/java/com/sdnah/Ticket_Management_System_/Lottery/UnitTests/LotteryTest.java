@@ -9,10 +9,12 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-
+import org.springframework.test.util.ReflectionTestUtils;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -119,6 +121,8 @@ public class LotteryTest {
         openLottery.register("member-2");
         openLottery.register("member-3");
 
+        forceRegistrationDeadlinePassed(openLottery);
+
         List<LotteryEntry> winners = openLottery.draw(2);
 
         assertEquals(2, winners.size());
@@ -129,6 +133,8 @@ public class LotteryTest {
     @Test
     void givenFewerEntriesThanWinnersCount_WhenDrawing_ThenAllEntriesWin() {
         openLottery.register("member-1");
+        forceRegistrationDeadlinePassed(openLottery);
+
         List<LotteryEntry> winners = openLottery.draw(5);
         assertEquals(1, winners.size());
     }
@@ -136,6 +142,7 @@ public class LotteryTest {
     @Test
     void givenDrawnLottery_WhenDrawingAgain_ThenIllegalStateExceptionIsThrown() {
         openLottery.register("member-1");
+        forceRegistrationDeadlinePassed(openLottery);
         openLottery.draw(1);
         assertThrows(IllegalStateException.class, () -> openLottery.draw(1));
     }
@@ -143,7 +150,16 @@ public class LotteryTest {
     @Test
     void givenInvalidWinnersCount_WhenDrawing_ThenIllegalArgumentExceptionIsThrown() {
         openLottery.register("member-1");
+        forceRegistrationDeadlinePassed(openLottery);
         assertThrows(IllegalArgumentException.class, () -> openLottery.draw(0));
+    }
+
+    private void forceRegistrationDeadlinePassed(Lottery lottery) {
+        ReflectionTestUtils.setField(
+                lottery,
+                "registrationDeadline",
+                LocalDateTime.now().minusMinutes(1)
+        );
     }
 
     // =========================================================================

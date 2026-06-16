@@ -13,6 +13,8 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,26 +69,23 @@ public class company_managment_serivce {
     }
 
     // --- II.2.1: View Active Production Companies ---
+    @Cacheable("active-companies")
     public List<CompanyDTO> getActiveCompanies() {
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
+        return companyRepository.findByIsOpenTrue(true).stream()
                 .map(this::toDTO)
                 .toList();
     }
 
     // II.2.1 - Get all upcoming events from active companies
     public List<UUID> getAllUpComingEventsForHomePage() {
-        // this return all of the events of all the companies, and the events service
-        // should handle the date filtering and return only the upcoming events in the
-        // response
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
+        return companyRepository.findByIsOpenTrue(true).stream()
                 .flatMap(company -> company.getAssociatedEventIds().stream())
                 .toList();
     }
     
 
     // --- II.3.2: Open Production Company (Triggered by II.1.1) ---
+    @CacheEvict(value = "active-companies", allEntries = true)
     @Transactional
     public UUID openCompany(String actorToken, String name) {
         try {
@@ -423,6 +422,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.13: Suspend / Close Production Company ---
+    @CacheEvict(value = "active-companies", allEntries = true)
     public boolean closeCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -443,6 +443,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.14: Reopen Production Company ---
+    @CacheEvict(value = "active-companies", allEntries = true)
     public boolean reopenCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -530,9 +531,8 @@ public class company_managment_serivce {
 
     // Filter events by company name
     public List<UUID> filterEventsByCompanyName(String companyName) {
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
-                .filter(company -> company.matchesName(companyName))
+        if (companyName == null || companyName.isBlank()) return List.of();
+        return companyRepository.findActiveByNameContaining(companyName, true).stream()
                 .flatMap(company -> company.getAssociatedEventIds().stream())
                 .toList();
     }
@@ -547,8 +547,7 @@ public class company_managment_serivce {
     }
 
     public List<CompanyDTO> showCompaniesByRating() {
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
+        return companyRepository.findByIsOpenTrue(true).stream()
                 .sorted(Comparator.comparingDouble(Company::getRating).reversed())
                 .map(this::toDTO)
                 .toList();
@@ -735,9 +734,7 @@ public class company_managment_serivce {
     // BY company name only (no additional filters)
     public List<EventDto> getAllEventsByCompanyName(String companyName) {
         if (companyName == null || companyName.isBlank()) return List.of();
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
-                .filter(company -> company.matchesName(companyName))
+        return companyRepository.findActiveByNameContaining(companyName, true).stream()
                 .flatMap(company -> company.getAssociatedEventIds().stream())
                 .map(id -> eventRepository.findById(id).orElse(null))
                 .filter(Objects::nonNull)
@@ -760,9 +757,7 @@ public class company_managment_serivce {
         if (companyName == null || companyName.isBlank()) {
             return java.util.stream.Stream.empty();
         }
-        return companyRepository.findAll().stream()
-                .filter(Company::isOpen)
-                .filter(company -> company.matchesName(companyName))
+        return companyRepository.findActiveByNameContaining(companyName, true).stream()
                 .flatMap(company -> company.getAssociatedEventIds().stream())
                 .map(id -> eventRepository.findById(id).orElse(null))
                 .filter(Objects::nonNull);

@@ -1,0 +1,143 @@
+[
+  {
+    "action": "register",
+    "username": "u1",
+    "password": "123456",
+    "email": "u1@test.com",
+    "phone": "0500000001",
+    "age": 23
+  },
+  {
+    "action": "verify",
+    "username": "u1",
+    "code": "000000"
+  },
+  {
+    "action": "register",
+    "username": "u2",
+    "password": "123456",
+    "email": "u2@test.com",
+    "phone": "0500000002",
+    "age": 24
+  },
+  {
+    "action": "verify",
+    "username": "u2",
+    "code": "000000"
+  },
+  {
+    "action": "register",
+    "username": "u3",
+    "password": "123456",
+    "email": "u3@test.com",
+    "phone": "0500000003",
+    "age": 25
+  },
+  {
+    "action": "verify",
+    "username": "u3",
+    "code": "000000"
+  },
+  {
+    "action": "register",
+    "username": "u4",
+    "password": "123456",
+    "email": "u4@test.com",
+    "phone": "0500000004",
+    "age": 26
+  },
+  {
+    "action": "verify",
+    "username": "u4",
+    "code": "000000"
+  },
+  {
+    "action": "login",
+    "username": "u1",
+    "password": "123456",
+    "saveTokenAs": "u1Token"
+  },
+  {
+    "action": "openCompany",
+    "token": "$u1Token",
+    "companyName": "p1",
+    "saveCompanyAs": "p1"
+  },
+  {
+    "action": "appointOwner",
+    "token": "$u1Token",
+    "company": "$p1",
+    "ownerUsername": "u2"
+  },
+  {
+    "action": "login",
+    "username": "u2",
+    "password": "123456",
+    "saveTokenAs": "u2Token"
+  },
+  {
+    "action": "confirmOwnerAppointment",
+    "token": "$u2Token",
+    "company": "$p1"
+  },
+  {
+    "action": "appointManager",
+    "token": "$u2Token",
+    "company": "$p1",
+    "managerUsername": "u3",
+    "permissions": [
+      "EDIT_VENUE_LAYOUT"
+    ]
+  },
+  {
+    "action": "login",
+    "username": "u3",
+    "password": "123456",
+    "saveTokenAs": "u3Token"
+  },
+  {
+    "action": "confirmManagerAppointment",
+    "token": "$u3Token",
+    "company": "$p1"
+  },
+  {
+    "action": "createEventWithLayout",
+    "token": "$u2Token",
+    "company": "$p1",
+    "eventName": "e1",
+    "eventType": "PERFORMANCE",
+    "venue": "Main Hall",
+    "startDate": "2026-07-01",
+    "endDate": "2026-07-01",
+    "saveEventAs": "e1",
+    "show": {
+      "name": "e1-show",
+      "showDate": "2026-07-01",
+      "standingCapacity": 30,
+      "standingPrice": 50,
+      "numberOfBlocks": 1,
+      "rowsPerBlock": 10,
+      "seatsPerRow": 10,
+      "seatedPrice": 100
+    }
+  },
+  {
+    "action": "addCompanyCoupon",
+    "token": "$u2Token",
+    "company": "$p1",
+    "couponCode": "sale123",
+    "percentage": 20
+  },
+  {
+    "action": "logout",
+    "token": "$u3Token"
+  },
+  {
+    "action": "logout",
+    "token": "$u2Token"
+  },
+  {
+    "action": "logout",
+    "token": "$u1Token"
+  }
+]

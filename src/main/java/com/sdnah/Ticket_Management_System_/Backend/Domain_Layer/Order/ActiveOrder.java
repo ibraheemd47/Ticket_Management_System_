@@ -226,12 +226,16 @@ public class ActiveOrder {
      */
     public List<String> expireOrder() {
         markExpired();
-        return releaseAllLocks();
+        List<String> lockIds = releaseAllLocks();
+        items.clear(); // remove from DB via orphanRemoval — prevents ticket_id reuse violations
+        return lockIds;
     }
 
     public List<String> cancel() {
         markCancelled();
-        return releaseAllLocks();
+        List<String> lockIds = releaseAllLocks();
+        items.clear(); // remove from DB via orphanRemoval — prevents ticket_id reuse violations
+        return lockIds;
     }
 
     public UUID getId() {

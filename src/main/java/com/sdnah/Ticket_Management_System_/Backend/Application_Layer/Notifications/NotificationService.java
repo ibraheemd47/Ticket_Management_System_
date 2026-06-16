@@ -65,6 +65,27 @@ public class NotificationService {
         }
     }
 
+    /**
+     * Persists all notifications in a single batch INSERT, then pushes
+     * real-time delivery for each one. Avoids N individual DB round-trips
+     * when notifying all lottery participants at once.
+     */
+    @Transactional
+    public void createNotificationsBatch(List<Notification> notifications) {
+        if (notifications == null || notifications.isEmpty()) return;
+        // Single batch INSERT for all rows
+        notificationRepository.saveAll(notifications);
+        // Real-time push per user (non-blocking; failures are logged, not thrown)
+        for (Notification n : notifications) {
+            try {
+                notifier.notifyUser(n.getRecipientUsername(), NotificationDTO.fromDomain(n));
+            } catch (Exception ex) {
+                logger.warning("Real-time push failed for recipient=" + n.getRecipientUsername()
+                        + ": " + ex.getMessage());
+            }
+        }
+    }
+
     public List<NotificationDTO> getNotificationsForUser(String recipientUsername) {
         try {
             validateUsername(recipientUsername);

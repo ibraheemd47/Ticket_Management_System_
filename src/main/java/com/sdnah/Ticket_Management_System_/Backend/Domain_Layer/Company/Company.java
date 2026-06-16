@@ -19,24 +19,26 @@ public class Company {
     @Column(nullable = false)
     private String companyFounderId;
 
+    // EAGER: needed on every auth check (is caller an owner?)
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "company_owners", joinColumns = @JoinColumn(name = "company_id"))
     @Column(name = "owner_id")
     private Set<String> ownerIds = new HashSet<>();
 
+    // EAGER: needed when listing a company's events on every page load
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "company_events", joinColumns = @JoinColumn(name = "company_id"))
     @Column(name = "event_id", columnDefinition = "uuid")
     private List<UUID> associatedEventIds = new ArrayList<>();
 
-
-    
-    @ElementCollection(fetch = FetchType.EAGER)
+    // LAZY: only accessed in billing/admin screens, not on every company load
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "company_purchase_history", joinColumns = @JoinColumn(name = "company_id"))
     @Column(name = "purchase_id")
     private List<Integer> purchaseHistoryIds = new ArrayList<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    // LAZY: only accessed in billing/admin screens, not on every company load
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "company_order_history", joinColumns = @JoinColumn(name = "company_id"))
     @Column(name = "order_id")
     private List<Integer> orderHistoryIds = new ArrayList<>();
@@ -44,11 +46,13 @@ public class Company {
     private double rating;
     private String logoURL;
 
+    // EAGER: needed on every auth check (is caller a manager?)
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "company_managers", joinColumns = @JoinColumn(name = "company_id"))
     private Set<CompanyManagerAssignment> managers = new HashSet<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    // LAZY: only accessed when auditing who appointed whom (rare admin operation)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "company_owner_appointments", joinColumns = @JoinColumn(name = "company_id"))
     @MapKeyColumn(name = "owner_id")
     @Column(name = "appointed_by_owner_id")
@@ -148,6 +152,18 @@ public class Company {
         }
 
         associatedEventIds.remove(eventId);
+    }
+
+    /**
+     * Drop {@code eventId} from {@link #associatedEventIds} without permission
+     * or existence checks. Cleanup helper for when an event has already been
+     * deleted at the Event aggregate level and we just need to forget its id
+     * here. No-op if the id isn't present.
+     */
+    public synchronized void removeEventIfPresent(UUID eventId) {
+        if (eventId != null) {
+            associatedEventIds.remove(eventId);
+        }
     }
 
     public void validateEventBelongsToCompany(UUID eventId) {

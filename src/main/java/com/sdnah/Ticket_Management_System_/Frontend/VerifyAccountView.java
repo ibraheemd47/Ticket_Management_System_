@@ -1,11 +1,12 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.UserPresenter;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
@@ -13,10 +14,11 @@ import com.vaadin.flow.router.Route;
 @Route("verify-account")
 public class VerifyAccountView extends VerticalLayout {
 
-    private final UserService userService;
+    private final UserPresenter presenter;
 
-    public VerifyAccountView(UserService userService) {
-        this.userService = userService;
+    public VerifyAccountView(UserPresenter presenter) {
+        this.presenter = presenter;
+        this.presenter.setVerifyAccountView(this); // Link the view to the presenter
 
         setSizeFull();
         setPadding(false);
@@ -77,41 +79,20 @@ public class VerifyAccountView extends VerticalLayout {
                 .set("cursor", "pointer")
                 .set("margin-top", "20px");
 
+        // --------------------------------------------------------
+        // DELEGATE TO PRESENTER - Let the presenter do the work!
+        // --------------------------------------------------------
         verifyButton.addClickListener(event -> {
             if (username.isEmpty() || code.isEmpty()) {
-                Notification.show("Please enter username and verification code");
+                this.showNotification("Please enter username and verification code", true);
                 return;
             }
 
-            try {
-                // 1. Verify the account
-                userService.verifyAccount(username.getValue(), code.getValue());
+            // Retrieve the temporary password from the session
+            String tempPassword = (String) getUI().get().getSession().getAttribute("pendingPassword");
 
-                // 2. Retrieve the temporary password from the session
-                String tempPassword = (String) getUI().get().getSession().getAttribute("pendingPassword");
-
-                if (tempPassword != null) {
-                    // 3. Call the login function! 
-                    // (Assuming your login method returns the token, or an Optional<User> that contains it)
-                    String token = userService.login(username.getValue(), tempPassword); 
-                    
-                    // 4. Set the token so MainView knows we are logged in
-                getUI().get().getSession().setAttribute("token", token);
-                getUI().get().getSession().setAttribute("username", username.getValue());
-                }
-
-                Notification.show("Verified and logged in successfully!");
-
-                // 5. Clean up the session (Security!) and go to MainView
-                getUI().ifPresent(ui -> {
-                    ui.getSession().setAttribute("pendingUsername", null);
-                    ui.getSession().setAttribute("pendingPassword", null); // Delete password from memory
-                    ui.navigate("main"); // Redirect to the main page!
-                });
-
-            } catch (Exception ex) {
-                Notification.show(ex.getMessage());
-            }
+            // Pass everything to the presenter
+            this.presenter.verifyAccount(username.getValue(), tempPassword, code.getValue());
         });
 
         Paragraph backToLogin = new Paragraph("Back to login");
@@ -127,5 +108,34 @@ public class VerifyAccountView extends VerticalLayout {
 
         card.add(title, subtitle, username, code, verifyButton, backToLogin);
         add(card);
+    }
+
+    // =========================================================================
+    // PRESENTER CALLBACK METHODS
+    // =========================================================================
+
+    public void showNotification(String message, boolean isError) {
+        Notification notification = Notification.show(message, 4000, Notification.Position.MIDDLE);
+        if (isError) {
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        } else {
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        }
+    }
+
+    public void navigateTo(String route) {
+        getUI().ifPresent(ui -> ui.navigate(route));
+    }
+
+    public void storeSessionData(String token, String memberId) {
+        getUI().ifPresent(ui -> {
+            // Set the logged-in tokens
+            ui.getSession().setAttribute("token", token);
+            ui.getSession().setAttribute("userId", memberId);
+            
+            // Clean up the temporary pending variables for security!
+            ui.getSession().setAttribute("pendingUsername", null);
+            ui.getSession().setAttribute("pendingPassword", null);
+        });
     }
 }

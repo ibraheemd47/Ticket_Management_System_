@@ -120,9 +120,9 @@ public class LotteryConcurrencyTest {
                 () -> lotteryService.registerToLottery(memberToken, lotteryId));
 
         // בדוק שלא נרשם יותר מפעם אחת
-        var lottery = lotteryRepository.findById(lotteryId).orElseThrow();
-        assertTrue(lottery.getEntries().size() <= 1, 
-                "member should be registered at most once, but was: " + lottery.getEntries().size());
+        int entryCount = lotteryService.getEntriesByLottery(lotteryId).size();
+        assertTrue(entryCount <= 1,
+                "member should be registered at most once, but was: " + entryCount);
         assertTrue(outcome.successes.get() >= 1, "at least one should succeed");
     }
 
@@ -145,7 +145,7 @@ public class LotteryConcurrencyTest {
         assertEquals(n, outcome.successes.get(), "all different members should register");
         assertEquals(0, outcome.failures.get());
 
-        var lottery = lotteryRepository.findById(lotteryId).orElseThrow();
-        assertEquals(n, lottery.getEntries().size());
+        int entryCount = lotteryService.getEntriesByLottery(lotteryId).size();
+        assertEquals(n, entryCount);
     }
 }

@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.Frontend;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.CreateComplaintDTO;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.MainPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
@@ -19,10 +20,10 @@ import com.vaadin.flow.router.Route;
 @Route("complaints")
 public class ComplaintView extends VerticalLayout implements BeforeEnterObserver {
 
-    private final ComplaintService complaintService;
+    private final MainPresenter mainPresenter;
 
-    public ComplaintView(ComplaintService complaintService) {
-        this.complaintService = complaintService;
+    public ComplaintView(MainPresenter mainPresenter) {
+        this.mainPresenter = mainPresenter;
 
         setSizeFull();
         setPadding(false);
@@ -39,7 +40,7 @@ public class ComplaintView extends VerticalLayout implements BeforeEnterObserver
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         Object token = event.getUI().getSession().getAttribute("token");
-        if (token == null) {
+        if (token == null || token.toString().startsWith("GUEST_")) {
             event.rerouteTo("login");
         }
     }
@@ -153,7 +154,7 @@ public class ComplaintView extends VerticalLayout implements BeforeEnterObserver
                     targetId.getValue()
             );
 
-                complaintService.createComplaint(token, request);
+                mainPresenter.createComplaint(token, request);
 
                 Notification.show("Complaint submitted successfully");
 

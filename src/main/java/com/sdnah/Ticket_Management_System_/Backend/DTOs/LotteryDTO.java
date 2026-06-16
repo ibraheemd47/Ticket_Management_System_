@@ -14,14 +14,15 @@ public class LotteryDTO {
     private LocalDateTime drawTime;
     private LotteryStatus status;
     private int entryCount;
-
+    private LocalDateTime openSaleTime;
     public LotteryDTO() {}
 
     public LotteryDTO(UUID id, UUID eventId, UUID companyId,
                       LocalDateTime registrationDeadline,
                       LocalDateTime drawTime,
                       LotteryStatus status,
-                      int entryCount) {
+                      int entryCount,
+                      LocalDateTime openSaleTime) {
         this.id = id;
         this.eventId = eventId;
         this.companyId = companyId;
@@ -29,6 +30,7 @@ public class LotteryDTO {
         this.drawTime = drawTime;
         this.status = status;
         this.entryCount = entryCount;
+        this.openSaleTime = openSaleTime;
     }
 
     public UUID getId() { return id; }
@@ -51,4 +53,7 @@ public class LotteryDTO {
 
     public int getEntryCount() { return entryCount; }
     public void setEntryCount(int entryCount) { this.entryCount = entryCount; }
+
+    public LocalDateTime getOpenSaleTime() { return openSaleTime; }
+    public void setOpenSaleTime(LocalDateTime openSaleTime) { this.openSaleTime = openSaleTime; }
 }

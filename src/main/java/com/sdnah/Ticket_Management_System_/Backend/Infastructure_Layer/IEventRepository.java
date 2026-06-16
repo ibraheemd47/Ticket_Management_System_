@@ -28,8 +28,11 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
     List<Event> findByNameContainingIgnoreCase(String keyword);
 
     // ── Custom JPQL queries ──────────────────────────────────────────────────
-    @Query("SELECT e FROM Event e")
+    // @Query("SELECT e FROM Event e")
+    // List<Event> findAllEvents();
+    @Query("SELECT e FROM Event e WHERE NOT EXISTS (SELECT c FROM Company c WHERE c.companyId = e.companyId AND c.isOpen = false)")
     List<Event> findAllEvents();
+    
 
     @Query("SELECT e FROM Event e WHERE :managerId MEMBER OF e.managerIds")
     List<Event> findByManagerId(@Param("managerId") String managerId);
@@ -44,6 +47,12 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
 
     @Query("SELECT e FROM Event e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))")
     List<Event> searchEventsByName(@Param("name") String name);
+
+    @Query("SELECT e FROM Event e WHERE LOWER(e.description) LIKE LOWER(CONCAT('%', :desc, '%'))")
+    List<Event> searchEventsByDescription(@Param("desc") String desc);
+
+    @Query("SELECT e FROM Event e WHERE LOWER(e.venue) LIKE LOWER(CONCAT('%', :venue, '%'))")
+    List<Event> searchEventsByVenue(@Param("venue") String venue);
 
     @Query("SELECT e FROM Event e WHERE e.eventType = :eventType")
     List<Event> searchEventsByType(@Param("eventType") show_type eventType);

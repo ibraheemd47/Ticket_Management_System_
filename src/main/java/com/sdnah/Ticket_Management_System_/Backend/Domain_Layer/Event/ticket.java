@@ -11,12 +11,19 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
 
 @Entity
+@Table(name = "tickets", indexes = {
+    @Index(name = "idx_ticket_show_id",  columnList = "showId"),
+    @Index(name = "idx_ticket_owner_id", columnList = "ownerId"),
+    @Index(name = "idx_ticket_status",   columnList = "showId,status")
+})
 public class ticket {
 
     @Transient
