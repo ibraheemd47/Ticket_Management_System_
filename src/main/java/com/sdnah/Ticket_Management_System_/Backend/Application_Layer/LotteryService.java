@@ -259,12 +259,13 @@ public class LotteryService {
     // =========================================================================
     // Additional getters
     // =========================================================================
+    @Transactional(readOnly = true)
     public LotteryDTO getLottery(UUID lotteryId) {
         Lottery lottery = lotteryRepository.findById(lotteryId)
                 .orElseThrow(() -> new IllegalArgumentException("Lottery not found: " + lotteryId));
         return toDTO(lottery);
     }
-
+    @Transactional(readOnly = true)
     public List<LotteryDTO> getLotteriesByEvent(UUID eventId) {
         return lotteryRepository.findByEventId(eventId).stream()
                 .map(this::toDTO)
