@@ -161,8 +161,13 @@ public class SystemAdminPresenter {
         }
 
         try {
-            companyManagmentService.adminCloseCompany(token, UUID.fromString(companyId));
-            view.showSuccess("Company '" + companyId + "' has been closed.");
+            boolean changed =companyManagmentService.adminCloseCompany(token, UUID.fromString(companyId));
+            if (changed) {
+                view.showSuccess("Company '" + companyId + "' has been closed.");
+                view.clearCloseCompanyForm();
+            } else {
+                view.showError("Failed to close company '" + companyId + "'.");
+            }
             view.clearCloseCompanyForm();
         } catch (IllegalArgumentException ex) {
             view.showInvalidCompanyId();

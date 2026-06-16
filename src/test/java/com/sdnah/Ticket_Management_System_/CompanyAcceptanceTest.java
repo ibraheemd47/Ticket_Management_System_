@@ -87,7 +87,7 @@ public class CompanyAcceptanceTest {
 
         when(companyRepository.findAll()).thenAnswer(invocation -> new ArrayList<>(companies.values()));
 
-        when(companyRepository.findByIsOpenTrue(true)).thenAnswer(invocation ->
+        when(companyRepository.findByIsOpen(true)).thenAnswer(invocation ->
                 companies.values().stream().filter(Company::isOpen).collect(java.util.stream.Collectors.toList()));
 
         doAnswer(invocation -> {

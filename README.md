@@ -112,11 +112,7 @@ The application configuration is located in:
 src/main/resources/application.properties
 ```
 
-or:
 
-```text
-src/main/resources/application.yml
-```
 
 Main configurable options include:
 

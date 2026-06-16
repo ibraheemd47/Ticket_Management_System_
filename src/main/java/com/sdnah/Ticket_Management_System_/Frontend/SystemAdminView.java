@@ -304,8 +304,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
                 "Enter the ID of the production company you wish to close. "
                         + "All owners and managers will be notified and their roles will be revoked.");
 
-        TextField companyId = styledField("Company ID to close");
-
+        companyId = styledField("Company ID to close");
         closeReason = new TextArea("Reason for closure");
         closeReason.setWidthFull();
         closeReason.setPlaceholder("e.g. Terms of service violation...");

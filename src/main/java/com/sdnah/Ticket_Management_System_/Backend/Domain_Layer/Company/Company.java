@@ -14,6 +14,7 @@ public class Company {
     @Column(nullable = false, unique = true)
     private String companyName;
 
+    @Column(name = "is_open")
     private boolean isOpen;
 
     @Column(nullable = false)
