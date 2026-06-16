@@ -1,5 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
@@ -219,8 +221,34 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
                 .set("padding", "10px 22px")
                 .set("border-radius", "8px");
         cancel.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));
+        Button checkout = new Button("Checkout", e -> {
+            getUI().ifPresent(ui -> {
+                ui.getSession().setAttribute("checkoutOrderId", o.getOrderId().toString());
 
-        HorizontalLayout actions = new HorizontalLayout(cancel);
+                ui.getSession().setAttribute("checkoutFinalPrice",
+                        o.getFinalPrice().toString());
+
+                ui.getSession().setAttribute("checkoutDiscount",
+                        o.getDiscount() == null ? "0" : o.getDiscount().toString());
+
+                ui.getSession().setAttribute("checkoutItems", buildCheckoutItems(o));
+                ui.getSession().setAttribute("checkoutShowName", "Order " + o.getOrderId().toString().substring(0, 8));
+                ui.getSession().setAttribute("checkoutEventId",
+        o.getEventId() == null ? "" : o.getEventId().toString());        
+                ui.navigate("checkout");
+            });
+        });
+
+        checkout.getStyle()
+                .set("background", "#026cdf")
+                .set("color", "white")
+                .set("font-weight", "700")
+                .set("padding", "10px 22px")
+                .set("border-radius", "8px");
+
+        checkout.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));        
+
+        HorizontalLayout actions = new HorizontalLayout(checkout, cancel);
         actions.getStyle().set("margin-top", "16px");
 
         card.add(title, status, meta, totals, grid, actions);
@@ -294,4 +322,17 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
     private static String money(java.math.BigDecimal x) {
         return x == null ? "—" : ("$" + x.toPlainString());
     }
+    private List<Map<String, String>> buildCheckoutItems(OrderDTO order) {
+    if (order.getItems() == null) {
+        return List.of();
+    }
+
+    return order.getItems().stream()
+            .map(item -> Map.of(
+                    "description", "Ticket " + item.getTicketId(),
+                    "unitPrice", item.getPrice() == null ? "0" : item.getPrice().toString(),
+                    "quantity", "1"
+            ))
+            .toList();
+}
 }

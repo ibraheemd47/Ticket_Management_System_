@@ -385,17 +385,13 @@ public class ActiveOrderService {
 
     // מספר הזמנות פעילות כרגע
     public int getActiveOrdersCount() {
-        return (int) orderRepo.findAll().stream()
-                .filter(o -> !o.isExpired())
-                .count();
+        return (int) orderRepo.countActiveOrders();
     }
 
     // מספר רכישות שהושלמו היום
     public int getPurchasesTodayCount() {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-        return (int) purchaseRepo.findAll().stream()
-                .filter(p -> p.getPurchasedAt() != null && p.getPurchasedAt().isAfter(startOfDay))
-                .count();
+        return (int) purchaseRepo.countPurchasesSince(startOfDay);
     }
 
     // קצב שריונות בדקה האחרונה

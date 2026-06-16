@@ -6,7 +6,10 @@ import java.util.UUID;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "notifications")
+@Table(name = "notifications", indexes = {
+    @Index(name = "idx_notif_recipient",       columnList = "recipientUsername"),
+    @Index(name = "idx_notif_recipient_unread", columnList = "recipientUsername,read")
+})
 public class Notification {
 
     @Id

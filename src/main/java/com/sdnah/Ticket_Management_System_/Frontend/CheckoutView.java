@@ -402,7 +402,9 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                 .set("gap", "8px").set("align-items", "flex-end");
 
         TextField couponField = new TextField();
+        couponField.setValue("");
         couponField.setPlaceholder("Enter coupon code");
+        couponField.getElement().setAttribute("autocomplete", "off");
         couponField.getStyle().set("flex", "1");
 
         Button applyBtn = new Button("Apply");

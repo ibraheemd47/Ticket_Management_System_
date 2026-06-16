@@ -35,6 +35,12 @@ public class KeyedLock {
             return action.get();
         } finally {
             lock.unlock();
+            // Remove once no thread is queued — prevents unbounded map growth.
+            // atomic: if another thread re-inserted a new lock instance between
+            // our unlock() and here, values won't match and nothing is removed.
+            if (!lock.hasQueuedThreads()) {
+                locks.remove(composite, lock);
+            }
         }
     }
 }
