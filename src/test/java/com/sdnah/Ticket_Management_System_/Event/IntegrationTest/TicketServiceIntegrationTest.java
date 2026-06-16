@@ -29,8 +29,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
 @DataJpaTest
-@AutoConfigureTestDatabase
 @ActiveProfiles("test")
+@AutoConfigureTestDatabase
 // 1. Add .backend to the basePackages (if it isn't there already)
 @EnableJpaRepositories(basePackages = "com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer", 
     // 2. Change Backend to backend

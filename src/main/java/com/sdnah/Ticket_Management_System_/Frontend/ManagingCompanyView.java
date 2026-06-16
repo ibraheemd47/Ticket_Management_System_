@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
@@ -159,7 +160,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         chooserSlot.add(error(message));
     }
 
-    public void showEvents(List<UUID> eventIds) {
+    public void showEvents(List<EventDto> events) {
         tabContent.removeAll();
 
         Button addEvent = new Button("+ New event", e -> {
@@ -168,18 +169,19 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         });
         addEvent.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        Grid<UUID> grid = new Grid<>(UUID.class, false);
-        grid.addColumn(id -> id.toString().substring(0, 8)).setHeader("Event ID");
-        grid.addComponentColumn(id -> {
+        Grid<EventDto> grid = new Grid<>(EventDto.class, false);
+        grid.addColumn(dto -> dto.name != null ? dto.name : dto.id.toString().substring(0, 8))
+                .setHeader("Event Name").setFlexGrow(1);
+        grid.addComponentColumn(dto -> {
             Button open = new Button("Open", ev -> {
-                UI.getCurrent().getSession().setAttribute("eventId", id.toString());
+                UI.getCurrent().getSession().setAttribute("eventId", dto.id.toString());
                 UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, presenter.getCompanyId());
                 UI.getCurrent().navigate("EventDetails");
             });
             open.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
             return open;
-        }).setHeader("");
-        grid.setItems(eventIds);
+        }).setHeader("").setWidth("100px").setFlexGrow(0);
+        grid.setItems(events);
         grid.setAllRowsVisible(true);
         grid.setWidthFull();
 

@@ -538,9 +538,20 @@ public class company_managment_serivce {
                 .toList();
     }
 
-    public List<UUID> getAllEventsByCompany(UUID companyId) {
+    public List<com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto> getAllEventsByCompany(UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
-        return company.getAssociatedEventIds();
+        List<com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto> result = new java.util.ArrayList<>();
+        for (UUID eid : company.getAssociatedEventIds()) {
+            eventRepository.findById(eid).ifPresent(ev -> {
+                java.time.LocalDateTime start = ev.getStartDate() != null
+                        ? ev.getStartDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null;
+                java.time.LocalDateTime end = ev.getEndDate() != null
+                        ? ev.getEndDate().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null;
+                result.add(new com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto(
+                        ev.getEventId(), ev.getName(), start, end, ev.getEventType(), ev.getVenue(), ev.getPhotoUrl()));
+            });
+        }
+        return result;
     }
 
     public List<CompanyDTO> showCompaniesByRating0() {

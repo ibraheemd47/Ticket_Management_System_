@@ -500,6 +500,15 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         com.vaadin.flow.component.datetimepicker.DateTimePicker datePicker =
                 new com.vaadin.flow.component.datetimepicker.DateTimePicker("Show Date & Time");
         datePicker.setWidthFull();
+        // Constrain to the event's own date range
+        if (cachedEvent != null) {
+            if (cachedEvent.getStartDate() != null)
+                datePicker.setMin(cachedEvent.getStartDate().toInstant()
+                        .atZone(ZoneId.systemDefault()).toLocalDateTime());
+            if (cachedEvent.getEndDate() != null)
+                datePicker.setMax(cachedEvent.getEndDate().toInstant()
+                        .atZone(ZoneId.systemDefault()).toLocalDateTime());
+        }
 
         // ── Standing area ─────────────────────────────────────────────────────
         IntegerField standingCapField = new IntegerField("Capacity");
@@ -1791,6 +1800,14 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                     drawTimePicker.clear();
             }
         });
+
+        // Both deadline and draw time must be before the event starts
+        if (cachedEvent != null && cachedEvent.getStartDate() != null) {
+            java.time.LocalDateTime eventStart = cachedEvent.getStartDate().toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDateTime();
+            deadlinePicker.setMax(eventStart);
+            drawTimePicker.setMax(eventStart);
+        }
 
         Button createBtn = new Button("Create Lottery", e -> {
             if (deadlinePicker.getValue() == null || drawTimePicker.getValue() == null) {

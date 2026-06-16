@@ -26,6 +26,7 @@ import jakarta.persistence.Table;
 @Table(name = "members")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "user_type")
+// @DiscriminatorValue("MEMBER")
 public class Member {
 
     @Id
@@ -40,6 +41,7 @@ public class Member {
     private boolean active;
     private boolean loggedin;
 
+    // @Enumerated(EnumType.STRING)
     protected UserRole role;
 
     @ElementCollection(fetch = FetchType.EAGER)

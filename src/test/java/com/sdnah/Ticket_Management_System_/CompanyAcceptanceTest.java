@@ -112,6 +112,8 @@ public class CompanyAcceptanceTest {
             return membersById.get(id);
         });
 
+        Map<UUID, Event> eventsMap = new HashMap<>();
+
         when(eventRepository.save(any(Event.class))).thenAnswer(invocation -> {
             Event event = invocation.getArgument(0);
             if (event.getEventId() == null) {
@@ -119,7 +121,13 @@ public class CompanyAcceptanceTest {
                 field.setAccessible(true);
                 field.set(event, new UUID(0L, eventSequence.getAndIncrement()));
             }
+            eventsMap.put(event.getEventId(), event);
             return event;
+        });
+
+        when(eventRepository.findById(any(UUID.class))).thenAnswer(invocation -> {
+            UUID eid = invocation.getArgument(0);
+            return Optional.ofNullable(eventsMap.get(eid));
         });
 
         //new
@@ -209,11 +217,11 @@ public class CompanyAcceptanceTest {
         assertEquals("CompanyA", companyADto.getCompanyName());
         assertTrue(activeCompanies.stream().anyMatch(c -> c.getCompanyId().equals(companyB)));
 
-        List<UUID> companyAEvents = companyService.getAllEventsByCompany(companyA);
+        List<EventDto> companyAEvents = companyService.getAllEventsByCompany(companyA);
 
         assertEquals(2, companyAEvents.size());
-        assertTrue(companyAEvents.contains(saved1.id));
-        assertTrue(companyAEvents.contains(saved2.id));
+        assertTrue(companyAEvents.stream().anyMatch(e -> e.id.equals(saved1.id)));
+        assertTrue(companyAEvents.stream().anyMatch(e -> e.id.equals(saved2.id)));
     }
 
     @Test
@@ -233,7 +241,7 @@ public class CompanyAcceptanceTest {
         assertEquals(1, activeCompanies.size());
         assertEquals(companyId, activeCompanies.get(0).getCompanyId());
 
-        List<UUID> events = companyService.getAllEventsByCompany(companyId);
+        List<EventDto> events = companyService.getAllEventsByCompany(companyId);
         assertNotNull(events);
         assertTrue(events.isEmpty());
     }

@@ -132,7 +132,7 @@ class UserConcurrencyTest {
                 username,
                 "password123",
                 username + "@example.com",
-                "0501234567",19,
+                "0501234567", 19,
                 VerificationMethod.EMAIL));
 
         // Assert
@@ -165,7 +165,7 @@ class UserConcurrencyTest {
                 ownerUsername,
                 "password123",
                 ownerUsername + "@example.com",
-                "0501234567", 19 ,
+                "0501234567", 19,
                 VerificationMethod.EMAIL);
 
         Member ownerMember = userRepository.findById(ownerId).orElseThrow();
@@ -264,7 +264,7 @@ class UserConcurrencyTest {
                     username,
                     "password123",
                     username + "@example.com",
-                    "0501234567", 19 ,
+                    "0501234567", 19,
                     VerificationMethod.EMAIL);
         });
 
