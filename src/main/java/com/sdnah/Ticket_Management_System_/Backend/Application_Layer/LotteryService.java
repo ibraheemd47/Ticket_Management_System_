@@ -1,33 +1,27 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.Notification;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.LotteryAuthDomainService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.LotteryEntry;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.LotteryAuthDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.LotteryRepository;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 
 
 @Service
@@ -266,7 +260,6 @@ public class LotteryService {
                 .orElseThrow(() -> new IllegalArgumentException("Lottery not found: " + lotteryId));
         return toDTO(lottery);
     }
-    @Transactional(readOnly = true)
     public List<LotteryDTO> getLotteriesByEvent(UUID eventId) {
         return lotteryRepository.findByEventId(eventId).stream()
                 .map(this::toDTO)
@@ -343,25 +336,24 @@ public class LotteryService {
 
     private void notifyDrawResults(Lottery lottery) {
         String eventName = lottery.getEventId().toString();
-        List<Notification> batch = new ArrayList<>();
         for (LotteryEntry e : lottery.getEntries()) {
             try {
                 if (e.isWinner()) {
-                    String msg = "🎉 You won the lottery for \"" + eventName
-                            + "\"! Your access code: " + e.getAccessCode();
-                    batch.add(new Notification(e.getMemberId(), msg, NotificationType.LOTTERY_WIN));
+                    notificationService.notifyLotteryWin(e.getMemberId(), eventName, e.getAccessCode());
+
+
                 } else {
-                    String msg = "Better luck next time! You were not selected in the lottery for \""
-                            + eventName + "\".";
-                    batch.add(new Notification(e.getMemberId(), msg, NotificationType.LOTTERY_LOSS));
+                    notificationService.notifyLotteryLoss(e.getMemberId(), eventName);
+
+
                 }
             } catch (Exception ex) {
-                logger.warn("Failed to build notification for member {} in lottery {}: {}",
+                logger.warn("Failed to notify member {} for lottery {}: {}",
                         e.getMemberId(), lottery.getId(), ex.getMessage());
             }
         }
-        // Single batch INSERT instead of N individual saves
-        notificationService.createNotificationsBatch(batch);
+
+
     }
 
     public boolean isWinnerWindowOpen(UUID eventId) {

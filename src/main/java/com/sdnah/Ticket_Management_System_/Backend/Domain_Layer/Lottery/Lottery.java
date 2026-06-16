@@ -6,14 +6,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "lotteries", indexes = {
-    @Index(name = "idx_lottery_event_id",   columnList = "eventId"),
-    @Index(name = "idx_lottery_company_id", columnList = "companyId"),
-    @Index(name = "idx_lottery_status",     columnList = "status")
-})
+@Table(name = "lotteries")
 public class Lottery {
     
 
@@ -31,7 +34,7 @@ public class Lottery {
     @Enumerated(EnumType.STRING)
     private LotteryStatus status;
     
-    @OneToMany(mappedBy = "lottery", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "lottery", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<LotteryEntry> entries = new ArrayList<>();
 
     public enum LotteryStatus {
