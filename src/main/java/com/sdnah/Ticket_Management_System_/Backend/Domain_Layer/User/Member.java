@@ -13,8 +13,11 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.UserDTO;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
@@ -26,6 +29,7 @@ import jakarta.persistence.Table;
 @Table(name = "members")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "user_type")
+@DiscriminatorValue("MEMBER")
 public class Member {
 
     @Id
@@ -40,6 +44,7 @@ public class Member {
     private boolean active;
     private boolean loggedin;
 
+    @Enumerated(EnumType.STRING)
     protected UserRole role;
 
     @ElementCollection(fetch = FetchType.EAGER)

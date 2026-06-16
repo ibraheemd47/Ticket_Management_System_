@@ -6,7 +6,13 @@ import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 //base
 @Entity
 @DiscriminatorValue("DISCOUNT")

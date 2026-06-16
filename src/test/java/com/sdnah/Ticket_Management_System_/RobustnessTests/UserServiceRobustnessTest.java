@@ -1,7 +1,7 @@
 package com.sdnah.Ticket_Management_System_.RobustnessTests;
 
-import static org.assertj.core.api.Assertions.*;
-
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class UserServiceRobustnessTest {
 
     @BeforeEach
     void cleanUp() {
-        userRepository.deleteAll();
+        userRepository.deleteAllInBatch();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
