@@ -48,1030 +48,879 @@ import java.util.UUID;
 @Component
 public class InitialStateLoader implements CommandLineRunner {
 
-    private final UserService userService;
-    private final company_managment_serivce companyService;
-    private final EventService eventService;
-    private final PolicyService policyService;
-    private final ObjectMapper objectMapper;
+        private final UserService userService;
+        private final company_managment_serivce companyService;
+        private final EventService eventService;
+        private final PolicyService policyService;
+        private final ObjectMapper objectMapper;
 
-    @Value("${app.initial-state.enabled:false}")
-    private boolean enabled;
+        @Value("${app.initial-state.enabled:false}")
+        private boolean enabled;
 
-    @Value("${app.initial-state.file:classpath:initial-state.json}")
-    private Resource initialStateFile;
+        @Value("${app.initial-state.file:classpath:initial-state.json}")
+        private Resource initialStateFile;
 
-    /*
-     * Variables saved while the file is running.
-     *
-     * Example:
-     * "saveTokenAs": "u1Token"
-     * Later:
-     * "token": "$u1Token"
-     */
-    private final Map<String, String> savedTokens = new HashMap<>();
-
-    /*
-     * Example:
-     * "saveCompanyAs": "p1"
-     * Later:
-     * "company": "$p1"
-     */
-    private final Map<String, UUID> savedCompanies = new HashMap<>();
-
-    /*
-     * Example:
-     * "saveEventAs": "e1"
-     */
-    private final Map<String, UUID> savedEvents = new HashMap<>();
-
-    public InitialStateLoader(
-            UserService userService,
-            company_managment_serivce companyService,
-            EventService eventService,
-            PolicyService policyService,
-            ObjectMapper objectMapper) {
-
-        this.userService = userService;
-        this.companyService = companyService;
-        this.eventService = eventService;
-        this.policyService = policyService;
-        this.objectMapper = objectMapper;
-    }
-
-    @Override
-    @Transactional
-    public void run(String... args) throws Exception {
-
-        if (!enabled) {
-            System.out.println(
-                    "========== Initial state loading is disabled =========="
-            );
-            return;
+        public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
         }
 
-        if (!initialStateFile.exists()) {
-            throw new IllegalStateException(
-                    "Initial state file was not found: " + initialStateFile
-            );
+        public void setInitialStateFile(Resource initialStateFile) {
+                this.initialStateFile = initialStateFile;
         }
 
         /*
-         * Clear variables in case the component is called more than once
-         * during tests.
-         */
-        savedTokens.clear();
-        savedCompanies.clear();
-        savedEvents.clear();
-
-        System.out.println(
-                "========== Loading initial state file =========="
-        );
-
-        JsonNode root;
-
-        try {
-            root = objectMapper.readTree(
-                    initialStateFile.getInputStream()
-            );
-        } catch (Exception exception) {
-            throw new IllegalStateException(
-                    "Could not read the initial-state file: "
-                            + exception.getMessage(),
-                    exception
-            );
-        }
-
-        if (root == null || !root.isArray()) {
-            throw new IllegalStateException(
-                    "Initial-state file must contain a JSON array."
-            );
-        }
-
-        int index = 0;
-
-        for (JsonNode actionNode : root) {
-            index++;
-
-            try {
-                executeAction(actionNode, index);
-            } catch (Exception exception) {
-                throw new IllegalStateException(
-                        "Initial state failed at action #"
-                                + index
-                                + ": "
-                                + actionNode
-                                + ". Reason: "
-                                + exception.getMessage(),
-                        exception
-                );
-            }
-        }
-
-        System.out.println(
-                "========== Initial state loaded successfully =========="
-        );
-    }
-
-    private void executeAction(JsonNode node, int index) {
-
-        String action = text(node, "action");
-
-        switch (action) {
-
-            case "register" ->
-                    register(node);
-
-            case "verify" ->
-                    verify(node);
-
-            case "login" ->
-                    login(node);
-
-            case "logout" ->
-                    logout(node);
-
-            case "openCompany" ->
-                    openCompany(node);
-
-            case "appointOwner" ->
-                    appointOwner(node);
-
-            case "confirmOwnerAppointment" ->
-                    confirmOwnerAppointment(node);
-
-            case "appointManager" ->
-                    appointManager(node);
-
-            case "confirmManagerAppointment" ->
-                    confirmManagerAppointment(node);
-
-            case "createEventWithLayout" ->
-                    createEventWithLayout(node);
-
-            case "addCompanyCoupon" ->
-                    addCompanyCoupon(node);
-
-            default ->
-                    throw new IllegalArgumentException(
-                            "Unknown initial-state action: " + action
-                    );
-        }
-
-        System.out.println(
-                "Initial state action #"
-                        + index
-                        + " completed: "
-                        + action
-        );
-    }
-
-    // =========================================================
-    // USER ACTIONS
-    // =========================================================
-
-    private void register(JsonNode node) {
-
-        String username = text(node, "username");
-        String password = text(node, "password");
-        String email = text(node, "email");
-
-        String phone = textOrDefault(
-                node,
-                "phone",
-                "0500000000"
-        );
-
-        int age = intOrDefault(
-                node,
-                "age",
-                18
-        );
-
-        userService.register(
-                username,
-                password,
-                email,
-                phone,
-                age,
-                VerificationMethod.EMAIL
-        );
-    }
-
-    private void verify(JsonNode node) {
-
-        String username = text(node, "username");
-
-        String code = textOrDefault(
-                node,
-                "code",
-                "000000"
-        );
-
-        userService.verifyAccount(
-                username,
-                code
-        );
-    }
-
-    private void login(JsonNode node) {
-
-        String username = text(node, "username");
-        String password = text(node, "password");
-        String saveTokenAs = text(node, "saveTokenAs");
-
-        String token = userService.login(
-                username,
-                password
-        );
-
-        savedTokens.put(
-                saveTokenAs,
-                token
-        );
-    }
-
-    private void logout(JsonNode node) {
-
-        String token = resolveToken(
-                text(node, "token")
-        );
-
-        userService.logout(token);
-    }
-
-    // =========================================================
-    // COMPANY ACTIONS
-    // =========================================================
-
-    private void openCompany(JsonNode node) {
-
-        String token = resolveToken(
-                text(node, "token")
-        );
-
-        String companyName = text(
-                node,
-                "companyName"
-        );
-
-        String saveCompanyAs = text(
-                node,
-                "saveCompanyAs"
-        );
-
-        UUID companyId = companyService.openCompany(
-                token,
-                companyName
-        );
-
-        savedCompanies.put(
-                saveCompanyAs,
-                companyId
-        );
-    }
-
-    private void appointOwner(JsonNode node) {
-
-        String token = resolveToken(
-                text(node, "token")
-        );
-
-        UUID companyId = resolveCompany(
-                text(node, "company")
-        );
-
-        String ownerUsername = text(
-                node,
-                "ownerUsername"
-        );
-
-        Member owner = userService.getMemberByUsername(
-                ownerUsername
-        );
-
-        /*
-         * Current project behavior:
-         * appointAdditionalOwner immediately gives the owner role.
+         * Variables saved while the file is running.
          *
-         * There is currently no PENDING owner appointment in the
-         * company service.
+         * Example:
+         * "saveTokenAs": "u1Token"
+         * Later:
+         * "token": "$u1Token"
          */
-        companyService.appointAdditionalOwner(
-                token,
-                companyId,
-                owner.getMemberId()
-        );
-    }
-
-    private void confirmOwnerAppointment(JsonNode node) {
-
-        String token = resolveToken(
-                text(node, "token")
-        );
-
-        UUID companyId = resolveCompany(
-                text(node, "company")
-        );
+        private final Map<String, String> savedTokens = new HashMap<>();
 
         /*
-         * Validate that the confirming user is logged in and that
-         * the referenced company exists.
-         *
-         * In the current implementation, the owner role was already
-         * added by appointAdditionalOwner.
+         * Example:
+         * "saveCompanyAs": "p1"
+         * Later:
+         * "company": "$p1"
          */
-        Member confirmingMember =
-                userService.getMemberByToken(token);
-
-        if (confirmingMember == null) {
-            throw new IllegalStateException(
-                    "Could not resolve the confirming owner."
-            );
-        }
-
-        if (companyId == null) {
-            throw new IllegalStateException(
-                    "Company id is missing."
-            );
-        }
-
-        System.out.println(
-                "Owner appointment confirmed by username="
-                        + confirmingMember.getUsername()
-                        + ", companyId="
-                        + companyId
-        );
-    }
-
-    private void appointManager(JsonNode node) {
-
-        String token = resolveToken(
-                text(node, "token")
-        );
-
-        UUID companyId = resolveCompany(
-                text(node, "company")
-        );
-
-        String managerUsername = text(
-                node,
-                "managerUsername"
-        );
-
-        Member manager = userService.getMemberByUsername(
-                managerUsername
-        );
-
-        Set<CompanyPermission> permissions =
-                parsePermissions(
-                        node.get("permissions")
-                );
+        private final Map<String, UUID> savedCompanies = new HashMap<>();
 
         /*
-         * Current project behavior:
-         * appointManager immediately gives the manager role.
+         * Example:
+         * "saveEventAs": "e1"
          */
-        companyService.appointManager(
-                token,
-                companyId,
-                manager.getMemberId(),
-                permissions
-        );
-    }
+        private final Map<String, UUID> savedEvents = new HashMap<>();
 
-    private void confirmManagerAppointment(JsonNode node) {
+        public InitialStateLoader(
+                        UserService userService,
+                        company_managment_serivce companyService,
+                        EventService eventService,
+                        PolicyService policyService,
+                        ObjectMapper objectMapper) {
 
-        String token = resolveToken(
-                text(node, "token")
-        );
-
-        UUID companyId = resolveCompany(
-                text(node, "company")
-        );
-
-        Member confirmingMember =
-                userService.getMemberByToken(token);
-
-        if (confirmingMember == null) {
-            throw new IllegalStateException(
-                    "Could not resolve the confirming manager."
-            );
+                this.userService = userService;
+                this.companyService = companyService;
+                this.eventService = eventService;
+                this.policyService = policyService;
+                this.objectMapper = objectMapper;
         }
 
-        if (companyId == null) {
-            throw new IllegalStateException(
-                    "Company id is missing."
-            );
-        }
+        @Override
+        @Transactional
+        public void run(String... args) throws Exception {
 
-        System.out.println(
-                "Manager appointment confirmed by username="
-                        + confirmingMember.getUsername()
-                        + ", companyId="
-                        + companyId
-        );
-    }
-
-    // =========================================================
-    // EVENT + LAYOUT
-    // =========================================================
-
-    private void createEventWithLayout(JsonNode node) {
-
-        String token = resolveToken(
-                text(node, "token")
-        );
-
-        UUID companyId = resolveCompany(
-                text(node, "company")
-        );
-
-        String eventName = text(
-                node,
-                "eventName"
-        );
-
-        String venue = text(
-                node,
-                "venue"
-        );
-
-        String eventTypeText = text(
-                node,
-                "eventType"
-        );
-
-        String saveEventAs = text(
-                node,
-                "saveEventAs"
-        );
-
-        LocalDate startDate = LocalDate.parse(
-                text(node, "startDate")
-        );
-
-        LocalDate endDate = LocalDate.parse(
-                text(node, "endDate")
-        );
-
-        EventDto eventDto = new EventDto();
-
-        eventDto.name = eventName;
-        eventDto.venue = venue;
-
-        eventDto.eventType = show_type.valueOf(
-                eventTypeText.trim().toUpperCase()
-        );
-
-        eventDto.startDate =
-                startDate.atStartOfDay();
-
-        eventDto.endDate =
-                endDate.atStartOfDay();
-
-        EventDto createdEvent =
-                companyService.addEvent(
-                        token,
-                        companyId,
-                        eventDto
-                );
-
-        if (createdEvent == null || createdEvent.id == null) {
-            throw new IllegalStateException(
-                    "Event was not created correctly."
-            );
-        }
-
-        savedEvents.put(
-                saveEventAs,
-                createdEvent.id
-        );
-
-        JsonNode showNode = node.get("show");
-
-        if (showNode == null || !showNode.isObject()) {
-            throw new IllegalArgumentException(
-                    "Missing show configuration for event: "
-                            + eventName
-            );
-        }
-
-        LocalDate showLocalDate = LocalDate.parse(
-                text(showNode, "showDate")
-        );
-
-        Date showDate = Date.from(
-                showLocalDate
-                        .atStartOfDay(
-                                ZoneId.systemDefault()
-                        )
-                        .toInstant()
-        );
-
-        String showName = text(
-                showNode,
-                "name"
-        );
-
-        String description = textOrDefault(
-                showNode,
-                "description",
-                "Initial-state show"
-        );
-
-        String singer = textOrDefault(
-                showNode,
-                "singer",
-                "N/A"
-        );
-
-        show newShow = new show(
-                createdEvent.id,
-                showName,
-                description,
-                singer,
-                showDate
-        );
-
-        BigDecimal standingPrice =
-                decimalValue(
-                        showNode,
-                        "standingPrice"
-                );
-
-        BigDecimal seatedPrice =
-                decimalValue(
-                        showNode,
-                        "seatedPrice"
-                );
-
-        newShow.setStandingPrice(
-                standingPrice
-        );
-
-        newShow.setSeatedPrice(
-                seatedPrice
-        );
-
-        List<Area> areas = new ArrayList<>();
-
-        int standingCapacity =
-                intOrDefault(
-                        showNode,
-                        "standingCapacity",
-                        0
-                );
-
-        if (standingCapacity > 0) {
-            StandingArea standingArea =
-                    new StandingArea(
-                            "Standing Area",
-                            standingCapacity
-                    );
-
-            areas.add(standingArea);
-        }
-
-        int numberOfBlocks =
-                intOrDefault(
-                        showNode,
-                        "numberOfBlocks",
-                        0
-                );
-
-        int rowsPerBlock =
-                intOrDefault(
-                        showNode,
-                        "rowsPerBlock",
-                        0
-                );
-
-        int seatsPerRow =
-                intOrDefault(
-                        showNode,
-                        "seatsPerRow",
-                        0
-                );
-
-        if (numberOfBlocks > 0
-                && rowsPerBlock > 0
-                && seatsPerRow > 0) {
-
-            SeatedArea seatedArea =
-                    createSeatedArea(
-                            "Seated Area",
-                            numberOfBlocks,
-                            rowsPerBlock,
-                            seatsPerRow
-                    );
-
-            areas.add(seatedArea);
-        }
-
-        newShow.setAreas(areas);
-
-        Member actor =
-                userService.getMemberByToken(token);
-
-        eventService.addShowToEvent(
-                createdEvent.id,
-                newShow,
-                actor.getMemberId()
-        );
-    }
-
-    private SeatedArea createSeatedArea(
-            String name,
-            int numberOfBlocks,
-            int rowsPerBlock,
-            int seatsPerRow) {
-
-        SeatedArea seatedArea =
-                new SeatedArea(
-                        name,
-                        numberOfBlocks
-                );
-
-        List<Block> blocks = new ArrayList<>();
-
-        long idSequence = 1;
-
-        for (
-                int blockIndex = 0;
-                blockIndex < numberOfBlocks;
-                blockIndex++
-        ) {
-
-            String blockName =
-                    String.valueOf(
-                            (char) ('A' + blockIndex)
-                    );
-
-            Block block = new Block(
-                    idSequence++,
-                    blockName,
-                    rowsPerBlock,
-                    seatedArea
-            );
-
-            List<Row> rows = new ArrayList<>();
-
-            for (
-                    int rowIndex = 0;
-                    rowIndex < rowsPerBlock;
-                    rowIndex++
-            ) {
-
-                Row row = new Row(
-                        idSequence++,
-                        String.valueOf(rowIndex + 1),
-                        seatsPerRow,
-                        block
-                );
-
-                List<Seat> seats =
-                        new ArrayList<>();
-
-                for (
-                        int seatIndex = 1;
-                        seatIndex <= seatsPerRow;
-                        seatIndex++
-                ) {
-
-                    Seat seat = new Seat(
-                            idSequence++,
-                            String.valueOf(seatIndex),
-                            row
-                    );
-
-                    seats.add(seat);
+                if (!enabled) {
+                        System.out.println(
+                                        "========== Initial state loading is disabled ==========");
+                        return;
                 }
 
-                row.setSeats(seats);
-                rows.add(row);
-            }
+                if (!initialStateFile.exists()) {
+                        throw new IllegalStateException(
+                                        "Initial state file was not found: " + initialStateFile);
+                }
 
-            block.setRows(rows);
-            blocks.add(block);
+                /*
+                 * Clear variables in case the component is called more than once
+                 * during tests.
+                 */
+                savedTokens.clear();
+                savedCompanies.clear();
+                savedEvents.clear();
+
+                System.out.println(
+                                "========== Loading initial state file ==========");
+
+                JsonNode root;
+
+                try {
+                        root = objectMapper.readTree(
+                                        initialStateFile.getInputStream());
+                } catch (Exception exception) {
+                        throw new IllegalStateException(
+                                        "Could not read the initial-state file: "
+                                                        + exception.getMessage(),
+                                        exception);
+                }
+
+                if (root == null || !root.isArray()) {
+                        throw new IllegalStateException(
+                                        "Initial-state file must contain a JSON array.");
+                }
+
+                int index = 0;
+
+                for (JsonNode actionNode : root) {
+                        index++;
+
+                        try {
+                                executeAction(actionNode, index);
+                        } catch (Exception exception) {
+                                throw new IllegalStateException(
+                                                "Initial state failed at action #"
+                                                                + index
+                                                                + ": "
+                                                                + actionNode
+                                                                + ". Reason: "
+                                                                + exception.getMessage(),
+                                                exception);
+                        }
+                }
+
+                System.out.println(
+                                "========== Initial state loaded successfully ==========");
         }
 
-        seatedArea.setBlocks(blocks);
+        private void executeAction(JsonNode node, int index) {
 
-        return seatedArea;
-    }
+                String action = text(node, "action");
 
-    // =========================================================
-    // POLICY ACTIONS
-    // =========================================================
+                switch (action) {
 
-    private void addCompanyCoupon(JsonNode node) {
+                        case "register" ->
+                                register(node);
 
-        String token = resolveToken(
-                text(node, "token")
-        );
+                        case "verify" ->
+                                verify(node);
 
-        UUID companyId = resolveCompany(
-                text(node, "company")
-        );
+                        case "login" ->
+                                login(node);
 
-        String couponCode = text(
-                node,
-                "couponCode"
-        );
+                        case "logout" ->
+                                logout(node);
 
-        double percentage = doubleValue(
-                node,
-                "percentage"
-        );
+                        case "openCompany" ->
+                                openCompany(node);
 
-        CouponDiscountRule coupon =
-                new CouponDiscountRule(
-                        percentage,
-                        couponCode
-                );
+                        case "appointOwner" ->
+                                appointOwner(node);
 
-        policyService.addDiscountRuleToCompany(
-                token,
-                companyId,
-                coupon
-        );
-    }
+                        case "confirmOwnerAppointment" ->
+                                confirmOwnerAppointment(node);
 
-    // =========================================================
-    // PERMISSIONS
-    // =========================================================
+                        case "appointManager" ->
+                                appointManager(node);
 
-    private Set<CompanyPermission> parsePermissions(
-            JsonNode permissionsNode
-    ) {
+                        case "confirmManagerAppointment" ->
+                                confirmManagerAppointment(node);
 
-        Set<CompanyPermission> result =
-                new HashSet<>();
+                        case "createEventWithLayout" ->
+                                createEventWithLayout(node);
 
-        if (permissionsNode == null
-                || !permissionsNode.isArray()) {
+                        case "addCompanyCoupon" ->
+                                addCompanyCoupon(node);
 
-            result.add(
-                    CompanyPermission.MANAGE_EVENTS
-            );
+                        default ->
+                                throw new IllegalArgumentException(
+                                                "Unknown initial-state action: " + action);
+                }
 
-            return result;
+                System.out.println(
+                                "Initial state action #"
+                                                + index
+                                                + " completed: "
+                                                + action);
         }
 
-        Iterator<JsonNode> iterator =
-                permissionsNode.elements();
+        // =========================================================
+        // USER ACTIONS
+        // =========================================================
 
-        while (iterator.hasNext()) {
+        private void register(JsonNode node) {
 
-            String permissionName =
-                    iterator.next()
-                            .asText()
-                            .trim()
-                            .toUpperCase();
+                String username = text(node, "username");
+                String password = text(node, "password");
+                String email = text(node, "email");
 
-            /*
-             * The current CompanyPermission enum does not contain
-             * EDIT_VENUE_LAYOUT.
-             *
-             * For the current project, MANAGE_EVENTS is the permission
-             * used for event and layout management.
-             */
-            if (
-                    permissionName.equals(
-                            "EDIT_VENUE_LAYOUT"
-                    )
-            ) {
-                result.add(
-                        CompanyPermission.MANAGE_EVENTS
-                );
-                continue;
-            }
+                String phone = textOrDefault(
+                                node,
+                                "phone",
+                                "0500000000");
 
-            /*
-             * Managers currently cannot modify policies because
-             * PolicyAuthorizationDomainService allows company owners.
-             *
-             * Therefore we do not grant anything for MANAGE_POLICIES.
-             */
-            if (
-                    permissionName.equals(
-                            "MANAGE_POLICIES"
-                    )
-            ) {
-                continue;
-            }
+                int age = intOrDefault(
+                                node,
+                                "age",
+                                18);
 
-            try {
-                result.add(
-                        CompanyPermission.valueOf(
-                                permissionName
-                        )
-                );
-            } catch (IllegalArgumentException exception) {
-                throw new IllegalArgumentException(
-                        "Unknown company permission: "
-                                + permissionName,
-                        exception
-                );
-            }
+                userService.register(
+                                username,
+                                password,
+                                email,
+                                phone,
+                                age,
+                                VerificationMethod.EMAIL);
         }
 
-        return result;
-    }
+        private void verify(JsonNode node) {
 
-    // =========================================================
-    // VARIABLE RESOLUTION
-    // =========================================================
+                String username = text(node, "username");
 
-    private String resolveToken(String value) {
+                String code = textOrDefault(
+                                node,
+                                "code",
+                                "000000");
 
-        if (value.startsWith("$")) {
-
-            String key = value.substring(1);
-
-            String token =
-                    savedTokens.get(key);
-
-            if (token == null) {
-                throw new IllegalArgumentException(
-                        "Token variable was not found: "
-                                + value
-                );
-            }
-
-            return token;
+                userService.verifyAccount(
+                                username,
+                                code);
         }
 
-        return value;
-    }
+        private void login(JsonNode node) {
 
-    private UUID resolveCompany(String value) {
+                String username = text(node, "username");
+                String password = text(node, "password");
+                String saveTokenAs = text(node, "saveTokenAs");
 
-        if (value.startsWith("$")) {
+                String token = userService.login(
+                                username,
+                                password);
 
-            String key = value.substring(1);
-
-            UUID companyId =
-                    savedCompanies.get(key);
-
-            if (companyId == null) {
-                throw new IllegalArgumentException(
-                        "Company variable was not found: "
-                                + value
-                );
-            }
-
-            return companyId;
+                savedTokens.put(
+                                saveTokenAs,
+                                token);
         }
 
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException(
-                    "Invalid company UUID: " + value,
-                    exception
-            );
-        }
-    }
+        private void logout(JsonNode node) {
 
-    @SuppressWarnings("unused")
-    private UUID resolveEvent(String value) {
+                String token = resolveToken(
+                                text(node, "token"));
 
-        if (value.startsWith("$")) {
-
-            String key = value.substring(1);
-
-            UUID eventId =
-                    savedEvents.get(key);
-
-            if (eventId == null) {
-                throw new IllegalArgumentException(
-                        "Event variable was not found: "
-                                + value
-                );
-            }
-
-            return eventId;
+                userService.logout(token);
         }
 
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException(
-                    "Invalid event UUID: " + value,
-                    exception
-            );
-        }
-    }
+        // =========================================================
+        // COMPANY ACTIONS
+        // =========================================================
 
-    // =========================================================
-    // JSON HELPERS
-    // =========================================================
+        private void openCompany(JsonNode node) {
 
-    private String text(
-            JsonNode node,
-            String fieldName
-    ) {
+                String token = resolveToken(
+                                text(node, "token"));
 
-        JsonNode value = node.get(fieldName);
+                String companyName = text(
+                                node,
+                                "companyName");
 
-        if (
-                value == null
-                        || value.isNull()
-                        || value.asText().isBlank()
-        ) {
-            throw new IllegalArgumentException(
-                    "Missing required field: "
-                            + fieldName
-            );
+                String saveCompanyAs = text(
+                                node,
+                                "saveCompanyAs");
+
+                UUID companyId = companyService.openCompany(
+                                token,
+                                companyName);
+
+                savedCompanies.put(
+                                saveCompanyAs,
+                                companyId);
         }
 
-        return value.asText().trim();
-    }
+        private void appointOwner(JsonNode node) {
 
-    private String textOrDefault(
-            JsonNode node,
-            String fieldName,
-            String defaultValue
-    ) {
+                String token = resolveToken(
+                                text(node, "token"));
 
-        JsonNode value = node.get(fieldName);
+                UUID companyId = resolveCompany(
+                                text(node, "company"));
 
-        if (
-                value == null
-                        || value.isNull()
-                        || value.asText().isBlank()
-        ) {
-            return defaultValue;
+                String ownerUsername = text(
+                                node,
+                                "ownerUsername");
+
+                Member owner = userService.getMemberByUsername(
+                                ownerUsername);
+
+                /*
+                 * Current project behavior:
+                 * appointAdditionalOwner immediately gives the owner role.
+                 *
+                 * There is currently no PENDING owner appointment in the
+                 * company service.
+                 */
+                companyService.appointAdditionalOwner(
+                                token,
+                                companyId,
+                                owner.getMemberId());
         }
 
-        return value.asText().trim();
-    }
+        private void confirmOwnerAppointment(JsonNode node) {
 
-    private int intOrDefault(
-            JsonNode node,
-            String fieldName,
-            int defaultValue
-    ) {
+                String token = resolveToken(
+                                text(node, "token"));
 
-        JsonNode value = node.get(fieldName);
+                UUID companyId = resolveCompany(
+                                text(node, "company"));
 
-        if (
-                value == null
-                        || value.isNull()
-        ) {
-            return defaultValue;
+                /*
+                 * Validate that the confirming user is logged in and that
+                 * the referenced company exists.
+                 *
+                 * In the current implementation, the owner role was already
+                 * added by appointAdditionalOwner.
+                 */
+                Member confirmingMember = userService.getMemberByToken(token);
+
+                if (confirmingMember == null) {
+                        throw new IllegalStateException(
+                                        "Could not resolve the confirming owner.");
+                }
+
+                if (companyId == null) {
+                        throw new IllegalStateException(
+                                        "Company id is missing.");
+                }
+
+                System.out.println(
+                                "Owner appointment confirmed by username="
+                                                + confirmingMember.getUsername()
+                                                + ", companyId="
+                                                + companyId);
         }
 
-        if (!value.canConvertToInt()) {
-            throw new IllegalArgumentException(
-                    "Field must be an integer: "
-                            + fieldName
-            );
+        private void appointManager(JsonNode node) {
+
+                String token = resolveToken(
+                                text(node, "token"));
+
+                UUID companyId = resolveCompany(
+                                text(node, "company"));
+
+                String managerUsername = text(
+                                node,
+                                "managerUsername");
+
+                Member manager = userService.getMemberByUsername(
+                                managerUsername);
+
+                Set<CompanyPermission> permissions = parsePermissions(
+                                node.get("permissions"));
+
+                /*
+                 * Current project behavior:
+                 * appointManager immediately gives the manager role.
+                 */
+                companyService.appointManager(
+                                token,
+                                companyId,
+                                manager.getMemberId(),
+                                permissions);
         }
 
-        return value.asInt();
-    }
+        private void confirmManagerAppointment(JsonNode node) {
 
-    private double doubleValue(
-            JsonNode node,
-            String fieldName
-    ) {
+                String token = resolveToken(
+                                text(node, "token"));
 
-        JsonNode value = node.get(fieldName);
+                UUID companyId = resolveCompany(
+                                text(node, "company"));
 
-        if (
-                value == null
-                        || value.isNull()
-                        || !value.isNumber()
-        ) {
-            throw new IllegalArgumentException(
-                    "Missing or invalid numeric field: "
-                            + fieldName
-            );
+                Member confirmingMember = userService.getMemberByToken(token);
+
+                if (confirmingMember == null) {
+                        throw new IllegalStateException(
+                                        "Could not resolve the confirming manager.");
+                }
+
+                if (companyId == null) {
+                        throw new IllegalStateException(
+                                        "Company id is missing.");
+                }
+
+                System.out.println(
+                                "Manager appointment confirmed by username="
+                                                + confirmingMember.getUsername()
+                                                + ", companyId="
+                                                + companyId);
         }
 
-        return value.asDouble();
-    }
+        // =========================================================
+        // EVENT + LAYOUT
+        // =========================================================
 
-    private BigDecimal decimalValue(
-            JsonNode node,
-            String fieldName
-    ) {
+        private void createEventWithLayout(JsonNode node) {
 
-        JsonNode value = node.get(fieldName);
+                String token = resolveToken(
+                                text(node, "token"));
 
-        if (
-                value == null
-                        || value.isNull()
-                        || !value.isNumber()
-        ) {
-            throw new IllegalArgumentException(
-                    "Missing or invalid decimal field: "
-                            + fieldName
-            );
+                UUID companyId = resolveCompany(
+                                text(node, "company"));
+
+                String eventName = text(
+                                node,
+                                "eventName");
+
+                String venue = text(
+                                node,
+                                "venue");
+
+                String eventTypeText = text(
+                                node,
+                                "eventType");
+
+                String saveEventAs = text(
+                                node,
+                                "saveEventAs");
+
+                LocalDate startDate = LocalDate.parse(
+                                text(node, "startDate"));
+
+                LocalDate endDate = LocalDate.parse(
+                                text(node, "endDate"));
+
+                EventDto eventDto = new EventDto();
+
+                eventDto.name = eventName;
+                eventDto.venue = venue;
+
+                eventDto.eventType = show_type.valueOf(
+                                eventTypeText.trim().toUpperCase());
+
+                eventDto.startDate = startDate.atStartOfDay();
+
+                eventDto.endDate = endDate.atStartOfDay();
+
+                EventDto createdEvent = companyService.addEvent(
+                                token,
+                                companyId,
+                                eventDto);
+
+                if (createdEvent == null || createdEvent.id == null) {
+                        throw new IllegalStateException(
+                                        "Event was not created correctly.");
+                }
+
+                savedEvents.put(
+                                saveEventAs,
+                                createdEvent.id);
+
+                JsonNode showNode = node.get("show");
+
+                if (showNode == null || !showNode.isObject()) {
+                        throw new IllegalArgumentException(
+                                        "Missing show configuration for event: "
+                                                        + eventName);
+                }
+
+                LocalDate showLocalDate = LocalDate.parse(
+                                text(showNode, "showDate"));
+
+                Date showDate = Date.from(
+                                showLocalDate
+                                                .atStartOfDay(
+                                                                ZoneId.systemDefault())
+                                                .toInstant());
+
+                String showName = text(
+                                showNode,
+                                "name");
+
+                String description = textOrDefault(
+                                showNode,
+                                "description",
+                                "Initial-state show");
+
+                String singer = textOrDefault(
+                                showNode,
+                                "singer",
+                                "N/A");
+
+                show newShow = new show(
+                                createdEvent.id,
+                                showName,
+                                description,
+                                singer,
+                                showDate);
+
+                BigDecimal standingPrice = decimalValue(
+                                showNode,
+                                "standingPrice");
+
+                BigDecimal seatedPrice = decimalValue(
+                                showNode,
+                                "seatedPrice");
+
+                newShow.setStandingPrice(
+                                standingPrice);
+
+                newShow.setSeatedPrice(
+                                seatedPrice);
+
+                List<Area> areas = new ArrayList<>();
+
+                int standingCapacity = intOrDefault(
+                                showNode,
+                                "standingCapacity",
+                                0);
+
+                if (standingCapacity > 0) {
+                        StandingArea standingArea = new StandingArea(
+                                        "Standing Area",
+                                        standingCapacity);
+
+                        areas.add(standingArea);
+                }
+
+                int numberOfBlocks = intOrDefault(
+                                showNode,
+                                "numberOfBlocks",
+                                0);
+
+                int rowsPerBlock = intOrDefault(
+                                showNode,
+                                "rowsPerBlock",
+                                0);
+
+                int seatsPerRow = intOrDefault(
+                                showNode,
+                                "seatsPerRow",
+                                0);
+
+                if (numberOfBlocks > 0
+                                && rowsPerBlock > 0
+                                && seatsPerRow > 0) {
+
+                        SeatedArea seatedArea = createSeatedArea(
+                                        "Seated Area",
+                                        numberOfBlocks,
+                                        rowsPerBlock,
+                                        seatsPerRow);
+
+                        areas.add(seatedArea);
+                }
+
+                newShow.setAreas(areas);
+
+                Member actor = userService.getMemberByToken(token);
+
+                eventService.addShowToEvent(
+                                createdEvent.id,
+                                newShow,
+                                actor.getMemberId());
         }
 
-        return value.decimalValue();
-    }
+        private SeatedArea createSeatedArea(
+                        String name,
+                        int numberOfBlocks,
+                        int rowsPerBlock,
+                        int seatsPerRow) {
+
+                SeatedArea seatedArea = new SeatedArea(
+                                name,
+                                numberOfBlocks);
+
+                List<Block> blocks = new ArrayList<>();
+
+                long idSequence = 1;
+
+                for (int blockIndex = 0; blockIndex < numberOfBlocks; blockIndex++) {
+
+                        String blockName = String.valueOf(
+                                        (char) ('A' + blockIndex));
+
+                        Block block = new Block(
+                                        idSequence++,
+                                        blockName,
+                                        rowsPerBlock,
+                                        seatedArea);
+
+                        List<Row> rows = new ArrayList<>();
+
+                        for (int rowIndex = 0; rowIndex < rowsPerBlock; rowIndex++) {
+
+                                Row row = new Row(
+                                                idSequence++,
+                                                String.valueOf(rowIndex + 1),
+                                                seatsPerRow,
+                                                block);
+
+                                List<Seat> seats = new ArrayList<>();
+
+                                for (int seatIndex = 1; seatIndex <= seatsPerRow; seatIndex++) {
+
+                                        Seat seat = new Seat(
+                                                        idSequence++,
+                                                        String.valueOf(seatIndex),
+                                                        row);
+
+                                        seats.add(seat);
+                                }
+
+                                row.setSeats(seats);
+                                rows.add(row);
+                        }
+
+                        block.setRows(rows);
+                        blocks.add(block);
+                }
+
+                seatedArea.setBlocks(blocks);
+
+                return seatedArea;
+        }
+
+        // =========================================================
+        // POLICY ACTIONS
+        // =========================================================
+
+        private void addCompanyCoupon(JsonNode node) {
+
+                String token = resolveToken(
+                                text(node, "token"));
+
+                UUID companyId = resolveCompany(
+                                text(node, "company"));
+
+                String couponCode = text(
+                                node,
+                                "couponCode");
+
+                double percentage = doubleValue(
+                                node,
+                                "percentage");
+
+                CouponDiscountRule coupon = new CouponDiscountRule(
+                                percentage,
+                                couponCode);
+
+                policyService.addDiscountRuleToCompany(
+                                token,
+                                companyId,
+                                coupon);
+        }
+
+        // =========================================================
+        // PERMISSIONS
+        // =========================================================
+
+        private Set<CompanyPermission> parsePermissions(
+                        JsonNode permissionsNode) {
+
+                Set<CompanyPermission> result = new HashSet<>();
+
+                if (permissionsNode == null
+                                || !permissionsNode.isArray()) {
+
+                        result.add(
+                                        CompanyPermission.MANAGE_EVENTS);
+
+                        return result;
+                }
+
+                Iterator<JsonNode> iterator = permissionsNode.elements();
+
+                while (iterator.hasNext()) {
+
+                        String permissionName = iterator.next()
+                                        .asText()
+                                        .trim()
+                                        .toUpperCase();
+
+                        /*
+                         * The current CompanyPermission enum does not contain
+                         * EDIT_VENUE_LAYOUT.
+                         *
+                         * For the current project, MANAGE_EVENTS is the permission
+                         * used for event and layout management.
+                         */
+                        if (permissionName.equals(
+                                        "EDIT_VENUE_LAYOUT")) {
+                                result.add(
+                                                CompanyPermission.MANAGE_EVENTS);
+                                continue;
+                        }
+
+                        /*
+                         * Managers currently cannot modify policies because
+                         * PolicyAuthorizationDomainService allows company owners.
+                         *
+                         * Therefore we do not grant anything for MANAGE_POLICIES.
+                         */
+                        if (permissionName.equals(
+                                        "MANAGE_POLICIES")) {
+                                continue;
+                        }
+
+                        try {
+                                result.add(
+                                                CompanyPermission.valueOf(
+                                                                permissionName));
+                        } catch (IllegalArgumentException exception) {
+                                throw new IllegalArgumentException(
+                                                "Unknown company permission: "
+                                                                + permissionName,
+                                                exception);
+                        }
+                }
+
+                return result;
+        }
+
+        // =========================================================
+        // VARIABLE RESOLUTION
+        // =========================================================
+
+        private String resolveToken(String value) {
+
+                if (value.startsWith("$")) {
+
+                        String key = value.substring(1);
+
+                        String token = savedTokens.get(key);
+
+                        if (token == null) {
+                                throw new IllegalArgumentException(
+                                                "Token variable was not found: "
+                                                                + value);
+                        }
+
+                        return token;
+                }
+
+                return value;
+        }
+
+        private UUID resolveCompany(String value) {
+
+                if (value.startsWith("$")) {
+
+                        String key = value.substring(1);
+
+                        UUID companyId = savedCompanies.get(key);
+
+                        if (companyId == null) {
+                                throw new IllegalArgumentException(
+                                                "Company variable was not found: "
+                                                                + value);
+                        }
+
+                        return companyId;
+                }
+
+                try {
+                        return UUID.fromString(value);
+                } catch (IllegalArgumentException exception) {
+                        throw new IllegalArgumentException(
+                                        "Invalid company UUID: " + value,
+                                        exception);
+                }
+        }
+
+        @SuppressWarnings("unused")
+        private UUID resolveEvent(String value) {
+
+                if (value.startsWith("$")) {
+
+                        String key = value.substring(1);
+
+                        UUID eventId = savedEvents.get(key);
+
+                        if (eventId == null) {
+                                throw new IllegalArgumentException(
+                                                "Event variable was not found: "
+                                                                + value);
+                        }
+
+                        return eventId;
+                }
+
+                try {
+                        return UUID.fromString(value);
+                } catch (IllegalArgumentException exception) {
+                        throw new IllegalArgumentException(
+                                        "Invalid event UUID: " + value,
+                                        exception);
+                }
+        }
+
+        // =========================================================
+        // JSON HELPERS
+        // =========================================================
+
+        private String text(
+                        JsonNode node,
+                        String fieldName) {
+
+                JsonNode value = node.get(fieldName);
+
+                if (value == null
+                                || value.isNull()
+                                || value.asText().isBlank()) {
+                        throw new IllegalArgumentException(
+                                        "Missing required field: "
+                                                        + fieldName);
+                }
+
+                return value.asText().trim();
+        }
+
+        private String textOrDefault(
+                        JsonNode node,
+                        String fieldName,
+                        String defaultValue) {
+
+                JsonNode value = node.get(fieldName);
+
+                if (value == null
+                                || value.isNull()
+                                || value.asText().isBlank()) {
+                        return defaultValue;
+                }
+
+                return value.asText().trim();
+        }
+
+        private int intOrDefault(
+                        JsonNode node,
+                        String fieldName,
+                        int defaultValue) {
+
+                JsonNode value = node.get(fieldName);
+
+                if (value == null
+                                || value.isNull()) {
+                        return defaultValue;
+                }
+
+                if (!value.canConvertToInt()) {
+                        throw new IllegalArgumentException(
+                                        "Field must be an integer: "
+                                                        + fieldName);
+                }
+
+                return value.asInt();
+        }
+
+        private double doubleValue(
+                        JsonNode node,
+                        String fieldName) {
+
+                JsonNode value = node.get(fieldName);
+
+                if (value == null
+                                || value.isNull()
+                                || !value.isNumber()) {
+                        throw new IllegalArgumentException(
+                                        "Missing or invalid numeric field: "
+                                                        + fieldName);
+                }
+
+                return value.asDouble();
+        }
+
+        private BigDecimal decimalValue(
+                        JsonNode node,
+                        String fieldName) {
+
+                JsonNode value = node.get(fieldName);
+
+                if (value == null
+                                || value.isNull()
+                                || !value.isNumber()) {
+                        throw new IllegalArgumentException(
+                                        "Missing or invalid decimal field: "
+                                                        + fieldName);
+                }
+
+                return value.decimalValue();
+        }
 }
