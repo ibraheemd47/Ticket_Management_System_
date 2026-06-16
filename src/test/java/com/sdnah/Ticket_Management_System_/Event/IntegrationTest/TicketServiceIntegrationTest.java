@@ -29,6 +29,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
 @DataJpaTest
+@ActiveProfiles("test")
 @AutoConfigureTestDatabase
 @ActiveProfiles("test")
 // 1. Add .backend to the basePackages (if it isn't there already)

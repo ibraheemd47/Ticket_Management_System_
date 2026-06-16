@@ -37,6 +37,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepos
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @Transactional
 @DisplayName("Database Layer — Robustness Tests")
 class DatabaseRobustnessTest {

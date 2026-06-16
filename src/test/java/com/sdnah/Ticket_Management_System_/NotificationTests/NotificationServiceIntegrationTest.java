@@ -19,6 +19,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.Notificat
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @Transactional
 class NotificationServiceIntegrationTest {
 

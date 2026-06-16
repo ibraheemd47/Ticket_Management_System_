@@ -52,6 +52,7 @@ import jakarta.persistence.PersistenceContext;
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @DisplayName("System Tests — End-to-End User Journey")
 class EndToEndFlowTest {
 

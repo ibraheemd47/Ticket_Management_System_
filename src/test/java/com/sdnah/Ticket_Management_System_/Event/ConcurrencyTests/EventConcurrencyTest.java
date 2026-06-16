@@ -26,6 +26,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRep
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 class EventConcurrencyTest {
 
     @Autowired

@@ -44,6 +44,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.TicketRep
 
 @DataJpaTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @Import(ActiveOrderService.class)
 class OrderConcurrencyTest {
 

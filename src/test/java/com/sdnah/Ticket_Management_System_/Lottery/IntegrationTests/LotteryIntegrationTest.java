@@ -27,6 +27,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepos
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @Transactional
 @DisplayName("LotteryService — Integration Tests")
 public class LotteryIntegrationTest {

@@ -25,6 +25,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseR
 
 @DataJpaTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 class OrderJpaIntegrationTest {
 
     @Autowired

@@ -42,6 +42,7 @@ import org.springframework.context.annotation.Import;
 
 @DataJpaTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @Import(ActiveOrderService.class)
 class OrderAcceptanceTest {
 

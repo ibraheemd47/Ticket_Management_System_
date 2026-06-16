@@ -41,6 +41,7 @@ import jakarta.persistence.PersistenceContext;
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 class TicketConcurrencyTest {
 
     @Autowired

@@ -37,6 +37,7 @@ import com.sdnah.Ticket_Management_System_.User.IntegrationTests.testconfig.Test
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @Import(TestConfig.class)
 class UserConcurrencyTest {
 

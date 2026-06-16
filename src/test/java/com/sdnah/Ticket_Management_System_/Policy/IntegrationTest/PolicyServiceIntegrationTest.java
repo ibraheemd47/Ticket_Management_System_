@@ -33,6 +33,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRep
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @DisplayName("Policy Module — Integration Tests")
 class PolicyServiceIntegrationTest {
 

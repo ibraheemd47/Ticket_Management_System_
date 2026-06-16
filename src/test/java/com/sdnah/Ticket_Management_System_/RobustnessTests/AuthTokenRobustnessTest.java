@@ -21,6 +21,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.AuthTokenSe
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @DisplayName("AuthTokenService — Robustness Tests")
 class AuthTokenRobustnessTest {
 

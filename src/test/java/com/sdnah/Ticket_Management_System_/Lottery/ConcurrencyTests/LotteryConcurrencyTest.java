@@ -28,6 +28,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepos
 
 @SpringBootTest
 @ActiveProfiles("test")
+@ActiveProfiles("test")
 @DisplayName("LotteryService — Concurrency Tests")
 public class LotteryConcurrencyTest {
 
