@@ -175,7 +175,8 @@ public class LotteryService {
         });
     }
 
-    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 5000)
+
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 30000)   // check every 30 seconds
     @Transactional
     public void runDueDraws() {
         List<Lottery> due = lotteryRepository.findByStatusAndDrawTimeBefore(

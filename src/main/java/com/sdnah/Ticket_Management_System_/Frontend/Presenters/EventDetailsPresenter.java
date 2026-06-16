@@ -316,7 +316,7 @@ public class EventDetailsPresenter {
 
     
     public void deletePolicy(Policy policy) {
-        canManageEvent();
+      //  canManageEvent();
         if (policy instanceof SellingPolicy && hasActiveLottery()) {
             view.showError("Cannot delete the selling policy while the lottery is active or before public sale opens.");
             return;
@@ -339,7 +339,7 @@ public class EventDetailsPresenter {
         if (cachedEventId == null) { view.showError("No event loaded"); return; }
         Object companyIdObj = view.getSessionAttribute("managingCompanyId");
         if (companyIdObj == null) { view.showError("No company session"); return; }
-        canManageEvent();
+        //canManageEvent();
         UUID companyId = UUID.fromString(companyIdObj.toString());
          // Block changing the selling policy while a lottery is open
         if ("Selling".equals(policyType) && hasActiveLottery()) {
@@ -406,7 +406,7 @@ public class EventDetailsPresenter {
      * @param isAdditive true → AND (sum discounts), false → OR (best discount)
      */
     public void saveDiscountPolicy(Policy existing, List<DiscountRule> rules, boolean isAdditive) {
-        canManageEvent();
+       // canManageEvent();
         if (cachedEventId == null) {
             view.showError("No event loaded");
             return;
@@ -449,34 +449,34 @@ public class EventDetailsPresenter {
         }
     }
 
-    public boolean canManageEvent() {
-        if (cachedEvent == null) return false;
+    // public boolean canManageEvent() {
+    //     if (cachedEvent == null) return false;
 
-        String token = getToken();
-        if (token == null) return false;
+    //     String token = getToken();
+    //     if (token == null) return false;
 
-        try {
-            Member member = userService.getMemberByToken(token);
-            UUID companyId = cachedEvent.getCompanyId();
+    //     try {
+    //         Member member = userService.getMemberByToken(token);
+    //         UUID companyId = cachedEvent.getCompanyId();
 
-            if (member.isOwnerInCompany(companyId)) {
-                return true;
-            }
+    //         if (member.isOwnerInCompany(companyId)) {
+    //             return true;
+    //         }
 
-            return member.getCompanyRoles().stream()
-                    .anyMatch(a ->
-                            companyId.equals(a.getCompanyId())
-                            && a.isManager()
-                            && a.getPermissions() != null
-                            && a.getPermissions().contains(
-                                    com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission.MANAGE_EVENTS
-                            )
-                    );
+    //         return member.getCompanyRoles().stream()
+    //                 .anyMatch(a ->
+    //                         companyId.equals(a.getCompanyId())
+    //                         && a.isManager()
+    //                         && a.getPermissions() != null
+    //                         && a.getPermissions().contains(
+    //                                 com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission.MANAGE_EVENTS
+    //                         )
+    //                 );
 
-        } catch (RuntimeException ex) {
-            return false;
-        }
-    }
+    //     } catch (RuntimeException ex) {
+    //         return false;
+    //     }
+    // }
   
     // =========================================================================
     // Lottery
