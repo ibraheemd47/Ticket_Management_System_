@@ -317,10 +317,14 @@ public class EventDetailsPresenter {
     
     public void deletePolicy(Policy policy) {
       //  canManageEvent();
+        if (blockPolicyChangeIfTicketsAlreadyReserved()) {
+            return;
+        }
         if (policy instanceof SellingPolicy && hasActiveLottery()) {
             view.showError("Cannot delete the selling policy while the lottery is active or before public sale opens.");
             return;
         }
+        //
 
         try {
             policyRepo.deleteByPolicyId(policy.getPolicyId());
@@ -337,6 +341,9 @@ public class EventDetailsPresenter {
                             LocalDate couponExpiry) {
                                 
         if (cachedEventId == null) { view.showError("No event loaded"); return; }
+        if (blockPolicyChangeIfTicketsAlreadyReserved()) {
+            return;
+        }
         Object companyIdObj = view.getSessionAttribute("managingCompanyId");
         if (companyIdObj == null) { view.showError("No company session"); return; }
         //canManageEvent();
@@ -449,34 +456,20 @@ public class EventDetailsPresenter {
         }
     }
 
-    // public boolean canManageEvent() {
-    //     if (cachedEvent == null) return false;
+   private boolean blockPolicyChangeIfTicketsAlreadyReserved() {
+            if (cachedEventId == null) return false;
 
-    //     String token = getToken();
-    //     if (token == null) return false;
-
-    //     try {
-    //         Member member = userService.getMemberByToken(token);
-    //         UUID companyId = cachedEvent.getCompanyId();
-
-    //         if (member.isOwnerInCompany(companyId)) {
-    //             return true;
-    //         }
-
-    //         return member.getCompanyRoles().stream()
-    //                 .anyMatch(a ->
-    //                         companyId.equals(a.getCompanyId())
-    //                         && a.isManager()
-    //                         && a.getPermissions() != null
-    //                         && a.getPermissions().contains(
-    //                                 com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission.MANAGE_EVENTS
-    //                         )
-    //                 );
-
-    //     } catch (RuntimeException ex) {
-    //         return false;
-    //     }
-    // }
+            try {
+                if (orderService.hasReservedTicketsForEvent(cachedEventId)) {
+                    view.showError("Cannot change policies after tickets have already been reserved for this event.");
+                    return true;
+                }
+                return false;
+            } catch (RuntimeException ex) {
+                view.showError("Could not verify existing reservations: " + ex.getMessage());
+                return true; // fail closed: if we cannot check, do not allow policy changes
+            }
+}
   
     // =========================================================================
     // Lottery

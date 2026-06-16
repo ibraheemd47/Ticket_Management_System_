@@ -34,4 +34,12 @@ public interface ActiveOrderRepository extends JpaRepository<ActiveOrder, UUID> 
     @Query("SELECT COUNT(o) FROM ActiveOrder o WHERE o.status = 'ACTIVE' AND o.expiresAt > CURRENT_TIMESTAMP")
     long countActiveOrders();
 
+    @Query("""
+    select count(o) > 0
+    from ActiveOrder o
+    where o.eventId = :eventId
+        and o.status = com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Order.ActiveOrder.Status.ACTIVE
+    """)
+    boolean existsActiveOrderForEvent(@Param("eventId") UUID eventId);
+
 }

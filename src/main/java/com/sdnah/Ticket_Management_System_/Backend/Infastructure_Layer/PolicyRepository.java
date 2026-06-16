@@ -46,59 +46,29 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer> {
         return policies;
     }
 
+
     // =========================================================
     // Event policies — query each concrete subclass directly
     // =========================================================
 
-    @Query("""
-           SELECT d
-           FROM DiscountPolicy d
-           WHERE d.eventId = :eventId
-           """)
+    
     Optional<DiscountPolicy> findDiscountPolicyByEventId(@Param("eventId") UUID eventId);
 
-    @Query("""
-           SELECT p
-           FROM PurchasePolicy p
-           WHERE p.eventId = :eventId
-           """)
     Optional<PurchasePolicy> findPurchasePolicyByEventId(@Param("eventId") UUID eventId);
 
-    @Query("""
-           SELECT s
-           FROM SellingPolicy s
-           WHERE s.eventId = :eventId
-           """)
+   
     Optional<SellingPolicy> findSellingPolicyByEventId(@Param("eventId") UUID eventId);
 
-    // =========================================================
-    // Company policies — query each concrete subclass directly
-    // =========================================================
+//     // =========================================================
+//     // Company policies — query each concrete subclass directly
+//     // =========================================================
 
-    @Query("""
-           SELECT d
-           FROM DiscountPolicy d
-           WHERE d.companyId = :companyId
-           AND d.eventId IS NULL
-           """)
     Optional<DiscountPolicy> findDiscountPolicyByCompanyIdAndEventIdIsNull(
             @Param("companyId") UUID companyId);
 
-    @Query("""
-           SELECT p
-           FROM PurchasePolicy p
-           WHERE p.companyId = :companyId
-           AND p.eventId IS NULL
-           """)
     Optional<PurchasePolicy> findPurchasePolicyByCompanyIdAndEventIdIsNull(
             @Param("companyId") UUID companyId);
 
-    @Query("""
-           SELECT s
-           FROM SellingPolicy s
-           WHERE s.companyId = :companyId
-           AND s.eventId IS NULL
-           """)
     Optional<SellingPolicy> findSellingPolicyByCompanyIdAndEventIdIsNull(
             @Param("companyId") UUID companyId);
 

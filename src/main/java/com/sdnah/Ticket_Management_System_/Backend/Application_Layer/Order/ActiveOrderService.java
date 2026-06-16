@@ -472,4 +472,12 @@ public class ActiveOrderService {
         return order;
     }
 
+    public boolean hasReservedTicketsForEvent(UUID eventId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event id is required");
+        }
+
+        return orderRepo.existsActiveOrderForEvent(eventId);
+    }
+
 }

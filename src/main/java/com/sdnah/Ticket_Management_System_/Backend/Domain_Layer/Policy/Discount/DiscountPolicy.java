@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 @DiscriminatorValue("DISCOUNT")
 public class DiscountPolicy extends Policy {
 
+    
     @Column(name = "is_additive")
     private boolean isAdditive = false;
 
