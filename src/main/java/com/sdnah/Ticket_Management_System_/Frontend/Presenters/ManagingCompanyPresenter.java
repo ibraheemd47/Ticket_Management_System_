@@ -15,6 +15,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyServi
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
@@ -189,6 +190,15 @@ public class ManagingCompanyPresenter {
             view.onRoleMutationSucceeded("Manager removed");
         } catch (RuntimeException ex) {
             view.showError(ex.getMessage());
+        }
+    }
+
+    /** Hands the view a fresh sales report for the current company (II.4.6). */
+    public void loadSalesReport() {
+        try {
+            view.showSalesReport(companyService.getSalesReport(token, companyId));
+        } catch (RuntimeException ex) {
+            view.showError("Couldn't load sales report: " + ex.getMessage());
         }
     }
 

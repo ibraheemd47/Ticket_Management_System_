@@ -239,7 +239,9 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
                           orderId,
                           token,
                           fullName.getValue(),
-                          cardNumber.getValue());
+                          cardNumber.getValue(),
+                          cvv.getValue(),
+                          expiry.getValue());
 
                 getUI().ifPresent(ui -> {
                     ui.getSession().setAttribute("checkoutOrderId", null);
@@ -259,7 +261,7 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
 
             } catch (Exception ex) {
                 Notification.show(
-                        "Checkout failed: " + ex.getMessage(),
+                        friendlyCheckoutError(ex),
                         5000,
                         Notification.Position.TOP_CENTER).addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
@@ -284,6 +286,34 @@ public class CheckoutView extends VerticalLayout implements BeforeEnterObserver 
 
     private static String shortId(UUID id) {
         return id == null ? "—" : id.toString().substring(0, 8);
+    }
+
+    /**
+     * Map the noisy exception chain that bubbles up from the saga / WSEP
+     * into a short, user-friendly notification. We never want to show raw
+     * URLs, order UUIDs, or Java stack-trace fragments to a buyer.
+     */
+    private static String friendlyCheckoutError(Throwable ex) {
+        String raw = ex == null || ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
+
+        if (raw.contains("read timed out") || raw.contains("timeout")
+                || raw.contains("transport") || raw.contains("i/o error")) {
+            return "Payment service is not responding. Please try again in a moment.";
+        }
+        if (raw.contains("expired") || raw.contains("expiry month")) {
+            return "Card has expired. Please use a valid card.";
+        }
+        if (raw.contains("declined") || raw.contains("wsep declined")
+                || raw.contains("-1") || raw.contains("cvv") || raw.contains("card")) {
+            return "Payment was declined. Please check your card details and try again.";
+        }
+        if (raw.contains("insufficient") || raw.contains("funds")) {
+            return "Payment was declined: insufficient funds.";
+        }
+        if (raw.contains("ticket") && raw.contains("unavailable")) {
+            return "Some tickets are no longer available. Please review your order.";
+        }
+        return "Checkout could not be completed. Please try again.";
     }
 
 

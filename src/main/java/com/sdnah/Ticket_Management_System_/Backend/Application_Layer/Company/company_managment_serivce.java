@@ -22,6 +22,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteU
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
@@ -37,6 +38,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
 
 @Service
@@ -51,13 +53,15 @@ public class company_managment_serivce {
     private IEventRepository eventRepository;
     private IrepresnteUserService representUserService;
     private PolicyRepository policyRepo;
+    private final PurchaseRepository purchaseRepository;
 
     @Autowired
     public company_managment_serivce(CompanyRepository companyRepository,
             UserRepository userRepository,
             IEventRepository eventRepository,
             IrepresnteUserService representUserService,
-            NotificationService notificationService,PolicyRepository policyRepo) {
+            NotificationService notificationService, PolicyRepository policyRepo,
+            PurchaseRepository purchaseRepository) {
 
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
@@ -66,6 +70,22 @@ public class company_managment_serivce {
         this.representUserService = representUserService;
         this.notificationService = notificationService;
         this.policyRepo = policyRepo;
+        this.purchaseRepository = purchaseRepository;
+    }
+
+    /**
+     * Legacy 6-arg constructor — keeps existing tests compiling. Sales
+     * report aggregation (II.4.6) needs a PurchaseRepository, so callers
+     * that don't supply one get a null and the report method will NPE if
+     * exercised. Production wiring uses the 7-arg constructor via Spring.
+     */
+    public company_managment_serivce(CompanyRepository companyRepository,
+            UserRepository userRepository,
+            IEventRepository eventRepository,
+            IrepresnteUserService representUserService,
+            NotificationService notificationService, PolicyRepository policyRepo) {
+        this(companyRepository, userRepository, eventRepository, representUserService,
+                notificationService, policyRepo, null);
     }
 
     // --- II.2.1: View Active Production Companies ---
@@ -294,6 +314,45 @@ public class company_managment_serivce {
         }
     }
 
+    /**
+     * II.4.6 — return a structured sales report so the UI can render
+     * per-event revenue plus the company-level totals.
+     * Authorization reuses the same gate as the void variant above.
+     */
+    public SalesReportDTO getSalesReport(String actorToken, UUID companyId) {
+        Member actor = getActorFromToken(actorToken);
+        Company company = getCompanyOrThrow(companyId);
+        // Re-uses existing II.4.6 auth path; throws if actor can't view reports.
+        company.generateSalesReport(actor.getMemberId());
+
+        List<Event> events = eventRepository.findByCompanyId(companyId);
+
+        java.math.BigDecimal totalRevenue = java.math.BigDecimal.ZERO;
+        int totalOrders = 0;
+        List<SalesReportDTO.EventLine> lines = new java.util.ArrayList<>();
+
+        for (Event ev : events) {
+            var purchases = purchaseRepository.findByEventId(ev.getEventId());
+            java.math.BigDecimal eventRevenue = purchases.stream()
+                    .map(p -> p.getTotalPrice() == null ? java.math.BigDecimal.ZERO : p.getTotalPrice())
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+            int eventOrders = purchases.size();
+
+            totalRevenue = totalRevenue.add(eventRevenue);
+            totalOrders += eventOrders;
+
+            lines.add(new SalesReportDTO.EventLine(
+                    ev.getEventId(), ev.getName(), eventOrders, eventRevenue));
+        }
+
+        return new SalesReportDTO(
+                company.getCompanyId(),
+                company.getCompanyName(),
+                totalOrders,
+                totalRevenue,
+                lines);
+    }
+
     // --- II.4.7: View and Appoint Company Managers ---
     @Transactional
     public void appointManager(String actorToken, UUID companyId, String newManagerId,
@@ -474,7 +533,8 @@ public class company_managment_serivce {
                 company.getCompanyId(),
                 company.getCompanyFounderId(),
                 company.getOwnerIds(),
-                company.getManagerPermissionsView());
+                company.getManagerPermissionsView(),
+                company.getManagerAppointedByView());
     }
 
 
