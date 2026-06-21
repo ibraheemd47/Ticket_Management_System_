@@ -458,6 +458,19 @@ public class Company {
         return Collections.unmodifiableMap(copy);
     }
 
+    /**
+     * Read-only map: managerId → memberId of the owner who appointed them.
+     * Used by the "Roles" tab so the UI can show provenance next to each
+     * manager (II.4.7 / II.4.15 — view roles and appointments).
+     */
+    public Map<String, String> getManagerAppointedByView() {
+        Map<String, String> copy = new HashMap<>();
+        for (CompanyManagerAssignment manager : managers) {
+            copy.put(manager.getManagerId(), manager.getAppointedByOwnerId());
+        }
+        return Collections.unmodifiableMap(copy);
+    }
+
     public boolean matchesName(String companyName) {
         if (companyName == null || companyName.trim().isEmpty()) {
             return true;

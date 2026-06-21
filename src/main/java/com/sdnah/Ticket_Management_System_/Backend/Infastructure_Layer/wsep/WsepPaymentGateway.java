@@ -83,21 +83,25 @@ public class WsepPaymentGateway implements IPaymentGateway {
     // ── mapping helpers ─────────────────────────────────────────────────────
 
     private static WsepPaymentRequest toRequest(BigDecimal amount, PaymentDetails details) {
-        // PaymentDetails today carries cardToken + billingName + paymentMethod.
-        // WSEP wants card_number / month / year / holder / cvv / id. We have
-        // no card_number/month/year/cvv in the domain object, so for Phase 1
-        // we derive what we can and use placeholders for the rest. A later
-        // refinement (out of Phase 1 scope) is to extend PaymentDetails with
-        // the missing fields.
+        // PaymentDetails carries the WSEP-relevant card data when the
+        // checkout form supplies it (cvv / expiry). Older call sites that
+        // construct PaymentDetails via the 3-arg constructor leave those
+        // fields null — in which case we fall back to safe defaults so the
+        // request still validates.
+        String cvv     = (details.getCvv() != null && !details.getCvv().isBlank())
+                ? details.getCvv() : "000";
+        int    month   = details.getExpiryMonth() != null ? details.getExpiryMonth() : 12;
+        int    year    = details.getExpiryYear()  != null ? details.getExpiryYear()  : 2030;
+
         return new WsepPaymentRequest(
                 amount.toPlainString(),
                 DEFAULT_CURRENCY,
                 details.getCardToken(),                  // pass cardToken as PAN
-                /* month     */ 12,
-                /* year      */ 2030,
+                month,
+                year,
                 details.getBillingName(),
-                /* cvv       */ "000",
-                /* holder id */ details.getBillingName() // placeholder; a real id would come from the buyer
+                cvv,
+                details.getBillingName()                 // placeholder; a real id would come from the buyer
         );
     }
 }

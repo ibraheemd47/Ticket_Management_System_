@@ -272,8 +272,13 @@ public class ActiveOrderService {
         int buyerAge = resolveBuyerAge(userToken, buyerId);
         orderPolicyDomainService.validatePurchasePolicy(order, buyerAge, true);
 
-        PaymentDetails details = new PaymentDetails(paymentDTO.getCardToken(), paymentDTO.getBillingName(),
-                paymentDTO.getPaymentMethod());
+        PaymentDetails details = new PaymentDetails(
+                paymentDTO.getCardToken(),
+                paymentDTO.getBillingName(),
+                paymentDTO.getPaymentMethod(),
+                paymentDTO.getCvv(),
+                paymentDTO.getExpiryMonth(),
+                paymentDTO.getExpiryYear());
 
         try {
             CheckoutDomainService.CheckoutResult result = checkoutDomainService.checkout(order, details);

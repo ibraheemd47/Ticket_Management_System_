@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
@@ -78,6 +79,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private final Tab eventsTab   = new Tab("Events");
     private final Tab rolesTab    = new Tab("Roles");
     private final Tab policiesTab = new Tab("Policies");
+    private final Tab reportTab   = new Tab("Sales report");
 
     /** Container the chooser is rendered into so we can replace its body on errors / refreshes. */
     private final Div chooserSlot = new Div();
@@ -205,7 +207,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         section.add(appointBox("Appoint owner", presenter::appointOwner));
 
         section.add(sectionTitle("Managers + permissions"));
-        section.add(buildManagersGrid(roles.getManagerPermissions()));
+        section.add(buildManagersGrid(roles.getManagerPermissions(), roles.getManagerAppointedBy()));
         section.add(appointBox("Appoint manager", presenter::appointManager));
 
         tabContent.add(section);
@@ -214,6 +216,35 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     public void showRolesError(String message) {
         tabContent.removeAll();
         tabContent.add(error(message));
+    }
+
+    public void showSalesReport(SalesReportDTO report) {
+        tabContent.removeAll();
+        if (report == null) {
+            tabContent.add(new Paragraph("No data."));
+            return;
+        }
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(false);
+
+        section.add(sectionTitle("Sales report — " + report.getCompanyName()));
+        section.add(new Paragraph("Total orders: " + report.getTotalOrders()));
+        section.add(new Paragraph("Total revenue: " + report.getTotalRevenue().toPlainString()));
+
+        if (report.getPerEvent().isEmpty()) {
+            section.add(new Paragraph("No events for this company yet."));
+        } else {
+            Grid<SalesReportDTO.EventLine> grid = new Grid<>();
+            grid.addColumn(SalesReportDTO.EventLine::getEventName).setHeader("Event");
+            grid.addColumn(SalesReportDTO.EventLine::getOrders).setHeader("Orders");
+            grid.addColumn(line -> line.getRevenue().toPlainString()).setHeader("Revenue");
+            grid.setItems(report.getPerEvent());
+            grid.setAllRowsVisible(true);
+            grid.setWidthFull();
+            section.add(grid);
+        }
+        tabContent.add(section);
     }
 
     /** Called after appoint/remove — show a confirmation then refetch the roles. */
@@ -316,13 +347,14 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         title.getStyle().set("margin", "0 0 16px 0");
         card.add(back);
 
-        Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab);
+        Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab, reportTab);
         tabs.addSelectedChangeListener(e -> {
             tabContent.removeAll();
             Tab selected = e.getSelectedTab();
             if (selected == eventsTab)         presenter.loadEventsForCurrentCompany();
             else if (selected == rolesTab)     presenter.loadRolesForCurrentCompany();
             else if (selected == policiesTab)  renderPoliciesTab();
+            else if (selected == reportTab)    presenter.loadSalesReport();
         });
 
         tabContent.getStyle().set("padding-top", "16px");
@@ -372,15 +404,22 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     return list;
 }
 
-    private Component buildManagersGrid(Map<String, Set<CompanyPermission>> managerPermissions) {
+    private Component buildManagersGrid(Map<String, Set<CompanyPermission>> managerPermissions,
+                                        Map<String, String> managerAppointedBy) {
         if (managerPermissions == null || managerPermissions.isEmpty()) {
             return new Paragraph("No managers yet.");
         }
+        final Map<String, String> appointedBy = managerAppointedBy == null
+                ? java.util.Collections.emptyMap() : managerAppointedBy;
         Grid<Map.Entry<String, Set<CompanyPermission>>> grid = new Grid<>();
         grid.addColumn(entry -> getMemberDisplayName(entry.getKey()))
         .setHeader("Manager");
                 grid.addColumn(e -> String.join(", ",
                 e.getValue().stream().map(Enum::name).sorted().toList())).setHeader("Permissions");
+        grid.addColumn(e -> {
+            String owner = appointedBy.get(e.getKey());
+            return (owner == null || owner.isBlank()) ? "—" : getMemberDisplayName(owner);
+        }).setHeader("Appointed by");
         grid.addComponentColumn(entry -> {
             Button remove = new Button("Remove", ev -> {
                 // Presenter owns the full flow — it catches errors, shows

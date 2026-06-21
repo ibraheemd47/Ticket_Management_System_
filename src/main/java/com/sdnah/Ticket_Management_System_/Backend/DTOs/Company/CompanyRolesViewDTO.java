@@ -1,5 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Backend.DTOs.Company;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,15 +16,26 @@ public class CompanyRolesViewDTO {
     private final String founderId;
     private final List<String> ownerIds;
     private final Map<String, Set<CompanyPermission>> managerPermissions;
+    private final Map<String, String> managerAppointedBy;
 
     public CompanyRolesViewDTO(UUID companyId,
                                String founderId,
                                List<String> ownerIds,
                                Map<String, Set<CompanyPermission>> managerPermissions) {
+        this(companyId, founderId, ownerIds, managerPermissions, Collections.emptyMap());
+    }
+
+    public CompanyRolesViewDTO(UUID companyId,
+                               String founderId,
+                               List<String> ownerIds,
+                               Map<String, Set<CompanyPermission>> managerPermissions,
+                               Map<String, String> managerAppointedBy) {
         this.companyId = companyId;
         this.founderId = founderId;
         this.ownerIds = ownerIds;
         this.managerPermissions = managerPermissions;
+        this.managerAppointedBy = managerAppointedBy == null
+                ? Collections.emptyMap() : managerAppointedBy;
     }
 
     public UUID getCompanyId() {
@@ -40,5 +52,9 @@ public class CompanyRolesViewDTO {
 
     public Map<String, Set<CompanyPermission>> getManagerPermissions() {
         return managerPermissions;
+    }
+
+    public Map<String, String> getManagerAppointedBy() {
+        return managerAppointedBy;
     }
 }
