@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ import ch.qos.logback.classic.Logger;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Notifications.NotificationType;
 
 @Service
 public class EventService {
@@ -218,6 +220,265 @@ public class EventService {
                 eventRepository.save(event);
             });
         });
+    }
+
+    // ── Seating layout edits ─────────────────────────────────────────────────
+
+    /**
+     * Current seating dimensions of a show as
+     * {@code [standingCapacity, numBlocks, rowsPerBlock, seatsPerRow]}.
+     * Read inside a transaction so the lazy seat collections initialise safely.
+     */
+    @Transactional(readOnly = true)
+    public int[] getShowSeatingDims(UUID eventId, UUID showId) {
+        show s = eventRepository.getShowDetails(eventId, showId)
+                .orElseThrow(() -> new RuntimeException("Show not found"));
+        int standingCap = 0, numBlocks = 0, rowsPerBlock = 0, seatsPerRow = 0;
+        if (s.getAreas() != null) {
+            for (Area a : s.getAreas()) {
+                if (a instanceof StandingArea sa) {
+                    standingCap = sa.getMaxCapacity();
+                } else if (a instanceof SeatedArea sea) {
+                    Block[] blocks = sea.getBlocks();
+                    numBlocks = blocks.length;
+                    if (numBlocks > 0) {
+                        List<Row> rows = blocks[0].getRows();
+                        rowsPerBlock = rows != null ? rows.size() : 0;
+                        if (rowsPerBlock > 0) {
+                            List<Seat> seats = rows.get(0).getSeats();
+                            seatsPerRow = seats != null ? seats.size() : 0;
+                        }
+                    }
+                }
+            }
+        }
+        return new int[] { standingCap, numBlocks, rowsPerBlock, seatsPerRow };
+    }
+
+    /**
+     * Resizes the seating of an existing show <b>without regenerating tickets</b>.
+     * Tickets stay lazily generated at booking time; this only adjusts the
+     * standing capacity and/or the seated block/row/seat structure.
+     *
+     * <p>Editing is allowed even when seats are booked (force resize):
+     * <ul>
+     *   <li>Growing never touches an existing seat, so all bookings are kept.</li>
+     *   <li>Shrinking keeps every seat that still fits the new grid (positionally),
+     *       along with its booking. Seats that fall outside the new layout are
+     *       removed and <b>their tickets are cancelled</b> — including purchased
+     *       ones (the manager has accepted this trade-off).</li>
+     * </ul>
+     * Removing an area entirely is not supported here — delete the show for that.
+     */
+    public void updateShowSeating(UUID eventId, UUID showId,
+                                  int standingCap, int numBlocks,
+                                  int rowsPerBlock, int seatsPerRow,
+                                  String managerId) {
+        if (numBlocks > 0 && (rowsPerBlock <= 0 || seatsPerRow <= 0))
+            throw new RuntimeException(
+                    "Seated area needs blocks, rows per block and seats per row all > 0");
+
+        keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () ->
+            transactionTemplate.executeWithoutResult(status -> {
+                Event event = eventRepository.findById(eventId)
+                        .orElseThrow(() -> new RuntimeException("Event not found"));
+                show target = event.getShows().stream()
+                        .filter(s -> showId.equals(s.getShowid()))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("Show not found in event"));
+
+                List<Area> areas = target.getAreas() != null ? target.getAreas() : new ArrayList<>();
+                StandingArea standing = null;
+                SeatedArea seated = null;
+                for (Area a : areas) {
+                    if (a instanceof StandingArea sa) standing = sa;
+                    else if (a instanceof SeatedArea sea) seated = sea;
+                }
+
+                // ── Standing ──────────────────────────────────────────────────
+                // Standing tickets aren't tied to a specific seat, so lowering the
+                // capacity below the booked count is non-destructive (the area is
+                // simply oversold and shows zero availability); allow it freely.
+                if (standing != null) {
+                    if (standingCap <= 0)
+                        throw new RuntimeException(
+                                "To remove the standing area, delete the show instead");
+                    standing.setMaxCapacity(standingCap);
+                } else if (standingCap > 0) {
+                    areas.add(new StandingArea("Standing Area", standingCap));
+                }
+
+                // ── Seated ────────────────────────────────────────────────────
+                if (seated != null) {
+                    if (numBlocks <= 0)
+                        throw new RuntimeException(
+                                "To remove the seated area, delete the show instead");
+                    if (!seatedDimsEqual(seated, numBlocks, rowsPerBlock, seatsPerRow))
+                        resizeSeatedInPlace(seated, showId, target.getName(),
+                                numBlocks, rowsPerBlock, seatsPerRow);
+                } else if (numBlocks > 0) {
+                    SeatedArea newSeated = new SeatedArea("Seated Area", numBlocks);
+                    newSeated.setBlocks(buildBlocks(newSeated, numBlocks, rowsPerBlock, seatsPerRow));
+                    areas.add(newSeated);
+                }
+
+                target.setAreas(areas);
+                logger.info("Resized seating of show {} in event {} by manager {} "
+                        + "(standing={}, blocks={}, rows={}, seats={})",
+                        showId, eventId, managerId, standingCap, numBlocks, rowsPerBlock, seatsPerRow);
+                eventRepository.save(event);
+            }));
+    }
+
+    /**
+     * Resizes a seated area in place to {@code targetBlocks × targetRows × targetSeats},
+     * preserving the seats (and their tickets) that still fit the new grid and
+     * dropping the rest. Tickets for dropped seats are deleted first so the seat
+     * rows can be removed without violating the {@code seat_id} foreign key.
+     * Must run inside the active transaction.
+     */
+    private void resizeSeatedInPlace(SeatedArea seated, UUID showId, String showName,
+                                     int targetBlocks, int targetRows, int targetSeats) {
+        List<Block> blocks = seated.blocksLive();
+
+        // 1. Find every seat that falls outside the new grid (by position) and
+        //    cancel its tickets — booked or not — before the seat row is removed.
+        List<Long> droppedSeatIds = new ArrayList<>();
+        for (int b = 0; b < blocks.size(); b++) {
+            List<Row> rows = blocks.get(b).getRows();
+            for (int r = 0; r < rows.size(); r++) {
+                List<Seat> seats = rows.get(r).getSeats();
+                for (int s = 0; s < seats.size(); s++) {
+                    boolean keep = b < targetBlocks && r < targetRows && s < targetSeats;
+                    if (!keep) droppedSeatIds.add(seats.get(s).getId());
+                }
+            }
+        }
+        deleteTicketsForSeats(showId, showName, droppedSeatIds);
+
+        // 2. Drop whole blocks beyond the target count (orphanRemoval cascades
+        //    to their rows/seats).
+        while (blocks.size() > targetBlocks)
+            blocks.remove(blocks.size() - 1);
+
+        // 3. Reshape each surviving block to targetRows × targetSeats.
+        for (Block block : blocks) {
+            List<Row> rows = block.getRows();
+            while (rows.size() > targetRows)
+                rows.remove(rows.size() - 1);
+            for (Row row : rows) {
+                List<Seat> seats = row.getSeats();
+                while (seats.size() > targetSeats)
+                    seats.remove(seats.size() - 1);
+                for (int s = seats.size(); s < targetSeats; s++)
+                    seats.add(newSeat(s + 1, row));
+            }
+            for (int r = rows.size(); r < targetRows; r++)
+                rows.add(newRow(r + 1, targetSeats, block));
+        }
+
+        // 4. Append brand-new blocks until the target count is reached.
+        for (int b = blocks.size(); b < targetBlocks; b++)
+            blocks.add(newBlock(b, targetRows, targetSeats, seated));
+
+        seated.setNumberofBlocks(blocks.size());
+    }
+
+    /**
+     * Deletes all tickets (any status) that reference the given seat ids, after
+     * notifying the holders of any booked ones that their seat was removed.
+     */
+    private void deleteTicketsForSeats(UUID showId, String showName, List<Long> seatIds) {
+        if (seatIds.isEmpty()) return;
+        java.util.Set<Long> ids = new java.util.HashSet<>(seatIds);
+        List<ticket> toDelete = ticketRepository.findByShowId(showId).stream()
+                .filter(t -> t.getSeat() != null && ids.contains(t.getSeat().getId()))
+                .toList();
+        if (toDelete.isEmpty()) return;
+
+        notifyHoldersOfRemovedSeats(showName, toDelete);
+        ticketRepository.deleteAll(toDelete);
+        ticketRepository.flush();   // clear seat_id FKs before the seats are removed
+    }
+
+    /**
+     * Notifies each holder of a removed booked seat (one grouped message per
+     * holder). Placeholder tickets with no owner are skipped. Delivery failures
+     * are logged, never propagated, so they can't roll back the resize.
+     */
+    private void notifyHoldersOfRemovedSeats(String showName, List<ticket> removed) {
+        Map<UUID, List<ticket>> byOwner = removed.stream()
+                .filter(t -> t.getOwnerId() != null)
+                .collect(Collectors.groupingBy(ticket::getOwnerId));
+
+        for (Map.Entry<UUID, List<ticket>> entry : byOwner.entrySet()) {
+            int count = entry.getValue().size();
+            boolean anyPaid = entry.getValue().stream()
+                    .anyMatch(t -> t.getStatus() == ticket.TicketStatus.PURCHASED
+                                || t.getStatus() == ticket.TicketStatus.SCANNED);
+            String message = count + " seat(s) you reserved for \"" + showName
+                    + "\" were removed because the organizer changed the seating layout."
+                    + (anyPaid ? " As you had already completed a purchase, please contact the"
+                               + " organizer about a refund." : "");
+            try {
+                notificationService.createNotification(
+                        entry.getKey().toString(), message, NotificationType.GENERIC);
+            } catch (RuntimeException ex) {
+                logger.warn("Failed to notify {} about removed seats for show \"{}\": {}",
+                        entry.getKey(), showName, ex.getMessage());
+            }
+        }
+    }
+
+    /** True when the seated area already has exactly the requested dimensions. */
+    private static boolean seatedDimsEqual(SeatedArea seated, int numBlocks,
+                                           int rowsPerBlock, int seatsPerRow) {
+        Block[] blocks = seated.getBlocks();
+        if (blocks.length != numBlocks) return false;
+        if (numBlocks == 0) return true;
+        List<Row> rows = blocks[0].getRows();
+        int curRows = rows != null ? rows.size() : 0;
+        if (curRows != rowsPerBlock) return false;
+        if (curRows == 0) return seatsPerRow == 0;
+        List<Seat> seats = rows.get(0).getSeats();
+        int curSeats = seats != null ? seats.size() : 0;
+        return curSeats == seatsPerRow;
+    }
+
+    // New entities carry a null id so JPA treats them as transient (IDENTITY insert).
+    private static Seat newSeat(int seatNumber, Row row) {
+        Seat seat = new Seat(0, String.valueOf(seatNumber), row);
+        seat.setId(null);
+        return seat;
+    }
+
+    private static Row newRow(int rowNumber, int seatsPerRow, Block block) {
+        Row row = new Row(0, String.valueOf(rowNumber), seatsPerRow, block);
+        row.setId(null);
+        List<Seat> seats = new ArrayList<>();
+        for (int s = 1; s <= seatsPerRow; s++)
+            seats.add(newSeat(s, row));
+        row.setSeats(seats);
+        return row;
+    }
+
+    private static Block newBlock(int blockIndex, int rowsPerBlock, int seatsPerRow, SeatedArea seated) {
+        Block block = new Block(0, String.valueOf((char) ('A' + blockIndex)), rowsPerBlock, seated);
+        block.setId(null);
+        List<Row> rows = new ArrayList<>();
+        for (int r = 1; r <= rowsPerBlock; r++)
+            rows.add(newRow(r, seatsPerRow, block));
+        block.setRows(rows);
+        return block;
+    }
+
+    /** Builds a fresh block/row/seat structure (for adding a new seated area). */
+    private static List<Block> buildBlocks(SeatedArea seated, int numBlocks,
+                                           int rowsPerBlock, int seatsPerRow) {
+        List<Block> blocks = new ArrayList<>();
+        for (int b = 0; b < numBlocks; b++)
+            blocks.add(newBlock(b, rowsPerBlock, seatsPerRow, seated));
+        return blocks;
     }
 
     public List<show> getShowsForEvent(UUID eventId) {

@@ -214,18 +214,26 @@ public class EventDetailsPresenter {
         } catch (RuntimeException ex) { view.showError(ex.getMessage()); }
     }
 
-    public void updateShow(show existing, String name, String singer, String description,
-                           LocalDate showDateLocal, BigDecimal standingPrice, BigDecimal seatedPrice) {
-        if (existing == null) { view.showError("No show selected"); return; }
-        if (name == null || name.isBlank()) { view.showError("Show name is required"); return; }
+    /**
+     * Updates a show's basic fields and its seating layout.
+     * Returns {@code true} on success; on failure the error is shown and
+     * {@code false} is returned so the caller can keep the dialog open.
+     */
+    public boolean updateShow(show existing, String name, String singer, String description,
+                              LocalDate showDateLocal, BigDecimal standingPrice, BigDecimal seatedPrice,
+                              int standingCap, int numBlocks, int rowsPerBlock, int seatsPerRow) {
+        if (existing == null) { view.showError("No show selected"); return false; }
+        if (name == null || name.isBlank()) { view.showError("Show name is required"); return false; }
         String mgr = getManagerId();
-        if (mgr == null) { view.showError("Session expired"); return; }
+        if (mgr == null) { view.showError("Session expired"); return false; }
         try {
             eventService.updateShowBasicFields(cachedEventId, existing.getShowid(),
                     name.trim(),
                     description != null ? description.trim() : "",
                     singer != null ? singer.trim() : "",
                     toDate(showDateLocal), seatedPrice, standingPrice, mgr);
+            eventService.updateShowSeating(cachedEventId, existing.getShowid(),
+                    standingCap, numBlocks, rowsPerBlock, seatsPerRow, mgr);
             existing.setName(name.trim());
             existing.setDescription(description != null ? description.trim() : "");
             existing.setSinger(singer != null ? singer.trim() : "");
@@ -234,7 +242,14 @@ public class EventDetailsPresenter {
             existing.setStandingPrice(standingPrice);
             view.showSuccess("Show updated!");
             view.reloadPage();
-        } catch (RuntimeException ex) { view.showError(ex.getMessage()); }
+            return true;
+        } catch (RuntimeException ex) { view.showError(ex.getMessage()); return false; }
+    }
+
+    /** Current [standingCap, numBlocks, rowsPerBlock, seatsPerRow] for prefilling the edit form. */
+    public int[] getSeatingDims(UUID showId) {
+        try { return eventService.getShowSeatingDims(cachedEventId, showId); }
+        catch (Exception e) { return new int[] { 0, 0, 0, 0 }; }
     }
 
     public void deleteShow(show s) {
