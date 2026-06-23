@@ -15,8 +15,10 @@ public class SeatedArea extends Area {
     @Transient
     private Logger logger = (Logger) LoggerFactory.getLogger(SeatedArea.class);
 
-    // Composition: A Seated Area contains 1 to many Blocks
-    @OneToMany(cascade = CascadeType.ALL)
+    // Composition: A Seated Area contains 1 to many Blocks.
+    // orphanRemoval lets a layout resize delete the blocks (and their cascaded
+    // rows/seats) that are dropped from the collection.
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "seated_area_id")
     private List<Block> blocks;
     private int NumberofBlocks;
@@ -39,5 +41,21 @@ public class SeatedArea extends Area {
 
     public void setBlocks(List<Block> blocks) {
         this.blocks = blocks != null ? blocks : new ArrayList<>();
+    }
+
+    /**
+     * The live, mutable block collection. Mutating it in place (add / remove)
+     * keeps the same managed instance so JPA orphanRemoval deletes dropped
+     * blocks (and their cascaded rows/seats). Used when resizing a seated area.
+     */
+    public List<Block> blocksLive() {
+        if (this.blocks == null) {
+            this.blocks = new ArrayList<>();
+        }
+        return this.blocks;
+    }
+
+    public void setNumberofBlocks(int numberofBlocks) {
+        this.NumberofBlocks = numberofBlocks;
     }
 }
