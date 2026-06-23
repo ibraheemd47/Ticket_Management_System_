@@ -9,6 +9,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,9 +61,7 @@ class EventSeatingResizeIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        ticketRepository.deleteAll();
-        eventRepository.deleteAll();
-        notificationRepository.deleteAll();
+        cleanDb();
 
         Event event = eventService.createEvent(
                 new EventDto(null, "Resize Event", null, show_type.PERFORMANCE, "Tel Aviv"),
@@ -74,6 +73,21 @@ class EventSeatingResizeIntegrationTest {
         s.setAreas(List.of(buildSeated(2, 2, 3))); // 2 blocks × 2 rows × 3 seats = 12 seats
         eventService.addShowToEvent(eventId, s, MANAGER_ID);
         showId = s.getShowid();
+    }
+
+    // This is a committing (non-transactional) @SpringBootTest sharing the
+    // JVM-wide in-memory H2 DB. Tear down afterwards too, otherwise leftover
+    // tickets keep referencing seats and the next class's eventRepository
+    // .deleteAll() cascade trips the seat_id foreign key.
+    @AfterEach
+    void tearDown() {
+        cleanDb();
+    }
+
+    private void cleanDb() {
+        ticketRepository.deleteAll();       // tickets reference seats/areas — delete first
+        eventRepository.deleteAll();        // cascades to shows → areas → seats
+        notificationRepository.deleteAll();
     }
 
     // ── Tests ────────────────────────────────────────────────────────────────
