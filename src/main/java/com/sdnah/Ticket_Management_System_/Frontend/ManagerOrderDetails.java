@@ -9,6 +9,7 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderItemDTO;
 import com.sdnah.Ticket_Management_System_.Frontend.Presenters.ManagerOrderDetailsPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -91,6 +92,19 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
 
     public void onCancelFailed(String message) {
         Notification.show("Couldn't cancel: " + message, 4000,
+                        Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    /** After a ticket is removed (II.2.7) — reload so totals/items refresh. */
+    public void onItemRemoved() {
+        Notification.show("Ticket removed from order", 2500, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        UI.getCurrent().getPage().reload();
+    }
+
+    public void onRemoveFailed(String message) {
+        Notification.show("Couldn't remove ticket: " + message, 4000,
                         Notification.Position.MIDDLE)
                 .addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
@@ -204,11 +218,22 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
         totals.setSpacing(true);
         totals.getStyle().set("margin", "16px 0 8px 0");
 
+        boolean active = "ACTIVE".equalsIgnoreCase(o.getStatus());
+
         Grid<OrderItemDTO> grid = new Grid<>(OrderItemDTO.class, false);
         grid.addColumn(it -> shortId(safeUuid(it.getTicketId()))).setHeader("Ticket");
         grid.addColumn(it -> it.getSeatId() == null ? "GA" : String.valueOf(it.getSeatId())).setHeader("Seat");
         grid.addColumn(it -> shortId(it.getAreaId())).setHeader("Area");
         grid.addColumn(it -> money(it.getPrice())).setHeader("Price");
+        // II.2.7 — remove a single ticket from the order (reduce quantity),
+        // instead of only being able to cancel the whole order.
+        grid.addComponentColumn(it -> {
+            Button remove = new Button("Remove", e -> presenter.removeItem(it.getItemId()));
+            remove.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY,
+                    ButtonVariant.LUMO_SMALL);
+            remove.setEnabled(active);
+            return remove;
+        }).setHeader("");
         grid.setItems(o.getItems());
         grid.setAllRowsVisible(true);
         grid.setWidthFull();

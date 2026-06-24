@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,8 +31,11 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.CheckboxGroup;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -198,17 +202,59 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     public void showRoles(CompanyRolesViewDTO roles) {
         tabContent.removeAll();
 
+        String me = presenter.getCurrentMemberId();
+        boolean iAmFounder = me != null && me.equals(roles.getFounderId());
+        boolean iAmOwner = iAmFounder
+                || (me != null && roles.getOwnerIds() != null && roles.getOwnerIds().contains(me));
+
         Div section = new Div();
         section.add(sectionTitle("Founder"));
         section.add(new Paragraph(presenter.getMemberDisplayName(roles.getFounderId())));
 
         section.add(sectionTitle("Owners"));
-        section.add(buildOwnersList(roles.getOwnerIds()));
+        section.add(buildOwnersList(roles.getOwnerIds(), me));
         section.add(appointBox("Appoint owner", presenter::appointOwner));
+
+        // II.4.10 — a non-founder owner may resign their own ownership.
+        if (iAmOwner && !iAmFounder) {
+            Button resign = new Button("Resign ownership", e -> confirmResign());
+            resign.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+            resign.getStyle().set("margin-top", "12px");
+            section.add(resign);
+        }
 
         section.add(sectionTitle("Managers + permissions"));
         section.add(buildManagersGrid(roles.getManagerPermissions(), roles.getManagerAppointedBy()));
-        section.add(appointBox("Appoint manager", presenter::appointManager));
+        section.add(buildAppointManagerBox());
+
+        // II.4.13 / II.4.14 — owners can suspend / reopen the company.
+        if (iAmOwner) {
+            section.add(sectionTitle("Company status"));
+            boolean open = presenter.isCurrentCompanyOpen();
+            Paragraph status = new Paragraph(
+                    "This company is currently " + (open ? "open." : "suspended."));
+            status.getStyle().set("color", "#666").set("font-size", "13px").set("margin", "0 0 8px 0");
+            Button toggle;
+            if (open) {
+                toggle = new Button("Suspend company", e -> confirmSuspend());
+                toggle.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+            } else {
+                toggle = new Button("Reopen company", e -> presenter.reopenCompany());
+                toggle.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+            }
+            section.add(status, toggle);
+        }
+
+        // Item 12 — owners can delete the whole company (and its events).
+        if (iAmOwner) {
+            section.add(sectionTitle("Danger zone"));
+            Paragraph warn = new Paragraph(
+                    "Permanently deletes this company and all of its events. This cannot be undone.");
+            warn.getStyle().set("color", "#666").set("font-size", "13px").set("margin", "0 0 8px 0");
+            Button del = new Button("Delete company", e -> confirmDelete());
+            del.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+            section.add(warn, del);
+        }
 
         tabContent.add(section);
     }
@@ -252,6 +298,18 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         Notification.show(message, 2500, Notification.Position.TOP_CENTER)
                 .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         presenter.loadRolesForCurrentCompany();
+    }
+
+    /**
+     * Called after the current user resigns (II.4.10) or deletes the company
+     * (item 12) — either way they no longer have a role here, so drop the
+     * session company id and bounce back to the chooser.
+     */
+    public void onLeftCompany(String message) {
+        Notification.show(message, 2500, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, null);
+        UI.getCurrent().getPage().reload();
     }
 
     public void showSuccess(String message) {
@@ -378,31 +436,43 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         presenter.loadRolesForCurrentCompany();
     }
 
-    private Component buildOwnersList(List<String> ownerIds) {
-    if (ownerIds == null || ownerIds.isEmpty()) {
-        return new Paragraph("No additional owners.");
+    private Component buildOwnersList(List<String> ownerIds, String currentMemberId) {
+        if (ownerIds == null || ownerIds.isEmpty()) {
+            return new Paragraph("No additional owners.");
+        }
+
+        Div list = new Div();
+        list.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "6px");
+
+        for (String ownerId : ownerIds) {
+            Span chip = new Span(getMemberDisplayName(ownerId));
+            chip.getStyle()
+                    .set("padding", "6px 12px")
+                    .set("background", "#e3f2fd")
+                    .set("border-radius", "999px")
+                    .set("font-size", "13px");
+
+            HorizontalLayout row = new HorizontalLayout(chip);
+            row.setDefaultVerticalComponentAlignment(
+                    com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+
+            // II.4.9 — owners can remove owners they appointed (backend enforces
+            // the "appointed by you" rule). Removing yourself goes through
+            // "Resign ownership" instead, so don't offer Remove on your own row.
+            if (!ownerId.equals(currentMemberId)) {
+                Button remove = new Button("Remove", ev -> presenter.removeOwner(ownerId));
+                remove.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY,
+                        ButtonVariant.LUMO_SMALL);
+                row.add(remove);
+            }
+            list.add(row);
+        }
+
+        return list;
     }
-
-    Div list = new Div();
-    list.getStyle()
-            .set("display", "flex")
-            .set("flex-wrap", "wrap")
-            .set("gap", "8px");
-
-    for (String ownerId : ownerIds) {
-        Span chip = new Span(getMemberDisplayName(ownerId));
-
-        chip.getStyle()
-                .set("padding", "6px 12px")
-                .set("background", "#e3f2fd")
-                .set("border-radius", "999px")
-                .set("font-size", "13px");
-
-        list.add(chip);
-    }
-
-    return list;
-}
 
     private Component buildManagersGrid(Map<String, Set<CompanyPermission>> managerPermissions,
                                         Map<String, String> managerAppointedBy) {
@@ -420,6 +490,13 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             String owner = appointedBy.get(e.getKey());
             return (owner == null || owner.isBlank()) ? "—" : getMemberDisplayName(owner);
         }).setHeader("Appointed by");
+        grid.addComponentColumn(entry -> {
+            // II.4.11 — edit this manager's permission set.
+            Button edit = new Button("Edit permissions",
+                    ev -> openEditPermissionsDialog(entry.getKey(), entry.getValue()));
+            edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+            return edit;
+        }).setHeader("");
         grid.addComponentColumn(entry -> {
             Button remove = new Button("Remove", ev -> {
                 // Presenter owns the full flow — it catches errors, shows
@@ -474,6 +551,115 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         row.getStyle().set("margin-top", "8px");
 
         return row;
+    }
+
+    /**
+     * Appoint-manager control (II.4.7) — like {@link #appointBox} but also lets
+     * the owner pick the permission set to grant up-front.
+     */
+    private Component buildAppointManagerBox() {
+        TextField usernameField = new TextField();
+        usernameField.setPlaceholder("username");
+
+        CheckboxGroup<CompanyPermission> perms = new CheckboxGroup<>();
+        perms.setLabel("Permissions to grant");
+        perms.setItems(CompanyPermission.values());
+        perms.setItemLabelGenerator(ManagingCompanyView::permissionLabel);
+
+        Button go = new Button("Appoint manager", e -> {
+            String username = usernameField.getValue();
+            if (username == null || username.isBlank()) {
+                Notification.show("Username required", 2500, Notification.Position.MIDDLE);
+                return;
+            }
+            String memberId;
+            try {
+                memberId = getMemberIdByUsername(username);
+            } catch (RuntimeException ex) {
+                Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+            // Presenter owns the appoint flow (success / error notification +
+            // roles reload), so we don't notify here.
+            presenter.appointManager(memberId, new HashSet<>(perms.getValue()));
+        });
+        go.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        VerticalLayout box = new VerticalLayout(usernameField, perms, go);
+        box.setPadding(false);
+        box.setSpacing(false);
+        box.getStyle().set("margin-top", "8px").set("gap", "8px");
+        return box;
+    }
+
+    /** Dialog to replace a manager's permission set (II.4.11). */
+    private void openEditPermissionsDialog(String managerId, Set<CompanyPermission> current) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Permissions — " + getMemberDisplayName(managerId));
+
+        CheckboxGroup<CompanyPermission> perms = new CheckboxGroup<>();
+        perms.setItems(CompanyPermission.values());
+        perms.setItemLabelGenerator(ManagingCompanyView::permissionLabel);
+        perms.setValue(current == null ? Set.of() : new HashSet<>(current));
+
+        Button save = new Button("Save", e -> {
+            // Presenter shows the success / error notification and reloads roles.
+            presenter.modifyManagerPermissions(managerId, new HashSet<>(perms.getValue()));
+            dialog.close();
+        });
+        save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button cancel = new Button("Cancel", e -> dialog.close());
+
+        dialog.add(perms);
+        dialog.getFooter().add(cancel, save);
+        dialog.open();
+    }
+
+    /** Confirmation for resigning ownership (II.4.10). */
+    private void confirmResign() {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Resign ownership?");
+        dialog.setText("You will lose your owner role in this company.");
+        dialog.setCancelable(true);
+        dialog.setConfirmText("Resign");
+        dialog.setConfirmButtonTheme("error primary");
+        dialog.addConfirmListener(e -> presenter.resignOwnership());
+        dialog.open();
+    }
+
+    /** Confirmation for suspending the company (II.4.13). */
+    private void confirmSuspend() {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Suspend this company?");
+        dialog.setText("While suspended, its events won't be visible to buyers. You can reopen it later.");
+        dialog.setCancelable(true);
+        dialog.setConfirmText("Suspend");
+        dialog.setConfirmButtonTheme("error primary");
+        dialog.addConfirmListener(e -> presenter.closeCompany());
+        dialog.open();
+    }
+
+    /** Confirmation for deleting the whole company (item 12). */
+    private void confirmDelete() {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Delete this company?");
+        dialog.setText("This permanently removes the company and all of its events. This cannot be undone.");
+        dialog.setCancelable(true);
+        dialog.setConfirmText("Delete");
+        dialog.setConfirmButtonTheme("error primary");
+        dialog.addConfirmListener(e -> presenter.deleteCompany());
+        dialog.open();
+    }
+
+    /** Human-friendly label for a {@link CompanyPermission}. */
+    private static String permissionLabel(CompanyPermission p) {
+        return switch (p) {
+            case MANAGE_EVENTS        -> "Manage events & inventory";
+            case VIEW_HISTORY         -> "View purchase / order history";
+            case RESPOND_TO_INQUIRIES -> "Respond to inquiries";
+            case VIEW_ROLES           -> "View roles & permissions";
+        };
     }
 
     // ── Tab: Policies ────────────────────────────────────────────────────────

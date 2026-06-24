@@ -16,6 +16,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
@@ -175,10 +176,21 @@ public class ManagingCompanyPresenter {
         }
     }
 
-    public void appointManager(String memberId) {
+    /** Appoint a manager with the selected permission set (II.4.7). */
+    public void appointManager(String memberId, Set<CompanyPermission> permissions) {
         try {
-            companyService.appointManager(token, companyId, memberId, Set.of());
-            view.onRoleMutationSucceeded("Done");
+            companyService.appointManager(token, companyId, memberId, permissions);
+            view.onRoleMutationSucceeded("Manager appointed");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Replace a manager's permission set with the supplied one (II.4.11). */
+    public void modifyManagerPermissions(String memberId, Set<CompanyPermission> permissions) {
+        try {
+            companyService.modifyManagerPermissions(token, companyId, memberId, permissions);
+            view.onRoleMutationSucceeded("Permissions updated");
         } catch (RuntimeException ex) {
             view.showError(ex.getMessage());
         }
@@ -190,6 +202,73 @@ public class ManagingCompanyPresenter {
             view.onRoleMutationSucceeded("Manager removed");
         } catch (RuntimeException ex) {
             view.showError(ex.getMessage());
+        }
+    }
+
+    /** Remove an owner this owner previously appointed (II.4.9). */
+    public void removeOwner(String memberId) {
+        try {
+            companyService.removeOwnerAppointment(token, companyId, memberId);
+            view.onRoleMutationSucceeded("Owner removed");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Current owner resigns from ownership (II.4.10). Leaves the company afterwards. */
+    public void resignOwnership() {
+        try {
+            companyService.resignOwnership(token, companyId);
+            view.onLeftCompany("You resigned from ownership");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Delete the whole company (owner only). Leaves the company afterwards. */
+    public void deleteCompany() {
+        try {
+            companyService.deleteCompany(token, companyId);
+            view.onLeftCompany("Company deleted");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    public boolean isCurrentCompanyOpen() {
+        try {
+            return companyService.isCompanyOpen(companyId);
+        } catch (RuntimeException ex) {
+            return true; // assume open on lookup failure
+        }
+    }
+
+    /** Suspend / close the company (II.4.13). */
+    public void closeCompany() {
+        try {
+            boolean changed = companyService.closeCompany(token, companyId);
+            view.onRoleMutationSucceeded(changed ? "Company suspended" : "Company was already suspended");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Reopen the company (II.4.14). */
+    public void reopenCompany() {
+        try {
+            boolean changed = companyService.reopenCompany(token, companyId);
+            view.onRoleMutationSucceeded(changed ? "Company reopened" : "Company was already open");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** The currently bound member's id, or {@code null} if it can't be resolved. */
+    public String getCurrentMemberId() {
+        try {
+            return userService.getMemberByToken(token).getMemberId();
+        } catch (RuntimeException ex) {
+            return null;
         }
     }
 

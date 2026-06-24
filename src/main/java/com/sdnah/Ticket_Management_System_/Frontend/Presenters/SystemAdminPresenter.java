@@ -1,9 +1,11 @@
 package com.sdnah.Ticket_Management_System_.Frontend.Presenters;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.SystemAdminService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
@@ -313,6 +315,47 @@ public class SystemAdminPresenter {
             view.showError(ex.getMessage());
         }
     }
+
+    /**
+     * II.6.4 — purchase history filtered by company. Accepts a company UUID or a
+     * (partial) company name, then aggregates the purchases of all that
+     * company's events.
+     */
+    public void onLoadPurchasesByCompanyClicked(String companyInput) {
+        if (isEmpty(companyInput)) {
+            view.showError("Please enter a Company ID or name.");
+            return;
+        }
+        try {
+            UUID companyId = resolveCompanyId(companyInput.trim());
+            if (companyId == null) {
+                view.displayNoPurchasesByCompanyFound();
+                return;
+            }
+            List<PurchaseDTO> all = new ArrayList<>();
+            for (EventDto ev : companyManagmentService.getAllEventsByCompany(companyId)) {
+                all.addAll(systemAdminService.getPurchasesByEvent(token, ev.id));
+            }
+            if (all.isEmpty()) {
+                view.displayNoPurchasesByCompanyFound();
+            } else {
+                view.displayPurchasesByCompany(all);
+            }
+        } catch (Exception ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Accept a company UUID directly, or resolve a company by (partial) name. */
+    private UUID resolveCompanyId(String input) {
+        try {
+            return UUID.fromString(input);
+        } catch (IllegalArgumentException notUuid) {
+            var matches = companyManagmentService.searchCompaniesByKeyword(input);
+            return matches.isEmpty() ? null : matches.get(0).getCompanyId();
+        }
+    }
+
     private boolean isEmpty(String value) {
         return value == null || value.isEmpty();
     }

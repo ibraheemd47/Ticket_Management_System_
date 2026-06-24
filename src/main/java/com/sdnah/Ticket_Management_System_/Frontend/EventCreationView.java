@@ -39,6 +39,7 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
@@ -387,6 +388,31 @@ public class EventCreationView extends VerticalLayout
             if (existing.seatedPrice   != null) seatedPriceField.setValue(existing.seatedPrice.doubleValue());
         }
 
+        // ── Live seat-map preview (II.4.2), redraws as you type ───────────────
+        standingCapField.setValueChangeMode(ValueChangeMode.EAGER);
+        blocksField.setValueChangeMode(ValueChangeMode.EAGER);
+        rowsField.setValueChangeMode(ValueChangeMode.EAGER);
+        seatsField.setValueChangeMode(ValueChangeMode.EAGER);
+
+        Div seatPreview = new Div();
+        seatPreview.getStyle()
+                .set("width", "100%").set("overflow-x", "auto")
+                .set("border", "1px solid #e3eaf5").set("border-radius", "10px")
+                .set("background", "#fff").set("padding", "10px")
+                .set("min-height", "60px").set("box-sizing", "border-box");
+        Runnable refreshSeatPreview = () -> SeatPreviewRenderer.render(seatPreview,
+                parseIntOrZero(standingCapField.getValue()), parseIntOrZero(blocksField.getValue()),
+                parseIntOrZero(rowsField.getValue()), parseIntOrZero(seatsField.getValue()));
+        standingCapField.addValueChangeListener(ev -> refreshSeatPreview.run());
+        blocksField.addValueChangeListener(ev -> refreshSeatPreview.run());
+        rowsField.addValueChangeListener(ev -> refreshSeatPreview.run());
+        seatsField.addValueChangeListener(ev -> refreshSeatPreview.run());
+        refreshSeatPreview.run();
+
+        Span mapHint = new Span(
+                "🗺 Tip: after the event is created, open it from Event Details to arrange the full visual venue map.");
+        mapHint.getStyle().set("font-size", "12px").set("color", "#666");
+
         Button saveBtn = new Button(isEdit ? "Save" : "Add", e -> {
             String name  = nameField.getValue();
             if (name == null || name.isBlank()) {
@@ -449,7 +475,9 @@ public class EventCreationView extends VerticalLayout
                 sectionLabel("Standing Area"),
                 standingCapField, standingPriceField,
                 sectionLabel("Seated Area"),
-                blocksField, rowsField, seatsField, seatedPriceField
+                blocksField, rowsField, seatsField, seatedPriceField,
+                sectionLabel("Live preview"),
+                seatPreview, mapHint
         );
         body.setPadding(true);
         body.setSpacing(true);

@@ -53,6 +53,10 @@ public class Event {
     private String venue;
     private String description;
 
+    /** Serialized graphical venue layout / event map (II.4.2). JSON, owner/manager-defined. */
+    @Column(name = "venue_map_json", columnDefinition = "TEXT")
+    private String venueMapJson;
+
     
     @ElementCollection
     @CollectionTable(name = "event_reviews", joinColumns = @JoinColumn(name = "event_id"))
@@ -190,6 +194,16 @@ public class Event {
             throw new IllegalArgumentException("Only managers can edit the event venue.");
         logger.info("Editing venue of event {} by manager {}", this.eventId, managerId);
         this.venue = newVenue;
+    }
+
+    public String getVenueMapJson() { return venueMapJson; }
+
+    /** II.4.2 — store the graphical venue layout / event map. Managers only. */
+    public void setVenueMapJson(String json, String managerId) {
+        if (!managerIds.contains(managerId))
+            throw new IllegalArgumentException("Only managers can edit the venue map.");
+        logger.info("Updating venue map of event {} by manager {}", this.eventId, managerId);
+        this.venueMapJson = json;
     }
 
     public void editDescription(String newDescription, String managerId) {

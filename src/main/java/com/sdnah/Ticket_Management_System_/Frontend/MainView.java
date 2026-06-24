@@ -1,5 +1,6 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
@@ -13,11 +14,14 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notificatio
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
@@ -434,6 +438,42 @@ public class MainView extends VerticalLayout {
 
         searchBox.add(searchInput, divider, startDate, endDate, searchBtn);
 
+        // ── Advanced filters (II.2.3): category, min rating, price range ──
+        ComboBox<show_type> categoryBox = new ComboBox<>();
+        categoryBox.setPlaceholder("Any category");
+        categoryBox.setItems(show_type.values());
+        categoryBox.setItemLabelGenerator(MainView::categoryLabel);
+        categoryBox.setClearButtonVisible(true);
+        categoryBox.setWidth("170px");
+
+        ComboBox<Integer> minRatingBox = new ComboBox<>();
+        minRatingBox.setPlaceholder("Any rating");
+        minRatingBox.setItems(1, 2, 3, 4, 5);
+        minRatingBox.setItemLabelGenerator(r -> r + "★ & up");
+        minRatingBox.setClearButtonVisible(true);
+        minRatingBox.setWidth("150px");
+
+        NumberField minPriceField = new NumberField();
+        minPriceField.setPlaceholder("Min $");
+        minPriceField.setMin(0);
+        minPriceField.setWidth("110px");
+
+        NumberField maxPriceField = new NumberField();
+        maxPriceField.setPlaceholder("Max $");
+        maxPriceField.setMin(0);
+        maxPriceField.setWidth("110px");
+
+        HorizontalLayout advancedRow = new HorizontalLayout(
+                categoryBox, minRatingBox, minPriceField, maxPriceField);
+        advancedRow.setDefaultVerticalComponentAlignment(Alignment.CENTER);
+        advancedRow.setSpacing(true);
+        advancedRow.getStyle()
+                .set("margin-top", "10px")
+                .set("background", "rgba(255,255,255,0.92)")
+                .set("border-radius", "16px")
+                .set("padding", "8px 14px")
+                .set("box-shadow", "0 4px 15px rgba(0,0,0,0.10)");
+
         Runnable updateUI = () -> {
             eventPill.getStyle().set("background", "transparent").set("color", "white");
             companyPill.getStyle().set("background", "transparent").set("color", "white");
@@ -488,12 +528,26 @@ public class MainView extends VerticalLayout {
                     ? Date.from(endDate.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant())
                     : null;
 
+            // Advanced filters (II.2.3)
+            show_type category = categoryBox.getValue();
+            Double minRating = minRatingBox.getValue() == null ? null : minRatingBox.getValue().doubleValue();
+            BigDecimal minPrice = minPriceField.getValue() == null ? null : BigDecimal.valueOf(minPriceField.getValue());
+            BigDecimal maxPrice = maxPriceField.getValue() == null ? null : BigDecimal.valueOf(maxPriceField.getValue());
+
             // Delegated to presenter
-            presenter.performSearch(activeFilter.get(), searchInput.getValue(), start, end);
+            presenter.performSearch(activeFilter.get(), searchInput.getValue(), start, end,
+                    category, minRating, minPrice, maxPrice);
         });
 
-        searchWrapper.add(pills, searchBox);
+        searchWrapper.add(pills, searchBox, advancedRow);
         return searchWrapper;
+    }
+
+    /** Title-case label for a {@link show_type} shown in the category filter. */
+    private static String categoryLabel(show_type t) {
+        if (t == null) return "Any category";
+        String n = t.name().toLowerCase();
+        return Character.toUpperCase(n.charAt(0)) + n.substring(1);
     }
 
     private Button createPill(String text, VaadinIcon icon) {

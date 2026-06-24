@@ -688,6 +688,13 @@ public class company_managment_serivce {
         return getCompanyOrThrow(companyId).getCompanyName();
     }
 
+    /** Whether a company is currently open (vs suspended/closed) — II.4.13/4.14. */
+    public boolean isCompanyOpen(UUID companyId) {
+        return getCompanyOrThrow(companyId).isOpen();
+    }
+
+    @CacheEvict(value = "active-companies", allEntries = true)
+    @Transactional
     public void deleteCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -696,7 +703,33 @@ public class company_managment_serivce {
             throw new SecurityException("Only owner can delete company");
         }
 
+        // Delete the company's events too — works whether or not the company has
+        // events, and avoids leaving orphaned events behind in search (item 12).
+        for (UUID eventId : company.getAssociatedEventIds()) {
+            eventRepository.findById(eventId).ifPresent(eventRepository::delete);
+        }
+
+        // Strip this company's role assignments from every member so the deleted
+        // company stops appearing in their "my companies" list.
+        for (Member member : userRepository.findAll()) {
+            Set<CompanyRoleAssignment> roles = member.getCompanyRoles();
+            boolean hasRole = roles.stream()
+                    .anyMatch(r -> companyId.equals(r.getCompanyId()));
+            if (hasRole) {
+                Set<CompanyRoleAssignment> kept = new HashSet<>();
+                for (CompanyRoleAssignment r : roles) {
+                    if (!companyId.equals(r.getCompanyId())) {
+                        kept.add(r);
+                    }
+                }
+                member.setCompanyRoles(kept);
+                userRepository.save(member);
+            }
+        }
+
         companyRepository.deleteById(companyId);
+
+        logger.info("Company deleted. companyId={}, actorId={}", companyId, actor.getMemberId());
     }
 
     //search company using key word

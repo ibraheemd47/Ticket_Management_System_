@@ -47,6 +47,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
     private Div queuesTableArea;
     private Div purchasesByBuyerTableArea;
     private Div purchasesByEventTableArea;
+    private Div purchasesByCompanyTableArea;
 
     private TextField suspendUsername;
     private TextField removeUsername;
@@ -481,6 +482,7 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         wrapper.getStyle().set("display", "flex").set("gap", "24px").set("flex-wrap", "wrap");
         wrapper.add(buildPurchasesByBuyerCard());
         wrapper.add(buildPurchasesByEventCard());
+        wrapper.add(buildPurchasesByCompanyCard());
         return wrapper;
     }
 
@@ -521,6 +523,25 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         card.add(eventId, searchBtn, purchasesByEventTableArea);
         return card;
 
+    }
+
+    private Div buildPurchasesByCompanyCard() {
+        Div card = actionCard("Purchases by Company",
+                "View all purchases across a company's events by Company ID or name.");
+
+        TextField companyRef = styledField("Company ID or name");
+        Button searchBtn = actionButton("Load Purchases", "#026cdf");
+
+        purchasesByCompanyTableArea = new Div();
+        purchasesByCompanyTableArea.getStyle().set("margin-top", "16px").set("width", "100%");
+
+        searchBtn.addClickListener(e -> {
+            purchasesByCompanyTableArea.removeAll();
+            presenter.onLoadPurchasesByCompanyClicked(companyRef.getValue());
+        });
+
+        card.add(companyRef, searchBtn, purchasesByCompanyTableArea);
+        return card;
     }
 
     public void displayUsers(List<UserDTO> users) {
@@ -716,6 +737,10 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
         displayPurchases(purchasesByEventTableArea, purchases);
     }
 
+    public void displayPurchasesByCompany(List<PurchaseDTO> purchases) {
+        displayPurchases(purchasesByCompanyTableArea, purchases);
+    }
+
     public void displayNoPurchasesByBuyerFound() {
         purchasesByBuyerTableArea.removeAll();
         purchasesByBuyerTableArea.add(new Paragraph("No purchases found."));
@@ -724,6 +749,11 @@ public class SystemAdminView extends VerticalLayout implements BeforeEnterObserv
     public void displayNoPurchasesByEventFound() {
         purchasesByEventTableArea.removeAll();
         purchasesByEventTableArea.add(new Paragraph("No purchases found."));
+    }
+
+    public void displayNoPurchasesByCompanyFound() {
+        purchasesByCompanyTableArea.removeAll();
+        purchasesByCompanyTableArea.add(new Paragraph("No purchases found."));
     }
 
     private void displayPurchases(Div tableArea, List<PurchaseDTO> purchases) {

@@ -20,8 +20,11 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketServi
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VenueMapDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
@@ -37,7 +40,10 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DateRangeDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountContext;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
@@ -318,6 +324,24 @@ public class EventDetailsPresenter {
     // Policies
     // =========================================================================
 
+    private final ObjectMapper venueMapMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    /**
+     * The saved venue map for this event (II.2.2 — buyers view the event map),
+     * or {@code null} when none has been saved or it can't be parsed.
+     */
+    public VenueMapDTO getVenueMap() {
+        if (cachedEventId == null) return null;
+        try {
+            String json = eventService.getEventMapJson(cachedEventId);
+            if (json == null || json.isBlank()) return null;
+            return venueMapMapper.readValue(json, VenueMapDTO.class);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     public List<Policy> getPolicies() {
         if (cachedEventId == null) return List.of();
         List<Policy> out = new java.util.ArrayList<>();
@@ -331,6 +355,90 @@ public class EventDetailsPresenter {
             policyRepo.findSellingPolicyByEventId(cachedEventId).ifPresent(out::add);
         } catch (RuntimeException ignored) { /* no selling policy for this event */ }
         return out;
+    }
+
+    /**
+     * II.2.5 — preview the <em>visible</em> discount (no coupon) that currently
+     * applies to a selection of {@code quantity} tickets totalling
+     * {@code subtotal}. Mirrors the event + company stacking the backend applies
+     * at reservation time ({@code OrderPolicyDomainService.applyCombinedDiscounts}),
+     * so the buyer sees the discounted price on the Select Tickets page rather
+     * than only at checkout.
+     *
+     * @return a {@link DiscountPreview}, or {@code null} when no visible discount applies
+     */
+    public DiscountPreview previewVisibleDiscount(double subtotal, int quantity) {
+        if (cachedEventId == null || subtotal <= 0 || quantity <= 0) return null;
+        try {
+            DiscountPolicy eventPolicy = policyRepo.findDiscountPolicyByEventId(cachedEventId)
+                    .filter(p -> p.getRootRule() != null).orElse(null);
+            DiscountPolicy companyPolicy = null;
+            UUID companyId = cachedEvent != null ? cachedEvent.getCompanyId() : null;
+            if (companyId != null) {
+                companyPolicy = policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId)
+                        .filter(p -> p.getRootRule() != null).orElse(null);
+            }
+            if (eventPolicy == null && companyPolicy == null) return null;
+
+            // couponCode = null → only auto-applied ("visible") discounts contribute.
+            DiscountContext ctx = new DiscountContext(
+                    quantity, LocalDateTime.now(), null, subtotal, cachedEventId);
+
+            double eventPct   = eventPolicy   != null ? eventPolicy.computeDiscount(ctx)   : 0.0;
+            double companyPct = companyPolicy != null ? companyPolicy.computeDiscount(ctx) : 0.0;
+            double combinedPct = Math.max(0.0, Math.min(100.0, eventPct + companyPct));
+            if (combinedPct <= 0.0) return null;
+
+            double finalPrice = subtotal * (1.0 - combinedPct / 100.0);
+            LocalDateTime expiry = earliestDiscountExpiry(
+                    LocalDateTime.now(),
+                    eventPolicy != null ? eventPolicy.getRootRule() : null,
+                    companyPolicy != null ? companyPolicy.getRootRule() : null);
+            return new DiscountPreview(combinedPct, subtotal, finalPrice, expiry);
+        } catch (RuntimeException ex) {
+            return null; // never block the selection UI on a preview failure
+        }
+    }
+
+    /** Earliest future {@code until} among any active date-range discount rules. */
+    private static LocalDateTime earliestDiscountExpiry(LocalDateTime now, DiscountRule... roots) {
+        LocalDateTime earliest = null;
+        for (DiscountRule root : roots) {
+            earliest = mergeEarliestExpiry(earliest, now, root);
+        }
+        return earliest;
+    }
+
+    private static LocalDateTime mergeEarliestExpiry(LocalDateTime earliest, LocalDateTime now, DiscountRule rule) {
+        if (rule == null) return earliest;
+        if (rule instanceof CompositeDiscountRule composite) {
+            if (composite.getRules() != null) {
+                for (DiscountRule child : composite.getRules()) {
+                    earliest = mergeEarliestExpiry(earliest, now, child);
+                }
+            }
+        } else if (rule instanceof DateRangeDiscountRule dr) {
+            LocalDateTime until = dr.getUntil();
+            if (until != null && until.isAfter(now) && (earliest == null || until.isBefore(earliest))) {
+                earliest = until;
+            }
+        }
+        return earliest;
+    }
+
+    /** Result of {@link #previewVisibleDiscount}. */
+    public static final class DiscountPreview {
+        public final double percent;
+        public final double originalPrice;
+        public final double finalPrice;
+        public final LocalDateTime expiry; // may be null
+
+        public DiscountPreview(double percent, double originalPrice, double finalPrice, LocalDateTime expiry) {
+            this.percent = percent;
+            this.originalPrice = originalPrice;
+            this.finalPrice = finalPrice;
+            this.expiry = expiry;
+        }
     }
 
     

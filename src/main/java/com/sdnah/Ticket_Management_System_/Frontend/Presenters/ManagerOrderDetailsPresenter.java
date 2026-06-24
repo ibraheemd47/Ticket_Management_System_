@@ -68,4 +68,18 @@ public class ManagerOrderDetailsPresenter {
             view.onCancelFailed(ex.getMessage());
         }
     }
+
+    /**
+     * Remove a single ticket/item from the active order (II.2.7 — manage active
+     * order: remove tickets / reduce quantity). Backend enforces order ownership
+     * and reapplies the discount policy to the reduced order.
+     */
+    public void removeItem(UUID itemId) {
+        try {
+            orderService.removeFromOrder(orderId, itemId, token);
+            view.onItemRemoved();
+        } catch (RuntimeException ex) {
+            view.onRemoveFailed(ex.getMessage());
+        }
+    }
 }

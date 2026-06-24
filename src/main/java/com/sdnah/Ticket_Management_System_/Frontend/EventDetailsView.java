@@ -19,6 +19,7 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VenueMapDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
@@ -78,6 +79,8 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
     private static final SimpleDateFormat DATE_FMT = new SimpleDateFormat("MMM d, yyyy");
     private static final SimpleDateFormat DATETIME_FMT = new SimpleDateFormat("MMM d, yyyy  h:mm a");
+    private static final java.time.format.DateTimeFormatter DISCOUNT_FMT =
+            java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy  h:mm a");
     private static final String[] BLOCK_COLORS = {
             "#1565c0", "#283593", "#0277bd", "#00838f", "#2e7d32", "#558b2f", "#6a1b9a"
     };
@@ -189,6 +192,13 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
         page.add(buildEventInfoCard(ev));
         page.add(buildShowsCard(shows));
+        // II.2.2 — buyer-facing venue map: a visual second option to pick tickets.
+        try {
+            VenueMapDTO vmap = presenter.getVenueMap();
+            if (vmap != null && vmap.elements != null && !vmap.elements.isEmpty()) {
+                page.add(buildVenueMapCard(vmap, shows));
+            }
+        } catch (Exception ignored) { /* never block the page on the map */ }
         page.add(buildRatingsCard());
 
         // Policies section (managers / owners only)
@@ -274,7 +284,16 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             deleteEventBtn.getStyle()
                     .set("font-weight", "700");
 
-            rightSide.add(editBtn, deleteEventBtn);
+            // II.4.2 — open the graphical venue layout / event-map editor.
+            Button venueMapBtn = new Button("🗺 Venue map", e -> {
+                UI.getCurrent().getSession().setAttribute("eventId",
+                        ev.getEventId() != null ? ev.getEventId().toString() : null);
+                UI.getCurrent().navigate("venue-map");
+            });
+            venueMapBtn.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+            venueMapBtn.getStyle().set("font-weight", "700");
+
+            rightSide.add(editBtn, venueMapBtn, deleteEventBtn);
         }
 
         titleRow.add(name, rightSide);
@@ -555,6 +574,31 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             if (dims[3] > 0) seatsField.setValue(dims[3]);
         }
 
+        // ── Live seat-map preview (redraws as you type) + link to venue map ────
+        Div seatPreview = new Div();
+        seatPreview.getStyle()
+                .set("width", "100%").set("overflow-x", "auto")
+                .set("border", "1px solid #e3eaf5").set("border-radius", "10px")
+                .set("background", "#fff").set("padding", "10px")
+                .set("min-height", "60px").set("box-sizing", "border-box");
+        Runnable refreshSeatPreview = () -> renderSeatGridPreview(seatPreview,
+                standingCapField.getValue(), blocksField.getValue(),
+                rowsField.getValue(), seatsField.getValue());
+        standingCapField.addValueChangeListener(ev -> refreshSeatPreview.run());
+        blocksField.addValueChangeListener(ev -> refreshSeatPreview.run());
+        rowsField.addValueChangeListener(ev -> refreshSeatPreview.run());
+        seatsField.addValueChangeListener(ev -> refreshSeatPreview.run());
+        refreshSeatPreview.run();
+
+        Button openMapBtn = new Button("🗺 Edit visual venue map", e -> {
+            if (cachedEventId != null) {
+                UI.getCurrent().getSession().setAttribute("eventId", cachedEventId.toString());
+            }
+            UI.getCurrent().navigate("venue-map");
+        });
+        openMapBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        openMapBtn.getStyle().set("align-self", "flex-start");
+
         // ── Save ──────────────────────────────────────────────────────────────
         Button saveBtn = new Button(isEdit ? "Save" : "Add Show", e -> {
             java.math.BigDecimal seatedPrice = seatedPriceField.getValue() != null
@@ -634,14 +678,18 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                     standingCapField, standingPriceField,
                     showSectionLabel("Seated Area"),
                     blocksField, rowsField, seatsField, seatedPriceField,
-                    areaNote);
+                    areaNote,
+                    showSectionLabel("Live preview"),
+                    seatPreview, openMapBtn);
         } else {
             body = new VerticalLayout(
                     nameField, singerField, descField, datePicker,
                     showSectionLabel("Standing Area"),
                     standingCapField, standingPriceField,
                     showSectionLabel("Seated Area"),
-                    blocksField, rowsField, seatsField, seatedPriceField);
+                    blocksField, rowsField, seatsField, seatedPriceField,
+                    showSectionLabel("Live preview"),
+                    seatPreview, openMapBtn);
         }
         body.setPadding(true);
         body.setSpacing(true);
@@ -650,6 +698,133 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         dialog.add(body);
         dialog.getFooter().add(cancelBtn, saveBtn);
         dialog.open();
+    }
+
+    /** Redraw the live seat preview (II.4.2) — delegates to the shared renderer. */
+    private void renderSeatGridPreview(Div target, Integer cap, Integer blocks, Integer rows, Integer seats) {
+        SeatPreviewRenderer.render(target, cap, blocks, rows, seats);
+    }
+
+    // ── Buyer-facing venue map (II.2.2) ───────────────────────────────────────
+
+    /** Read-only venue map for buyers: a visual, clickable second way to pick tickets. */
+    private Div buildVenueMapCard(VenueMapDTO map, List<show> shows) {
+        Div card = card();
+
+        H2 title = new H2("🗺 Venue map");
+        title.getStyle().set("margin", "0 0 6px 0").set("font-size", "20px").set("color", "#111");
+
+        Paragraph hint = new Paragraph(shows == null || shows.isEmpty()
+                ? "Overview of the venue layout."
+                : "Prefer to pick visually? Click a seating or standing area on the map to choose tickets there.");
+        hint.getStyle().set("color", "#666").set("margin", "0 0 12px 0");
+
+        Div scroll = new Div();
+        scroll.getStyle().set("width", "100%").set("overflow", "auto")
+                .set("border", "1px solid #e3eaf5").set("border-radius", "10px");
+
+        Div inner = new Div();
+        inner.getStyle()
+                .set("position", "relative")
+                .set("width", map.canvasWidth + "px").set("height", map.canvasHeight + "px")
+                .set("background-color", "#eef2f7")
+                .set("background-image",
+                        "linear-gradient(#dde3ec 1px, transparent 1px),"
+                                + "linear-gradient(90deg, #dde3ec 1px, transparent 1px)")
+                .set("background-size", "50px 50px");
+        for (VenueMapDTO.Element el : map.elements) {
+            inner.add(buildBuyerMapElement(el, shows));
+        }
+        scroll.add(inner);
+
+        card.add(title, hint, scroll);
+        return card;
+    }
+
+    private Div buildBuyerMapElement(VenueMapDTO.Element el, List<show> shows) {
+        boolean bookable = ("SEATED".equals(el.type) || "STANDING".equals(el.type))
+                && shows != null && !shows.isEmpty();
+        String fill = el.color != null ? el.color : mapColor(el.type);
+
+        Div box = new Div();
+        box.setText(mapLabel(el));
+        box.getStyle()
+                .set("position", "absolute")
+                .set("left", Math.round(el.x) + "px").set("top", Math.round(el.y) + "px")
+                .set("width", Math.round(el.w) + "px").set("height", Math.round(el.h) + "px")
+                .set("background", fill).set("color", "white").set("border-radius", "8px")
+                .set("display", "flex").set("align-items", "center").set("justify-content", "center")
+                .set("text-align", "center").set("font-size", "12px").set("font-weight", "700")
+                .set("box-sizing", "border-box").set("padding", "4px").set("overflow", "hidden")
+                .set("border", "2px solid rgba(0,0,0,0.25)");
+        if (bookable) {
+            box.getStyle().set("cursor", "pointer");
+            box.getElement().setAttribute("title", "Click to pick tickets here");
+            box.addClickListener(e -> onBuyerAreaClick(el, shows));
+        }
+        return box;
+    }
+
+    private void onBuyerAreaClick(VenueMapDTO.Element el, List<show> shows) {
+        // Respect the same lottery gate as the "Select Seat" buttons.
+        try {
+            if (presenter.isLotteryEvent() && !presenter.hasDrawnLottery()) {
+                Notification.show("Tickets open after the lottery draw is complete.",
+                        3000, Notification.Position.MIDDLE);
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        if (shows.size() == 1) {
+            openSeatDialog(shows.get(0));
+        } else {
+            openShowPickerForMap(shows);
+        }
+    }
+
+    /** When an event has several shows, ask which one before opening seat selection. */
+    private void openShowPickerForMap(List<show> shows) {
+        Dialog dlg = new Dialog();
+        dlg.setHeaderTitle("Choose a show");
+        VerticalLayout body = new VerticalLayout();
+        body.setPadding(false);
+        body.setSpacing(false);
+        body.getStyle().set("gap", "8px");
+        for (show s : shows) {
+            Button b = new Button(nullSafe(s.getName())
+                    + (s.getShowDate() != null ? " — " + DATETIME_FMT.format(s.getShowDate()) : ""),
+                    e -> { dlg.close(); openSeatDialog(s); });
+            b.setWidthFull();
+            b.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            body.add(b);
+        }
+        dlg.add(body);
+        Button cancel = new Button("Cancel", e -> dlg.close());
+        dlg.getFooter().add(cancel);
+        dlg.open();
+    }
+
+    private static String mapColor(String type) {
+        if (type == null) return "#1565c0";
+        return switch (type) {
+            case "STAGE"    -> "#37474f";
+            case "ENTRANCE" -> "#8e24aa";
+            case "SEATED"   -> "#1565c0";
+            case "STANDING" -> "#2e7d32";
+            default         -> "#1565c0";
+        };
+    }
+
+    private static String mapLabel(VenueMapDTO.Element el) {
+        if (el.label != null && !el.label.isBlank()) return el.label;
+        if (el.type == null) return "Area";
+        return switch (el.type) {
+            case "STAGE"    -> "Stage";
+            case "ENTRANCE" -> "Entrance";
+            case "SEATED"   -> "Seated area";
+            case "STANDING" -> "Standing area";
+            default         -> el.type;
+        };
     }
 
     /** Confirmation dialog before deleting a show — warns about ticket count. */
@@ -2534,6 +2709,10 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         Span totalSpan = new Span("Total: $0.00");
         totalSpan.getStyle().set("font-weight", "700").set("font-size", "14px").set("color", "#111");
 
+        // II.2.5 — visible-discount preview, populated by the cart refresh below.
+        Div discountInfo = new Div();
+        discountInfo.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "2px");
+
         Button checkoutBtn = new Button("Proceed to Checkout →", e -> {
             e.getSource().setEnabled(false); // prevent double-click
             if (cart.isEmpty()) {
@@ -2663,26 +2842,76 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
         cartRefreshRef[0] = () -> {
             itemList.removeAll();
+            discountInfo.removeAll();
             if (cart.isEmpty()) {
                 Span empty = new Span("No tickets selected yet.");
                 empty.getStyle().set("color", "#aaa").set("font-size", "13px").set("padding", "8px 0");
                 itemList.add(empty);
                 totalSpan.setText("Total: $0.00");
+                totalSpan.getStyle().remove("text-decoration").set("color", "#111");
                 checkoutBtn.setEnabled(false);
             } else {
                 java.math.BigDecimal total = java.math.BigDecimal.ZERO;
+                int quantity = 0;
                 for (CartEntry entry : cart) {
                     itemList.add(buildCartRow(entry, cart, selectedSeatIds, cartRefreshRef));
                     total = total.add(entry.total());
+                    quantity += entry.quantity();
                 }
-                totalSpan.setText("Total: $" + total.setScale(2, java.math.RoundingMode.HALF_UP));
+                java.math.BigDecimal rounded = total.setScale(2, java.math.RoundingMode.HALF_UP);
+                renderCartTotalWithDiscount(totalSpan, discountInfo, rounded, quantity);
                 checkoutBtn.setEnabled(true);
             }
         };
         cartRefreshRef[0].run();
 
-        panel.add(title, itemList, divider, totalSpan, checkoutBtn);
+        panel.add(title, itemList, divider, totalSpan, discountInfo, checkoutBtn);
         return panel;
+    }
+
+    /**
+     * Renders the cart total and, when a visible discount applies (II.2.5),
+     * shows the original price struck through plus the discounted price, the
+     * percentage off, and the discount expiry — so the discount is visible on
+     * the Select Tickets page, not only at checkout.
+     */
+    private void renderCartTotalWithDiscount(Span totalSpan, Div discountInfo,
+            java.math.BigDecimal original, int quantity) {
+        EventDetailsPresenter.DiscountPreview preview =
+                presenter.previewVisibleDiscount(original.doubleValue(), quantity);
+
+        if (preview == null) {
+            totalSpan.setText("Total: $" + original);
+            totalSpan.getStyle().remove("text-decoration").set("color", "#111");
+            return;
+        }
+
+        // Original price struck through.
+        totalSpan.setText("Total: $" + original);
+        totalSpan.getStyle().set("text-decoration", "line-through").set("color", "#888");
+
+        java.math.BigDecimal finalPrice = java.math.BigDecimal.valueOf(preview.finalPrice)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+
+        Span pct = new Span("🏷 " + trimPct(preview.percent) + "% off");
+        pct.getStyle().set("color", "#2e7d32").set("font-weight", "700").set("font-size", "13px");
+
+        Span youPay = new Span("You pay: $" + finalPrice);
+        youPay.getStyle().set("color", "#111").set("font-weight", "800").set("font-size", "15px");
+
+        discountInfo.add(pct, youPay);
+
+        if (preview.expiry != null) {
+            Span ends = new Span("Discount ends " + DISCOUNT_FMT.format(preview.expiry));
+            ends.getStyle().set("color", "#a15c00").set("font-size", "12px");
+            discountInfo.add(ends);
+        }
+    }
+
+    /** Drop a trailing ".0" so "10.0%" shows as "10%". */
+    private static String trimPct(double pct) {
+        if (pct == Math.floor(pct)) return String.valueOf((long) pct);
+        return String.valueOf(Math.round(pct * 100.0) / 100.0);
     }
 
     private Div buildCartRow(CartEntry entry, List<CartEntry> cart,
