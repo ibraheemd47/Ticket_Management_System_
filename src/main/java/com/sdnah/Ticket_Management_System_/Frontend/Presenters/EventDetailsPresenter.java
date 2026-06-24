@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
@@ -65,6 +66,7 @@ public class EventDetailsPresenter {
     private final UserService        userService;
     private final LotteryService     lotteryService;
     private final NotificationService notificationService;
+    private final company_managment_serivce companyService;
 
     // ── Cached state ──────────────────────────────────────────────────────────
     private UUID        cachedEventId;
@@ -81,7 +83,8 @@ public class EventDetailsPresenter {
             ActiveOrderService orderService,
             UserService userService,
             LotteryService lotteryService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            company_managment_serivce companyService) {
         this.eventService        = eventService;
         this.ticketService       = ticketService;
         this.policyRepo          = policyRepo;
@@ -89,6 +92,7 @@ public class EventDetailsPresenter {
         this.userService         = userService;
         this.lotteryService      = lotteryService;
         this.notificationService = notificationService;
+        this.companyService      = companyService;
     }
 
     public void setView(View view) {
@@ -676,6 +680,118 @@ public class EventDetailsPresenter {
             }
             return max;
         } catch (Exception e) { return 0; }
+    }
+
+    // =========================================================================
+    // Ratings & reviews (event + organizing company)
+    // =========================================================================
+
+    /** Current member's UUID from the session, or null if not resolvable. */
+    public UUID getCurrentUserId() {
+        Object obj = view.getSessionAttribute("userId");
+        if (obj == null) return null;
+        try { return UUID.fromString(obj.toString()); }
+        catch (Exception e) { return null; }
+    }
+
+    /** True when a real (non-guest) member is logged in and able to rate. */
+    public boolean canRate() {
+        Object token = view.getSessionAttribute("token");
+        return token != null
+                && !token.toString().startsWith("GUEST_")
+                && getCurrentUserId() != null;
+    }
+
+    public UUID getCompanyId() {
+        return cachedEvent != null ? cachedEvent.getCompanyId() : null;
+    }
+
+    public String getCompanyName() {
+        UUID cid = getCompanyId();
+        if (cid == null) return "the organizing company";
+        try { return companyService.getCompanyName(cid); }
+        catch (Exception e) { return "the organizing company"; }
+    }
+
+    // ── Event rating ──────────────────────────────────────────────────────────
+
+    public double getEventAverageRating() {
+        if (cachedEventId == null) return 0.0;
+        try {
+            Map<UUID, Integer> reviews = eventService.getEventReviews(cachedEventId);
+            if (reviews == null || reviews.isEmpty()) return 0.0;
+            return reviews.values().stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        } catch (Exception e) { return 0.0; }
+    }
+
+    public int getEventReviewCount() {
+        if (cachedEventId == null) return 0;
+        try {
+            Map<UUID, Integer> reviews = eventService.getEventReviews(cachedEventId);
+            return reviews == null ? 0 : reviews.size();
+        } catch (Exception e) { return 0; }
+    }
+
+    /** This member's existing event rating (1–5), or 0 if they haven't rated yet. */
+    public int getMyEventRating() {
+        UUID uid = getCurrentUserId();
+        if (uid == null || cachedEventId == null) return 0;
+        try {
+            Map<UUID, Integer> reviews = eventService.getEventReviews(cachedEventId);
+            Integer r = reviews != null ? reviews.get(uid) : null;
+            return r != null ? r : 0;
+        } catch (Exception e) { return 0; }
+    }
+
+    public boolean submitEventRating(int rating) {
+        if (!canRate()) { view.showError("Please log in as a member to rate this event."); return false; }
+        if (cachedEventId == null) { view.showError("No event loaded"); return false; }
+        try {
+            eventService.addReviewToEvent(cachedEventId, getCurrentUserId(), rating);
+            view.showSuccess("Thanks for rating this event!");
+            return true;
+        } catch (RuntimeException ex) { view.showError(ex.getMessage()); return false; }
+    }
+
+    // ── Company rating ────────────────────────────────────────────────────────
+
+    public double getCompanyAverageRating() {
+        UUID cid = getCompanyId();
+        if (cid == null) return 0.0;
+        try { return companyService.getCompanyRating(cid); }
+        catch (Exception e) { return 0.0; }
+    }
+
+    public int getCompanyReviewCount() {
+        UUID cid = getCompanyId();
+        if (cid == null) return 0;
+        try {
+            Map<UUID, Integer> reviews = companyService.getCompanyReviews(cid);
+            return reviews == null ? 0 : reviews.size();
+        } catch (Exception e) { return 0; }
+    }
+
+    /** This member's existing company rating (1–5), or 0 if they haven't rated yet. */
+    public int getMyCompanyRating() {
+        UUID uid = getCurrentUserId();
+        UUID cid = getCompanyId();
+        if (uid == null || cid == null) return 0;
+        try {
+            Map<UUID, Integer> reviews = companyService.getCompanyReviews(cid);
+            Integer r = reviews != null ? reviews.get(uid) : null;
+            return r != null ? r : 0;
+        } catch (Exception e) { return 0; }
+    }
+
+    public boolean submitCompanyRating(int rating) {
+        if (!canRate()) { view.showError("Please log in as a member to rate this company."); return false; }
+        UUID cid = getCompanyId();
+        if (cid == null) { view.showError("No company for this event"); return false; }
+        try {
+            companyService.addReviewToCompany(cid, getCurrentUserId(), rating);
+            view.showSuccess("Thanks for rating this company!");
+            return true;
+        } catch (RuntimeException ex) { view.showError(ex.getMessage()); return false; }
     }
 
     // =========================================================================

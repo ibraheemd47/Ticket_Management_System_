@@ -24,6 +24,7 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -216,6 +217,8 @@ public class MainView extends VerticalLayout {
                 .setHeader("Venue").setFlexGrow(2);
         eventGrid.addColumn(ev -> ev.eventType != null ? ev.eventType.name() : "—")
                 .setHeader("Type").setFlexGrow(1);
+        eventGrid.addComponentColumn(ev -> buildRatingStars(presenter.getEventAverageRating(ev.id)))
+                .setHeader("Rating").setFlexGrow(1);
         eventGrid.addComponentColumn(ev -> {
             Button btn = new Button("View Event", e -> {
                 UI.getCurrent().getSession().setAttribute("eventId", ev.id.toString());
@@ -583,7 +586,7 @@ public class MainView extends VerticalLayout {
             H3 name = new H3(c.getCompanyName());
             name.getStyle().set("margin-top", "10px").set("color", "#111827");
 
-            companyCard.add(logo, name);
+            companyCard.add(logo, name, buildRatingStars(c.getRating()));
             companyCard.addClickListener(e -> {
                 UI.getCurrent().getSession().setAttribute("companyId", c.getCompanyId().toString());
                 UI.getCurrent().navigate("company");
@@ -595,6 +598,23 @@ public class MainView extends VerticalLayout {
     }
 
     // --------------------------------------------------------------------------
+
+    /** Compact read-only star rating used for both event rows and company cards. */
+    private Span buildRatingStars(double rating) {
+        Span span = new Span();
+        span.getStyle().set("font-size", "13px").set("margin-top", "4px");
+        if (rating <= 0) {
+            span.setText("No ratings yet");
+            span.getStyle().set("color", "#9ca3af");
+            return span;
+        }
+        long rounded = Math.round(rating);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i <= 5; i++) sb.append(i <= rounded ? "★" : "☆");
+        span.setText(sb + "  " + String.format("%.1f", rating));
+        span.getStyle().set("color", "#f5a623");
+        return span;
+    }
 
     private Div createSectionContainer() {
         Div container = new Div();

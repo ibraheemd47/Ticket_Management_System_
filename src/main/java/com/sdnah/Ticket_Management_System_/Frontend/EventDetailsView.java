@@ -189,6 +189,7 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
         page.add(buildEventInfoCard(ev));
         page.add(buildShowsCard(shows));
+        page.add(buildRatingsCard());
 
         // Policies section (managers / owners only)
         if (isManagerOrOwner()) {
@@ -2235,6 +2236,131 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                 .set("font-size", "13px")
                 .set("font-weight", "700");
         return s;
+    }
+
+    // ── Ratings & Reviews ─────────────────────────────────────────────────────
+
+    /**
+     * "Ratings & Reviews" card: lets a logged-in member rate both the event and
+     * its organizing company, and shows each one's average score and review count.
+     */
+    private Div buildRatingsCard() {
+        Div card = card();
+        card.add(new H2("Ratings & Reviews"));
+
+        card.add(buildRatingBlock(
+                "This event",
+                presenter.getEventAverageRating(),
+                presenter.getEventReviewCount(),
+                presenter.getMyEventRating(),
+                presenter::submitEventRating));
+
+        Div divider = new Div();
+        divider.getStyle()
+                .set("height", "1px").set("background", "#eee").set("margin", "20px 0");
+        card.add(divider);
+
+        card.add(buildRatingBlock(
+                "Organizer · " + presenter.getCompanyName(),
+                presenter.getCompanyAverageRating(),
+                presenter.getCompanyReviewCount(),
+                presenter.getMyCompanyRating(),
+                presenter::submitCompanyRating));
+
+        return card;
+    }
+
+    /** One rating row: a title, the average stars + count, and an input (members only). */
+    private Div buildRatingBlock(String label, double average, int count, int myRating,
+            java.util.function.IntPredicate onSubmit) {
+        Div block = new Div();
+        block.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "8px");
+
+        H3 title = new H3(label);
+        title.getStyle().set("margin", "0").set("font-size", "18px").set("color", "#111");
+
+        Div avgRow = new Div();
+        avgRow.getStyle().set("display", "flex").set("align-items", "center").set("gap", "10px");
+        avgRow.add(buildStaticStars(average));
+        Span avgText = new Span(count > 0
+                ? String.format("%.1f", average) + "  ·  " + count + (count == 1 ? " review" : " reviews")
+                : "No reviews yet");
+        avgText.getStyle().set("color", "#555").set("font-size", "14px");
+        avgRow.add(avgText);
+
+        block.add(title, avgRow);
+
+        if (presenter.canRate()) {
+            Span prompt = new Span(myRating > 0
+                    ? "Your rating (click a star to change):"
+                    : "Tap a star to rate:");
+            prompt.getStyle().set("font-size", "13px").set("color", "#666").set("margin-top", "4px");
+            block.add(prompt, buildInteractiveStars(myRating, onSubmit));
+        } else {
+            Span hint = new Span("Log in as a member to leave a rating.");
+            hint.getStyle().set("font-size", "13px").set("color", "#888").set("font-style", "italic");
+            block.add(hint);
+        }
+        return block;
+    }
+
+    /** Read-only star display for an average score (rounded to the nearest star). */
+    private static Span buildStaticStars(double average) {
+        long rounded = Math.round(average);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i <= 5; i++) sb.append(i <= rounded ? "★" : "☆");
+        Span stars = new Span(sb.toString());
+        stars.getStyle().set("color", "#f5a623").set("font-size", "20px").set("letter-spacing", "2px");
+        return stars;
+    }
+
+    /**
+     * Five clickable stars. Hovering previews the score; clicking submits it via
+     * {@code onSubmit} and reloads the page so the new average is reflected.
+     */
+    private Div buildInteractiveStars(int current, java.util.function.IntPredicate onSubmit) {
+        Div row = new Div();
+        row.getStyle().set("display", "flex").set("gap", "4px").set("align-items", "center");
+
+        Span[] stars = new Span[5];
+        for (int i = 0; i < 5; i++) {
+            final int value = i + 1;
+            Span star = new Span(value <= current ? "★" : "☆");
+            star.getStyle()
+                    .set("cursor", "pointer")
+                    .set("font-size", "26px")
+                    .set("line-height", "1")
+                    .set("color", value <= current ? "#f5a623" : "#ccc");
+            stars[i] = star;
+
+            // Hover: light up every star up to the one being hovered.
+            star.getElement().addEventListener("mouseover", e -> {
+                for (int j = 0; j < 5; j++) {
+                    boolean lit = j < value;
+                    stars[j].setText(lit ? "★" : "☆");
+                    stars[j].getStyle().set("color", lit ? "#f5a623" : "#ccc");
+                }
+            });
+
+            star.addClickListener(e -> {
+                if (onSubmit.test(value)) {
+                    UI.getCurrent().getPage().reload();
+                }
+            });
+
+            row.add(star);
+        }
+
+        // Leaving the row restores the member's actual current rating.
+        row.getElement().addEventListener("mouseout", e -> {
+            for (int j = 0; j < 5; j++) {
+                boolean lit = j < current;
+                stars[j].setText(lit ? "★" : "☆");
+                stars[j].getStyle().set("color", lit ? "#f5a623" : "#ccc");
+            }
+        });
+
+        return row;
     }
 
     private static Div card() {
