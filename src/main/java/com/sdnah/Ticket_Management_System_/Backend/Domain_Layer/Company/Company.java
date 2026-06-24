@@ -44,6 +44,15 @@ public class Company {
     @Column(name = "order_id")
     private List<Integer> orderHistoryIds = new ArrayList<>();
 
+    // Per-user reviews (1–5). The aggregate `rating` below is recomputed as the
+    // average of these whenever a member adds/updates their review, mirroring how
+    // Event stores reviews.
+    @ElementCollection
+    @CollectionTable(name = "company_reviews", joinColumns = @JoinColumn(name = "company_id"))
+    @MapKeyColumn(name = "user_id")
+    @Column(name = "rating")
+    private Map<UUID, Integer> usersReviews = new HashMap<>();
+
     private double rating;
     private String logoURL;
 
@@ -490,6 +499,31 @@ public class Company {
         }
 
         this.rating = rating;
+    }
+
+    /**
+     * Records (or replaces) a member's 1–5 review of this company and refreshes
+     * the aggregate {@link #rating} to the average of all reviews.
+     */
+    public void addReview(UUID userId, int rating) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User id cannot be null.");
+        }
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("Rating must be between 1 and 5.");
+        }
+        usersReviews.put(userId, rating);
+        recomputeRating();
+    }
+
+    private void recomputeRating() {
+        this.rating = usersReviews.isEmpty()
+                ? 0.0
+                : usersReviews.values().stream().mapToInt(Integer::intValue).average().orElse(0.0);
+    }
+
+    public Map<UUID, Integer> getReviews() {
+        return usersReviews;
     }
 
     public boolean hasEvent(UUID eventId) {

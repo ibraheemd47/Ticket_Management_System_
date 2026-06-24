@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
@@ -74,6 +76,18 @@ public void loadInitialData() {
         } catch (Exception e) {
             view.showNotification("Error loading initial data.", true);
             e.printStackTrace();
+        }
+    }
+
+    /** Average 1–5 rating for an event, or 0.0 when it has no reviews yet. */
+    public double getEventAverageRating(UUID eventId) {
+        if (eventId == null) return 0.0;
+        try {
+            Map<UUID, Integer> reviews = eventService.getEventReviews(eventId);
+            if (reviews == null || reviews.isEmpty()) return 0.0;
+            return reviews.values().stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        } catch (Exception e) {
+            return 0.0;
         }
     }
 
