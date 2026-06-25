@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
@@ -86,6 +87,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     private final Tab rolesTab      = new Tab("Roles");
     private final Tab policiesTab   = new Tab("Policies");
     private final Tab reportTab     = new Tab("Sales report");
+    private final Tab historyTab    = new Tab("Purchase history");
     private final Tab complaintsTab = new Tab("Complaints");
 
     /** Container the chooser is rendered into so we can replace its body on errors / refreshes. */
@@ -293,6 +295,36 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             grid.setWidthFull();
             section.add(grid);
         }
+        tabContent.add(section);
+    }
+
+    public void showPurchaseHistory(List<PurchaseHistoryEntryDTO> rows) {
+        tabContent.removeAll();
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(false);
+        section.add(sectionTitle("Purchase history"));
+
+        if (rows == null || rows.isEmpty()) {
+            section.add(new Paragraph("No purchases yet for this company's events."));
+            tabContent.add(section);
+            return;
+        }
+
+        java.time.format.DateTimeFormatter fmt =
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        Grid<PurchaseHistoryEntryDTO> grid = new Grid<>();
+        grid.addColumn(r -> r.getPurchasedAt() == null ? "—" : r.getPurchasedAt().format(fmt))
+                .setHeader("Purchased at");
+        grid.addColumn(PurchaseHistoryEntryDTO::getEventName).setHeader("Event");
+        grid.addColumn(r -> getMemberDisplayName(r.getBuyerId())).setHeader("Buyer");
+        grid.addColumn(PurchaseHistoryEntryDTO::getTicketCount).setHeader("Tickets");
+        grid.addColumn(r -> r.getTotalPrice().toPlainString()).setHeader("Total");
+        grid.setItems(rows);
+        grid.setAllRowsVisible(true);
+        grid.setWidthFull();
+        section.add(grid);
         tabContent.add(section);
     }
 
@@ -511,7 +543,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         title.getStyle().set("margin", "0 0 16px 0");
         card.add(back);
 
-        Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab, reportTab, complaintsTab);
+        Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab, reportTab, historyTab, complaintsTab);
         tabs.addSelectedChangeListener(e -> {
             tabContent.removeAll();
             Tab selected = e.getSelectedTab();
@@ -519,6 +551,7 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             else if (selected == rolesTab)      presenter.loadRolesForCurrentCompany();
             else if (selected == policiesTab)   renderPoliciesTab();
             else if (selected == reportTab)     presenter.loadSalesReport();
+            else if (selected == historyTab)    presenter.loadPurchaseHistory();
             else if (selected == complaintsTab) presenter.loadComplaints();
         });
 

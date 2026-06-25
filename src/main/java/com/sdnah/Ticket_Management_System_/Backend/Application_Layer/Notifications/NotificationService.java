@@ -177,6 +177,22 @@ public class NotificationService {
         );
     }
 
+    public String notifyEventVenueChanged(String recipientUsername,
+                                          String eventName,
+                                          String newVenue) {
+        String body = "Venue changed for event '" + eventName + "'"
+                + (newVenue == null || newVenue.isBlank() ? "." : " — new venue: " + newVenue);
+        return createNotification(recipientUsername, body, NotificationType.EVENT_VENUE_CHANGED);
+    }
+
+    public String notifyEventPriceChanged(String recipientUsername,
+                                          String eventName,
+                                          String ticketType) {
+        String body = "Ticket price changed for event '" + eventName + "'"
+                + (ticketType == null || ticketType.isBlank() ? "." : " (" + ticketType + ").");
+        return createNotification(recipientUsername, body, NotificationType.EVENT_PRICE_CHANGED);
+    }
+
     public String notifyOrderExpiryWarning(String recipientUsername, String eventName) {
         return createNotification(
                 recipientUsername,

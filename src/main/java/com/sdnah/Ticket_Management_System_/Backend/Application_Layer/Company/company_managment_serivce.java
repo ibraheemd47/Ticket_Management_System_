@@ -22,6 +22,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteU
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
@@ -276,6 +277,51 @@ public class company_managment_serivce {
             logger.error("Failed to fetch purchase history. companyId={}", companyId, e);
             throw e;
         }
+    }
+
+    /**
+     * II.4.5 — rich purchase history for a company's events. One row per
+     * {@code Purchase} across every event the company owns. Honours the
+     * same VIEW_HISTORY authorization gate as the legacy id-only variant
+     * via {@code company.getPurchaseHistoryIds}.
+     *
+     * <p>{@code @Transactional} is required because the auth call dips into
+     * {@code Company.purchaseHistoryIds}, a lazy {@code @OneToMany}; without
+     * an open Hibernate session that access throws
+     * {@link org.hibernate.LazyInitializationException}.
+     */
+    @Transactional(readOnly = true)
+    public List<PurchaseHistoryEntryDTO> getCompanyPurchaseHistory(String actorToken, UUID companyId) {
+        Member actor = getActorFromToken(actorToken);
+        Company company = getCompanyOrThrow(companyId);
+        // Auth: throws if actor lacks VIEW_HISTORY for this company.
+        company.getPurchaseHistoryIds(actor.getMemberId());
+
+        List<Event> events = eventRepository.findByCompanyId(companyId);
+        java.util.Map<UUID, String> eventNames = new java.util.HashMap<>();
+        for (Event ev : events) {
+            eventNames.put(ev.getEventId(), ev.getName());
+        }
+
+        List<PurchaseHistoryEntryDTO> rows = new java.util.ArrayList<>();
+        for (Event ev : events) {
+            var purchases = purchaseRepository.findByEventId(ev.getEventId());
+            for (var p : purchases) {
+                rows.add(new PurchaseHistoryEntryDTO(
+                        p.getPurchaseId(),
+                        p.getOrderId(),
+                        p.getEventId(),
+                        eventNames.getOrDefault(p.getEventId(), "—"),
+                        p.getbuyerId(),
+                        p.getItems() == null ? 0 : p.getItems().size(),
+                        p.getTotalPrice(),
+                        p.getPurchasedAt()));
+            }
+        }
+        rows.sort(java.util.Comparator.comparing(
+                PurchaseHistoryEntryDTO::getPurchasedAt,
+                java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())));
+        return rows;
     }
 
     public List<Integer> getOrderHistory(String actorToken, UUID companyId) {

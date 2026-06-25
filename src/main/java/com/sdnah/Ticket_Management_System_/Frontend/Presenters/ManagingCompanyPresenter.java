@@ -17,6 +17,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
@@ -305,6 +306,17 @@ public class ManagingCompanyPresenter {
             view.showSalesReport(companyService.getSalesReport(token, companyId));
         } catch (RuntimeException ex) {
             view.showError("Couldn't load sales report: " + ex.getMessage());
+        }
+    }
+
+    /** II.4.5 — rich purchase history for the current company's events. */
+    public void loadPurchaseHistory() {
+        try {
+            List<PurchaseHistoryEntryDTO> rows =
+                    companyService.getCompanyPurchaseHistory(token, companyId);
+            view.showPurchaseHistory(rows);
+        } catch (RuntimeException ex) {
+            view.showError("Couldn't load purchase history: " + ex.getMessage());
         }
     }
 

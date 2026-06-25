@@ -99,6 +99,12 @@ public class EventService {
                 // tests in EventAcceptanceTest / EventIntegrationTest expect it.
                 event.delete(managerId);
 
+                // Snapshot the name before delete() detaches the entity, then
+                // notify everyone who already bought a ticket for it (II.4.5
+                // requirement — purchase history must reflect cancellation).
+                String snapshotName = event.getName();
+                notifyEventBuyers(eventId, snapshotName, true);
+
                 // Delete all tickets for every show first (satisfies FK constraints)
                 for (show s : event.getShows()) {
                     if (s.getShowid() != null) {
@@ -741,6 +747,52 @@ public class EventService {
         });
     }
 
+    /**
+     * II.4.5 — Re-prices every still-AVAILABLE ticket of the given show
+     * to {@code newPrice}, then notifies past buyers of the event that a
+     * ticket price changed. Sold/scanned tickets are left untouched so we
+     * never retroactively alter a completed purchase.
+     */
+    public void editShowPrice(UUID eventId,
+                              UUID showId,
+                              java.math.BigDecimal newPrice,
+                              String managerId) {
+        if (newPrice == null || newPrice.signum() < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+        keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
+            transactionTemplate.executeWithoutResult(status -> {
+                Event event = eventRepository.findById(eventId)
+                        .orElseThrow(() -> new RuntimeException("Event not found"));
+                // Same authorisation gate as other edit operations (e.g. editVenue).
+                if (!event.getManagerIds().contains(managerId)) {
+                    throw new IllegalArgumentException("Only managers can edit ticket prices.");
+                }
+
+                List<ticket> tickets = ticketRepository.findByShowId(showId);
+                int repriced = 0;
+                for (ticket t : tickets) {
+                    if (t.getStatus() == ticket.TicketStatus.AVAILABLE) {
+                        t.repriceIfAvailable(newPrice);
+                        repriced++;
+                    }
+                }
+                if (repriced > 0) {
+                    ticketRepository.saveAll(tickets);
+                    ticketRepository.flush();
+                }
+
+                String eventName = event.getName();
+                purchaseRepository.findByEventId(eventId).forEach(p ->
+                        notificationService.notifyEventPriceChanged(
+                                p.getbuyerId(), eventName, null));
+
+                logger.info("Repriced {} ticket(s) for show {} to {} by manager {}",
+                        repriced, showId, newPrice, managerId);
+            });
+        });
+    }
+
     public void editEventVenue(UUID eventId, String newVenue, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
@@ -749,6 +801,12 @@ public class EventService {
 
                 event.editVenue(newVenue, managerId);
                 eventRepository.saveAndFlush(event);
+
+                // II.4.5 — every past buyer must learn about a place change.
+                String eventName = event.getName();
+                purchaseRepository.findByEventId(eventId).forEach(p ->
+                        notificationService.notifyEventVenueChanged(
+                                p.getbuyerId(), eventName, newVenue));
             });
         });
     }

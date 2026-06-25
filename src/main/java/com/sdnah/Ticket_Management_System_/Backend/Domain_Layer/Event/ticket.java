@@ -164,6 +164,21 @@ public class ticket {
         return price;
     }
 
+    /**
+     * Re-prices an unsold ticket (II.4.5 price-change flow). Refuses to
+     * mutate tickets that have already been purchased/scanned so we never
+     * silently alter what a buyer was charged.
+     */
+    public void repriceIfAvailable(BigDecimal newPrice) {
+        if (newPrice == null || newPrice.signum() < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+        if (this.status != TicketStatus.AVAILABLE) {
+            return;
+        }
+        this.price = newPrice;
+    }
+
     public TicketStatus getStatus() {
         return status;
     }
