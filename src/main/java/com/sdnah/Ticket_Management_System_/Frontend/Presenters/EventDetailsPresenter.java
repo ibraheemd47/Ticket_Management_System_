@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
@@ -24,6 +25,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.CreateComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.VenueMapDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
@@ -74,6 +76,7 @@ public class EventDetailsPresenter {
     private final LotteryService     lotteryService;
     private final NotificationService notificationService;
     private final company_managment_serivce companyService;
+    private final ComplaintService complaintService;
 
     // ── Cached state ──────────────────────────────────────────────────────────
     private UUID        cachedEventId;
@@ -91,7 +94,8 @@ public class EventDetailsPresenter {
             UserService userService,
             LotteryService lotteryService,
             NotificationService notificationService,
-            company_managment_serivce companyService) {
+            company_managment_serivce companyService,
+            ComplaintService complaintService) {
         this.eventService        = eventService;
         this.ticketService       = ticketService;
         this.policyRepo          = policyRepo;
@@ -100,6 +104,7 @@ public class EventDetailsPresenter {
         this.lotteryService      = lotteryService;
         this.notificationService = notificationService;
         this.companyService      = companyService;
+        this.complaintService    = complaintService;
     }
 
     public void setView(View view) {
@@ -833,6 +838,30 @@ public class EventDetailsPresenter {
         if (cid == null) return "the organizing company";
         try { return companyService.getCompanyName(cid); }
         catch (Exception e) { return "the organizing company"; }
+    }
+
+    /**
+     * File a complaint about this event against its producing company, so it
+     * lands in the company's Complaints tab (and the admin's queue). Members only.
+     */
+    public void fileComplaintAboutCompany(String subject, String description) {
+        String token = getToken();
+        if (token == null || token.startsWith("GUEST_")) {
+            view.showError("Please log in as a member to file a complaint.");
+            return;
+        }
+        UUID companyId = getCompanyId();
+        if (companyId == null) {
+            view.showError("Couldn't determine the company for this event.");
+            return;
+        }
+        try {
+            complaintService.createComplaint(token,
+                    new CreateComplaintDTO(subject, description, "COMPANY", companyId.toString()));
+            view.showSuccess("Complaint submitted — the company and the system admin will review it.");
+        } catch (RuntimeException ex) {
+            view.showError("Couldn't submit complaint: " + ex.getMessage());
+        }
     }
 
     // ── Event rating ──────────────────────────────────────────────────────────

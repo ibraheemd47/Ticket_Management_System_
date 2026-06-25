@@ -271,6 +271,15 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         rightSide.getStyle().set("display", "flex").set("gap", "12px").set("align-items", "center");
         rightSide.add(typeBadge);
 
+        // Buyers (logged-in members who don't manage this company) can file a
+        // complaint about the event; it routes to the company's Complaints tab.
+        if (isLoggedInMember() && !isManagerOrOwner()) {
+            Button complain = new Button("⚠ File a complaint", e -> openComplaintDialog(ev));
+            complain.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
+            complain.getStyle().set("font-weight", "700");
+            rightSide.add(complain);
+        }
+
         if (isManagerOrOwner()) {
             Button editBtn = new Button("Edit Event", e -> openEditDialog());
             editBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -712,7 +721,23 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         Div card = card();
 
         H2 title = new H2("🗺 Venue map");
-        title.getStyle().set("margin", "0 0 6px 0").set("font-size", "20px").set("color", "#111");
+        title.getStyle().set("margin", "0").set("font-size", "20px").set("color", "#111");
+
+        Div header = new Div(title);
+        header.getStyle().set("display", "flex").set("justify-content", "space-between")
+                .set("align-items", "center").set("margin-bottom", "6px");
+
+        // Owners/managers get an inline editor shortcut from the map itself.
+        if (isManagerOrOwner()) {
+            Button editMap = new Button("✏ Edit map", e -> {
+                if (cachedEventId != null) {
+                    UI.getCurrent().getSession().setAttribute("eventId", cachedEventId.toString());
+                }
+                UI.getCurrent().navigate("venue-map");
+            });
+            editMap.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+            header.add(editMap);
+        }
 
         Paragraph hint = new Paragraph(shows == null || shows.isEmpty()
                 ? "Overview of the venue layout."
@@ -737,7 +762,7 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         }
         scroll.add(inner);
 
-        card.add(title, hint, scroll);
+        card.add(header, hint, scroll);
         return card;
     }
 
@@ -825,6 +850,52 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             case "STANDING" -> "Standing area";
             default         -> el.type;
         };
+    }
+
+    // ── File a complaint about the event ──────────────────────────────────────
+
+    private boolean isLoggedInMember() {
+        Object t = UI.getCurrent().getSession().getAttribute("token");
+        return t != null && !t.toString().startsWith("GUEST_");
+    }
+
+    private void openComplaintDialog(Event ev) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("File a complaint");
+        dialog.setWidth("480px");
+
+        Paragraph about = new Paragraph("About: " + nullSafe(ev.getName())
+                + " · " + presenter.getCompanyName());
+        about.getStyle().set("color", "#666").set("margin", "0");
+
+        TextField subject = new TextField("Subject");
+        subject.setWidthFull();
+        subject.setValue("Issue with " + nullSafe(ev.getName()));
+
+        TextArea description = new TextArea("Describe the issue");
+        description.setWidthFull();
+        description.setMinHeight("120px");
+
+        VerticalLayout body = new VerticalLayout(about, subject, description);
+        body.setPadding(false);
+        body.getStyle().set("gap", "8px");
+
+        Button submit = new Button("Submit", e -> {
+            if (subject.isEmpty() || description.isEmpty()) {
+                Notification.show("Subject and description are required",
+                        2500, Notification.Position.MIDDLE);
+                return;
+            }
+            // Presenter shows the success / error notification.
+            presenter.fileComplaintAboutCompany(subject.getValue(), description.getValue());
+            dialog.close();
+        });
+        submit.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button cancel = new Button("Cancel", e -> dialog.close());
+
+        dialog.add(body);
+        dialog.getFooter().add(cancel, submit);
+        dialog.open();
     }
 
     /** Confirmation dialog before deleting a show — warns about ticket count. */

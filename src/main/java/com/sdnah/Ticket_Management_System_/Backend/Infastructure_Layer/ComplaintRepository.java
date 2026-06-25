@@ -18,4 +18,7 @@ public interface ComplaintRepository extends JpaRepository<Complaint, UUID> {
 
     List<Complaint> findByStatus(ComplaintStatus status);
 
+    /** Complaints aimed at a given target (e.g. targetType="COMPANY", targetId=companyId). */
+    List<Complaint> findByTargetTypeIgnoreCaseAndTargetId(String targetType, String targetId);
+
 }

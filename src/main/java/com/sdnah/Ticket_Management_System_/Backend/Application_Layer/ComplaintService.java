@@ -7,6 +7,7 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.CreateComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Complaint;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.ComplaintStatus;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ComplaintRepository;
 
 import org.springframework.stereotype.Service;
@@ -151,6 +152,59 @@ public class ComplaintService {
             complaintRepository.save(complaint);
             return null;
         });
+    }
+
+    // ── Company-side handling (runs in parallel with the admin flow) ──────────
+
+    private static final String TARGET_COMPANY = "COMPANY";
+
+    /**
+     * Complaints aimed at a company ({@code targetType="COMPANY"},
+     * {@code targetId=companyId}). Only the company's owners/managers may view.
+     */
+    @Transactional(readOnly = true)
+    public List<ComplaintDTO> getCompanyComplaints(String token, UUID companyId) {
+        requireCompanyManager(token, companyId);
+        return complaintRepository
+                .findByTargetTypeIgnoreCaseAndTargetId(TARGET_COMPANY, companyId.toString())
+                .stream()
+                .map(ComplaintDTO::new)
+                .toList();
+    }
+
+    /**
+     * A company owner/manager responds to a complaint targeting their company.
+     * Independent of the admin flow — stores a separate company response and,
+     * when {@code resolve} is set, marks the complaint resolved.
+     */
+    @Transactional
+    public void companyRespondToComplaint(String token, UUID companyId, UUID complaintId,
+            String response, boolean resolve) {
+        requireCompanyManager(token, companyId);
+        if (response == null || response.isBlank()) {
+            throw new IllegalArgumentException("Response is required");
+        }
+        keyedLock.callLocked(LOCK_COMPLAINT_ID, complaintId.toString(), () -> {
+            Complaint complaint = complaintRepository.findById(complaintId)
+                    .orElseThrow(() -> new IllegalArgumentException("Complaint not found"));
+
+            if (!TARGET_COMPANY.equalsIgnoreCase(complaint.getTargetType())
+                    || !companyId.toString().equals(complaint.getTargetId())) {
+                throw new SecurityException("This complaint does not target your company");
+            }
+
+            complaint.companyRespond(response.trim(), resolve);
+            complaintRepository.save(complaint);
+            return null;
+        });
+    }
+
+    private Member requireCompanyManager(String token, UUID companyId) {
+        Member actor = userService.getMemberByToken(token);
+        if (!(actor.isOwnerInCompany(companyId) || actor.isManagerInCompany(companyId))) {
+            throw new SecurityException("Only the company's owners or managers can handle its complaints");
+        }
+        return actor;
     }
 
 }

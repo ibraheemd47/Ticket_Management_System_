@@ -11,8 +11,10 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
@@ -40,6 +42,7 @@ public class ManagingCompanyPresenter {
     private final company_managment_serivce companyService;
     private final UserService userService;
     private final PolicyService policyService;
+    private final ComplaintService complaintService;
 
     private ManagingCompanyView view;
     private String token;
@@ -47,10 +50,12 @@ public class ManagingCompanyPresenter {
 
     public ManagingCompanyPresenter(company_managment_serivce companyService,
                                     UserService userService,
-                                    PolicyService policyService) {
+                                    PolicyService policyService,
+                                    ComplaintService complaintService) {
         this.companyService = companyService;
         this.userService = userService;
         this.policyService = policyService;
+        this.complaintService = complaintService;
     }
 
     public void setView(ManagingCompanyView view) {
@@ -269,6 +274,28 @@ public class ManagingCompanyPresenter {
             return userService.getMemberByToken(token).getMemberId();
         } catch (RuntimeException ex) {
             return null;
+        }
+    }
+
+    // ── Complaints tab (company-side handling, parallel to admin) ────────────
+
+    /** Load complaints targeting this company for owners/managers to handle. */
+    public void loadComplaints() {
+        try {
+            view.showComplaints(complaintService.getCompanyComplaints(token, companyId));
+        } catch (RuntimeException ex) {
+            view.showComplaintsError("Couldn't load complaints: " + ex.getMessage());
+        }
+    }
+
+    /** Owner/manager responds to a company complaint (optionally resolving it). */
+    public void respondToComplaint(UUID complaintId, String response, boolean resolve) {
+        try {
+            complaintService.companyRespondToComplaint(token, companyId, complaintId, response, resolve);
+            view.showSuccess(resolve ? "Complaint resolved" : "Response sent");
+            loadComplaints();
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
         }
     }
 

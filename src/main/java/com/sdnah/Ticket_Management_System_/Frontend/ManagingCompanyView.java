@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
@@ -52,6 +53,7 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -80,10 +82,11 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     
     private final Div tabContent = new Div();
-    private final Tab eventsTab   = new Tab("Events");
-    private final Tab rolesTab    = new Tab("Roles");
-    private final Tab policiesTab = new Tab("Policies");
-    private final Tab reportTab   = new Tab("Sales report");
+    private final Tab eventsTab     = new Tab("Events");
+    private final Tab rolesTab      = new Tab("Roles");
+    private final Tab policiesTab   = new Tab("Policies");
+    private final Tab reportTab     = new Tab("Sales report");
+    private final Tab complaintsTab = new Tab("Complaints");
 
     /** Container the chooser is rendered into so we can replace its body on errors / refreshes. */
     private final Div chooserSlot = new Div();
@@ -293,6 +296,109 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         tabContent.add(section);
     }
 
+    // ── Complaints tab (company-side, parallel to admin) ─────────────────────
+
+    public void showComplaints(List<ComplaintDTO> complaints) {
+        tabContent.removeAll();
+        Div section = new Div();
+        section.add(sectionTitle("Complaints about this company"));
+        Paragraph note = new Paragraph(
+                "Complaints buyers filed against your company. You can respond here in parallel "
+                + "with the system admin.");
+        note.getStyle().set("color", "#666");
+        section.add(note);
+
+        if (complaints == null || complaints.isEmpty()) {
+            section.add(new Paragraph("No complaints for this company."));
+            tabContent.add(section);
+            return;
+        }
+
+        Grid<ComplaintDTO> grid = new Grid<>(ComplaintDTO.class, false);
+        grid.addColumn(ComplaintDTO::getSubject).setHeader("Subject").setFlexGrow(2);
+        grid.addColumn(c -> c.getStatus() == null ? "—" : c.getStatus().name())
+                .setHeader("Status").setAutoWidth(true);
+        grid.addColumn(c -> getMemberDisplayName(c.getReporterMemberId()))
+                .setHeader("From").setAutoWidth(true);
+        grid.addColumn(c -> c.getCreatedAt() == null ? "—" : c.getCreatedAt().toLocalDate().toString())
+                .setHeader("Filed").setAutoWidth(true);
+        grid.addComponentColumn(c -> {
+            Button respond = new Button("View / Respond", ev -> openRespondDialog(c));
+            respond.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            return respond;
+        }).setHeader("");
+        grid.setItems(complaints);
+        grid.setAllRowsVisible(true);
+        grid.setWidthFull();
+
+        section.add(grid);
+        tabContent.add(section);
+    }
+
+    public void showComplaintsError(String message) {
+        tabContent.removeAll();
+        tabContent.add(error(message));
+    }
+
+    private void openRespondDialog(ComplaintDTO c) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Complaint — " + c.getSubject());
+        dialog.setWidth("520px");
+
+        VerticalLayout body = new VerticalLayout();
+        body.setPadding(false);
+        body.getStyle().set("gap", "8px");
+        body.add(new Paragraph("From: " + getMemberDisplayName(c.getReporterMemberId())));
+
+        Paragraph desc = new Paragraph(c.getDescription());
+        desc.getStyle().set("background", "#f6f8fb").set("padding", "10px")
+                .set("border-radius", "8px").set("white-space", "pre-wrap");
+        body.add(desc);
+
+        if (c.getAdminResponse() != null && !c.getAdminResponse().isBlank()) {
+            Paragraph ar = new Paragraph("Admin response: " + c.getAdminResponse());
+            ar.getStyle().set("color", "#555").set("font-size", "13px");
+            body.add(ar);
+        }
+        if (c.getCompanyResponse() != null && !c.getCompanyResponse().isBlank()) {
+            Paragraph cr = new Paragraph("Your last response: " + c.getCompanyResponse());
+            cr.getStyle().set("color", "#2e7d32").set("font-size", "13px");
+            body.add(cr);
+        }
+
+        TextArea response = new TextArea("Your response");
+        response.setWidthFull();
+        response.setMinHeight("110px");
+        if (c.getCompanyResponse() != null) response.setValue(c.getCompanyResponse());
+        body.add(response);
+
+        Button send = new Button("Send response", e -> {
+            if (response.getValue() == null || response.getValue().isBlank()) {
+                showError("Write a response first");
+                return;
+            }
+            presenter.respondToComplaint(c.getComplaintId(), response.getValue(), false);
+            dialog.close();
+        });
+        send.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button resolve = new Button("Send & resolve", e -> {
+            if (response.getValue() == null || response.getValue().isBlank()) {
+                showError("Write a response first");
+                return;
+            }
+            presenter.respondToComplaint(c.getComplaintId(), response.getValue(), true);
+            dialog.close();
+        });
+        resolve.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+
+        Button cancel = new Button("Cancel", e -> dialog.close());
+
+        dialog.add(body);
+        dialog.getFooter().add(cancel, send, resolve);
+        dialog.open();
+    }
+
     /** Called after appoint/remove — show a confirmation then refetch the roles. */
     public void onRoleMutationSucceeded(String message) {
         Notification.show(message, 2500, Notification.Position.TOP_CENTER)
@@ -405,14 +511,15 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         title.getStyle().set("margin", "0 0 16px 0");
         card.add(back);
 
-        Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab, reportTab);
+        Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab, reportTab, complaintsTab);
         tabs.addSelectedChangeListener(e -> {
             tabContent.removeAll();
             Tab selected = e.getSelectedTab();
-            if (selected == eventsTab)         presenter.loadEventsForCurrentCompany();
-            else if (selected == rolesTab)     presenter.loadRolesForCurrentCompany();
-            else if (selected == policiesTab)  renderPoliciesTab();
-            else if (selected == reportTab)    presenter.loadSalesReport();
+            if (selected == eventsTab)          presenter.loadEventsForCurrentCompany();
+            else if (selected == rolesTab)      presenter.loadRolesForCurrentCompany();
+            else if (selected == policiesTab)   renderPoliciesTab();
+            else if (selected == reportTab)     presenter.loadSalesReport();
+            else if (selected == complaintsTab) presenter.loadComplaints();
         });
 
         tabContent.getStyle().set("padding-top", "16px");
