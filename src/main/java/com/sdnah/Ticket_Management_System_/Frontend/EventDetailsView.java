@@ -2,6 +2,7 @@ package com.sdnah.Ticket_Management_System_.Frontend;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
@@ -9,53 +10,15 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
-import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.LotteryStatus;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.LotteryStatus;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.CompositePurchaseRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DateRangeDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
-import com.sdnah.Ticket_Management_System_.Frontend.Presenters.EventDetailsPresenter;
-import java.time.LocalDateTime;
-import java.util.Optional;
-import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.textfield.IntegerField;
-import com.vaadin.flow.component.textfield.NumberField;
-import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
@@ -66,9 +29,29 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.StandingAr
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.ticket;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.LotteryStatus;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DateRangeDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.QuantityConditionalDiscountRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.CompositePurchaseRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MaxTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinAgeRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.MinTicketsRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchaseRule;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Frontend.Presenters.EventDetailsPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -79,6 +62,12 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 
 @Route("EventDetails")
@@ -200,6 +189,7 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
 
         page.add(buildEventInfoCard(ev));
         page.add(buildShowsCard(shows));
+        page.add(buildRatingsCard());
 
         // Policies section (managers / owners only)
         if (isManagerOrOwner()) {
@@ -554,6 +544,15 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                 standingPriceField.setValue(existing.getStandingPrice().doubleValue());
             if (existing.getSeatedPrice() != null)
                 seatedPriceField.setValue(existing.getSeatedPrice().doubleValue());
+
+            // Prefill the current seating layout so it can be edited.
+            int[] dims = existing.getShowid() != null
+                    ? presenter.getSeatingDims(existing.getShowid())
+                    : new int[] { 0, 0, 0, 0 };
+            if (dims[0] > 0) standingCapField.setValue(dims[0]);
+            if (dims[1] > 0) blocksField.setValue(dims[1]);
+            if (dims[2] > 0) rowsField.setValue(dims[2]);
+            if (dims[3] > 0) seatsField.setValue(dims[3]);
         }
 
         // ── Save ──────────────────────────────────────────────────────────────
@@ -574,25 +573,28 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
             String sName = nameField.getValue() != null ? nameField.getValue() : "";
 
             try {
-                if (isEdit) {
-                    presenter.updateShow(existing, sName.trim(),
-                            singerField.getValue().trim(), descField.getValue().trim(),
-                            showDateLocal, seatedPrice, standingPrice);
-                } else {
-                    int standingCap  = standingCapField.getValue() != null ? standingCapField.getValue() : 0;
-                    int numBlocks    = blocksField.getValue()       != null ? blocksField.getValue()       : 0;
-                    int rowsPerBlock = rowsField.getValue()         != null ? rowsField.getValue()         : 0;
-                    int seatsPerRow  = seatsField.getValue()        != null ? seatsField.getValue()        : 0;
+                int standingCap  = standingCapField.getValue() != null ? standingCapField.getValue() : 0;
+                int numBlocks    = blocksField.getValue()       != null ? blocksField.getValue()       : 0;
+                int rowsPerBlock = rowsField.getValue()         != null ? rowsField.getValue()         : 0;
+                int seatsPerRow  = seatsField.getValue()        != null ? seatsField.getValue()        : 0;
 
-                    if (standingCap == 0 && numBlocks == 0) {
-                        error("Add at least one area (standing or seated)");
-                        return;
-                    }
-                    boolean hasSeated = numBlocks > 0 || rowsPerBlock > 0 || seatsPerRow > 0;
-                    if (hasSeated && (numBlocks <= 0 || rowsPerBlock <= 0 || seatsPerRow <= 0)) {
-                        error("Seated area requires Blocks, Rows per Block, and Seats per Row all > 0");
-                        return;
-                    }
+                if (standingCap == 0 && numBlocks == 0) {
+                    error("Add at least one area (standing or seated)");
+                    return;
+                }
+                boolean hasSeated = numBlocks > 0 || rowsPerBlock > 0 || seatsPerRow > 0;
+                if (hasSeated && (numBlocks <= 0 || rowsPerBlock <= 0 || seatsPerRow <= 0)) {
+                    error("Seated area requires Blocks, Rows per Block, and Seats per Row all > 0");
+                    return;
+                }
+
+                if (isEdit) {
+                    boolean ok = presenter.updateShow(existing, sName.trim(),
+                            singerField.getValue().trim(), descField.getValue().trim(),
+                            showDateLocal, seatedPrice, standingPrice,
+                            standingCap, numBlocks, rowsPerBlock, seatsPerRow);
+                    if (!ok) return; // guard rejected the change — keep dialog open, error already shown
+                } else {
                     presenter.addShow(sName.trim(), singerField.getValue().trim(),
                             descField.getValue().trim(), showDateLocal,
                             standingCap, numBlocks, rowsPerBlock, seatsPerRow,
@@ -620,18 +622,18 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         Button cancelBtn = new Button("Cancel", e -> dialog.close());
         cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        // Area fields are only relevant when adding a new show.
-        // Editing cannot change areas because existing tickets reference their seats.
         VerticalLayout body;
         if (isEdit) {
-            Span areaNote = new Span("ℹ Areas cannot be changed after a show is created.");
+            Span areaNote = new Span("⚠ Shrinking the layout cancels any bookings for seats that no longer exist.");
             areaNote.getStyle()
                     .set("font-size", "13px").set("color", "#888")
                     .set("font-style", "italic").set("margin-top", "4px");
             body = new VerticalLayout(
                     nameField, singerField, descField, datePicker,
-                    showSectionLabel("Ticket Prices"),
-                    standingPriceField, seatedPriceField,
+                    showSectionLabel("Standing Area"),
+                    standingCapField, standingPriceField,
+                    showSectionLabel("Seated Area"),
+                    blocksField, rowsField, seatsField, seatedPriceField,
                     areaNote);
         } else {
             body = new VerticalLayout(
@@ -2196,41 +2198,6 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
         return -1;
     }
 
-    // ── Mock data ────────────────────────────────────────────────────────────
-
-    private static Event mockEvent() {
-        Event ev = new Event("Summer Music Festival 2025", show_type.FESTIVAL,
-                UUID.fromString("00000000-0000-0000-0000-000000000001"), "mock-owner");
-        ev.editVenue("BGU Amphitheatre, Beer-Sheva", "mock-owner");
-        ev.editDescription(
-                "A three-day outdoor festival featuring top local and international artists across multiple stages.",
-                "mock-owner");
-        try {
-            ev.editDates(
-                    new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-10"),
-                    new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-12"),
-                    "mock-owner");
-        } catch (Exception ignored) {
-        }
-        return ev;
-    }
-
-    private static show mockShow() {
-        try {
-            Date showDate = new SimpleDateFormat("yyyy-MM-dd").parse("2025-07-10");
-            show s = new show(null, "Opening Night",
-                    "An unforgettable opening with fireworks and live music.",
-                    "The Midnight", showDate);
-
-            StandingArea floor = new StandingArea("Floor GA", 500);
-            StandingArea vip = new StandingArea("VIP Standing", 80);
-            SeatedArea seated = new SeatedArea("Seated Balcony", 4);
-            s.setAreas(List.of(floor, vip, seated));
-            return s;
-        } catch (Exception e) {
-            return new show(null, "Opening Night", "Live music and fireworks.", "The Midnight", new Date());
-        }
-    }
 
     // ── UI helpers ───────────────────────────────────────────────────────────
 
@@ -2269,6 +2236,131 @@ public class EventDetailsView extends VerticalLayout implements EventDetailsPres
                 .set("font-size", "13px")
                 .set("font-weight", "700");
         return s;
+    }
+
+    // ── Ratings & Reviews ─────────────────────────────────────────────────────
+
+    /**
+     * "Ratings & Reviews" card: lets a logged-in member rate both the event and
+     * its organizing company, and shows each one's average score and review count.
+     */
+    private Div buildRatingsCard() {
+        Div card = card();
+        card.add(new H2("Ratings & Reviews"));
+
+        card.add(buildRatingBlock(
+                "This event",
+                presenter.getEventAverageRating(),
+                presenter.getEventReviewCount(),
+                presenter.getMyEventRating(),
+                presenter::submitEventRating));
+
+        Div divider = new Div();
+        divider.getStyle()
+                .set("height", "1px").set("background", "#eee").set("margin", "20px 0");
+        card.add(divider);
+
+        card.add(buildRatingBlock(
+                "Organizer · " + presenter.getCompanyName(),
+                presenter.getCompanyAverageRating(),
+                presenter.getCompanyReviewCount(),
+                presenter.getMyCompanyRating(),
+                presenter::submitCompanyRating));
+
+        return card;
+    }
+
+    /** One rating row: a title, the average stars + count, and an input (members only). */
+    private Div buildRatingBlock(String label, double average, int count, int myRating,
+            java.util.function.IntPredicate onSubmit) {
+        Div block = new Div();
+        block.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "8px");
+
+        H3 title = new H3(label);
+        title.getStyle().set("margin", "0").set("font-size", "18px").set("color", "#111");
+
+        Div avgRow = new Div();
+        avgRow.getStyle().set("display", "flex").set("align-items", "center").set("gap", "10px");
+        avgRow.add(buildStaticStars(average));
+        Span avgText = new Span(count > 0
+                ? String.format("%.1f", average) + "  ·  " + count + (count == 1 ? " review" : " reviews")
+                : "No reviews yet");
+        avgText.getStyle().set("color", "#555").set("font-size", "14px");
+        avgRow.add(avgText);
+
+        block.add(title, avgRow);
+
+        if (presenter.canRate()) {
+            Span prompt = new Span(myRating > 0
+                    ? "Your rating (click a star to change):"
+                    : "Tap a star to rate:");
+            prompt.getStyle().set("font-size", "13px").set("color", "#666").set("margin-top", "4px");
+            block.add(prompt, buildInteractiveStars(myRating, onSubmit));
+        } else {
+            Span hint = new Span("Log in as a member to leave a rating.");
+            hint.getStyle().set("font-size", "13px").set("color", "#888").set("font-style", "italic");
+            block.add(hint);
+        }
+        return block;
+    }
+
+    /** Read-only star display for an average score (rounded to the nearest star). */
+    private static Span buildStaticStars(double average) {
+        long rounded = Math.round(average);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i <= 5; i++) sb.append(i <= rounded ? "★" : "☆");
+        Span stars = new Span(sb.toString());
+        stars.getStyle().set("color", "#f5a623").set("font-size", "20px").set("letter-spacing", "2px");
+        return stars;
+    }
+
+    /**
+     * Five clickable stars. Hovering previews the score; clicking submits it via
+     * {@code onSubmit} and reloads the page so the new average is reflected.
+     */
+    private Div buildInteractiveStars(int current, java.util.function.IntPredicate onSubmit) {
+        Div row = new Div();
+        row.getStyle().set("display", "flex").set("gap", "4px").set("align-items", "center");
+
+        Span[] stars = new Span[5];
+        for (int i = 0; i < 5; i++) {
+            final int value = i + 1;
+            Span star = new Span(value <= current ? "★" : "☆");
+            star.getStyle()
+                    .set("cursor", "pointer")
+                    .set("font-size", "26px")
+                    .set("line-height", "1")
+                    .set("color", value <= current ? "#f5a623" : "#ccc");
+            stars[i] = star;
+
+            // Hover: light up every star up to the one being hovered.
+            star.getElement().addEventListener("mouseover", e -> {
+                for (int j = 0; j < 5; j++) {
+                    boolean lit = j < value;
+                    stars[j].setText(lit ? "★" : "☆");
+                    stars[j].getStyle().set("color", lit ? "#f5a623" : "#ccc");
+                }
+            });
+
+            star.addClickListener(e -> {
+                if (onSubmit.test(value)) {
+                    UI.getCurrent().getPage().reload();
+                }
+            });
+
+            row.add(star);
+        }
+
+        // Leaving the row restores the member's actual current rating.
+        row.getElement().addEventListener("mouseout", e -> {
+            for (int j = 0; j < 5; j++) {
+                boolean lit = j < current;
+                stars[j].setText(lit ? "★" : "☆");
+                stars[j].getStyle().set("color", lit ? "#f5a623" : "#ccc");
+            }
+        });
+
+        return row;
     }
 
     private static Div card() {

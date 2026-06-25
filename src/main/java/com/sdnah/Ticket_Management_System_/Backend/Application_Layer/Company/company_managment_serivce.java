@@ -656,6 +656,38 @@ public class company_managment_serivce {
         return company.getFullDetails();
     }
 
+    // ── Company ratings (per-user reviews, average kept on Company.rating) ──────
+
+    /**
+     * Records a member's 1–5 review of a company. The company's aggregate rating
+     * is recomputed from all reviews. Evicts the active-companies cache so the new
+     * rating shows up in listings / "browse by rating".
+     */
+    @CacheEvict(value = "active-companies", allEntries = true)
+    @Transactional
+    public void addReviewToCompany(UUID companyId, UUID userId, int rating) {
+        Company company = getCompanyOrThrow(companyId);
+        company.addReview(userId, rating);
+        companyRepository.save(company);
+        logger.info("Review added to company {} by user {} (rating={})", companyId, userId, rating);
+    }
+
+    /** All per-user reviews for a company, keyed by user id. */
+    @Transactional(readOnly = true)
+    public Map<UUID, Integer> getCompanyReviews(UUID companyId) {
+        return new java.util.HashMap<>(getCompanyOrThrow(companyId).getReviews());
+    }
+
+    /** Current aggregate (average) rating for a company. */
+    public double getCompanyRating(UUID companyId) {
+        return getCompanyOrThrow(companyId).getRating();
+    }
+
+    /** Display name for a company, used by views that only hold the company id. */
+    public String getCompanyName(UUID companyId) {
+        return getCompanyOrThrow(companyId).getCompanyName();
+    }
+
     public void deleteCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);

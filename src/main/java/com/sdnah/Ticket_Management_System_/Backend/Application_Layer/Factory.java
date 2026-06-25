@@ -1,14 +1,14 @@
 package com.sdnah.Ticket_Management_System_.Backend.Application_Layer;
 
-import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.CompanyRoleService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
-import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.PaymentService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.VerificationEmail;
-import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.*;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
+
+import jakarta.annotation.PostConstruct;
 
 @Component
 public class Factory {
@@ -77,7 +77,6 @@ public class Factory {
         checkDependencies();
 
         System.out.println("🔧 Step 2: Initializing test data...");
-        initTestData();
 
         System.out.println("🔧 Step 3: System configuration complete.");
     }
@@ -93,35 +92,5 @@ public class Factory {
         System.out.println("   ✓ All core services injected");
     }
 
-    // ==================== OPTIONAL: TEST DATA ====================
-    private void initTestData() {
-        try {
-            if (userRepository.count() == 0) {
-                System.out.println("   → Creating default test user...");
-
-                userService.register(
-                        "testuser",
-                        "123456",
-                        "test@mail.com",
-                        "0501234567",19,
-                        com.sdnah.Ticket_Management_System_.Backend.DTOs.VerificationMethod.EMAIL
-                );
-
-                // Auto-verify so the user can log in immediately without the email flow
-                userRepository.findByUsername("testuser").ifPresent(member -> {
-                    String code = member.getVerificationCode();
-                    if (code != null) {
-                        userService.verifyAccount("testuser", code);
-                    }
-                });
-
-                System.out.println("   ✓ Test user ready  →  username: testuser   password: 123456");
-            } else {
-                System.out.println("   ✓ Users already exist");
-            }
-
-        } catch (Exception e) {
-            System.out.println("   ⚠ Test data skipped: " + e.getMessage());
-        }
-    }
+    
 }
