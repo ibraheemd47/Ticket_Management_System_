@@ -53,6 +53,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Frontend.VenueMapSeeder;
 import com.vaadin.flow.spring.annotation.UIScope;
 
 /**
@@ -328,15 +329,28 @@ public class EventDetailsPresenter {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     /**
-     * The saved venue map for this event (II.2.2 — buyers view the event map),
-     * or {@code null} when none has been saved or it can't be parsed.
+     * The venue map buyers see on the event page (II.2.2). Uses the owner's saved
+     * layout if there is one; otherwise derives a default map from the event's
+     * seating so a visual map always shows when there's seating. {@code null}
+     * only when the event has no seating at all.
      */
     public VenueMapDTO getVenueMap() {
         if (cachedEventId == null) return null;
+        // 1) Owner's saved layout, if any.
         try {
             String json = eventService.getEventMapJson(cachedEventId);
-            if (json == null || json.isBlank()) return null;
-            return venueMapMapper.readValue(json, VenueMapDTO.class);
+            if (json != null && !json.isBlank()) {
+                VenueMapDTO saved = venueMapMapper.readValue(json, VenueMapDTO.class);
+                if (saved != null && saved.elements != null && !saved.elements.isEmpty()) {
+                    return saved;
+                }
+            }
+        } catch (Exception ignored) { /* fall through to derived map */ }
+        // 2) Derive from seating so buyers always get a visual map.
+        try {
+            int[] dims = eventService.getEventSeatingDims(cachedEventId);
+            if (dims[0] <= 0 && dims[1] <= 0) return null; // no seating at all
+            return VenueMapSeeder.buildDefault(dims, eventService.getEventAreaRefs(cachedEventId));
         } catch (Exception ex) {
             return null;
         }

@@ -116,56 +116,10 @@ public class VenueMapEditorView extends VerticalLayout implements BeforeEnterObs
      */
     private void seedFromSeatingIfEmpty() {
         if (map.elements != null && !map.elements.isEmpty()) return;
-
-        int[] dims = presenter.getSeatingDims(); // {standingCap, blocks, rows, seats}
-        int standingCap = dims[0], blocks = dims[1], rows = dims[2], seats = dims[3];
-
-        String seatedAreaId = areas.stream().filter(a -> SEATED.equals(a.type))
-                .map(a -> a.id).findFirst().orElse(null);
-        String standingAreaId = areas.stream().filter(a -> STANDING.equals(a.type))
-                .map(a -> a.id).findFirst().orElse(null);
-
-        double y = 20;
-        seedElement(STAGE, "Stage", (map.canvasWidth - 240) / 2.0, y, 240, 50, null);
-        y += 80;
-
-        if (standingCap > 0) {
-            seedElement(STANDING, "Standing · cap " + standingCap,
-                    (map.canvasWidth - 260) / 2.0, y, 260, 50, standingAreaId);
-            y += 80;
-        }
-
-        if (blocks > 0) {
-            int drawn = Math.min(blocks, 24);
-            int perRow = 4, cardW = 150, cardH = 84, gap = 18, leftPad = 40;
-            for (int i = 0; i < drawn; i++) {
-                double bx = leftPad + (i % perRow) * (cardW + gap);
-                double by = y + (i / perRow) * (cardH + gap);
-                seedElement(SEATED, "Block " + (i + 1) + " · " + rows + "×" + seats,
-                        bx, by, cardW, cardH, seatedAreaId);
-            }
-            int usedRows = (int) Math.ceil(drawn / (double) perRow);
-            double neededH = y + usedRows * (cardH + gap) + 30;
-            if (neededH > map.canvasHeight) map.canvasHeight = (int) neededH;
-        }
-    }
-
-    private void seedElement(String type, String label, double x, double y, double w, double h, String areaId) {
-        VenueMapDTO.Element el = new VenueMapDTO.Element();
-        el.id = "el-" + UUID.randomUUID();
-        el.type = type;
-        el.label = label;
-        el.x = clamp(x, 0, Math.max(0, map.canvasWidth - w));
-        el.y = y;
-        el.w = w;
-        el.h = h;
-        el.color = defaultColor(type);
-        if (areaId != null) {
-            el.areaId = areaId;
-            areas.stream().filter(a -> areaId.equals(a.id)).findFirst()
-                    .ifPresent(a -> el.areaName = a.name);
-        }
-        map.elements.add(el);
+        VenueMapDTO seeded = VenueMapSeeder.buildDefault(presenter.getSeatingDims(), areas);
+        map.canvasWidth = seeded.canvasWidth;
+        map.canvasHeight = seeded.canvasHeight;
+        map.elements = seeded.elements;
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────

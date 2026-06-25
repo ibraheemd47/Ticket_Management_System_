@@ -496,10 +496,13 @@ public class EventService {
      */
     public java.math.BigDecimal[] getEventPriceBounds(UUID eventId) {
         if (eventId == null) return null;
-        Event event = eventRepository.findById(eventId).orElse(null);
-        if (event == null || event.getShows() == null) return null;
+        // Fetch shows via a direct query (their seated/standing prices are basic
+        // columns, loaded eagerly) rather than navigating the lazy shows
+        // collection — so this works outside a transaction.
+        List<show> shows = eventRepository.getShowsForEvent(eventId);
+        if (shows == null || shows.isEmpty()) return null;
         java.math.BigDecimal min = null, max = null;
-        for (show s : event.getShows()) {
+        for (show s : shows) {
             for (java.math.BigDecimal p : new java.math.BigDecimal[]{ s.getSeatedPrice(), s.getStandingPrice() }) {
                 if (p == null) continue;
                 if (min == null || p.compareTo(min) < 0) min = p;
