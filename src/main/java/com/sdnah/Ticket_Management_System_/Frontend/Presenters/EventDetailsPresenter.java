@@ -44,8 +44,6 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPo
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DateRangeDiscountRule;
-import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountContext;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.PercentageDiscountRule;
@@ -387,7 +385,7 @@ public class EventDetailsPresenter {
      * @return a {@link DiscountPreview}, or {@code null} when no visible discount applies
      */
     public DiscountPreview previewVisibleDiscount(double subtotal, int quantity) {
-        if (cachedEventId == null || subtotal <= 0 || quantity <= 0) return null;
+        if (cachedEventId == null || subtotal <= 0) return null;
         try {
             DiscountPolicy eventPolicy = policyRepo.findDiscountPolicyByEventId(cachedEventId)
                     .filter(p -> p.getRootRule() != null).orElse(null);
@@ -397,52 +395,33 @@ public class EventDetailsPresenter {
                 companyPolicy = policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId)
                         .filter(p -> p.getRootRule() != null).orElse(null);
             }
-            if (eventPolicy == null && companyPolicy == null) return null;
 
-            // couponCode = null → only auto-applied ("visible") discounts contribute.
-            DiscountContext ctx = new DiscountContext(
-                    quantity, LocalDateTime.now(), null, subtotal, cachedEventId);
-
-            double eventPct   = eventPolicy   != null ? eventPolicy.computeDiscount(ctx)   : 0.0;
-            double companyPct = companyPolicy != null ? companyPolicy.computeDiscount(ctx) : 0.0;
+            // Only PERCENTAGE rules count here — ignore coupon / date-range /
+            // quantity-conditional rules. Combine event + company like checkout.
+            double eventPct   = eventPolicy   != null ? sumPercentageRules(eventPolicy.getRootRule())   : 0.0;
+            double companyPct = companyPolicy != null ? sumPercentageRules(companyPolicy.getRootRule()) : 0.0;
             double combinedPct = Math.max(0.0, Math.min(100.0, eventPct + companyPct));
             if (combinedPct <= 0.0) return null;
 
             double finalPrice = subtotal * (1.0 - combinedPct / 100.0);
-            LocalDateTime expiry = earliestDiscountExpiry(
-                    LocalDateTime.now(),
-                    eventPolicy != null ? eventPolicy.getRootRule() : null,
-                    companyPolicy != null ? companyPolicy.getRootRule() : null);
-            return new DiscountPreview(combinedPct, subtotal, finalPrice, expiry);
+            return new DiscountPreview(combinedPct, subtotal, finalPrice, null);
         } catch (RuntimeException ex) {
             return null; // never block the selection UI on a preview failure
         }
     }
 
-    /** Earliest future {@code until} among any active date-range discount rules. */
-    private static LocalDateTime earliestDiscountExpiry(LocalDateTime now, DiscountRule... roots) {
-        LocalDateTime earliest = null;
-        for (DiscountRule root : roots) {
-            earliest = mergeEarliestExpiry(earliest, now, root);
-        }
-        return earliest;
-    }
-
-    private static LocalDateTime mergeEarliestExpiry(LocalDateTime earliest, LocalDateTime now, DiscountRule rule) {
-        if (rule == null) return earliest;
-        if (rule instanceof CompositeDiscountRule composite) {
-            if (composite.getRules() != null) {
-                for (DiscountRule child : composite.getRules()) {
-                    earliest = mergeEarliestExpiry(earliest, now, child);
-                }
+    /** Sum the percentages of every {@link PercentageDiscountRule} in a rule tree. */
+    private static double sumPercentageRules(DiscountRule rule) {
+        if (rule == null) return 0.0;
+        if (rule instanceof PercentageDiscountRule p) return p.getPercentage();
+        if (rule instanceof CompositeDiscountRule composite && composite.getRules() != null) {
+            double sum = 0.0;
+            for (DiscountRule child : composite.getRules()) {
+                sum += sumPercentageRules(child);
             }
-        } else if (rule instanceof DateRangeDiscountRule dr) {
-            LocalDateTime until = dr.getUntil();
-            if (until != null && until.isAfter(now) && (earliest == null || until.isBefore(earliest))) {
-                earliest = until;
-            }
+            return sum;
         }
-        return earliest;
+        return 0.0;
     }
 
     /** Result of {@link #previewVisibleDiscount}. */
