@@ -17,7 +17,7 @@ import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.shared.Registration;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-
+import com.vaadin.flow.component.notification.NotificationVariant;
 public class NotificationBell extends Div {
 
     private final NotificationBellPresenter presenter;
@@ -222,9 +222,17 @@ public class NotificationBell extends Div {
         notificationList.add(empty);
     }
 
-    public void showToastMessage(String message) {
-        Notification.show(message);
-    }
+public void showToastMessage(String message) {
+    Notification notification = Notification.show(
+            message,
+            10000,
+            Notification.Position.TOP_CENTER
+    );
+
+    notification.addThemeVariants(
+            NotificationVariant.LUMO_ERROR
+    );
+}
 
     // Extracts the token directly from VaadinSession to pass to Presenter
     private String getCurrentToken() {

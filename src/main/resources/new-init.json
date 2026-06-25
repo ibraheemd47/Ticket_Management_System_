@@ -1,0 +1,117 @@
+[
+  {
+    "action": "register",
+    "username": "User1",
+    "password": "123456",
+    "email": "user1@test.com",
+    "phone": "0500000001",
+    "age": 21
+  },
+  {
+    "action": "verify",
+    "username": "User1",
+    "code": "000000"
+  },
+  {
+    "action": "register",
+    "username": "User2",
+    "password": "123456",
+    "email": "user2@test.com",
+    "phone": "0500000002",
+    "age": 22
+  },
+  {
+    "action": "verify",
+    "username": "User2",
+    "code": "000000"
+  },
+  {
+    "action": "register",
+    "username": "User3",
+    "password": "123456",
+    "email": "user3@test.com",
+    "phone": "0500000003",
+    "age": 25
+  },
+  {
+    "action": "verify",
+    "username": "User3",
+    "code": "000000"
+  },
+  {
+    "action": "register",
+    "username": "User4",
+    "password": "123456",
+    "email": "user4@test.com",
+    "phone": "0500000004",
+    "age": 20
+  },
+  {
+    "action": "verify",
+    "username": "User4",
+    "code": "000000"
+  },
+  {
+    "action": "login",
+    "username": "User1",
+    "password": "123456",
+    "saveTokenAs": "user1Token"
+  },
+  {
+    "action": "openCompany",
+    "token": "$user1Token",
+    "companyName": "C1",
+    "saveCompanyAs": "C1"
+  },
+  {
+    "action": "createEventWithLayout",
+    "token": "$user1Token",
+    "company": "$C1",
+    "eventName": "E1",
+    "eventType": "PERFORMANCE",
+    "venue": "Main Hall",
+    "startDate": "2026-07-01",
+    "endDate": "2026-07-01",
+    "saveEventAs": "E1",
+    "show": {
+      "name": "E1 Show",
+      "description": "Initial show for event E1",
+      "singer": "Performer 1",
+      "showDate": "2026-07-01",
+      "standingCapacity": 10,
+      "standingPrice": 20,
+      "numberOfBlocks": 1,
+      "rowsPerBlock": 1,
+      "seatsPerRow": 10,
+      "seatedPrice": 20
+    }
+  },
+  {
+    "action": "createEventWithLayout",
+    "token": "$user1Token",
+    "company": "$C1",
+    "eventName": "E2",
+    "eventType": "PERFORMANCE",
+    "venue": "Main Hall",
+    "startDate": "2026-07-02",
+    "endDate": "2026-07-02",
+    "saveEventAs": "E2",
+    "show": {
+      "name": "E2 Show",
+      "description": "Initial show for event E2",
+      "singer": "Performer 2",
+      "showDate": "2026-07-02",
+      "standingCapacity": 10,
+      "standingPrice": 10,
+      "numberOfBlocks": 1,
+      "rowsPerBlock": 1,
+      "seatsPerRow": 10,
+      "seatedPrice": 10
+    }
+  },
+  {
+    "action": "logout",
+    "token": "$user1Token"
+  }
+]
+
