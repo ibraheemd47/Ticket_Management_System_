@@ -17,12 +17,14 @@ public class CompanyRolesViewDTO {
     private final List<String> ownerIds;
     private final Map<String, Set<CompanyPermission>> managerPermissions;
     private final Map<String, String> managerAppointedBy;
+    private final Map<String, String> ownerAppointedBy;
 
     public CompanyRolesViewDTO(UUID companyId,
                                String founderId,
                                List<String> ownerIds,
                                Map<String, Set<CompanyPermission>> managerPermissions) {
-        this(companyId, founderId, ownerIds, managerPermissions, Collections.emptyMap());
+        this(companyId, founderId, ownerIds, managerPermissions,
+                Collections.emptyMap(), Collections.emptyMap());
     }
 
     public CompanyRolesViewDTO(UUID companyId,
@@ -30,12 +32,24 @@ public class CompanyRolesViewDTO {
                                List<String> ownerIds,
                                Map<String, Set<CompanyPermission>> managerPermissions,
                                Map<String, String> managerAppointedBy) {
+        this(companyId, founderId, ownerIds, managerPermissions,
+                managerAppointedBy, Collections.emptyMap());
+    }
+
+    public CompanyRolesViewDTO(UUID companyId,
+                               String founderId,
+                               List<String> ownerIds,
+                               Map<String, Set<CompanyPermission>> managerPermissions,
+                               Map<String, String> managerAppointedBy,
+                               Map<String, String> ownerAppointedBy) {
         this.companyId = companyId;
         this.founderId = founderId;
         this.ownerIds = ownerIds;
         this.managerPermissions = managerPermissions;
         this.managerAppointedBy = managerAppointedBy == null
                 ? Collections.emptyMap() : managerAppointedBy;
+        this.ownerAppointedBy = ownerAppointedBy == null
+                ? Collections.emptyMap() : ownerAppointedBy;
     }
 
     public UUID getCompanyId() {
@@ -56,5 +70,9 @@ public class CompanyRolesViewDTO {
 
     public Map<String, String> getManagerAppointedBy() {
         return managerAppointedBy;
+    }
+
+    public Map<String, String> getOwnerAppointedBy() {
+        return ownerAppointedBy;
     }
 }

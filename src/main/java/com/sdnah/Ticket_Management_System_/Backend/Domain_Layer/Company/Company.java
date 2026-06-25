@@ -480,6 +480,14 @@ public class Company {
         return Collections.unmodifiableMap(copy);
     }
 
+    /**
+     * Read-only map: ownerId → memberId of the owner who appointed them.
+     * Founder is not present in the map (they were never "appointed").
+     */
+    public Map<String, String> getOwnerAppointedByView() {
+        return Collections.unmodifiableMap(new HashMap<>(ownerAppointedByOwner));
+    }
+
     public boolean matchesName(String companyName) {
         if (companyName == null || companyName.trim().isEmpty()) {
             return true;

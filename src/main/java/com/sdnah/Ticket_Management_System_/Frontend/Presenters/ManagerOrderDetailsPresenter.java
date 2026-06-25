@@ -82,4 +82,18 @@ public class ManagerOrderDetailsPresenter {
             view.onRemoveFailed(ex.getMessage());
         }
     }
+
+    /**
+     * Undo the most recently logged action on this order (II.2.7 — undo
+     * last action). Currently the backend supports reversing a REMOVE_TICKET;
+     * other action types throw a friendly message that the view shows.
+     */
+    public void undoLastAction() {
+        try {
+            orderService.undoLast(orderId, token);
+            view.onUndoSucceeded();
+        } catch (RuntimeException ex) {
+            view.onUndoFailed(ex.getMessage());
+        }
+    }
 }

@@ -216,7 +216,12 @@ public class ActiveOrderService {
         // Record the action so the user can undo it (re-acquire the same seat).
         actionLogRepo.save(OrderActionLog.forRemovedTicket(order.getId(), removed));
 
-        orderPolicyDomainService.applyDiscounts(order, order.getAppliedCouponCode());
+        // Removing the last item leaves the order with no items at all.
+        // applyDiscounts() runs validateOrder() which rejects empty orders,
+        // so skip the re-application when there's nothing left to discount.
+        if (!order.getItems().isEmpty()) {
+            orderPolicyDomainService.applyDiscounts(order, order.getAppliedCouponCode());
+        }
         orderRepo.save(order);
         logger.info("Item removed successfully from order {}", orderId);
         return OrderMapper.toDTO(order);

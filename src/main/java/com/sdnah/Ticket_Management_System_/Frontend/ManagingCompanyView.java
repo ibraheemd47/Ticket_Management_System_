@@ -217,7 +217,8 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         section.add(new Paragraph(presenter.getMemberDisplayName(roles.getFounderId())));
 
         section.add(sectionTitle("Owners"));
-        section.add(buildOwnersList(roles.getOwnerIds(), me));
+        section.add(buildOwnersList(roles.getOwnerIds(), me,
+                roles.getOwnerAppointedBy(), roles.getFounderId()));
         section.add(appointBox("Appoint owner", presenter::appointOwner));
 
         // II.4.10 — a non-founder owner may resign their own ownership.
@@ -576,10 +577,15 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         presenter.loadRolesForCurrentCompany();
     }
 
-    private Component buildOwnersList(List<String> ownerIds, String currentMemberId) {
+    private Component buildOwnersList(List<String> ownerIds,
+                                      String currentMemberId,
+                                      Map<String, String> ownerAppointedBy,
+                                      String founderId) {
         if (ownerIds == null || ownerIds.isEmpty()) {
             return new Paragraph("No additional owners.");
         }
+        final Map<String, String> appointedBy = ownerAppointedBy == null
+                ? java.util.Collections.emptyMap() : ownerAppointedBy;
 
         Div list = new Div();
         list.getStyle()
@@ -598,6 +604,23 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             HorizontalLayout row = new HorizontalLayout(chip);
             row.setDefaultVerticalComponentAlignment(
                     com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+
+            // "Appointed by …" provenance — founder doesn't have one.
+            String byline;
+            if (ownerId.equals(founderId)) {
+                byline = "founder";
+            } else {
+                String appointer = appointedBy.get(ownerId);
+                byline = (appointer == null || appointer.isBlank())
+                        ? "appointed by —"
+                        : "appointed by " + getMemberDisplayName(appointer);
+            }
+            Span byTag = new Span(byline);
+            byTag.getStyle()
+                    .set("color", "#555")
+                    .set("font-size", "12px")
+                    .set("margin-left", "4px");
+            row.add(byTag);
 
             // II.4.9 — owners can remove owners they appointed (backend enforces
             // the "appointed by you" rule). Removing yourself goes through

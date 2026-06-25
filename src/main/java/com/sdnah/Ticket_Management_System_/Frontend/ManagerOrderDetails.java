@@ -109,6 +109,19 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
                 .addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 
+    /** Backend reversed the last logged action — reload so the grid shows it again. */
+    public void onUndoSucceeded() {
+        Notification.show("Last action undone", 2500, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        UI.getCurrent().getPage().reload();
+    }
+
+    public void onUndoFailed(String message) {
+        Notification.show("Couldn't undo: " + message, 4000,
+                        Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
     // ── Layout ───────────────────────────────────────────────────────────────
 
     private Div orderPickerCard(String errorMsg) {
@@ -246,6 +259,19 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
                 .set("padding", "10px 22px")
                 .set("border-radius", "8px");
         cancel.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));
+
+        // II.2.7 — undo last logged action on this order. Currently the
+        // backend only handles REMOVE_TICKET; other types throw a clear
+        // message that onUndoFailed surfaces to the user.
+        Button undo = new Button("↶ Undo last action", e -> presenter.undoLastAction());
+        undo.getStyle()
+                .set("background", "#fff")
+                .set("color", "#026cdf")
+                .set("border", "2px solid #026cdf")
+                .set("font-weight", "700")
+                .set("padding", "10px 22px")
+                .set("border-radius", "8px");
+        undo.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));
         Button checkout = new Button("Checkout", e -> {
             getUI().ifPresent(ui -> {
                 ui.getSession().setAttribute("checkoutOrderId", o.getOrderId().toString());
@@ -273,7 +299,7 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
 
         checkout.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));        
 
-        HorizontalLayout actions = new HorizontalLayout(checkout, cancel);
+        HorizontalLayout actions = new HorizontalLayout(checkout, undo, cancel);
         actions.getStyle().set("margin-top", "16px");
 
         card.add(title, status, meta, totals, grid, actions);

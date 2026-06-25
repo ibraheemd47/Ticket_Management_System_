@@ -242,6 +242,7 @@ public class company_managment_serivce {
 
     // --- II.4.4: Communication ---
     /** Use Case II.4.4: Receive and respond to inquiries */
+    @Transactional
     public void respondToInquiry(String actorToken, UUID companyId, int inquiryId, String response) {
         try {
             Member actor = getActorFromToken(actorToken);
@@ -261,6 +262,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.5: View Company Purchase and Order History ---
+    @Transactional(readOnly = true)
     public List<Integer> getPurchaseHistory(String actorToken, UUID companyId) {
         try {
             Member actor = getActorFromToken(actorToken);
@@ -324,6 +326,7 @@ public class company_managment_serivce {
         return rows;
     }
 
+    @Transactional(readOnly = true)
     public List<Integer> getOrderHistory(String actorToken, UUID companyId) {
         try {
             Member actor = getActorFromToken(actorToken);
@@ -344,6 +347,7 @@ public class company_managment_serivce {
 
     // --- II.4.6: Reporting ---
     /** Use Case II.4.6: Generate sales report including subtree data */
+    @Transactional(readOnly = true)
     public void generateSalesReport(String actorToken, UUID companyId) {
         try {
             Member actor = getActorFromToken(actorToken);
@@ -365,6 +369,7 @@ public class company_managment_serivce {
      * per-event revenue plus the company-level totals.
      * Authorization reuses the same gate as the void variant above.
      */
+    @Transactional(readOnly = true)
     public SalesReportDTO getSalesReport(String actorToken, UUID companyId) {
         Member actor = getActorFromToken(actorToken);
         Company company = getCompanyOrThrow(companyId);
@@ -466,6 +471,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.9: Remove Company Owner Appointment ---
+    @Transactional
     public void removeOwnerAppointment(String actorToken, UUID companyId, String targetOwnerId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -483,6 +489,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.10: Resign from Ownership ---
+    @Transactional
     public void resignOwnership(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -492,6 +499,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.11: Modify Manager Permissions ---
+    @Transactional
     public void modifyManagerPermissions(String actorToken, UUID companyId, String managerId,
             Set<CompanyPermission> updatedPermissions) {
         Company company = getCompanyOrThrow(companyId);
@@ -510,6 +518,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.12: Remove Manager Appointment ---
+    @Transactional
     public void removeManagerAppointment(String actorToken, UUID companyId, String managerId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -528,6 +537,7 @@ public class company_managment_serivce {
 
     // --- II.4.13: Suspend / Close Production Company ---
     @CacheEvict(value = "active-companies", allEntries = true)
+    @Transactional
     public boolean closeCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -549,6 +559,7 @@ public class company_managment_serivce {
 
     // --- II.4.14: Reopen Production Company ---
     @CacheEvict(value = "active-companies", allEntries = true)
+    @Transactional
     public boolean reopenCompany(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -569,6 +580,7 @@ public class company_managment_serivce {
     }
 
     // --- II.4.15: View Roles and Permissions ---
+    @Transactional(readOnly = true)
     public CompanyRolesViewDTO viewRolesAndPermissions(String actorToken, UUID companyId) {
         Company company = getCompanyOrThrow(companyId);
         Member actor = getActorFromToken(actorToken);
@@ -580,7 +592,8 @@ public class company_managment_serivce {
                 company.getCompanyFounderId(),
                 company.getOwnerIds(),
                 company.getManagerPermissionsView(),
-                company.getManagerAppointedByView());
+                company.getManagerAppointedByView(),
+                company.getOwnerAppointedByView());
     }
 
 
