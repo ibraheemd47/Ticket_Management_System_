@@ -302,8 +302,20 @@ public class ManagingCompanyPresenter {
 
     /** Hands the view a fresh sales report for the current company (II.4.6). */
     public void loadSalesReport() {
+        loadSalesReport(true);
+    }
+
+    /**
+     * II.4.6 — scoped sales report. {@code includeSubtree=true} expands
+     * the result to every event managed by the actor's appointment
+     * subtree; {@code false} restricts it to events the actor manages
+     * directly.
+     */
+    public void loadSalesReport(boolean includeSubtree) {
         try {
-            view.showSalesReport(companyService.getSalesReport(token, companyId));
+            view.showSalesReport(
+                    companyService.getSalesReport(token, companyId, includeSubtree),
+                    includeSubtree);
         } catch (RuntimeException ex) {
             view.showError("Couldn't load sales report: " + ex.getMessage());
         }

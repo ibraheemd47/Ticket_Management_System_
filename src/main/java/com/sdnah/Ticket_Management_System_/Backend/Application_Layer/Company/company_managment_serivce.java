@@ -368,13 +368,34 @@ public class company_managment_serivce {
      * II.4.6 — return a structured sales report so the UI can render
      * per-event revenue plus the company-level totals.
      * Authorization reuses the same gate as the void variant above.
+     *
+     * <p>Backwards-compat overload — defaults to "subtree" mode, which
+     * for the founder/full-permission viewer is equivalent to all events
+     * of the company.
      */
     @Transactional(readOnly = true)
     public SalesReportDTO getSalesReport(String actorToken, UUID companyId) {
+        return getSalesReport(actorToken, companyId, true);
+    }
+
+    /**
+     * II.4.6 — scoped sales report. When {@code includeSubtree} is false
+     * the result only contains events the actor manages directly
+     * ({@code event.ownerId == actorId} or actor in {@code managerIds}).
+     * When true the scope expands to every event whose owner or any
+     * manager is in the actor's appointment sub-tree (i.e. anyone the
+     * actor — transitively — appointed).
+     */
+    @Transactional(readOnly = true)
+    public SalesReportDTO getSalesReport(String actorToken, UUID companyId, boolean includeSubtree) {
         Member actor = getActorFromToken(actorToken);
         Company company = getCompanyOrThrow(companyId);
         // Re-uses existing II.4.6 auth path; throws if actor can't view reports.
         company.generateSalesReport(actor.getMemberId());
+
+        Set<String> scope = includeSubtree
+                ? company.getAppointmentSubtree(actor.getMemberId())
+                : Set.of(actor.getMemberId());
 
         List<Event> events = eventRepository.findByCompanyId(companyId);
 
@@ -383,6 +404,8 @@ public class company_managment_serivce {
         List<SalesReportDTO.EventLine> lines = new java.util.ArrayList<>();
 
         for (Event ev : events) {
+            if (!eventInScope(ev, scope)) continue;
+
             var purchases = purchaseRepository.findByEventId(ev.getEventId());
             java.math.BigDecimal eventRevenue = purchases.stream()
                     .map(p -> p.getTotalPrice() == null ? java.math.BigDecimal.ZERO : p.getTotalPrice())
@@ -402,6 +425,19 @@ public class company_managment_serivce {
                 totalOrders,
                 totalRevenue,
                 lines);
+    }
+
+    /**
+     * Returns true if any member in {@code scope} is the event's owner
+     * or appears in its manager list. An event with no owner / managers
+     * is treated as out-of-scope.
+     */
+    private static boolean eventInScope(Event ev, Set<String> scope) {
+        if (ev.getOwnerId() != null && scope.contains(ev.getOwnerId())) return true;
+        List<String> mgrs = ev.getManagerIds();
+        if (mgrs == null) return false;
+        for (String m : mgrs) if (scope.contains(m)) return true;
+        return false;
     }
 
     // --- II.4.7: View and Appoint Company Managers ---

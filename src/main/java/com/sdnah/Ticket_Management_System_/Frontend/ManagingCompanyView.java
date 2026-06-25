@@ -270,7 +270,12 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         tabContent.add(error(message));
     }
 
+    /** Backwards-compat — defaults to subtree mode. */
     public void showSalesReport(SalesReportDTO report) {
+        showSalesReport(report, true);
+    }
+
+    public void showSalesReport(SalesReportDTO report, boolean includeSubtree) {
         tabContent.removeAll();
         if (report == null) {
             tabContent.add(new Paragraph("No data."));
@@ -281,11 +286,27 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         section.setSpacing(false);
 
         section.add(sectionTitle("Sales report — " + report.getCompanyName()));
+
+        // II.4.6 — scope toggle. "Direct only" = events I personally
+        // manage; "Include my appointees" = everyone in my appointment
+        // subtree (transitively).
+        final String DIRECT  = "Direct only";
+        final String SUBTREE = "Include my appointees";
+        RadioButtonGroup<String> scope = new RadioButtonGroup<>();
+        scope.setLabel("Scope");
+        scope.setItems(DIRECT, SUBTREE);
+        scope.setValue(includeSubtree ? SUBTREE : DIRECT);
+        scope.addValueChangeListener(e ->
+                presenter.loadSalesReport(SUBTREE.equals(e.getValue())));
+        section.add(scope);
+
         section.add(new Paragraph("Total orders: " + report.getTotalOrders()));
         section.add(new Paragraph("Total revenue: " + report.getTotalRevenue().toPlainString()));
 
         if (report.getPerEvent().isEmpty()) {
-            section.add(new Paragraph("No events for this company yet."));
+            section.add(new Paragraph(includeSubtree
+                    ? "No events under your appointment subtree."
+                    : "No events you manage directly."));
         } else {
             Grid<SalesReportDTO.EventLine> grid = new Grid<>();
             grid.addColumn(SalesReportDTO.EventLine::getEventName).setHeader("Event");

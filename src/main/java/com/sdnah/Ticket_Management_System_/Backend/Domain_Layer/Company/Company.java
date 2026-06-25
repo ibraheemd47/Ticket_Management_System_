@@ -488,6 +488,34 @@ public class Company {
         return Collections.unmodifiableMap(new HashMap<>(ownerAppointedByOwner));
     }
 
+    /**
+     * II.4.6 — collect the appointment sub-tree rooted at {@code actorId}.
+     * The returned set contains {@code actorId} itself plus every owner /
+     * manager appointed by anyone already in the set, recursively. Used by
+     * the sales report to scope rows to "events I manage directly or via
+     * people I appointed (transitively)".
+     */
+    public Set<String> getAppointmentSubtree(String actorId) {
+        Set<String> subtree = new HashSet<>();
+        if (actorId == null || actorId.isBlank()) return subtree;
+        subtree.add(actorId.trim());
+
+        Map<String, String> ownerBy   = ownerAppointedByOwner;            // ownerId   → appointer
+        Map<String, String> managerBy = getManagerAppointedByView();      // managerId → appointer
+
+        boolean grew = true;
+        while (grew) {
+            grew = false;
+            for (Map.Entry<String, String> e : ownerBy.entrySet()) {
+                if (subtree.contains(e.getValue()) && subtree.add(e.getKey())) grew = true;
+            }
+            for (Map.Entry<String, String> e : managerBy.entrySet()) {
+                if (subtree.contains(e.getValue()) && subtree.add(e.getKey())) grew = true;
+            }
+        }
+        return Collections.unmodifiableSet(subtree);
+    }
+
     public boolean matchesName(String companyName) {
         if (companyName == null || companyName.trim().isEmpty()) {
             return true;
