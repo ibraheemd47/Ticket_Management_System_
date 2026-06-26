@@ -22,6 +22,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteU
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.OwnerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
@@ -38,6 +39,8 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRole
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.OwnerAppointmentRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OwnerAppointmentRequestRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.UserRepository;
@@ -55,6 +58,7 @@ public class company_managment_serivce {
     private IrepresnteUserService representUserService;
     private PolicyRepository policyRepo;
     private final PurchaseRepository purchaseRepository;
+    private final OwnerAppointmentRequestRepository ownerRequestRepository;
 
     @Autowired
     public company_managment_serivce(CompanyRepository companyRepository,
@@ -62,7 +66,8 @@ public class company_managment_serivce {
             IEventRepository eventRepository,
             IrepresnteUserService representUserService,
             NotificationService notificationService, PolicyRepository policyRepo,
-            PurchaseRepository purchaseRepository) {
+            PurchaseRepository purchaseRepository,
+            OwnerAppointmentRequestRepository ownerRequestRepository) {
 
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
@@ -72,6 +77,18 @@ public class company_managment_serivce {
         this.notificationService = notificationService;
         this.policyRepo = policyRepo;
         this.purchaseRepository = purchaseRepository;
+        this.ownerRequestRepository = ownerRequestRepository;
+    }
+
+    /** 7-arg overload — wires the new owner-request flow into a null repo. */
+    public company_managment_serivce(CompanyRepository companyRepository,
+            UserRepository userRepository,
+            IEventRepository eventRepository,
+            IrepresnteUserService representUserService,
+            NotificationService notificationService, PolicyRepository policyRepo,
+            PurchaseRepository purchaseRepository) {
+        this(companyRepository, userRepository, eventRepository, representUserService,
+                notificationService, policyRepo, purchaseRepository, null);
     }
 
     /**
@@ -95,6 +112,48 @@ public class company_managment_serivce {
         return companyRepository.findByIsOpen(true).stream()
                 .map(this::toDTO)
                 .toList();
+    }
+
+    /**
+     * Lookup a single company DTO regardless of its open/closed status.
+     * Used by the "my companies" chooser so closed companies still
+     * resolve to their name (otherwise the row renders nameless and the
+     * user can't tell what got closed).
+     */
+    public java.util.Optional<CompanyDTO> getCompanyById(UUID companyId) {
+        return companyRepository.findById(companyId).map(this::toDTO);
+    }
+
+    /**
+     * Drop every {@link CompanyRoleAssignment} on this member that no
+     * longer matches the company's current roster (owner or manager).
+     * The chooser calls this on each page load so a previously-removed
+     * user (e.g. removed before the role-sync fix landed) stops seeing
+     * the company in their "My companies" list.
+     */
+    @Transactional
+    public void reconcileMyCompanyRoles(String actorToken) {
+        Member actor = getActorFromToken(actorToken);
+        java.util.Set<UUID> stale = new HashSet<>();
+
+        for (var role : actor.getCompanyRoles()) {
+            UUID cid = role.getCompanyId();
+            // Company gone entirely → stale.
+            var maybe = companyRepository.findById(cid);
+            if (maybe.isEmpty()) { stale.add(cid); continue; }
+            Company company = maybe.get();
+            boolean stillOnRoster = company.isOwner(actor.getMemberId())
+                    || company.isManager(actor.getMemberId())
+                    || actor.getMemberId().equals(company.getCompanyFounderId());
+            if (!stillOnRoster) stale.add(cid);
+        }
+        if (stale.isEmpty()) return;
+
+        boolean changed = false;
+        for (UUID cid : stale) {
+            changed |= actor.removeCompanyRoles(cid);
+        }
+        if (changed) userRepository.save(actor);
     }
 
     // II.2.1 - Get all upcoming events from active companies
@@ -480,6 +539,12 @@ public class company_managment_serivce {
     // }
 
     // --- II.4.8: Appoint Additional Company Owner ---
+    /**
+     * Direct (no-approval) owner appointment. Kept for tests and the legacy
+     * code path that bootstraps the founder; the production UI now goes
+     * through {@link #requestOwnerAppointment} so the candidate has to
+     * accept first.
+     */
     @Transactional
     public void appointAdditionalOwner(String actorToken, UUID companyId, String newOwnerId) {
         Company company = getCompanyOrThrow(companyId);
@@ -487,23 +552,138 @@ public class company_managment_serivce {
 
         companyAuthorizationDomainService.assertCanAssignOwner(actor, company);
 
-        company.appointAdditionalOwner(actor.getMemberId(), newOwnerId);
-        companyRepository.save(company);
-        Member newOwner = userRepository.findById(newOwnerId)
-                .orElseThrow(() -> new NoSuchElementException("New owner member not found"));
-
-        newOwner.addCompanyRole(new CompanyRoleAssignment(
-                companyId,
-                actor.getMemberId(),
-                CompanyRoleType.OWNER,
-                Set.of()));
-        userRepository.save(newOwner);
+        appointAdditionalOwnerInternal(company, actor.getMemberId(), newOwnerId);
 
         //notifications
         notificationService.notifyOwnerAppointed(newOwnerId, company.getCompanyName());
 
         logger.info("Additional owner appointed. companyId={}, newOwnerId={}, actingOwnerId={}",
                 companyId, newOwnerId, actor.getMemberId());
+    }
+
+    /**
+     * Apply an owner appointment to the domain + role tables. Shared by the
+     * direct path and the request/accept path so behaviour stays identical
+     * once approval has been granted.
+     */
+    private void appointAdditionalOwnerInternal(Company company,
+                                                String actingOwnerId,
+                                                String newOwnerId) {
+        company.appointAdditionalOwner(actingOwnerId, newOwnerId);
+        companyRepository.save(company);
+        Member newOwner = userRepository.findById(newOwnerId)
+                .orElseThrow(() -> new NoSuchElementException("New owner member not found"));
+
+        newOwner.addCompanyRole(new CompanyRoleAssignment(
+                company.getCompanyId(),
+                actingOwnerId,
+                CompanyRoleType.OWNER,
+                Set.of()));
+        userRepository.save(newOwner);
+    }
+
+    /**
+     * II.4.8 (request flow) — create a pending owner-appointment request
+     * and notify the candidate. The candidate must
+     * {@link #respondToOwnerAppointment respond} before they actually
+     * become an owner.
+     */
+    @Transactional
+    public UUID requestOwnerAppointment(String actorToken, UUID companyId, String candidateId) {
+        if (ownerRequestRepository == null)
+            throw new IllegalStateException("Owner request flow is not wired (legacy constructor)");
+        Company company = getCompanyOrThrow(companyId);
+        Member actor = getActorFromToken(actorToken);
+
+        // Same authorization gate as a direct appointment.
+        companyAuthorizationDomainService.assertCanAssignOwner(actor, company);
+
+        String trimmed = candidateId == null ? "" : candidateId.trim();
+        if (trimmed.isEmpty()) throw new IllegalArgumentException("candidate required");
+        if (company.isOwner(trimmed))
+            throw new IllegalArgumentException("User is already an owner of this company.");
+
+        // Block re-requesting an already-pending candidate.
+        if (ownerRequestRepository.findByCompanyIdAndCandidateIdAndStatus(
+                companyId, trimmed, OwnerAppointmentRequest.Status.PENDING).isPresent()) {
+            throw new IllegalStateException("There's already a pending invite for this user.");
+        }
+
+        // Candidate must exist as a Member before we can invite them.
+        userRepository.findById(trimmed)
+                .orElseThrow(() -> new NoSuchElementException("Candidate member not found: " + trimmed));
+
+        OwnerAppointmentRequest req = new OwnerAppointmentRequest(
+                companyId, trimmed, actor.getMemberId());
+        ownerRequestRepository.save(req);
+
+        // Display the appointer's username in the notification — the raw
+        // member id is meaningless to the candidate reading the bell.
+        notificationService.notifyOwnerAppointmentRequested(
+                trimmed, company.getCompanyName(),
+                actor.getUsername() == null ? actor.getMemberId() : actor.getUsername());
+
+        logger.info("Owner appointment requested. companyId={}, candidateId={}, by={}",
+                companyId, trimmed, actor.getMemberId());
+        return req.getId();
+    }
+
+    /**
+     * II.4.8 (request flow) — candidate accepts or rejects a pending
+     * owner-appointment request. On accept, the same domain wiring as a
+     * direct appointment is applied. The original appointer is notified
+     * either way.
+     */
+    @Transactional
+    public void respondToOwnerAppointment(String actorToken, UUID requestId, boolean accept) {
+        if (ownerRequestRepository == null)
+            throw new IllegalStateException("Owner request flow is not wired (legacy constructor)");
+        Member actor = getActorFromToken(actorToken);
+        OwnerAppointmentRequest req = ownerRequestRepository.findById(requestId)
+                .orElseThrow(() -> new NoSuchElementException("Request not found: " + requestId));
+
+        if (!actor.getMemberId().equals(req.getCandidateId()))
+            throw new SecurityException("Only the invited candidate can respond to this request.");
+
+        Company company = getCompanyOrThrow(req.getCompanyId());
+
+        if (accept) {
+            req.accept();
+            appointAdditionalOwnerInternal(company, req.getAppointerId(), req.getCandidateId());
+            notificationService.notifyOwnerAppointed(req.getCandidateId(), company.getCompanyName());
+        } else {
+            req.reject();
+        }
+        ownerRequestRepository.save(req);
+
+        String candidateDisplay = actor.getUsername() == null
+                ? req.getCandidateId() : actor.getUsername();
+        notificationService.notifyOwnerAppointmentResponded(
+                req.getAppointerId(), company.getCompanyName(), candidateDisplay, accept);
+
+        logger.info("Owner appointment {} for request {} by candidate {}",
+                accept ? "ACCEPTED" : "REJECTED", requestId, actor.getMemberId());
+    }
+
+    /** Pending invites the current member can act on (II.4.8). */
+    @Transactional(readOnly = true)
+    public List<OwnerAppointmentRequestDTO> getPendingOwnerInvites(String actorToken) {
+        if (ownerRequestRepository == null) return List.of();
+        Member actor = getActorFromToken(actorToken);
+        List<OwnerAppointmentRequest> pending = ownerRequestRepository
+                .findByCandidateIdAndStatus(actor.getMemberId(),
+                        OwnerAppointmentRequest.Status.PENDING);
+        List<OwnerAppointmentRequestDTO> out = new java.util.ArrayList<>();
+        for (OwnerAppointmentRequest r : pending) {
+            String companyName = companyRepository.findById(r.getCompanyId())
+                    .map(Company::getCompanyName).orElse("(unknown company)");
+            String appointerName = userRepository.findById(r.getAppointerId())
+                    .map(Member::getUsername).orElse(r.getAppointerId());
+            out.add(new OwnerAppointmentRequestDTO(
+                    r.getId(), r.getCompanyId(), companyName,
+                    r.getAppointerId(), appointerName, r.getCreatedAt()));
+        }
+        return out;
     }
 
     // --- II.4.9: Remove Company Owner Appointment ---
@@ -516,6 +696,12 @@ public class company_managment_serivce {
 
         company.removeOwnerAppointment(actor.getMemberId(), targetOwnerId);
         companyRepository.save(company);
+
+        // Also drop the role assignment off the target Member, otherwise
+        // they still see the company in their "My companies" list and
+        // any check that consults Member.companyRoles still treats them
+        // as an owner.
+        dropMemberCompanyRoles(targetOwnerId, companyId);
 
         //notifications
         notificationService.notifyOwnerRemoved(targetOwnerId, company.getCompanyName());
@@ -532,6 +718,23 @@ public class company_managment_serivce {
 
         company.resignOwnership(actor.getMemberId());
         companyRepository.save(company);
+
+        dropMemberCompanyRoles(actor.getMemberId(), companyId);
+    }
+
+    /**
+     * Removes every {@code CompanyRoleAssignment} this member holds for
+     * the given company. Mirrors the {@code addCompanyRole} done on the
+     * appointment paths so the user-side role table stays in sync with
+     * the company-side roles after a removal/resign.
+     */
+    private void dropMemberCompanyRoles(String memberId, UUID companyId) {
+        if (memberId == null || memberId.isBlank()) return;
+        userRepository.findById(memberId).ifPresent(m -> {
+            if (m.removeCompanyRoles(companyId)) {
+                userRepository.save(m);
+            }
+        });
     }
 
     // --- II.4.11: Modify Manager Permissions ---
@@ -563,6 +766,9 @@ public class company_managment_serivce {
 
         company.removeManagerAppointment(actor.getMemberId(), managerId);
         companyRepository.save(company);
+
+        // Same sync as for owners — drop the role on the Member side.
+        dropMemberCompanyRoles(managerId, companyId);
 
         //notifications
         notificationService.notifyManagerRemoved(managerId, company.getCompanyName());

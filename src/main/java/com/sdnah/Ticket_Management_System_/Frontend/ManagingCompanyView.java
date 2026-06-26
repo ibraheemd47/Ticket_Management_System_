@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.OwnerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
@@ -119,9 +120,10 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         Object c = UI.getCurrent().getSession().getAttribute(SESSION_COMPANY_ID);
         if (c == null) {
             // No specific company picked — show the list of the user's companies.
+            // loadMyCompanies() repopulates the slot from scratch, so we
+            // don't seed it with buildChooserShell() here.
             presenter.bind(token, null);
             add(chooserSlot);
-            chooserSlot.add(buildChooserShell());
             presenter.loadMyCompanies();
             return;
         }
@@ -140,6 +142,17 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     // ── Display methods called by the presenter ──────────────────────────────
 
+    /**
+     * Re-render the chooser from scratch. Called by the presenter at the
+     * start of every {@code loadMyCompanies} pass so refreshes (after
+     * accept/decline) don't stack a second grid + invites card on top of
+     * the previous render.
+     */
+    public void resetChooserSlot() {
+        chooserSlot.removeAll();
+        chooserSlot.add(buildChooserShell());
+    }
+
     public void showMyCompanies(List<CompanyRow> companies) {
         if (companies.isEmpty()) {
             Paragraph empty = new Paragraph(
@@ -153,6 +166,19 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         grid.addColumn(r -> "#" + r.companyId).setHeader("ID").setAutoWidth(true);
         grid.addColumn(r -> r.name == null ? "—" : r.name).setHeader("Name").setFlexGrow(2);
         grid.addColumn(r -> r.role).setHeader("Your role").setAutoWidth(true);
+        // CLOSED tag (II.4.13 — closed by founder/admin). Stays visible so the
+        // owner sees the status from the chooser without having to drill in.
+        grid.addComponentColumn(r -> {
+            Span tag = new Span(r.isOpen ? "Active" : "CLOSED");
+            tag.getStyle()
+                    .set("padding", "2px 10px")
+                    .set("border-radius", "999px")
+                    .set("font-size", "11px")
+                    .set("font-weight", "700")
+                    .set("background", r.isOpen ? "#e8f5e9" : "#ffebee")
+                    .set("color",      r.isOpen ? "#2e7d32" : "#c62828");
+            return tag;
+        }).setHeader("Status").setAutoWidth(true);
         grid.addComponentColumn(r -> {
             Button manage = new Button("Manage", ev -> {
                 UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, r.companyId);
@@ -169,6 +195,49 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     public void showCompanyChooserError(String message) {
         chooserSlot.add(error(message));
+    }
+
+    /**
+     * II.4.8 — pending owner-appointment invites for the current user.
+     * Rendered above the "my companies" list so the candidate sees them
+     * immediately on entering the page.
+     */
+    public void showPendingOwnerInvites(List<OwnerAppointmentRequestDTO> invites) {
+        if (invites == null || invites.isEmpty()) return;
+
+        Div card = new Div();
+        card.getStyle()
+                .set("background", "#fff8e1")
+                .set("border", "2px solid #f0b400")
+                .set("border-radius", "10px")
+                .set("padding", "16px")
+                .set("margin-bottom", "16px");
+
+        H2 title = new H2("Pending owner invitations (" + invites.size() + ")");
+        title.getStyle().set("margin", "0 0 8px 0").set("font-size", "18px");
+        card.add(title);
+
+        for (OwnerAppointmentRequestDTO inv : invites) {
+            HorizontalLayout row = new HorizontalLayout();
+            row.setWidthFull();
+            row.setDefaultVerticalComponentAlignment(
+                    com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+
+            Span text = new Span(inv.getAppointerName()
+                    + " invites you to own '" + inv.getCompanyName() + "'.");
+            text.getStyle().set("flex", "1");
+
+            Button accept = new Button("Accept",
+                    e -> presenter.respondToOwnerInvite(inv.getRequestId(), true));
+            accept.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SUCCESS);
+            Button decline = new Button("Decline",
+                    e -> presenter.respondToOwnerInvite(inv.getRequestId(), false));
+            decline.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+            row.add(text, accept, decline);
+            card.add(row);
+        }
+        chooserSlot.add(card);
     }
 
     public void showEvents(List<EventDto> events) {

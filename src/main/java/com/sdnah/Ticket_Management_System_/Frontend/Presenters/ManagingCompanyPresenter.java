@@ -17,6 +17,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.OwnerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
@@ -102,14 +103,34 @@ public class ManagingCompanyPresenter {
     /** Load the companies this member owns/manages and pass them to the view. */
     public void loadMyCompanies() {
         try {
+            // Wipe the slot first so refreshes (e.g. after accepting an
+            // owner invite) replace the previous render instead of
+            // appending a second grid + invites card under it.
+            view.resetChooserSlot();
+            // Lazy migration: drop any role assignments left over from
+            // pre-fix removals that no longer match the company roster.
+            companyService.reconcileMyCompanyRoles(token);
             Member me = userService.getMemberByToken(token);
             view.showMyCompanies(resolveMyCompanies(me));
+            view.showPendingOwnerInvites(
+                    companyService.getPendingOwnerInvites(token));
         } catch (RuntimeException ex) {
             view.showCompanyChooserError("Couldn't load your companies: " + ex.getMessage());
         }
     }
 
-    /** Cross-reference the member's roles with the active-companies list to get names. */
+    /** II.4.8 — candidate accepts or rejects a pending owner-appointment invite. */
+    public void respondToOwnerInvite(UUID requestId, boolean accept) {
+        try {
+            companyService.respondToOwnerAppointment(token, requestId, accept);
+            view.showSuccess(accept ? "Invitation accepted" : "Invitation declined");
+            loadMyCompanies();
+        } catch (RuntimeException ex) {
+            view.showError("Couldn't respond to invite: " + ex.getMessage());
+        }
+    }
+
+    /** Cross-reference the member's roles with the company repo to get names + open/closed status. */
     private List<CompanyRow> resolveMyCompanies(Member me) {
         Set<UUID> myCompanyIds = new HashSet<>();
         Map<UUID, String> roleByCompany = new HashMap<>();
@@ -120,20 +141,22 @@ public class ManagingCompanyPresenter {
                     a.isOwner() ? "Owner" : a.isManager() ? "Manager" : a.getRoleType().name());
         }
 
-        // Best available source for company names today; switch to a dedicated
-        // "find by ids" query if/when one is added.
-        Map<UUID, String> nameById = new HashMap<>();
-        try {
-            for (CompanyDTO dto : companyService.getActiveCompanies()) {
-                nameById.put(dto.getCompanyId(), dto.getCompanyName());
-            }
-        } catch (RuntimeException ignored) {
-            // If the lookup blows up we still show IDs.
-        }
-
         List<CompanyRow> out = new ArrayList<>();
         for (UUID cid : myCompanyIds) {
-            out.add(new CompanyRow(cid, nameById.get(cid), roleByCompany.get(cid)));
+            // findById, not getActiveCompanies, so closed companies still
+            // resolve to their name and the UI can render a CLOSED badge.
+            String name = "(unknown)";
+            boolean isOpen = true;
+            try {
+                java.util.Optional<CompanyDTO> dto = companyService.getCompanyById(cid);
+                if (dto.isPresent()) {
+                    name   = dto.get().getCompanyName();
+                    isOpen = dto.get().isOpen();
+                }
+            } catch (RuntimeException ignored) {
+                // fall back to the placeholder name + assume open
+            }
+            out.add(new CompanyRow(cid, name, roleByCompany.get(cid), isOpen));
         }
         out.sort((a, b) -> a.companyId.compareTo(b.companyId));
         return out;
@@ -173,10 +196,15 @@ public class ManagingCompanyPresenter {
         }
     }
 
+    /**
+     * II.4.8 — create a pending owner-appointment request. The candidate
+     * has to accept (or reject) from their own "My companies" page before
+     * they actually become an owner.
+     */
     public void appointOwner(String memberId) {
         try {
-            companyService.appointAdditionalOwner(token, companyId, memberId);
-            view.onRoleMutationSucceeded("Done");
+            companyService.requestOwnerAppointment(token, companyId, memberId);
+            view.onRoleMutationSucceeded("Invite sent — awaiting acceptance");
         } catch (RuntimeException ex) {
             view.showError(ex.getMessage());
         }
@@ -407,10 +435,12 @@ public class ManagingCompanyPresenter {
         public final UUID companyId;
         public final String name;
         public final String role;
-        CompanyRow(UUID companyId, String name, String role) {
+        public final boolean isOpen;
+        CompanyRow(UUID companyId, String name, String role, boolean isOpen) {
             this.companyId = companyId;
             this.name = name;
             this.role = role;
+            this.isOpen = isOpen;
         }
     }
 }

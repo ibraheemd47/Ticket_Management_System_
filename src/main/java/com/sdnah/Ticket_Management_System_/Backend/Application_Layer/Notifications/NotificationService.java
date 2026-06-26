@@ -310,6 +310,29 @@ public class NotificationService {
         );
     }
 
+    public String notifyOwnerAppointmentRequested(String recipientUsername,
+                                                  String companyName,
+                                                  String appointerName) {
+        return createNotification(
+                recipientUsername,
+                appointerName + " invited you to become an owner of '" + companyName + "'. "
+                        + "Open the company chooser to accept or decline.",
+                NotificationType.OWNER_APPOINTMENT_REQUESTED
+        );
+    }
+
+    public String notifyOwnerAppointmentResponded(String recipientUsername,
+                                                  String companyName,
+                                                  String candidateName,
+                                                  boolean accepted) {
+        return createNotification(
+                recipientUsername,
+                candidateName + (accepted ? " accepted" : " declined")
+                        + " your owner invitation for '" + companyName + "'.",
+                NotificationType.OWNER_APPOINTMENT_RESPONDED
+        );
+    }
+
     public String notifyOwnerRemoved(String recipientUsername, String companyName) {
         return createNotification(
                 recipientUsername,

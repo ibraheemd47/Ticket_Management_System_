@@ -113,7 +113,13 @@ public class Company {
 
         String normalizedActorId = actorId.trim();
 
-        if (!isOpen && requiredPermission != CompanyPermission.VIEW_ROLES) {
+        // Read-only operations stay available after close — owners must still
+        // be able to inspect roles, pull past sales reports, and review
+        // historical purchase / order data (II.4.13: closing pauses *mutations*,
+        // not read access). Mutating permissions remain blocked.
+        if (!isOpen
+                && requiredPermission != CompanyPermission.VIEW_ROLES
+                && requiredPermission != CompanyPermission.VIEW_HISTORY) {
             throw new IllegalStateException("Operation failed: The company is currently inactive.");
         }
 

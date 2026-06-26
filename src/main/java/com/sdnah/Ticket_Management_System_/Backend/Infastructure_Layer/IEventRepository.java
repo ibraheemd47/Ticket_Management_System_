@@ -45,26 +45,37 @@ public interface IEventRepository extends JpaRepository<Event, UUID> {
     @Query("SELECT s FROM show s WHERE s.event.eventId = :eventId AND s.showid = :showId")
     Optional<show> getShowDetails(@Param("eventId") UUID eventId, @Param("showId") UUID showId);
 
-    @Query("SELECT e FROM Event e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    // Every search below filters out events whose owning Company has been
+    // closed (by founder OR by system admin — both set isOpen=false). This
+    // mirrors the filter on findAllEvents() above so buyers never discover
+    // events from inactive companies through search.
+
+    @Query("SELECT e FROM Event e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))" +
+            " AND NOT EXISTS (SELECT c FROM Company c WHERE c.companyId = e.companyId AND c.isOpen = false)")
     List<Event> searchEventsByName(@Param("name") String name);
 
-    @Query("SELECT e FROM Event e WHERE LOWER(e.description) LIKE LOWER(CONCAT('%', :desc, '%'))")
+    @Query("SELECT e FROM Event e WHERE LOWER(e.description) LIKE LOWER(CONCAT('%', :desc, '%'))" +
+            " AND NOT EXISTS (SELECT c FROM Company c WHERE c.companyId = e.companyId AND c.isOpen = false)")
     List<Event> searchEventsByDescription(@Param("desc") String desc);
 
-    @Query("SELECT e FROM Event e WHERE LOWER(e.venue) LIKE LOWER(CONCAT('%', :venue, '%'))")
+    @Query("SELECT e FROM Event e WHERE LOWER(e.venue) LIKE LOWER(CONCAT('%', :venue, '%'))" +
+            " AND NOT EXISTS (SELECT c FROM Company c WHERE c.companyId = e.companyId AND c.isOpen = false)")
     List<Event> searchEventsByVenue(@Param("venue") String venue);
 
-    @Query("SELECT e FROM Event e WHERE e.eventType = :eventType")
+    @Query("SELECT e FROM Event e WHERE e.eventType = :eventType" +
+            " AND NOT EXISTS (SELECT c FROM Company c WHERE c.companyId = e.companyId AND c.isOpen = false)")
     List<Event> searchEventsByType(@Param("eventType") show_type eventType);
 
-    @Query("SELECT DISTINCT e FROM Event e JOIN e.shows s WHERE LOWER(s.singer) LIKE LOWER(CONCAT('%', :singerName, '%'))")
+    @Query("SELECT DISTINCT e FROM Event e JOIN e.shows s WHERE LOWER(s.singer) LIKE LOWER(CONCAT('%', :singerName, '%'))" +
+            " AND NOT EXISTS (SELECT c FROM Company c WHERE c.companyId = e.companyId AND c.isOpen = false)")
     List<Event> searchEventsBySingerName(@Param("singerName") String singerName);
 
     @Query("SELECT e FROM Event e WHERE " +
             "(:name IS NULL OR LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
             "(:eventType IS NULL OR e.eventType = :eventType) AND " +
             "(:startDate IS NULL OR e.startDate >= :startDate) AND " +
-            "(:endDate IS NULL OR e.endDate <= :endDate)")
+            "(:endDate IS NULL OR e.endDate <= :endDate) AND " +
+            "NOT EXISTS (SELECT c FROM Company c WHERE c.companyId = e.companyId AND c.isOpen = false)")
     List<Event> getEventsByFilter(@Param("name") String name,
             @Param("eventType") show_type eventType,
             @Param("startDate") Date startDate,
