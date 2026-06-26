@@ -178,9 +178,11 @@ public class OrderPolicyDomainService {
         double companyPct = companyPolicy != null ? companyPolicy.computeDiscount(context) : 0.0;
 
         // stacking = add the percentages, clamped to 0..100
-        double combinedPct = Math.max(0.0, Math.min(100.0, eventPct + companyPct));
+        // double combinedPct = Math.max(0.0, Math.min(100.0, eventPct + companyPct));
 
-        double finalPrice = originalTotal * (1.0 - combinedPct / 100.0);
+        // double finalPrice = originalTotal * (1.0 - combinedPct / 100.0);
+        double finalPrice = originalTotal * (1.0 - eventPct / 100.0) * (1.0 - companyPct / 100.0);
+
         order.updateFinalPrice(finalPrice);
 
         if (couponCode != null && !couponCode.isBlank()) {
