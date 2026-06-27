@@ -29,6 +29,7 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.CreateComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.VenueMapDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
@@ -328,6 +329,20 @@ public class EventDetailsPresenter {
     // Policies
     // =========================================================================
 
+    private boolean canModifyEventPolicy() {
+        String token = getToken();
+        if (token == null || cachedEvent == null) return false;
+        try {
+            Member member = userService.getMemberByToken(token);
+            UUID cid = cachedEvent.getCompanyId();
+            if (member.isOwnerInCompany(cid)) return true;
+            return companyService.getCompany(cid)
+                    .managerHasPermission(member.getMemberId(), CompanyPermission.MANAGE_EVENTS);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private final ObjectMapper venueMapMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -445,6 +460,8 @@ public class EventDetailsPresenter {
     
     public void deletePolicy(Policy policy) {
       //  canManageEvent();
+      if (!canModifyEventPolicy()) { view.showError("You don't have permission to modify policies"); return; }
+
         if (blockPolicyChangeIfTicketsAlreadyReserved()) {
             return;
         }
@@ -472,6 +489,8 @@ public class EventDetailsPresenter {
         if (blockPolicyChangeIfTicketsAlreadyReserved()) {
             return;
         }
+        if (!canModifyEventPolicy()) { view.showError("You don't have permission to modify policies"); return; }
+
         Object companyIdObj = view.getSessionAttribute("managingCompanyId");
         if (companyIdObj == null) { view.showError("No company session"); return; }
         //canManageEvent();
@@ -542,6 +561,8 @@ public class EventDetailsPresenter {
      */
     public void saveDiscountPolicy(Policy existing, List<DiscountRule> rules, boolean isAdditive) {
        // canManageEvent();
+       if (!canModifyEventPolicy()) { view.showError("You don't have permission to modify policies"); return; }
+
         if (cachedEventId == null) {
             view.showError("No event loaded");
             return;

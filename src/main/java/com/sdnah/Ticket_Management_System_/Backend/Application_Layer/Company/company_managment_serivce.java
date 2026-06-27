@@ -105,6 +105,11 @@ public class company_managment_serivce {
         this(companyRepository, userRepository, eventRepository, representUserService,
                 notificationService, policyRepo, null);
     }
+    public Company getCompany(UUID companyId) {
+        return companyRepository.findById(companyId)
+                .orElseThrow(() -> new NoSuchElementException("Company not found: " + companyId));
+    }
+
 
     // --- II.2.1: View Active Production Companies ---
     @Cacheable("active-companies")
