@@ -29,6 +29,7 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.CompanyAuthorizationDomainService;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.userOrderDomainService;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
@@ -702,6 +703,10 @@ public class company_managment_serivce {
         company.removeOwnerAppointment(actor.getMemberId(), targetOwnerId);
         companyRepository.save(company);
 
+        userRepository.findById(targetOwnerId).ifPresent(target -> {
+            target.removeCompanyRoles(companyId);
+            userRepository.save(target);
+        });
         // Also drop the role assignment off the target Member, otherwise
         // they still see the company in their "My companies" list and
         // any check that consults Member.companyRoles still treats them
