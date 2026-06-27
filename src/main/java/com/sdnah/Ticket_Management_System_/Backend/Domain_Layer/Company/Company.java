@@ -113,7 +113,13 @@ public class Company {
 
         String normalizedActorId = actorId.trim();
 
-        if (!isOpen && requiredPermission != CompanyPermission.VIEW_ROLES) {
+        // Read-only operations stay available after close — owners must still
+        // be able to inspect roles, pull past sales reports, and review
+        // historical purchase / order data (II.4.13: closing pauses *mutations*,
+        // not read access). Mutating permissions remain blocked.
+        if (!isOpen
+                && requiredPermission != CompanyPermission.VIEW_ROLES
+                && requiredPermission != CompanyPermission.VIEW_HISTORY) {
             throw new IllegalStateException("Operation failed: The company is currently inactive.");
         }
 
@@ -478,6 +484,42 @@ public class Company {
             copy.put(manager.getManagerId(), manager.getAppointedByOwnerId());
         }
         return Collections.unmodifiableMap(copy);
+    }
+
+    /**
+     * Read-only map: ownerId → memberId of the owner who appointed them.
+     * Founder is not present in the map (they were never "appointed").
+     */
+    public Map<String, String> getOwnerAppointedByView() {
+        return Collections.unmodifiableMap(new HashMap<>(ownerAppointedByOwner));
+    }
+
+    /**
+     * II.4.6 — collect the appointment sub-tree rooted at {@code actorId}.
+     * The returned set contains {@code actorId} itself plus every owner /
+     * manager appointed by anyone already in the set, recursively. Used by
+     * the sales report to scope rows to "events I manage directly or via
+     * people I appointed (transitively)".
+     */
+    public Set<String> getAppointmentSubtree(String actorId) {
+        Set<String> subtree = new HashSet<>();
+        if (actorId == null || actorId.isBlank()) return subtree;
+        subtree.add(actorId.trim());
+
+        Map<String, String> ownerBy   = ownerAppointedByOwner;            // ownerId   → appointer
+        Map<String, String> managerBy = getManagerAppointedByView();      // managerId → appointer
+
+        boolean grew = true;
+        while (grew) {
+            grew = false;
+            for (Map.Entry<String, String> e : ownerBy.entrySet()) {
+                if (subtree.contains(e.getValue()) && subtree.add(e.getKey())) grew = true;
+            }
+            for (Map.Entry<String, String> e : managerBy.entrySet()) {
+                if (subtree.contains(e.getValue()) && subtree.add(e.getKey())) grew = true;
+            }
+        }
+        return Collections.unmodifiableSet(subtree);
     }
 
     public boolean matchesName(String companyName) {

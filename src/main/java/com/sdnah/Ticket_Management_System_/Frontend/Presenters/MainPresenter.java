@@ -1,12 +1,15 @@
 package com.sdnah.Ticket_Management_System_.Frontend.Presenters;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Component;
 
@@ -23,6 +26,7 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.CreateComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.show_type;
 import com.sdnah.Ticket_Management_System_.Frontend.MainView;
 import com.sdnah.Ticket_Management_System_.Frontend.NotificationBell;
 
@@ -102,45 +106,34 @@ public void loadInitialData() {
         view.reloadPage();
     }
 
+    /** Back-compat entry point — search with no category / rating / price filters. */
     public void performSearch(String filterMode, String query, Date startDate, Date endDate) {
+        performSearch(filterMode, query, startDate, endDate, null, null, null, null);
+    }
+
+    /**
+     * Search events with the optional advanced filters from II.2.3:
+     * {@code category} (event type), {@code minRating}, and a price range
+     * ({@code minPrice}/{@code maxPrice}). Text/date drive the base result set
+     * (as before); the advanced filters are then applied on top.
+     */
+    public void performSearch(String filterMode, String query, Date startDate, Date endDate,
+                              show_type category, Double minRating, BigDecimal minPrice, BigDecimal maxPrice) {
         String text = query != null ? query.trim() : "";
-        List<EventDto> results = null;
 
         try {
-            if (text.isEmpty() && startDate == null && endDate == null) {
-                if (allEventDtos != null) {
-                    view.showEvents(allEventDtos);
-                }
-                return;
+            List<EventDto> results;
+            boolean noBaseCriteria = text.isEmpty() && startDate == null && endDate == null;
+            if (noBaseCriteria) {
+                // No text/date — start from the full catalogue so the advanced
+                // filters still have something to narrow.
+                results = allEventDtos != null ? new ArrayList<>(allEventDtos) : new ArrayList<>();
+            } else {
+                List<EventDto> base = computeBaseResults(filterMode, text, startDate, endDate);
+                results = base != null ? new ArrayList<>(base) : new ArrayList<>();
             }
 
-            if (filterMode.equals("Event")) {
-                if (!text.isEmpty()) {
-                    results = eventService.searchEventByName(text);
-                } else if (startDate != null && endDate != null) {
-                    results = eventService.searchEventsByDateRange(startDate, endDate);
-                } else if (startDate != null) {
-                    results = eventService.searchEventsByStartDate(startDate);
-                } else if (endDate != null) {
-                    results = eventService.searchEventsByEndDate(endDate);
-                }
-            } else if (filterMode.equals("Company")) {
-                if (!text.isEmpty()) {
-                    if (startDate != null && endDate != null) {
-                        results = companyService.searchEventsInCompanyByDateRange(text, startDate, endDate);
-                    } else if (startDate != null) {
-                        results = companyService.searchEventsInCompanyByStartDate(text, startDate);
-                    } else if (endDate != null) {
-                        results = companyService.searchEventsInCompanyByEndDate(text, endDate);
-                    } else {
-                        results = companyService.searchEventsInCompanyByKeyword(text, text);
-                    }
-                }
-            } else if (filterMode.equals("Venue")) {
-                if (!text.isEmpty()) {
-                    results = eventService.searchEventsByVenue(text);
-                }
-            }
+            results = applyAdvancedFilters(results, category, minRating, minPrice, maxPrice);
 
             if (results != null && !results.isEmpty()) {
                 view.showEvents(results);
@@ -154,6 +147,70 @@ public void loadInitialData() {
             System.err.println("Search Error: " + ex.getMessage());
             ex.printStackTrace();
         }
+    }
+
+    /** Text/date driven base search, unchanged from the original routing. */
+    private List<EventDto> computeBaseResults(String filterMode, String text, Date startDate, Date endDate) {
+        List<EventDto> results = null;
+        if (filterMode.equals("Event")) {
+            if (!text.isEmpty()) {
+                results = eventService.searchEventByName(text);
+            } else if (startDate != null && endDate != null) {
+                results = eventService.searchEventsByDateRange(startDate, endDate);
+            } else if (startDate != null) {
+                results = eventService.searchEventsByStartDate(startDate);
+            } else if (endDate != null) {
+                results = eventService.searchEventsByEndDate(endDate);
+            }
+        } else if (filterMode.equals("Company")) {
+            if (!text.isEmpty()) {
+                if (startDate != null && endDate != null) {
+                    results = companyService.searchEventsInCompanyByDateRange(text, startDate, endDate);
+                } else if (startDate != null) {
+                    results = companyService.searchEventsInCompanyByStartDate(text, startDate);
+                } else if (endDate != null) {
+                    results = companyService.searchEventsInCompanyByEndDate(text, endDate);
+                } else {
+                    results = companyService.searchEventsInCompanyByKeyword(text, text);
+                }
+            }
+        } else if (filterMode.equals("Venue")) {
+            if (!text.isEmpty()) {
+                results = eventService.searchEventsByVenue(text);
+            }
+        }
+        return results;
+    }
+
+    /** Apply the II.2.3 advanced filters (category / rating / price range). */
+    private List<EventDto> applyAdvancedFilters(List<EventDto> events, show_type category,
+                                                Double minRating, BigDecimal minPrice, BigDecimal maxPrice) {
+        if (events == null) return new ArrayList<>();
+        Stream<EventDto> s = events.stream();
+        if (category != null) {
+            s = s.filter(e -> e.eventType == category);
+        }
+        if (minRating != null && minRating > 0) {
+            s = s.filter(e -> getEventAverageRating(e.id) >= minRating);
+        }
+        if (minPrice != null || maxPrice != null) {
+            s = s.filter(e -> eventPriceInRange(e.id, minPrice, maxPrice));
+        }
+        return s.collect(Collectors.toList());
+    }
+
+    /**
+     * True when the event has a priced show whose range overlaps the requested
+     * [{@code minPrice}, {@code maxPrice}] window (either bound may be null).
+     * Events with no priced shows are excluded once a price filter is active.
+     */
+    private boolean eventPriceInRange(UUID eventId, BigDecimal minPrice, BigDecimal maxPrice) {
+        BigDecimal[] bounds = eventService.getEventPriceBounds(eventId);
+        if (bounds == null) return false;
+        BigDecimal evMin = bounds[0], evMax = bounds[1];
+        if (minPrice != null && evMax.compareTo(minPrice) < 0) return false; // entirely below window
+        if (maxPrice != null && evMin.compareTo(maxPrice) > 0) return false; // entirely above window
+        return true;
     }
 
    

@@ -1,13 +1,17 @@
 package com.sdnah.Ticket_Management_System_.Frontend;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.OwnerAppointmentRequestDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
@@ -30,8 +34,11 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.CheckboxGroup;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -48,6 +55,7 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -76,10 +84,12 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     
     private final Div tabContent = new Div();
-    private final Tab eventsTab   = new Tab("Events");
-    private final Tab rolesTab    = new Tab("Roles");
-    private final Tab policiesTab = new Tab("Policies");
-    private final Tab reportTab   = new Tab("Sales report");
+    private final Tab eventsTab     = new Tab("Events");
+    private final Tab rolesTab      = new Tab("Roles");
+    private final Tab policiesTab   = new Tab("Policies");
+    private final Tab reportTab     = new Tab("Sales report");
+    private final Tab historyTab    = new Tab("Purchase history");
+    private final Tab complaintsTab = new Tab("Complaints");
 
     /** Container the chooser is rendered into so we can replace its body on errors / refreshes. */
     private final Div chooserSlot = new Div();
@@ -110,9 +120,10 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         Object c = UI.getCurrent().getSession().getAttribute(SESSION_COMPANY_ID);
         if (c == null) {
             // No specific company picked — show the list of the user's companies.
+            // loadMyCompanies() repopulates the slot from scratch, so we
+            // don't seed it with buildChooserShell() here.
             presenter.bind(token, null);
             add(chooserSlot);
-            chooserSlot.add(buildChooserShell());
             presenter.loadMyCompanies();
             return;
         }
@@ -131,6 +142,17 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     // ── Display methods called by the presenter ──────────────────────────────
 
+    /**
+     * Re-render the chooser from scratch. Called by the presenter at the
+     * start of every {@code loadMyCompanies} pass so refreshes (after
+     * accept/decline) don't stack a second grid + invites card on top of
+     * the previous render.
+     */
+    public void resetChooserSlot() {
+        chooserSlot.removeAll();
+        chooserSlot.add(buildChooserShell());
+    }
+
     public void showMyCompanies(List<CompanyRow> companies) {
         if (companies.isEmpty()) {
             Paragraph empty = new Paragraph(
@@ -144,6 +166,19 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         grid.addColumn(r -> "#" + r.companyId).setHeader("ID").setAutoWidth(true);
         grid.addColumn(r -> r.name == null ? "—" : r.name).setHeader("Name").setFlexGrow(2);
         grid.addColumn(r -> r.role).setHeader("Your role").setAutoWidth(true);
+        // CLOSED tag (II.4.13 — closed by founder/admin). Stays visible so the
+        // owner sees the status from the chooser without having to drill in.
+        grid.addComponentColumn(r -> {
+            Span tag = new Span(r.isOpen ? "Active" : "CLOSED");
+            tag.getStyle()
+                    .set("padding", "2px 10px")
+                    .set("border-radius", "999px")
+                    .set("font-size", "11px")
+                    .set("font-weight", "700")
+                    .set("background", r.isOpen ? "#e8f5e9" : "#ffebee")
+                    .set("color",      r.isOpen ? "#2e7d32" : "#c62828");
+            return tag;
+        }).setHeader("Status").setAutoWidth(true);
         grid.addComponentColumn(r -> {
             Button manage = new Button("Manage", ev -> {
                 UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, r.companyId);
@@ -160,6 +195,49 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
 
     public void showCompanyChooserError(String message) {
         chooserSlot.add(error(message));
+    }
+
+    /**
+     * II.4.8 — pending owner-appointment invites for the current user.
+     * Rendered above the "my companies" list so the candidate sees them
+     * immediately on entering the page.
+     */
+    public void showPendingOwnerInvites(List<OwnerAppointmentRequestDTO> invites) {
+        if (invites == null || invites.isEmpty()) return;
+
+        Div card = new Div();
+        card.getStyle()
+                .set("background", "#fff8e1")
+                .set("border", "2px solid #f0b400")
+                .set("border-radius", "10px")
+                .set("padding", "16px")
+                .set("margin-bottom", "16px");
+
+        H2 title = new H2("Pending owner invitations (" + invites.size() + ")");
+        title.getStyle().set("margin", "0 0 8px 0").set("font-size", "18px");
+        card.add(title);
+
+        for (OwnerAppointmentRequestDTO inv : invites) {
+            HorizontalLayout row = new HorizontalLayout();
+            row.setWidthFull();
+            row.setDefaultVerticalComponentAlignment(
+                    com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+
+            Span text = new Span(inv.getAppointerName()
+                    + " invites you to own '" + inv.getCompanyName() + "'.");
+            text.getStyle().set("flex", "1");
+
+            Button accept = new Button("Accept",
+                    e -> presenter.respondToOwnerInvite(inv.getRequestId(), true));
+            accept.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SUCCESS);
+            Button decline = new Button("Decline",
+                    e -> presenter.respondToOwnerInvite(inv.getRequestId(), false));
+            decline.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+            row.add(text, accept, decline);
+            card.add(row);
+        }
+        chooserSlot.add(card);
     }
 
     public void showEvents(List<EventDto> events) {
@@ -198,17 +276,60 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
     public void showRoles(CompanyRolesViewDTO roles) {
         tabContent.removeAll();
 
+        String me = presenter.getCurrentMemberId();
+        boolean iAmFounder = me != null && me.equals(roles.getFounderId());
+        boolean iAmOwner = iAmFounder
+                || (me != null && roles.getOwnerIds() != null && roles.getOwnerIds().contains(me));
+
         Div section = new Div();
         section.add(sectionTitle("Founder"));
         section.add(new Paragraph(presenter.getMemberDisplayName(roles.getFounderId())));
 
         section.add(sectionTitle("Owners"));
-        section.add(buildOwnersList(roles.getOwnerIds()));
+        section.add(buildOwnersList(roles.getOwnerIds(), me,
+                roles.getOwnerAppointedBy(), roles.getFounderId()));
         section.add(appointBox("Appoint owner", presenter::appointOwner));
+
+        // II.4.10 — a non-founder owner may resign their own ownership.
+        if (iAmOwner && !iAmFounder) {
+            Button resign = new Button("Resign ownership", e -> confirmResign());
+            resign.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+            resign.getStyle().set("margin-top", "12px");
+            section.add(resign);
+        }
 
         section.add(sectionTitle("Managers + permissions"));
         section.add(buildManagersGrid(roles.getManagerPermissions(), roles.getManagerAppointedBy()));
-        section.add(appointBox("Appoint manager", presenter::appointManager));
+        section.add(buildAppointManagerBox());
+
+        // II.4.13 / II.4.14 — owners can suspend / reopen the company.
+        if (iAmOwner) {
+            section.add(sectionTitle("Company status"));
+            boolean open = presenter.isCurrentCompanyOpen();
+            Paragraph status = new Paragraph(
+                    "This company is currently " + (open ? "open." : "suspended."));
+            status.getStyle().set("color", "#666").set("font-size", "13px").set("margin", "0 0 8px 0");
+            Button toggle;
+            if (open) {
+                toggle = new Button("Suspend company", e -> confirmSuspend());
+                toggle.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+            } else {
+                toggle = new Button("Reopen company", e -> presenter.reopenCompany());
+                toggle.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+            }
+            section.add(status, toggle);
+        }
+
+        // Item 12 — owners can delete the whole company (and its events).
+        if (iAmOwner) {
+            section.add(sectionTitle("Danger zone"));
+            Paragraph warn = new Paragraph(
+                    "Permanently deletes this company and all of its events. This cannot be undone.");
+            warn.getStyle().set("color", "#666").set("font-size", "13px").set("margin", "0 0 8px 0");
+            Button del = new Button("Delete company", e -> confirmDelete());
+            del.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+            section.add(warn, del);
+        }
 
         tabContent.add(section);
     }
@@ -218,7 +339,12 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         tabContent.add(error(message));
     }
 
+    /** Backwards-compat — defaults to subtree mode. */
     public void showSalesReport(SalesReportDTO report) {
+        showSalesReport(report, true);
+    }
+
+    public void showSalesReport(SalesReportDTO report, boolean includeSubtree) {
         tabContent.removeAll();
         if (report == null) {
             tabContent.add(new Paragraph("No data."));
@@ -229,11 +355,27 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         section.setSpacing(false);
 
         section.add(sectionTitle("Sales report — " + report.getCompanyName()));
+
+        // II.4.6 — scope toggle. "Direct only" = events I personally
+        // manage; "Include my appointees" = everyone in my appointment
+        // subtree (transitively).
+        final String DIRECT  = "Direct only";
+        final String SUBTREE = "Include my appointees";
+        RadioButtonGroup<String> scope = new RadioButtonGroup<>();
+        scope.setLabel("Scope");
+        scope.setItems(DIRECT, SUBTREE);
+        scope.setValue(includeSubtree ? SUBTREE : DIRECT);
+        scope.addValueChangeListener(e ->
+                presenter.loadSalesReport(SUBTREE.equals(e.getValue())));
+        section.add(scope);
+
         section.add(new Paragraph("Total orders: " + report.getTotalOrders()));
         section.add(new Paragraph("Total revenue: " + report.getTotalRevenue().toPlainString()));
 
         if (report.getPerEvent().isEmpty()) {
-            section.add(new Paragraph("No events for this company yet."));
+            section.add(new Paragraph(includeSubtree
+                    ? "No events under your appointment subtree."
+                    : "No events you manage directly."));
         } else {
             Grid<SalesReportDTO.EventLine> grid = new Grid<>();
             grid.addColumn(SalesReportDTO.EventLine::getEventName).setHeader("Event");
@@ -247,11 +389,156 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         tabContent.add(section);
     }
 
+    public void showPurchaseHistory(List<PurchaseHistoryEntryDTO> rows) {
+        tabContent.removeAll();
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(false);
+        section.add(sectionTitle("Purchase history"));
+
+        if (rows == null || rows.isEmpty()) {
+            section.add(new Paragraph("No purchases yet for this company's events."));
+            tabContent.add(section);
+            return;
+        }
+
+        java.time.format.DateTimeFormatter fmt =
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        Grid<PurchaseHistoryEntryDTO> grid = new Grid<>();
+        grid.addColumn(r -> r.getPurchasedAt() == null ? "—" : r.getPurchasedAt().format(fmt))
+                .setHeader("Purchased at");
+        grid.addColumn(PurchaseHistoryEntryDTO::getEventName).setHeader("Event");
+        grid.addColumn(r -> getMemberDisplayName(r.getBuyerId())).setHeader("Buyer");
+        grid.addColumn(PurchaseHistoryEntryDTO::getTicketCount).setHeader("Tickets");
+        grid.addColumn(r -> r.getTotalPrice().toPlainString()).setHeader("Total");
+        grid.setItems(rows);
+        grid.setAllRowsVisible(true);
+        grid.setWidthFull();
+        section.add(grid);
+        tabContent.add(section);
+    }
+
+    // ── Complaints tab (company-side, parallel to admin) ─────────────────────
+
+    public void showComplaints(List<ComplaintDTO> complaints) {
+        tabContent.removeAll();
+        Div section = new Div();
+        section.add(sectionTitle("Complaints about this company"));
+        Paragraph note = new Paragraph(
+                "Complaints buyers filed against your company. You can respond here in parallel "
+                + "with the system admin.");
+        note.getStyle().set("color", "#666");
+        section.add(note);
+
+        if (complaints == null || complaints.isEmpty()) {
+            section.add(new Paragraph("No complaints for this company."));
+            tabContent.add(section);
+            return;
+        }
+
+        Grid<ComplaintDTO> grid = new Grid<>(ComplaintDTO.class, false);
+        grid.addColumn(ComplaintDTO::getSubject).setHeader("Subject").setFlexGrow(2);
+        grid.addColumn(c -> c.getStatus() == null ? "—" : c.getStatus().name())
+                .setHeader("Status").setAutoWidth(true);
+        grid.addColumn(c -> getMemberDisplayName(c.getReporterMemberId()))
+                .setHeader("From").setAutoWidth(true);
+        grid.addColumn(c -> c.getCreatedAt() == null ? "—" : c.getCreatedAt().toLocalDate().toString())
+                .setHeader("Filed").setAutoWidth(true);
+        grid.addComponentColumn(c -> {
+            Button respond = new Button("View / Respond", ev -> openRespondDialog(c));
+            respond.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+            return respond;
+        }).setHeader("");
+        grid.setItems(complaints);
+        grid.setAllRowsVisible(true);
+        grid.setWidthFull();
+
+        section.add(grid);
+        tabContent.add(section);
+    }
+
+    public void showComplaintsError(String message) {
+        tabContent.removeAll();
+        tabContent.add(error(message));
+    }
+
+    private void openRespondDialog(ComplaintDTO c) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Complaint — " + c.getSubject());
+        dialog.setWidth("520px");
+
+        VerticalLayout body = new VerticalLayout();
+        body.setPadding(false);
+        body.getStyle().set("gap", "8px");
+        body.add(new Paragraph("From: " + getMemberDisplayName(c.getReporterMemberId())));
+
+        Paragraph desc = new Paragraph(c.getDescription());
+        desc.getStyle().set("background", "#f6f8fb").set("padding", "10px")
+                .set("border-radius", "8px").set("white-space", "pre-wrap");
+        body.add(desc);
+
+        if (c.getAdminResponse() != null && !c.getAdminResponse().isBlank()) {
+            Paragraph ar = new Paragraph("Admin response: " + c.getAdminResponse());
+            ar.getStyle().set("color", "#555").set("font-size", "13px");
+            body.add(ar);
+        }
+        if (c.getCompanyResponse() != null && !c.getCompanyResponse().isBlank()) {
+            Paragraph cr = new Paragraph("Your last response: " + c.getCompanyResponse());
+            cr.getStyle().set("color", "#2e7d32").set("font-size", "13px");
+            body.add(cr);
+        }
+
+        TextArea response = new TextArea("Your response");
+        response.setWidthFull();
+        response.setMinHeight("110px");
+        if (c.getCompanyResponse() != null) response.setValue(c.getCompanyResponse());
+        body.add(response);
+
+        Button send = new Button("Send response", e -> {
+            if (response.getValue() == null || response.getValue().isBlank()) {
+                showError("Write a response first");
+                return;
+            }
+            presenter.respondToComplaint(c.getComplaintId(), response.getValue(), false);
+            dialog.close();
+        });
+        send.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button resolve = new Button("Send & resolve", e -> {
+            if (response.getValue() == null || response.getValue().isBlank()) {
+                showError("Write a response first");
+                return;
+            }
+            presenter.respondToComplaint(c.getComplaintId(), response.getValue(), true);
+            dialog.close();
+        });
+        resolve.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+
+        Button cancel = new Button("Cancel", e -> dialog.close());
+
+        dialog.add(body);
+        dialog.getFooter().add(cancel, send, resolve);
+        dialog.open();
+    }
+
     /** Called after appoint/remove — show a confirmation then refetch the roles. */
     public void onRoleMutationSucceeded(String message) {
         Notification.show(message, 2500, Notification.Position.TOP_CENTER)
                 .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         presenter.loadRolesForCurrentCompany();
+    }
+
+    /**
+     * Called after the current user resigns (II.4.10) or deletes the company
+     * (item 12) — either way they no longer have a role here, so drop the
+     * session company id and bounce back to the chooser.
+     */
+    public void onLeftCompany(String message) {
+        Notification.show(message, 2500, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        UI.getCurrent().getSession().setAttribute(SESSION_COMPANY_ID, null);
+        UI.getCurrent().getPage().reload();
     }
 
     public void showSuccess(String message) {
@@ -347,14 +634,16 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         title.getStyle().set("margin", "0 0 16px 0");
         card.add(back);
 
-        Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab, reportTab);
+        Tabs tabs = new Tabs(eventsTab, rolesTab, policiesTab, reportTab, historyTab, complaintsTab);
         tabs.addSelectedChangeListener(e -> {
             tabContent.removeAll();
             Tab selected = e.getSelectedTab();
-            if (selected == eventsTab)         presenter.loadEventsForCurrentCompany();
-            else if (selected == rolesTab)     presenter.loadRolesForCurrentCompany();
-            else if (selected == policiesTab)  renderPoliciesTab();
-            else if (selected == reportTab)    presenter.loadSalesReport();
+            if (selected == eventsTab)          presenter.loadEventsForCurrentCompany();
+            else if (selected == rolesTab)      presenter.loadRolesForCurrentCompany();
+            else if (selected == policiesTab)   renderPoliciesTab();
+            else if (selected == reportTab)     presenter.loadSalesReport();
+            else if (selected == historyTab)    presenter.loadPurchaseHistory();
+            else if (selected == complaintsTab) presenter.loadComplaints();
         });
 
         tabContent.getStyle().set("padding-top", "16px");
@@ -378,31 +667,65 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         presenter.loadRolesForCurrentCompany();
     }
 
-    private Component buildOwnersList(List<String> ownerIds) {
-    if (ownerIds == null || ownerIds.isEmpty()) {
-        return new Paragraph("No additional owners.");
+    private Component buildOwnersList(List<String> ownerIds,
+                                      String currentMemberId,
+                                      Map<String, String> ownerAppointedBy,
+                                      String founderId) {
+        if (ownerIds == null || ownerIds.isEmpty()) {
+            return new Paragraph("No additional owners.");
+        }
+        final Map<String, String> appointedBy = ownerAppointedBy == null
+                ? java.util.Collections.emptyMap() : ownerAppointedBy;
+
+        Div list = new Div();
+        list.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column")
+                .set("gap", "6px");
+
+        for (String ownerId : ownerIds) {
+            Span chip = new Span(getMemberDisplayName(ownerId));
+            chip.getStyle()
+                    .set("padding", "6px 12px")
+                    .set("background", "#e3f2fd")
+                    .set("border-radius", "999px")
+                    .set("font-size", "13px");
+
+            HorizontalLayout row = new HorizontalLayout(chip);
+            row.setDefaultVerticalComponentAlignment(
+                    com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+
+            // "Appointed by …" provenance — founder doesn't have one.
+            String byline;
+            if (ownerId.equals(founderId)) {
+                byline = "founder";
+            } else {
+                String appointer = appointedBy.get(ownerId);
+                byline = (appointer == null || appointer.isBlank())
+                        ? "appointed by —"
+                        : "appointed by " + getMemberDisplayName(appointer);
+            }
+            Span byTag = new Span(byline);
+            byTag.getStyle()
+                    .set("color", "#555")
+                    .set("font-size", "12px")
+                    .set("margin-left", "4px");
+            row.add(byTag);
+
+            // II.4.9 — owners can remove owners they appointed (backend enforces
+            // the "appointed by you" rule). Removing yourself goes through
+            // "Resign ownership" instead, so don't offer Remove on your own row.
+            if (!ownerId.equals(currentMemberId)) {
+                Button remove = new Button("Remove", ev -> presenter.removeOwner(ownerId));
+                remove.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY,
+                        ButtonVariant.LUMO_SMALL);
+                row.add(remove);
+            }
+            list.add(row);
+        }
+
+        return list;
     }
-
-    Div list = new Div();
-    list.getStyle()
-            .set("display", "flex")
-            .set("flex-wrap", "wrap")
-            .set("gap", "8px");
-
-    for (String ownerId : ownerIds) {
-        Span chip = new Span(getMemberDisplayName(ownerId));
-
-        chip.getStyle()
-                .set("padding", "6px 12px")
-                .set("background", "#e3f2fd")
-                .set("border-radius", "999px")
-                .set("font-size", "13px");
-
-        list.add(chip);
-    }
-
-    return list;
-}
 
     private Component buildManagersGrid(Map<String, Set<CompanyPermission>> managerPermissions,
                                         Map<String, String> managerAppointedBy) {
@@ -420,6 +743,13 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             String owner = appointedBy.get(e.getKey());
             return (owner == null || owner.isBlank()) ? "—" : getMemberDisplayName(owner);
         }).setHeader("Appointed by");
+        grid.addComponentColumn(entry -> {
+            // II.4.11 — edit this manager's permission set.
+            Button edit = new Button("Edit permissions",
+                    ev -> openEditPermissionsDialog(entry.getKey(), entry.getValue()));
+            edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+            return edit;
+        }).setHeader("");
         grid.addComponentColumn(entry -> {
             Button remove = new Button("Remove", ev -> {
                 // Presenter owns the full flow — it catches errors, shows
@@ -474,6 +804,115 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
         row.getStyle().set("margin-top", "8px");
 
         return row;
+    }
+
+    /**
+     * Appoint-manager control (II.4.7) — like {@link #appointBox} but also lets
+     * the owner pick the permission set to grant up-front.
+     */
+    private Component buildAppointManagerBox() {
+        TextField usernameField = new TextField();
+        usernameField.setPlaceholder("username");
+
+        CheckboxGroup<CompanyPermission> perms = new CheckboxGroup<>();
+        perms.setLabel("Permissions to grant");
+        perms.setItems(CompanyPermission.values());
+        perms.setItemLabelGenerator(ManagingCompanyView::permissionLabel);
+
+        Button go = new Button("Appoint manager", e -> {
+            String username = usernameField.getValue();
+            if (username == null || username.isBlank()) {
+                Notification.show("Username required", 2500, Notification.Position.MIDDLE);
+                return;
+            }
+            String memberId;
+            try {
+                memberId = getMemberIdByUsername(username);
+            } catch (RuntimeException ex) {
+                Notification.show(ex.getMessage(), 3500, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+            // Presenter owns the appoint flow (success / error notification +
+            // roles reload), so we don't notify here.
+            presenter.appointManager(memberId, new HashSet<>(perms.getValue()));
+        });
+        go.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        VerticalLayout box = new VerticalLayout(usernameField, perms, go);
+        box.setPadding(false);
+        box.setSpacing(false);
+        box.getStyle().set("margin-top", "8px").set("gap", "8px");
+        return box;
+    }
+
+    /** Dialog to replace a manager's permission set (II.4.11). */
+    private void openEditPermissionsDialog(String managerId, Set<CompanyPermission> current) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Permissions — " + getMemberDisplayName(managerId));
+
+        CheckboxGroup<CompanyPermission> perms = new CheckboxGroup<>();
+        perms.setItems(CompanyPermission.values());
+        perms.setItemLabelGenerator(ManagingCompanyView::permissionLabel);
+        perms.setValue(current == null ? Set.of() : new HashSet<>(current));
+
+        Button save = new Button("Save", e -> {
+            // Presenter shows the success / error notification and reloads roles.
+            presenter.modifyManagerPermissions(managerId, new HashSet<>(perms.getValue()));
+            dialog.close();
+        });
+        save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button cancel = new Button("Cancel", e -> dialog.close());
+
+        dialog.add(perms);
+        dialog.getFooter().add(cancel, save);
+        dialog.open();
+    }
+
+    /** Confirmation for resigning ownership (II.4.10). */
+    private void confirmResign() {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Resign ownership?");
+        dialog.setText("You will lose your owner role in this company.");
+        dialog.setCancelable(true);
+        dialog.setConfirmText("Resign");
+        dialog.setConfirmButtonTheme("error primary");
+        dialog.addConfirmListener(e -> presenter.resignOwnership());
+        dialog.open();
+    }
+
+    /** Confirmation for suspending the company (II.4.13). */
+    private void confirmSuspend() {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Suspend this company?");
+        dialog.setText("While suspended, its events won't be visible to buyers. You can reopen it later.");
+        dialog.setCancelable(true);
+        dialog.setConfirmText("Suspend");
+        dialog.setConfirmButtonTheme("error primary");
+        dialog.addConfirmListener(e -> presenter.closeCompany());
+        dialog.open();
+    }
+
+    /** Confirmation for deleting the whole company (item 12). */
+    private void confirmDelete() {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Delete this company?");
+        dialog.setText("This permanently removes the company and all of its events. This cannot be undone.");
+        dialog.setCancelable(true);
+        dialog.setConfirmText("Delete");
+        dialog.setConfirmButtonTheme("error primary");
+        dialog.addConfirmListener(e -> presenter.deleteCompany());
+        dialog.open();
+    }
+
+    /** Human-friendly label for a {@link CompanyPermission}. */
+    private static String permissionLabel(CompanyPermission p) {
+        return switch (p) {
+            case MANAGE_EVENTS        -> "Manage events & inventory";
+            case VIEW_HISTORY         -> "View purchase / order history";
+            case RESPOND_TO_INQUIRIES -> "Respond to inquiries";
+            case VIEW_ROLES           -> "View roles & permissions";
+        };
     }
 
     // ── Tab: Policies ────────────────────────────────────────────────────────

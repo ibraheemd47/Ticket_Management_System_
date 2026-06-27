@@ -11,11 +11,16 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.PolicyService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.OwnerAppointmentRequestDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
@@ -39,6 +44,7 @@ public class ManagingCompanyPresenter {
     private final company_managment_serivce companyService;
     private final UserService userService;
     private final PolicyService policyService;
+    private final ComplaintService complaintService;
 
     private ManagingCompanyView view;
     private String token;
@@ -46,10 +52,12 @@ public class ManagingCompanyPresenter {
 
     public ManagingCompanyPresenter(company_managment_serivce companyService,
                                     UserService userService,
-                                    PolicyService policyService) {
+                                    PolicyService policyService,
+                                    ComplaintService complaintService) {
         this.companyService = companyService;
         this.userService = userService;
         this.policyService = policyService;
+        this.complaintService = complaintService;
     }
 
     public void setView(ManagingCompanyView view) {
@@ -95,14 +103,34 @@ public class ManagingCompanyPresenter {
     /** Load the companies this member owns/manages and pass them to the view. */
     public void loadMyCompanies() {
         try {
+            // Wipe the slot first so refreshes (e.g. after accepting an
+            // owner invite) replace the previous render instead of
+            // appending a second grid + invites card under it.
+            view.resetChooserSlot();
+            // Lazy migration: drop any role assignments left over from
+            // pre-fix removals that no longer match the company roster.
+            companyService.reconcileMyCompanyRoles(token);
             Member me = userService.getMemberByToken(token);
             view.showMyCompanies(resolveMyCompanies(me));
+            view.showPendingOwnerInvites(
+                    companyService.getPendingOwnerInvites(token));
         } catch (RuntimeException ex) {
             view.showCompanyChooserError("Couldn't load your companies: " + ex.getMessage());
         }
     }
 
-    /** Cross-reference the member's roles with the active-companies list to get names. */
+    /** II.4.8 — candidate accepts or rejects a pending owner-appointment invite. */
+    public void respondToOwnerInvite(UUID requestId, boolean accept) {
+        try {
+            companyService.respondToOwnerAppointment(token, requestId, accept);
+            view.showSuccess(accept ? "Invitation accepted" : "Invitation declined");
+            loadMyCompanies();
+        } catch (RuntimeException ex) {
+            view.showError("Couldn't respond to invite: " + ex.getMessage());
+        }
+    }
+
+    /** Cross-reference the member's roles with the company repo to get names + open/closed status. */
     private List<CompanyRow> resolveMyCompanies(Member me) {
         Set<UUID> myCompanyIds = new HashSet<>();
         Map<UUID, String> roleByCompany = new HashMap<>();
@@ -113,20 +141,22 @@ public class ManagingCompanyPresenter {
                     a.isOwner() ? "Owner" : a.isManager() ? "Manager" : a.getRoleType().name());
         }
 
-        // Best available source for company names today; switch to a dedicated
-        // "find by ids" query if/when one is added.
-        Map<UUID, String> nameById = new HashMap<>();
-        try {
-            for (CompanyDTO dto : companyService.getActiveCompanies()) {
-                nameById.put(dto.getCompanyId(), dto.getCompanyName());
-            }
-        } catch (RuntimeException ignored) {
-            // If the lookup blows up we still show IDs.
-        }
-
         List<CompanyRow> out = new ArrayList<>();
         for (UUID cid : myCompanyIds) {
-            out.add(new CompanyRow(cid, nameById.get(cid), roleByCompany.get(cid)));
+            // findById, not getActiveCompanies, so closed companies still
+            // resolve to their name and the UI can render a CLOSED badge.
+            String name = "(unknown)";
+            boolean isOpen = true;
+            try {
+                java.util.Optional<CompanyDTO> dto = companyService.getCompanyById(cid);
+                if (dto.isPresent()) {
+                    name   = dto.get().getCompanyName();
+                    isOpen = dto.get().isOpen();
+                }
+            } catch (RuntimeException ignored) {
+                // fall back to the placeholder name + assume open
+            }
+            out.add(new CompanyRow(cid, name, roleByCompany.get(cid), isOpen));
         }
         out.sort((a, b) -> a.companyId.compareTo(b.companyId));
         return out;
@@ -166,19 +196,35 @@ public class ManagingCompanyPresenter {
         }
     }
 
+    /**
+     * II.4.8 — create a pending owner-appointment request. The candidate
+     * has to accept (or reject) from their own "My companies" page before
+     * they actually become an owner.
+     */
     public void appointOwner(String memberId) {
         try {
-            companyService.appointAdditionalOwner(token, companyId, memberId);
-            view.onRoleMutationSucceeded("Done");
+            companyService.requestOwnerAppointment(token, companyId, memberId);
+            view.onRoleMutationSucceeded("Invite sent — awaiting acceptance");
         } catch (RuntimeException ex) {
             view.showError(ex.getMessage());
         }
     }
 
-    public void appointManager(String memberId) {
+    /** Appoint a manager with the selected permission set (II.4.7). */
+    public void appointManager(String memberId, Set<CompanyPermission> permissions) {
         try {
-            companyService.appointManager(token, companyId, memberId, Set.of());
-            view.onRoleMutationSucceeded("Done");
+            companyService.appointManager(token, companyId, memberId, permissions);
+            view.onRoleMutationSucceeded("Manager appointed");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Replace a manager's permission set with the supplied one (II.4.11). */
+    public void modifyManagerPermissions(String memberId, Set<CompanyPermission> permissions) {
+        try {
+            companyService.modifyManagerPermissions(token, companyId, memberId, permissions);
+            view.onRoleMutationSucceeded("Permissions updated");
         } catch (RuntimeException ex) {
             view.showError(ex.getMessage());
         }
@@ -193,12 +239,124 @@ public class ManagingCompanyPresenter {
         }
     }
 
+    /** Remove an owner this owner previously appointed (II.4.9). */
+    public void removeOwner(String memberId) {
+        try {
+            companyService.removeOwnerAppointment(token, companyId, memberId);
+            view.onRoleMutationSucceeded("Owner removed");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Current owner resigns from ownership (II.4.10). Leaves the company afterwards. */
+    public void resignOwnership() {
+        try {
+            companyService.resignOwnership(token, companyId);
+            view.onLeftCompany("You resigned from ownership");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Delete the whole company (owner only). Leaves the company afterwards. */
+    public void deleteCompany() {
+        try {
+            companyService.deleteCompany(token, companyId);
+            view.onLeftCompany("Company deleted");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    public boolean isCurrentCompanyOpen() {
+        try {
+            return companyService.isCompanyOpen(companyId);
+        } catch (RuntimeException ex) {
+            return true; // assume open on lookup failure
+        }
+    }
+
+    /** Suspend / close the company (II.4.13). */
+    public void closeCompany() {
+        try {
+            boolean changed = companyService.closeCompany(token, companyId);
+            view.onRoleMutationSucceeded(changed ? "Company suspended" : "Company was already suspended");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** Reopen the company (II.4.14). */
+    public void reopenCompany() {
+        try {
+            boolean changed = companyService.reopenCompany(token, companyId);
+            view.onRoleMutationSucceeded(changed ? "Company reopened" : "Company was already open");
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
+    /** The currently bound member's id, or {@code null} if it can't be resolved. */
+    public String getCurrentMemberId() {
+        try {
+            return userService.getMemberByToken(token).getMemberId();
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    // ── Complaints tab (company-side handling, parallel to admin) ────────────
+
+    /** Load complaints targeting this company for owners/managers to handle. */
+    public void loadComplaints() {
+        try {
+            view.showComplaints(complaintService.getCompanyComplaints(token, companyId));
+        } catch (RuntimeException ex) {
+            view.showComplaintsError("Couldn't load complaints: " + ex.getMessage());
+        }
+    }
+
+    /** Owner/manager responds to a company complaint (optionally resolving it). */
+    public void respondToComplaint(UUID complaintId, String response, boolean resolve) {
+        try {
+            complaintService.companyRespondToComplaint(token, companyId, complaintId, response, resolve);
+            view.showSuccess(resolve ? "Complaint resolved" : "Response sent");
+            loadComplaints();
+        } catch (RuntimeException ex) {
+            view.showError(ex.getMessage());
+        }
+    }
+
     /** Hands the view a fresh sales report for the current company (II.4.6). */
     public void loadSalesReport() {
+        loadSalesReport(true);
+    }
+
+    /**
+     * II.4.6 — scoped sales report. {@code includeSubtree=true} expands
+     * the result to every event managed by the actor's appointment
+     * subtree; {@code false} restricts it to events the actor manages
+     * directly.
+     */
+    public void loadSalesReport(boolean includeSubtree) {
         try {
-            view.showSalesReport(companyService.getSalesReport(token, companyId));
+            view.showSalesReport(
+                    companyService.getSalesReport(token, companyId, includeSubtree),
+                    includeSubtree);
         } catch (RuntimeException ex) {
             view.showError("Couldn't load sales report: " + ex.getMessage());
+        }
+    }
+
+    /** II.4.5 — rich purchase history for the current company's events. */
+    public void loadPurchaseHistory() {
+        try {
+            List<PurchaseHistoryEntryDTO> rows =
+                    companyService.getCompanyPurchaseHistory(token, companyId);
+            view.showPurchaseHistory(rows);
+        } catch (RuntimeException ex) {
+            view.showError("Couldn't load purchase history: " + ex.getMessage());
         }
     }
 
@@ -277,10 +435,12 @@ public class ManagingCompanyPresenter {
         public final UUID companyId;
         public final String name;
         public final String role;
-        CompanyRow(UUID companyId, String name, String role) {
+        public final boolean isOpen;
+        CompanyRow(UUID companyId, String name, String role, boolean isOpen) {
             this.companyId = companyId;
             this.name = name;
             this.role = role;
+            this.isOpen = isOpen;
         }
     }
 }

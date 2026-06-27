@@ -1,6 +1,7 @@
 package com.sdnah.Ticket_Management_System_.Backend.Domain_Layer;
 
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.Company;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 
@@ -10,8 +11,11 @@ public class LotteryAuthDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (!company.isOwner(actor.getMemberId())) {
-            throw new RuntimeException("Only company owner can create a lottery");
+        // if (!company.isOwner(actor.getMemberId()) ) {
+        //     throw new RuntimeException("Only company owner can create a lottery");
+        // }
+        if (!company.isOwner(actor.getMemberId()) && !company.managerHasPermission(actor.getMemberId(), CompanyPermission.MANAGE_EVENTS)) {
+            throw new RuntimeException("Only company owners or authorized managers can create a lottery");
         }
     }
 
@@ -19,8 +23,8 @@ public class LotteryAuthDomainService {
         assertActiveMember(actor);
         requireCompany(company);
 
-        if (!company.isOwner(actor.getMemberId())) {
-            throw new RuntimeException("Only company owner can draw a lottery");
+        if (!company.isOwner(actor.getMemberId()) && !company.managerHasPermission(actor.getMemberId(), CompanyPermission.MANAGE_EVENTS)) {
+            throw new RuntimeException("Only company owners or authorized managers can draw a lottery");
         }
     }
 

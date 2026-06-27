@@ -191,6 +191,17 @@ public class Member {
         companyRoles.add(assignment);
     }
 
+    /**
+     * Drop every assignment this member has against the given company.
+     * Used when an owner or manager is removed (II.4.9 / II.4.12) or
+     * when they resign — without this the "My companies" chooser would
+     * keep listing the company because it iterates {@code companyRoles}.
+     */
+    public boolean removeCompanyRoles(UUID companyId) {
+        if (companyId == null) return false;
+        return companyRoles.removeIf(r -> companyId.equals(r.getCompanyId()));
+    }
+
     public Optional<CompanyRoleAssignment> getRoleInCompany(UUID companyId) {
         return companyRoles.stream()
                 .filter(r -> r.getCompanyId().equals(companyId))

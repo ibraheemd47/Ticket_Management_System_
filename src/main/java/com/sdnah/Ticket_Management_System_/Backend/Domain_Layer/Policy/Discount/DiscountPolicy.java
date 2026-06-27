@@ -133,4 +133,29 @@ public class DiscountPolicy extends Policy {
                     : new MaxDiscountRule(rules);
         }
     }
+
+    // Base discount: OR/AND rules only, coupon ignored
+    public double computeBaseDiscount(DiscountContext context) {
+        DiscountContext noCoupon = new DiscountContext(
+            context.getTicketQuantity(), context.getPurchaseTime(),
+            null, context.getOriginalPrice(), context.getEventId());
+        return computeDiscount(noCoupon);
+    }
+
+    // Coupon discount: sum of all matching CouponDiscountRule hits in the tree
+    public double computeCouponDiscount(DiscountContext context) {
+        if (context == null || rootRule == null || !context.hasCoupon()) return 0.0;
+        return collectCouponDiscount(rootRule, context);
+    }
+
+    private double collectCouponDiscount(DiscountRule rule, DiscountContext context) {
+        if (rule instanceof CouponDiscountRule coupon) return coupon.apply(context);
+        if (rule instanceof CompositeDiscountRule composite) {
+            double sum = 0.0;
+            for (DiscountRule child : composite.getRules()) sum += collectCouponDiscount(child, context);
+            return sum;
+        }
+        return 0.0;
+    }
+
 }

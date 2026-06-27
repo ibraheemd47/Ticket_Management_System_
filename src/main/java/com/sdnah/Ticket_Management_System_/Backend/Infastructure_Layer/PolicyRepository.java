@@ -72,9 +72,13 @@ public interface PolicyRepository extends JpaRepository<Policy, Integer> {
     Optional<SellingPolicy> findSellingPolicyByCompanyIdAndEventIdIsNull(
             @Param("companyId") UUID companyId);
 
+    // @org.springframework.transaction.annotation.Transactional
+    // @Modifying
+    // void deleteByPolicyId(int policyId);
     @org.springframework.transaction.annotation.Transactional
-    @Modifying
-    void deleteByPolicyId(int policyId);
+    default void deleteByPolicyId(int policyId) {
+        findById(policyId).ifPresent(this::delete);
+    }
 
     default <S extends Policy> S savePolicy(S policy) {
         return saveAndFlush(policy);

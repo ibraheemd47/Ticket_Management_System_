@@ -20,6 +20,8 @@ public class ComplaintDTO {
     private LocalDateTime createdAt;
     private LocalDateTime resolvedAt;
     private String adminResponse;
+    private String companyResponse;
+    private LocalDateTime companyRespondedAt;
 
     public ComplaintDTO(Complaint complaint) {
         this.complaintId = complaint.getComplaintId();
@@ -32,6 +34,8 @@ public class ComplaintDTO {
         this.createdAt = complaint.getCreatedAt();
         this.resolvedAt = complaint.getResolvedAt();
         this.adminResponse = complaint.getAdminResponse();
+        this.companyResponse = complaint.getCompanyResponse();
+        this.companyRespondedAt = complaint.getCompanyRespondedAt();
     }
 
     public UUID getComplaintId() {
@@ -72,6 +76,14 @@ public class ComplaintDTO {
 
     public String getAdminResponse() {
         return adminResponse;
+    }
+
+    public String getCompanyResponse() {
+        return companyResponse;
+    }
+
+    public LocalDateTime getCompanyRespondedAt() {
+        return companyRespondedAt;
     }
 
     @Override

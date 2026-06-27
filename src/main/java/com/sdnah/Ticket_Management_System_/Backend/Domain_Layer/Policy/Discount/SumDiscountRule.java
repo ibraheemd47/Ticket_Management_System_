@@ -13,12 +13,20 @@ public class SumDiscountRule extends CompositeDiscountRule {
     public SumDiscountRule(List<DiscountRule> rules) { super(rules); }
     public SumDiscountRule(DiscountRule a, DiscountRule b) { super(a, b); }
 
+    // @Override
+    // public double apply(DiscountContext context) {
+    //     double total = rules.stream()
+    //             .mapToDouble(r -> r.apply(context))
+    //             .sum();
+    //     return Math.min(total, 100.0);
+    // }
     @Override
     public double apply(DiscountContext context) {
-        double total = rules.stream()
-                .mapToDouble(r -> r.apply(context))
-                .sum();
-        return Math.min(total, 100.0);
+        double remaining = 1.0;
+        for (DiscountRule rule : rules) {
+            remaining *= (1.0 - rule.apply(context) / 100.0);
+        }
+        return Math.min((1.0 - remaining) * 100.0, 100.0);
     }
 
     @Override

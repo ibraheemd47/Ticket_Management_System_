@@ -177,6 +177,22 @@ public class NotificationService {
         );
     }
 
+    public String notifyEventVenueChanged(String recipientUsername,
+                                          String eventName,
+                                          String newVenue) {
+        String body = "Venue changed for event '" + eventName + "'"
+                + (newVenue == null || newVenue.isBlank() ? "." : " — new venue: " + newVenue);
+        return createNotification(recipientUsername, body, NotificationType.EVENT_VENUE_CHANGED);
+    }
+
+    public String notifyEventPriceChanged(String recipientUsername,
+                                          String eventName,
+                                          String ticketType) {
+        String body = "Ticket price changed for event '" + eventName + "'"
+                + (ticketType == null || ticketType.isBlank() ? "." : " (" + ticketType + ").");
+        return createNotification(recipientUsername, body, NotificationType.EVENT_PRICE_CHANGED);
+    }
+
     public String notifyOrderExpiryWarning(String recipientUsername, String eventName) {
         return createNotification(
                 recipientUsername,
@@ -291,6 +307,29 @@ public class NotificationService {
                 recipientUsername,
                 "You were appointed as owner in company: " + companyName,
                 NotificationType.OWNER_APPOINTED
+        );
+    }
+
+    public String notifyOwnerAppointmentRequested(String recipientUsername,
+                                                  String companyName,
+                                                  String appointerName) {
+        return createNotification(
+                recipientUsername,
+                appointerName + " invited you to become an owner of '" + companyName + "'. "
+                        + "Open the company chooser to accept or decline.",
+                NotificationType.OWNER_APPOINTMENT_REQUESTED
+        );
+    }
+
+    public String notifyOwnerAppointmentResponded(String recipientUsername,
+                                                  String companyName,
+                                                  String candidateName,
+                                                  boolean accepted) {
+        return createNotification(
+                recipientUsername,
+                candidateName + (accepted ? " accepted" : " declined")
+                        + " your owner invitation for '" + companyName + "'.",
+                NotificationType.OWNER_APPOINTMENT_RESPONDED
         );
     }
 

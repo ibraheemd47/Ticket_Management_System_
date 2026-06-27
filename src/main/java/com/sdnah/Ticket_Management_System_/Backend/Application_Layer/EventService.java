@@ -16,6 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.EventDto;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VenueAreaRefDTO;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
@@ -97,6 +98,12 @@ public class EventService {
                 // accidentally dropped during the company-id UUID refactor; the
                 // tests in EventAcceptanceTest / EventIntegrationTest expect it.
                 event.delete(managerId);
+
+                // Snapshot the name before delete() detaches the entity, then
+                // notify everyone who already bought a ticket for it (II.4.5
+                // requirement — purchase history must reflect cancellation).
+                String snapshotName = event.getName();
+                notifyEventBuyers(eventId, snapshotName, true);
 
                 // Delete all tickets for every show first (satisfies FK constraints)
                 for (show s : event.getShows()) {
@@ -486,6 +493,115 @@ public class EventService {
         return eventRepository.getShowsForEvent(eventId);
     }
 
+    /**
+     * Min/max ticket price across all of an event's shows (seated + standing),
+     * or {@code null} when the event has no priced shows. Used by search to
+     * filter by price range (II.2.3).
+     *
+     * @return {@code {min, max}} or {@code null}
+     */
+    public java.math.BigDecimal[] getEventPriceBounds(UUID eventId) {
+        if (eventId == null) return null;
+        // Fetch shows via a direct query (their seated/standing prices are basic
+        // columns, loaded eagerly) rather than navigating the lazy shows
+        // collection — so this works outside a transaction.
+        List<show> shows = eventRepository.getShowsForEvent(eventId);
+        if (shows == null || shows.isEmpty()) return null;
+        java.math.BigDecimal min = null, max = null;
+        for (show s : shows) {
+            for (java.math.BigDecimal p : new java.math.BigDecimal[]{ s.getSeatedPrice(), s.getStandingPrice() }) {
+                if (p == null) continue;
+                if (min == null || p.compareTo(min) < 0) min = p;
+                if (max == null || p.compareTo(max) > 0) max = p;
+            }
+        }
+        return min == null ? null : new java.math.BigDecimal[]{ min, max };
+    }
+
+    // ── II.4.2: Venue layout / event map ──────────────────────────────────────
+
+    /** Persist the graphical venue map JSON. Domain enforces manager authorization. */
+    public void saveEventMap(UUID eventId, String mapJson, String managerId) {
+        transactionTemplate.executeWithoutResult(status -> {
+            Event event = eventRepository.findById(eventId)
+                    .orElseThrow(() -> new RuntimeException("Event not found"));
+            event.setVenueMapJson(mapJson, managerId);
+            eventRepository.saveAndFlush(event);
+        });
+        logger.info("Venue map saved for event {} by manager {}", eventId, managerId);
+    }
+
+    /** Stored venue map JSON for an event, or {@code null} if none/no event. */
+    public String getEventMapJson(UUID eventId) {
+        return eventRepository.findById(eventId)
+                .map(Event::getVenueMapJson)
+                .orElse(null);
+    }
+
+    /** Event display name, or {@code null} if the event doesn't exist. */
+    public String getEventName(UUID eventId) {
+        return eventRepository.findById(eventId).map(Event::getName).orElse(null);
+    }
+
+    /**
+     * Seating dimensions for an event, taken from the first show that has any
+     * seating: {@code {standingCapacity, blocks, rowsPerBlock, seatsPerRow}}.
+     * Used to pre-populate the venue map from existing inventory (II.4.2).
+     */
+    public int[] getEventSeatingDims(UUID eventId) {
+        return transactionTemplate.execute(status -> {
+            Event event = eventRepository.findById(eventId).orElse(null);
+            if (event == null || event.getShows() == null) return new int[]{0, 0, 0, 0};
+            for (show s : event.getShows()) {
+                int standingCap = 0, numBlocks = 0, rowsPerBlock = 0, seatsPerRow = 0;
+                if (s.getAreas() != null) {
+                    for (Area a : s.getAreas()) {
+                        if (a instanceof StandingArea sa) {
+                            standingCap = sa.getMaxCapacity();
+                        } else if (a instanceof SeatedArea sea) {
+                            Block[] blocks = sea.getBlocks();
+                            numBlocks = blocks != null ? blocks.length : 0;
+                            if (numBlocks > 0) {
+                                List<Row> rws = blocks[0].getRows();
+                                rowsPerBlock = rws != null ? rws.size() : 0;
+                                if (rowsPerBlock > 0) {
+                                    List<Seat> seatList = rws.get(0).getSeats();
+                                    seatsPerRow = seatList != null ? seatList.size() : 0;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (standingCap > 0 || numBlocks > 0)
+                    return new int[]{standingCap, numBlocks, rowsPerBlock, seatsPerRow};
+            }
+            return new int[]{0, 0, 0, 0};
+        });
+    }
+
+    /**
+     * Distinct inventory areas (id, name, seated/standing) across the event's
+     * shows — used to link venue-map elements to pricing/seating areas (II.4.2).
+     */
+    public List<VenueAreaRefDTO> getEventAreaRefs(UUID eventId) {
+        return transactionTemplate.execute(status -> {
+            Event event = eventRepository.findById(eventId).orElse(null);
+            if (event == null || event.getShows() == null) return List.<VenueAreaRefDTO>of();
+            java.util.LinkedHashMap<String, VenueAreaRefDTO> byId = new java.util.LinkedHashMap<>();
+            for (show s : event.getShows()) {
+                if (s.getAreas() == null) continue;
+                for (Area a : s.getAreas()) {
+                    if (a == null || a.getId() == null) continue;
+                    String type = (a instanceof SeatedArea) ? "SEATED"
+                                : (a instanceof StandingArea) ? "STANDING" : "AREA";
+                    byId.putIfAbsent(a.getId().toString(),
+                            new VenueAreaRefDTO(a.getId().toString(), a.getName(), type));
+                }
+            }
+            return new java.util.ArrayList<>(byId.values());
+        });
+    }
+
     public show getShowDetails(UUID eventId, UUID showId) {
         logger.info("Retrieving show {} details for event {}", showId, eventId);
         return eventRepository.getShowDetails(eventId, showId)
@@ -631,6 +747,52 @@ public class EventService {
         });
     }
 
+    /**
+     * II.4.5 — Re-prices every still-AVAILABLE ticket of the given show
+     * to {@code newPrice}, then notifies past buyers of the event that a
+     * ticket price changed. Sold/scanned tickets are left untouched so we
+     * never retroactively alter a completed purchase.
+     */
+    public void editShowPrice(UUID eventId,
+                              UUID showId,
+                              java.math.BigDecimal newPrice,
+                              String managerId) {
+        if (newPrice == null || newPrice.signum() < 0) {
+            throw new IllegalArgumentException("price must be non-negative");
+        }
+        keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
+            transactionTemplate.executeWithoutResult(status -> {
+                Event event = eventRepository.findById(eventId)
+                        .orElseThrow(() -> new RuntimeException("Event not found"));
+                // Same authorisation gate as other edit operations (e.g. editVenue).
+                if (!event.getManagerIds().contains(managerId)) {
+                    throw new IllegalArgumentException("Only managers can edit ticket prices.");
+                }
+
+                List<ticket> tickets = ticketRepository.findByShowId(showId);
+                int repriced = 0;
+                for (ticket t : tickets) {
+                    if (t.getStatus() == ticket.TicketStatus.AVAILABLE) {
+                        t.repriceIfAvailable(newPrice);
+                        repriced++;
+                    }
+                }
+                if (repriced > 0) {
+                    ticketRepository.saveAll(tickets);
+                    ticketRepository.flush();
+                }
+
+                String eventName = event.getName();
+                purchaseRepository.findByEventId(eventId).forEach(p ->
+                        notificationService.notifyEventPriceChanged(
+                                p.getbuyerId(), eventName, null));
+
+                logger.info("Repriced {} ticket(s) for show {} to {} by manager {}",
+                        repriced, showId, newPrice, managerId);
+            });
+        });
+    }
+
     public void editEventVenue(UUID eventId, String newVenue, String managerId) {
         keyedLock.runLocked(LOCK_NS_EVENT, eventId.toString(), () -> {
             transactionTemplate.executeWithoutResult(status -> {
@@ -639,6 +801,12 @@ public class EventService {
 
                 event.editVenue(newVenue, managerId);
                 eventRepository.saveAndFlush(event);
+
+                // II.4.5 — every past buyer must learn about a place change.
+                String eventName = event.getName();
+                purchaseRepository.findByEventId(eventId).forEach(p ->
+                        notificationService.notifyEventVenueChanged(
+                                p.getbuyerId(), eventName, newVenue));
             });
         });
     }

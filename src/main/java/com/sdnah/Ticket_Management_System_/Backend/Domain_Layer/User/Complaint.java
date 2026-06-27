@@ -36,6 +36,12 @@ public class Complaint {
     @Column(length = 2000)
     private String adminResponse;
 
+    /** Response from the targeted company's owner/manager — runs parallel to the admin's. */
+    @Column(length = 2000)
+    private String companyResponse;
+
+    private LocalDateTime companyRespondedAt;
+
     protected Complaint() {
     }
 
@@ -76,10 +82,28 @@ public class Complaint {
         this.createdAt = dto.getCreatedAt() != null ? dto.getCreatedAt() : LocalDateTime.now();
         this.resolvedAt = dto.getResolvedAt();
         this.adminResponse = dto.getAdminResponse();
+        this.companyResponse = dto.getCompanyResponse();
+        this.companyRespondedAt = dto.getCompanyRespondedAt();
     }
 
     public void markInProgress() {
         this.status = ComplaintStatus.IN_PROGRESS;
+    }
+
+    /**
+     * The targeted company's owner/manager responds. Runs in parallel with the
+     * admin flow: stores a separate company response and, when {@code resolve}
+     * is set, marks the complaint resolved; otherwise nudges OPEN → IN_PROGRESS.
+     */
+    public void companyRespond(String response, boolean resolve) {
+        this.companyResponse = response;
+        this.companyRespondedAt = LocalDateTime.now();
+        if (resolve) {
+            this.status = ComplaintStatus.RESOLVED;
+            this.resolvedAt = LocalDateTime.now();
+        } else if (this.status == ComplaintStatus.OPEN) {
+            this.status = ComplaintStatus.IN_PROGRESS;
+        }
     }
 
     public void resolve(String adminResponse) {
@@ -133,6 +157,15 @@ public class Complaint {
     public String getAdminResponse() {
         return adminResponse;
     }
+
+    public String getCompanyResponse() {
+        return companyResponse;
+    }
+
+    public LocalDateTime getCompanyRespondedAt() {
+        return companyRespondedAt;
+    }
+
     public ComplaintDTO toDTO() {
         return new ComplaintDTO(this);
     }

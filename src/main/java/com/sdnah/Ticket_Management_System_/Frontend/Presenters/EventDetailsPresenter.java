@@ -14,16 +14,22 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Company.company_managment_serivce;
+import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.ComplaintService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.EventService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.LotteryService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.TicketService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Order.ActiveOrderService;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.LotteryEntryDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.CreateComplaintDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.VenueMapDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.SeatRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.CompanyPermission;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Area;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Block;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Event.Event;
@@ -37,6 +43,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Lottery.Lottery.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Policy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.SellingPolicy.SellingType;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CompositeDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.CouponDiscountRule;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountPolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Discount.DiscountRule;
@@ -47,6 +54,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Policy.Purchase.PurchasePolicy;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
+import com.sdnah.Ticket_Management_System_.Frontend.VenueMapSeeder;
 import com.vaadin.flow.spring.annotation.UIScope;
 
 /**
@@ -67,6 +75,7 @@ public class EventDetailsPresenter {
     private final LotteryService     lotteryService;
     private final NotificationService notificationService;
     private final company_managment_serivce companyService;
+    private final ComplaintService complaintService;
 
     // ── Cached state ──────────────────────────────────────────────────────────
     private UUID        cachedEventId;
@@ -84,7 +93,8 @@ public class EventDetailsPresenter {
             UserService userService,
             LotteryService lotteryService,
             NotificationService notificationService,
-            company_managment_serivce companyService) {
+            company_managment_serivce companyService,
+            ComplaintService complaintService) {
         this.eventService        = eventService;
         this.ticketService       = ticketService;
         this.policyRepo          = policyRepo;
@@ -93,6 +103,7 @@ public class EventDetailsPresenter {
         this.lotteryService      = lotteryService;
         this.notificationService = notificationService;
         this.companyService      = companyService;
+        this.complaintService    = complaintService;
     }
 
     public void setView(View view) {
@@ -318,6 +329,51 @@ public class EventDetailsPresenter {
     // Policies
     // =========================================================================
 
+    private boolean canModifyEventPolicy() {
+        String token = getToken();
+        if (token == null || cachedEvent == null) return false;
+        try {
+            Member member = userService.getMemberByToken(token);
+            UUID cid = cachedEvent.getCompanyId();
+            if (member.isOwnerInCompany(cid)) return true;
+            return companyService.getCompany(cid)
+                    .managerHasPermission(member.getMemberId(), CompanyPermission.MANAGE_EVENTS);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private final ObjectMapper venueMapMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    /**
+     * The venue map buyers see on the event page (II.2.2). Uses the owner's saved
+     * layout if there is one; otherwise derives a default map from the event's
+     * seating so a visual map always shows when there's seating. {@code null}
+     * only when the event has no seating at all.
+     */
+    public VenueMapDTO getVenueMap() {
+        if (cachedEventId == null) return null;
+        // 1) Owner's saved layout, if any.
+        try {
+            String json = eventService.getEventMapJson(cachedEventId);
+            if (json != null && !json.isBlank()) {
+                VenueMapDTO saved = venueMapMapper.readValue(json, VenueMapDTO.class);
+                if (saved != null && saved.elements != null && !saved.elements.isEmpty()) {
+                    return saved;
+                }
+            }
+        } catch (Exception ignored) { /* fall through to derived map */ }
+        // 2) Derive from seating so buyers always get a visual map.
+        try {
+            int[] dims = eventService.getEventSeatingDims(cachedEventId);
+            if (dims[0] <= 0 && dims[1] <= 0) return null; // no seating at all
+            return VenueMapSeeder.buildDefault(dims, eventService.getEventAreaRefs(cachedEventId));
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     public List<Policy> getPolicies() {
         if (cachedEventId == null) return List.of();
         List<Policy> out = new java.util.ArrayList<>();
@@ -333,9 +389,76 @@ public class EventDetailsPresenter {
         return out;
     }
 
+    /**
+     * II.2.5 — preview the <em>visible</em> discount (no coupon) that currently
+     * applies to a selection of {@code quantity} tickets totalling
+     * {@code subtotal}. Mirrors the event + company stacking the backend applies
+     * at reservation time ({@code OrderPolicyDomainService.applyCombinedDiscounts}),
+     * so the buyer sees the discounted price on the Select Tickets page rather
+     * than only at checkout.
+     *
+     * @return a {@link DiscountPreview}, or {@code null} when no visible discount applies
+     */
+    public DiscountPreview previewVisibleDiscount(double subtotal, int quantity) {
+        if (cachedEventId == null || subtotal <= 0) return null;
+        try {
+            DiscountPolicy eventPolicy = policyRepo.findDiscountPolicyByEventId(cachedEventId)
+                    .filter(p -> p.getRootRule() != null).orElse(null);
+            DiscountPolicy companyPolicy = null;
+            UUID companyId = cachedEvent != null ? cachedEvent.getCompanyId() : null;
+            if (companyId != null) {
+                companyPolicy = policyRepo.findDiscountPolicyByCompanyIdAndEventIdIsNull(companyId)
+                        .filter(p -> p.getRootRule() != null).orElse(null);
+            }
+
+            // Only PERCENTAGE rules count here — ignore coupon / date-range /
+            // quantity-conditional rules. Combine event + company like checkout.
+            double eventPct   = eventPolicy   != null ? sumPercentageRules(eventPolicy.getRootRule())   : 0.0;
+            double companyPct = companyPolicy != null ? sumPercentageRules(companyPolicy.getRootRule()) : 0.0;
+           
+            double finalPrice = subtotal * (1.0 - eventPct / 100.0) * (1.0 - companyPct / 100.0);
+            if (finalPrice >= subtotal) return null;
+            double combinedPct = (1.0 - finalPrice / subtotal) * 100.0;
+            return new DiscountPreview(combinedPct, subtotal, finalPrice, null);
+        } catch (RuntimeException ex) {
+            return null; // never block the selection UI on a preview failure
+        }
+    }
+
+    /** Sum the percentages of every {@link PercentageDiscountRule} in a rule tree. */
+    private static double sumPercentageRules(DiscountRule rule) {
+        if (rule == null) return 0.0;
+        if (rule instanceof PercentageDiscountRule p) return p.getPercentage();
+        if (rule instanceof CompositeDiscountRule composite && composite.getRules() != null) {
+            double sum = 0.0;
+            for (DiscountRule child : composite.getRules()) {
+                sum += sumPercentageRules(child);
+            }
+            return sum;
+        }
+        return 0.0;
+    }
+
+    /** Result of {@link #previewVisibleDiscount}. */
+    public static final class DiscountPreview {
+        public final double percent;
+        public final double originalPrice;
+        public final double finalPrice;
+        public final LocalDateTime expiry; // may be null
+
+        public DiscountPreview(double percent, double originalPrice, double finalPrice, LocalDateTime expiry) {
+            this.percent = percent;
+            this.originalPrice = originalPrice;
+            this.finalPrice = finalPrice;
+            this.expiry = expiry;
+        }
+    }
+
     
     public void deletePolicy(Policy policy) {
       //  canManageEvent();
+      if (!canModifyEventPolicy()) { view.showError("You don't have permission to modify policies"); return; }
+
         if (blockPolicyChangeIfTicketsAlreadyReserved()) {
             return;
         }
@@ -363,6 +486,8 @@ public class EventDetailsPresenter {
         if (blockPolicyChangeIfTicketsAlreadyReserved()) {
             return;
         }
+        if (!canModifyEventPolicy()) { view.showError("You don't have permission to modify policies"); return; }
+
         Object companyIdObj = view.getSessionAttribute("managingCompanyId");
         if (companyIdObj == null) { view.showError("No company session"); return; }
         //canManageEvent();
@@ -433,6 +558,8 @@ public class EventDetailsPresenter {
      */
     public void saveDiscountPolicy(Policy existing, List<DiscountRule> rules, boolean isAdditive) {
        // canManageEvent();
+       if (!canModifyEventPolicy()) { view.showError("You don't have permission to modify policies"); return; }
+
         if (cachedEventId == null) {
             view.showError("No event loaded");
             return;
@@ -711,6 +838,30 @@ public class EventDetailsPresenter {
         if (cid == null) return "the organizing company";
         try { return companyService.getCompanyName(cid); }
         catch (Exception e) { return "the organizing company"; }
+    }
+
+    /**
+     * File a complaint about this event against its producing company, so it
+     * lands in the company's Complaints tab (and the admin's queue). Members only.
+     */
+    public void fileComplaintAboutCompany(String subject, String description) {
+        String token = getToken();
+        if (token == null || token.startsWith("GUEST_")) {
+            view.showError("Please log in as a member to file a complaint.");
+            return;
+        }
+        UUID companyId = getCompanyId();
+        if (companyId == null) {
+            view.showError("Couldn't determine the company for this event.");
+            return;
+        }
+        try {
+            complaintService.createComplaint(token,
+                    new CreateComplaintDTO(subject, description, "COMPANY", companyId.toString()));
+            view.showSuccess("Complaint submitted — the company and the system admin will review it.");
+        } catch (RuntimeException ex) {
+            view.showError("Couldn't submit complaint: " + ex.getMessage());
+        }
     }
 
     // ── Event rating ──────────────────────────────────────────────────────────

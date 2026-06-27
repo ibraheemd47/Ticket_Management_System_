@@ -21,8 +21,12 @@ public class Notification {
     @Column(nullable = false, length = 2000)
     private String message;
 
+    // columnDefinition pins the column to plain varchar so Hibernate stops
+    // emitting a CHECK (type IN ('...','...')) constraint based on the
+    // current enum values. Adding a new NotificationType used to require a
+    // manual ALTER TABLE on Postgres; with this mapping it doesn't.
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(64)")
     private NotificationType type;
 
     @Column(nullable = false)

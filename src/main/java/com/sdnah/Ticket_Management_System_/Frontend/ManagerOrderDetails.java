@@ -9,6 +9,7 @@ import com.sdnah.Ticket_Management_System_.Backend.DTOs.OrderDTOs.OrderItemDTO;
 import com.sdnah.Ticket_Management_System_.Frontend.Presenters.ManagerOrderDetailsPresenter;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -91,6 +92,32 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
 
     public void onCancelFailed(String message) {
         Notification.show("Couldn't cancel: " + message, 4000,
+                        Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    /** After a ticket is removed (II.2.7) — reload so totals/items refresh. */
+    public void onItemRemoved() {
+        Notification.show("Ticket removed from order", 2500, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        UI.getCurrent().getPage().reload();
+    }
+
+    public void onRemoveFailed(String message) {
+        Notification.show("Couldn't remove ticket: " + message, 4000,
+                        Notification.Position.MIDDLE)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    /** Backend reversed the last logged action — reload so the grid shows it again. */
+    public void onUndoSucceeded() {
+        Notification.show("Last action undone", 2500, Notification.Position.TOP_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        UI.getCurrent().getPage().reload();
+    }
+
+    public void onUndoFailed(String message) {
+        Notification.show("Couldn't undo: " + message, 4000,
                         Notification.Position.MIDDLE)
                 .addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
@@ -202,11 +229,22 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
         totals.setSpacing(true);
         totals.getStyle().set("margin", "16px 0 8px 0");
 
+        boolean active = "ACTIVE".equalsIgnoreCase(o.getStatus());
+
         Grid<OrderItemDTO> grid = new Grid<>(OrderItemDTO.class, false);
         grid.addColumn(it -> shortId(safeUuid(it.getTicketId()))).setHeader("Ticket");
         grid.addColumn(it -> it.getSeatId() == null ? "GA" : String.valueOf(it.getSeatId())).setHeader("Seat");
         grid.addColumn(it -> shortId(it.getAreaId())).setHeader("Area");
         grid.addColumn(it -> money(it.getPrice())).setHeader("Price");
+        // II.2.7 — remove a single ticket from the order (reduce quantity),
+        // instead of only being able to cancel the whole order.
+        grid.addComponentColumn(it -> {
+            Button remove = new Button("Remove", e -> presenter.removeItem(it.getItemId()));
+            remove.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY,
+                    ButtonVariant.LUMO_SMALL);
+            remove.setEnabled(active);
+            return remove;
+        }).setHeader("");
         grid.setItems(o.getItems());
         grid.setAllRowsVisible(true);
         grid.setWidthFull();
@@ -219,6 +257,19 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
                 .set("padding", "10px 22px")
                 .set("border-radius", "8px");
         cancel.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));
+
+        // II.2.7 — undo last logged action on this order. Currently the
+        // backend only handles REMOVE_TICKET; other types throw a clear
+        // message that onUndoFailed surfaces to the user.
+        Button undo = new Button("↶ Undo last action", e -> presenter.undoLastAction());
+        undo.getStyle()
+                .set("background", "#fff")
+                .set("color", "#026cdf")
+                .set("border", "2px solid #026cdf")
+                .set("font-weight", "700")
+                .set("padding", "10px 22px")
+                .set("border-radius", "8px");
+        undo.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));
         Button checkout = new Button("Checkout", e -> {
             getUI().ifPresent(ui -> {
                 ui.getSession().setAttribute("checkoutOrderId", o.getOrderId().toString());
@@ -246,7 +297,17 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
 
         checkout.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));        
 
-        HorizontalLayout actions = new HorizontalLayout(checkout, cancel);
+        Button addMore = new Button("+ Add Tickets", e -> {
+        UI.getCurrent().getSession().setAttribute("eventId", o.getEventId().toString());
+        UI.getCurrent().navigate("EventDetails");
+        });
+        addMore.getStyle()
+        .set("background", "#2e7d32").set("color", "white")
+        .set("font-weight", "700").set("padding", "10px 22px")
+        .set("border-radius", "8px");
+        addMore.setEnabled(active);
+
+        HorizontalLayout actions = new HorizontalLayout(checkout, undo, cancel, addMore);
         actions.getStyle().set("margin-top", "16px");
 
         card.add(title, status, meta, totals, grid, actions);
