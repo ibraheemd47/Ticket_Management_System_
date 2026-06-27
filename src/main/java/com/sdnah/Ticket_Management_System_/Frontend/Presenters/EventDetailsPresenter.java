@@ -415,10 +415,7 @@ public class EventDetailsPresenter {
             // quantity-conditional rules. Combine event + company like checkout.
             double eventPct   = eventPolicy   != null ? sumPercentageRules(eventPolicy.getRootRule())   : 0.0;
             double companyPct = companyPolicy != null ? sumPercentageRules(companyPolicy.getRootRule()) : 0.0;
-            // double combinedPct = Math.max(0.0, Math.min(100.0, eventPct + companyPct));
-            // if (combinedPct <= 0.0) return null;
-            // double finalPrice = subtotal * (1.0 - combinedPct / 100.0);
-            // return new DiscountPreview(combinedPct, subtotal, finalPrice, null);
+           
             double finalPrice = subtotal * (1.0 - eventPct / 100.0) * (1.0 - companyPct / 100.0);
             if (finalPrice >= subtotal) return null;
             double combinedPct = (1.0 - finalPrice / subtotal) * 100.0;

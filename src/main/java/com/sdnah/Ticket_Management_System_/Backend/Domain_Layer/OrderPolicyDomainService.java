@@ -135,60 +135,63 @@ public class OrderPolicyDomainService {
     // =========================================================================
     // UC II.2.8 — Apply discount policy to order
     // =========================================================================
-    //old :
-    // public void applyDiscountPolicy(ActiveOrder order, DiscountPolicy policy, String couponCode) {
+    public void applyCombinedDiscounts(ActiveOrder order,
+                                   DiscountPolicy eventPolicy,
+                                   DiscountPolicy companyPolicy,
+                                   String couponCode) 
+    {
+        double originalTotal = order.getTotal().doubleValue();
+        int quantity = order.getItems().size();
+
+        DiscountContext context = new DiscountContext(
+            quantity, LocalDateTime.now(), couponCode, originalTotal, order.getEventId());
+
+        double eventBase   = eventPolicy   != null ? eventPolicy.computeBaseDiscount(context)   : 0.0;
+        double companyBase = companyPolicy != null ? companyPolicy.computeBaseDiscount(context) : 0.0;
+        double eventCoupon   = eventPolicy   != null ? eventPolicy.computeCouponDiscount(context)   : 0.0;
+        double companyCoupon = companyPolicy != null ? companyPolicy.computeCouponDiscount(context) : 0.0;
+
+        double totalCouponPct = Math.min(100.0, eventCoupon + companyCoupon);
+
+        double finalPrice = originalTotal
+            * (1.0 - eventBase / 100.0)
+            * (1.0 - companyBase / 100.0)
+            * (1.0 - totalCouponPct / 100.0);
+
+        order.updateFinalPrice(finalPrice);
+        if (couponCode != null && !couponCode.isBlank()) {
+            order.setAppliedCouponCode(couponCode);
+        }
+
+    }
+    //old:
+    // public void applyCombinedDiscounts(ActiveOrder order,
+    //                                DiscountPolicy eventPolicy,
+    //                                DiscountPolicy companyPolicy,
+    //                                String couponCode) {
     //     validateOrder(order);
     //     double originalTotal = order.getTotal().doubleValue();
     //     int    quantity      = order.getItems().size();
 
-    //     if (policy == null) {
-    //         order.updateFinalPrice(originalTotal);
-    //         return;
-    //     }
-
     //     DiscountContext context = new DiscountContext(
-    //             quantity,
-    //             LocalDateTime.now(),
-    //             couponCode,
-    //             originalTotal,
-    //             order.getEventId()
-    //     );
+    //             quantity, LocalDateTime.now(), couponCode, originalTotal, order.getEventId());
 
-    //     double finalPrice = policy.computeFinalPrice(originalTotal, context);
+    //     // each policy returns a percentage; whichever doesn't recognize the coupon returns 0
+    //     double eventPct   = eventPolicy   != null ? eventPolicy.computeDiscount(context)   : 0.0;
+    //     double companyPct = companyPolicy != null ? companyPolicy.computeDiscount(context) : 0.0;
+
+    //     // stacking = add the percentages, clamped to 0..100
+    //     // double combinedPct = Math.max(0.0, Math.min(100.0, eventPct + companyPct));
+
+    //     // double finalPrice = originalTotal * (1.0 - combinedPct / 100.0);
+    //     double finalPrice = originalTotal * (1.0 - eventPct / 100.0) * (1.0 - companyPct / 100.0);
+
     //     order.updateFinalPrice(finalPrice);
 
     //     if (couponCode != null && !couponCode.isBlank()) {
     //         order.setAppliedCouponCode(couponCode);
     //     }
     // }
-    //new:
-    public void applyCombinedDiscounts(ActiveOrder order,
-                                   DiscountPolicy eventPolicy,
-                                   DiscountPolicy companyPolicy,
-                                   String couponCode) {
-        validateOrder(order);
-        double originalTotal = order.getTotal().doubleValue();
-        int    quantity      = order.getItems().size();
-
-        DiscountContext context = new DiscountContext(
-                quantity, LocalDateTime.now(), couponCode, originalTotal, order.getEventId());
-
-        // each policy returns a percentage; whichever doesn't recognize the coupon returns 0
-        double eventPct   = eventPolicy   != null ? eventPolicy.computeDiscount(context)   : 0.0;
-        double companyPct = companyPolicy != null ? companyPolicy.computeDiscount(context) : 0.0;
-
-        // stacking = add the percentages, clamped to 0..100
-        // double combinedPct = Math.max(0.0, Math.min(100.0, eventPct + companyPct));
-
-        // double finalPrice = originalTotal * (1.0 - combinedPct / 100.0);
-        double finalPrice = originalTotal * (1.0 - eventPct / 100.0) * (1.0 - companyPct / 100.0);
-
-        order.updateFinalPrice(finalPrice);
-
-        if (couponCode != null && !couponCode.isBlank()) {
-            order.setAppliedCouponCode(couponCode);
-        }
-    }
 
     // =========================================================================
     // UC II.2.4 — Validate a single purchase policy against order
