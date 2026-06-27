@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.ManagerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.OwnerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
@@ -232,6 +233,52 @@ public class ManagingCompanyView extends VerticalLayout implements BeforeEnterOb
             accept.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SUCCESS);
             Button decline = new Button("Decline",
                     e -> presenter.respondToOwnerInvite(inv.getRequestId(), false));
+            decline.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+            row.add(text, accept, decline);
+            card.add(row);
+        }
+        chooserSlot.add(card);
+    }
+
+    /** II.4.7 — pending manager-appointment invites for the current user. */
+    public void showPendingManagerInvites(List<ManagerAppointmentRequestDTO> invites) {
+        if (invites == null || invites.isEmpty()) return;
+
+        Div card = new Div();
+        card.getStyle()
+                .set("background", "#e8f5e9")
+                .set("border", "2px solid #43a047")
+                .set("border-radius", "10px")
+                .set("padding", "16px")
+                .set("margin-bottom", "16px");
+
+        H2 title = new H2("Pending manager invitations (" + invites.size() + ")");
+        title.getStyle().set("margin", "0 0 8px 0").set("font-size", "18px");
+        card.add(title);
+
+        for (ManagerAppointmentRequestDTO inv : invites) {
+            HorizontalLayout row = new HorizontalLayout();
+            row.setWidthFull();
+            row.setDefaultVerticalComponentAlignment(
+                    com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
+
+            String permList = inv.getPermissions() == null || inv.getPermissions().isEmpty()
+                    ? "no extra permissions"
+                    : inv.getPermissions().stream()
+                            .map(Enum::name)
+                            .sorted()
+                            .reduce((a, b) -> a + ", " + b).orElse("");
+            Span text = new Span(inv.getAppointerName()
+                    + " invites you to manage '" + inv.getCompanyName() + "'"
+                    + " (" + permList + ").");
+            text.getStyle().set("flex", "1");
+
+            Button accept = new Button("Accept",
+                    e -> presenter.respondToManagerInvite(inv.getRequestId(), true));
+            accept.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SUCCESS);
+            Button decline = new Button("Decline",
+                    e -> presenter.respondToManagerInvite(inv.getRequestId(), false));
             decline.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
             row.add(text, accept, decline);

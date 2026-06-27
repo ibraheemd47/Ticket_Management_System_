@@ -233,6 +233,29 @@ public class NotificationService {
         );
     }
 
+    public String notifyManagerAppointmentRequested(String recipientUsername,
+                                                    String companyName,
+                                                    String appointerName) {
+        return createNotification(
+                recipientUsername,
+                appointerName + " invited you to become a manager of '" + companyName + "'. "
+                        + "Open the company chooser to accept or decline.",
+                NotificationType.MANAGER_APPOINTMENT_REQUESTED
+        );
+    }
+
+    public String notifyManagerAppointmentResponded(String recipientUsername,
+                                                    String companyName,
+                                                    String candidateName,
+                                                    boolean accepted) {
+        return createNotification(
+                recipientUsername,
+                candidateName + (accepted ? " accepted" : " declined")
+                        + " your manager invitation for '" + companyName + "'.",
+                NotificationType.MANAGER_APPOINTMENT_RESPONDED
+        );
+    }
+
     public String notifyManagerRemoved(String recipientUsername, String companyName) {
         return createNotification(
                 recipientUsername,

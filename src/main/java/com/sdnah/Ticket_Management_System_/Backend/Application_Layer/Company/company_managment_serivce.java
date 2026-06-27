@@ -22,6 +22,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.IrepresnteU
 import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.Notifications.NotificationService;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.ManagerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.OwnerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
@@ -40,7 +41,9 @@ import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.CompanyRole
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.User.Member;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.CompanyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.IEventRepository;
+import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.ManagerAppointmentRequest;
 import com.sdnah.Ticket_Management_System_.Backend.Domain_Layer.Company.OwnerAppointmentRequest;
+import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.ManagerAppointmentRequestRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.OwnerAppointmentRequestRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PolicyRepository;
 import com.sdnah.Ticket_Management_System_.Backend.Infastructure_Layer.PurchaseRepository;
@@ -60,6 +63,7 @@ public class company_managment_serivce {
     private PolicyRepository policyRepo;
     private final PurchaseRepository purchaseRepository;
     private final OwnerAppointmentRequestRepository ownerRequestRepository;
+    private final ManagerAppointmentRequestRepository managerRequestRepository;
 
     @Autowired
     public company_managment_serivce(CompanyRepository companyRepository,
@@ -68,7 +72,8 @@ public class company_managment_serivce {
             IrepresnteUserService representUserService,
             NotificationService notificationService, PolicyRepository policyRepo,
             PurchaseRepository purchaseRepository,
-            OwnerAppointmentRequestRepository ownerRequestRepository) {
+            OwnerAppointmentRequestRepository ownerRequestRepository,
+            ManagerAppointmentRequestRepository managerRequestRepository) {
 
         this.companyAuthorizationDomainService = new CompanyAuthorizationDomainService();
         this.companyRepository = companyRepository;
@@ -79,6 +84,20 @@ public class company_managment_serivce {
         this.policyRepo = policyRepo;
         this.purchaseRepository = purchaseRepository;
         this.ownerRequestRepository = ownerRequestRepository;
+        this.managerRequestRepository = managerRequestRepository;
+    }
+
+    /** 8-arg overload — leaves the manager-request repo unwired (null). */
+    public company_managment_serivce(CompanyRepository companyRepository,
+            UserRepository userRepository,
+            IEventRepository eventRepository,
+            IrepresnteUserService representUserService,
+            NotificationService notificationService, PolicyRepository policyRepo,
+            PurchaseRepository purchaseRepository,
+            OwnerAppointmentRequestRepository ownerRequestRepository) {
+        this(companyRepository, userRepository, eventRepository, representUserService,
+                notificationService, policyRepo, purchaseRepository,
+                ownerRequestRepository, null);
     }
 
     /** 7-arg overload — wires the new owner-request flow into a null repo. */
@@ -506,6 +525,12 @@ public class company_managment_serivce {
     }
 
     // --- II.4.7: View and Appoint Company Managers ---
+    /**
+     * Direct (no-approval) manager appointment. Kept for tests and the
+     * legacy code path; the production UI now goes through
+     * {@link #requestManagerAppointment} so the candidate has to accept
+     * first.
+     */
     @Transactional
     public void appointManager(String actorToken, UUID companyId, String newManagerId,
             Set<CompanyPermission> permissions) {
@@ -514,23 +539,138 @@ public class company_managment_serivce {
 
         companyAuthorizationDomainService.assertCanAssignManager(actor, company);
 
-        company.appointManager(actor.getMemberId(), newManagerId, permissions);
-        companyRepository.save(company);
-        Member newManager = userRepository.findById(newManagerId)
-                .orElseThrow(() -> new NoSuchElementException("New manager member not found"));
-
-        newManager.addCompanyRole(new CompanyRoleAssignment(
-                companyId,
-                actor.getMemberId(),
-                CompanyRoleType.MANAGER,
-                Set.of()));
-        userRepository.save(newManager);
+        appointManagerInternal(company, actor.getMemberId(), newManagerId, permissions);
 
         //notification: notify new manager
         notificationService.notifyManagerAppointed(newManagerId, company.getCompanyName());
 
         logger.info("Manager appointed successfully. companyId={}, newManagerId={}, actingOwnerId={}",
                 companyId, newManagerId, actor.getMemberId());
+    }
+
+    /** Shared commit step for direct + accepted appointments. */
+    private void appointManagerInternal(Company company,
+                                        String actingOwnerId,
+                                        String newManagerId,
+                                        Set<CompanyPermission> permissions) {
+        company.appointManager(actingOwnerId, newManagerId, permissions);
+        companyRepository.save(company);
+        Member newManager = userRepository.findById(newManagerId)
+                .orElseThrow(() -> new NoSuchElementException("New manager member not found"));
+
+        newManager.addCompanyRole(new CompanyRoleAssignment(
+                company.getCompanyId(),
+                actingOwnerId,
+                CompanyRoleType.MANAGER,
+                Set.of()));
+        userRepository.save(newManager);
+    }
+
+    /**
+     * II.4.7 (request flow) — create a pending manager-appointment request
+     * and notify the candidate. The candidate must
+     * {@link #respondToManagerAppointment respond} before they actually
+     * become a manager. The requested permission set is carried on the
+     * request so the candidate sees what's being asked for.
+     */
+    @Transactional
+    public UUID requestManagerAppointment(String actorToken, UUID companyId,
+                                          String candidateId,
+                                          Set<CompanyPermission> permissions) {
+        if (managerRequestRepository == null)
+            throw new IllegalStateException("Manager request flow is not wired (legacy constructor)");
+        Company company = getCompanyOrThrow(companyId);
+        Member actor = getActorFromToken(actorToken);
+
+        // Same authorization gate as a direct appointment.
+        companyAuthorizationDomainService.assertCanAssignManager(actor, company);
+
+        String trimmed = candidateId == null ? "" : candidateId.trim();
+        if (trimmed.isEmpty()) throw new IllegalArgumentException("candidate required");
+        if (company.isManager(trimmed))
+            throw new IllegalArgumentException("User is already a manager of this company.");
+        if (company.isOwner(trimmed))
+            throw new IllegalArgumentException("User is already an owner — cannot also be a manager.");
+
+        if (managerRequestRepository.findByCompanyIdAndCandidateIdAndStatus(
+                companyId, trimmed, ManagerAppointmentRequest.Status.PENDING).isPresent()) {
+            throw new IllegalStateException("There's already a pending invite for this user.");
+        }
+
+        userRepository.findById(trimmed)
+                .orElseThrow(() -> new NoSuchElementException("Candidate member not found: " + trimmed));
+
+        ManagerAppointmentRequest req = new ManagerAppointmentRequest(
+                companyId, trimmed, actor.getMemberId(), permissions);
+        managerRequestRepository.save(req);
+
+        notificationService.notifyManagerAppointmentRequested(
+                trimmed, company.getCompanyName(),
+                actor.getUsername() == null ? actor.getMemberId() : actor.getUsername());
+
+        logger.info("Manager appointment requested. companyId={}, candidateId={}, by={}",
+                companyId, trimmed, actor.getMemberId());
+        return req.getId();
+    }
+
+    /**
+     * II.4.7 (request flow) — candidate accepts or rejects a pending
+     * manager-appointment request. On accept, the same domain wiring as a
+     * direct appointment is applied; the original appointer is notified
+     * either way.
+     */
+    @Transactional
+    public void respondToManagerAppointment(String actorToken, UUID requestId, boolean accept) {
+        if (managerRequestRepository == null)
+            throw new IllegalStateException("Manager request flow is not wired (legacy constructor)");
+        Member actor = getActorFromToken(actorToken);
+        ManagerAppointmentRequest req = managerRequestRepository.findById(requestId)
+                .orElseThrow(() -> new NoSuchElementException("Request not found: " + requestId));
+
+        if (!actor.getMemberId().equals(req.getCandidateId()))
+            throw new SecurityException("Only the invited candidate can respond to this request.");
+
+        Company company = getCompanyOrThrow(req.getCompanyId());
+
+        if (accept) {
+            req.accept();
+            appointManagerInternal(company, req.getAppointerId(),
+                    req.getCandidateId(), req.getPermissions());
+            notificationService.notifyManagerAppointed(req.getCandidateId(), company.getCompanyName());
+        } else {
+            req.reject();
+        }
+        managerRequestRepository.save(req);
+
+        String candidateDisplay = actor.getUsername() == null
+                ? req.getCandidateId() : actor.getUsername();
+        notificationService.notifyManagerAppointmentResponded(
+                req.getAppointerId(), company.getCompanyName(), candidateDisplay, accept);
+
+        logger.info("Manager appointment {} for request {} by candidate {}",
+                accept ? "ACCEPTED" : "REJECTED", requestId, actor.getMemberId());
+    }
+
+    /** Pending manager invites the current member can act on (II.4.7). */
+    @Transactional(readOnly = true)
+    public List<ManagerAppointmentRequestDTO> getPendingManagerInvites(String actorToken) {
+        if (managerRequestRepository == null) return List.of();
+        Member actor = getActorFromToken(actorToken);
+        List<ManagerAppointmentRequest> pending = managerRequestRepository
+                .findByCandidateIdAndStatus(actor.getMemberId(),
+                        ManagerAppointmentRequest.Status.PENDING);
+        List<ManagerAppointmentRequestDTO> out = new java.util.ArrayList<>();
+        for (ManagerAppointmentRequest r : pending) {
+            String companyName = companyRepository.findById(r.getCompanyId())
+                    .map(Company::getCompanyName).orElse("(unknown company)");
+            String appointerName = userRepository.findById(r.getAppointerId())
+                    .map(Member::getUsername).orElse(r.getAppointerId());
+            out.add(new ManagerAppointmentRequestDTO(
+                    r.getId(), r.getCompanyId(), companyName,
+                    r.getAppointerId(), appointerName,
+                    r.getPermissions(), r.getCreatedAt()));
+        }
+        return out;
     }
 
     // // --- II.4.13 & II.4.14: Set Company Status (Open/Close) ---

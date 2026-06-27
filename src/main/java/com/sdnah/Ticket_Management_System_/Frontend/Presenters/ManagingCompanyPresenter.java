@@ -17,6 +17,7 @@ import com.sdnah.Ticket_Management_System_.Backend.Application_Layer.UserService
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.ComplaintDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.CompanyRolesViewDTO;
+import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.ManagerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.OwnerAppointmentRequestDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.PurchaseHistoryEntryDTO;
 import com.sdnah.Ticket_Management_System_.Backend.DTOs.Company.SalesReportDTO;
@@ -114,6 +115,8 @@ public class ManagingCompanyPresenter {
             view.showMyCompanies(resolveMyCompanies(me));
             view.showPendingOwnerInvites(
                     companyService.getPendingOwnerInvites(token));
+            view.showPendingManagerInvites(
+                    companyService.getPendingManagerInvites(token));
         } catch (RuntimeException ex) {
             view.showCompanyChooserError("Couldn't load your companies: " + ex.getMessage());
         }
@@ -210,13 +213,28 @@ public class ManagingCompanyPresenter {
         }
     }
 
-    /** Appoint a manager with the selected permission set (II.4.7). */
+    /**
+     * II.4.7 — invite a candidate to become a manager with the selected
+     * permission set. The candidate has to accept from their own "My
+     * companies" page before they actually become a manager.
+     */
     public void appointManager(String memberId, Set<CompanyPermission> permissions) {
         try {
-            companyService.appointManager(token, companyId, memberId, permissions);
-            view.onRoleMutationSucceeded("Manager appointed");
+            companyService.requestManagerAppointment(token, companyId, memberId, permissions);
+            view.onRoleMutationSucceeded("Invite sent — awaiting acceptance");
         } catch (RuntimeException ex) {
             view.showError(ex.getMessage());
+        }
+    }
+
+    /** II.4.7 — candidate accepts or rejects a pending manager-appointment invite. */
+    public void respondToManagerInvite(UUID requestId, boolean accept) {
+        try {
+            companyService.respondToManagerAppointment(token, requestId, accept);
+            view.showSuccess(accept ? "Invitation accepted" : "Invitation declined");
+            loadMyCompanies();
+        } catch (RuntimeException ex) {
+            view.showError("Couldn't respond to invite: " + ex.getMessage());
         }
     }
 
