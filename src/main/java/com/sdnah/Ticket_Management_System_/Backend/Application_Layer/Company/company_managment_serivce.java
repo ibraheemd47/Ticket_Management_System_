@@ -858,12 +858,26 @@ public class company_managment_serivce {
 
         companyAuthorizationDomainService.assertCanAdminCloseCompany(actor, company);
 
+        // boolean changed = company.adminCloseCompany();
+        // companyRepository.save(company);
+
+        // if (changed) {
+        //     notifyCompanyRoleMembers(company, true);
+        // }
+        Set<String> recipientsBefore = new HashSet<>();
+        recipientsBefore.add(company.getCompanyFounderId());
+        recipientsBefore.addAll(company.getOwnerIds());
+        recipientsBefore.addAll(company.getManagerPermissionsView().keySet());
+ 
         boolean changed = company.adminCloseCompany();
-        companyRepository.save(company);
+         companyRepository.save(company);
 
         if (changed) {
-            notifyCompanyRoleMembers(company, true);
+        for (String recipient : recipientsBefore) {
+            if (recipient == null || recipient.isBlank()) continue;
+            notificationService.notifyCompanyClosed(recipient, company.getCompanyName());
         }
+    }
 
         logger.info("Company closed by system admin. companyId={}, adminId={}, changed={}",
                 companyId, actor.getMemberId(), changed);

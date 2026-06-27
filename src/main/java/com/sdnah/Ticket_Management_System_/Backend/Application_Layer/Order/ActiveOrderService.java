@@ -212,6 +212,7 @@ public class ActiveOrderService {
         String buyerId = resolveBuyerId(userToken);
         ActiveOrder order = findValidOrder(orderId, buyerId);
         OrderItem removed = order.removeTicket(itemId);
+        ticketDomainService.releaseAllTickets(List.of(removed.getTicketId()));
 
         // Record the action so the user can undo it (re-acquire the same seat).
         actionLogRepo.save(OrderActionLog.forRemovedTicket(order.getId(), removed));

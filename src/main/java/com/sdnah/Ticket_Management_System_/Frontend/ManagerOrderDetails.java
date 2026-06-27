@@ -299,7 +299,17 @@ public class ManagerOrderDetails extends VerticalLayout implements BeforeEnterOb
 
         checkout.setEnabled("ACTIVE".equalsIgnoreCase(o.getStatus()));        
 
-        HorizontalLayout actions = new HorizontalLayout(checkout, undo, cancel);
+        Button addMore = new Button("+ Add Tickets", e -> {
+        UI.getCurrent().getSession().setAttribute("eventId", o.getEventId().toString());
+        UI.getCurrent().navigate("EventDetails");
+        });
+        addMore.getStyle()
+        .set("background", "#2e7d32").set("color", "white")
+        .set("font-weight", "700").set("padding", "10px 22px")
+        .set("border-radius", "8px");
+        addMore.setEnabled(active);
+
+        HorizontalLayout actions = new HorizontalLayout(checkout, undo, cancel, addMore);
         actions.getStyle().set("margin-top", "16px");
 
         card.add(title, status, meta, totals, grid, actions);
