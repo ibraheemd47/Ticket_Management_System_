@@ -598,6 +598,66 @@ public class InitialStateLoader implements CommandLineRunner {
                                 actor.getMemberId());
         }
 
+        // private SeatedArea createSeatedArea(
+        // String name,
+        // int numberOfBlocks,
+        // int rowsPerBlock,
+        // int seatsPerRow) {
+
+        // SeatedArea seatedArea = new SeatedArea(
+        // name,
+        // numberOfBlocks);
+
+        // List<Block> blocks = new ArrayList<>();
+
+        // long idSequence = 1;
+
+        // for (int blockIndex = 0; blockIndex < numberOfBlocks; blockIndex++) {
+
+        // String blockName = String.valueOf(
+        // (char) ('A' + blockIndex));
+
+        // Block block = new Block(
+        // idSequence++,
+        // blockName,
+        // rowsPerBlock,
+        // seatedArea);
+
+        // List<Row> rows = new ArrayList<>();
+
+        // for (int rowIndex = 0; rowIndex < rowsPerBlock; rowIndex++) {
+
+        // Row row = new Row(
+        // idSequence++,
+        // String.valueOf(rowIndex + 1),
+        // seatsPerRow,
+        // block);
+
+        // List<Seat> seats = new ArrayList<>();
+
+        // for (int seatIndex = 1; seatIndex <= seatsPerRow; seatIndex++) {
+
+        // Seat seat = new Seat(
+        // idSequence++,
+        // String.valueOf(seatIndex),
+        // row);
+
+        // seats.add(seat);
+        // }
+
+        // row.setSeats(seats);
+        // rows.add(row);
+        // }
+
+        // block.setRows(rows);
+        // blocks.add(block);
+        // }
+
+        // seatedArea.setBlocks(blocks);
+
+        // return seatedArea;
+        // }
+
         private SeatedArea createSeatedArea(
                         String name,
                         int numberOfBlocks,
@@ -610,37 +670,50 @@ public class InitialStateLoader implements CommandLineRunner {
 
                 List<Block> blocks = new ArrayList<>();
 
-                long idSequence = 1;
-
                 for (int blockIndex = 0; blockIndex < numberOfBlocks; blockIndex++) {
 
                         String blockName = String.valueOf(
                                         (char) ('A' + blockIndex));
 
                         Block block = new Block(
-                                        idSequence++,
+                                        0,
                                         blockName,
                                         rowsPerBlock,
                                         seatedArea);
+
+                        /*
+                         * Let PostgreSQL generate the ID.
+                         */
+                        block.setId(null);
 
                         List<Row> rows = new ArrayList<>();
 
                         for (int rowIndex = 0; rowIndex < rowsPerBlock; rowIndex++) {
 
                                 Row row = new Row(
-                                                idSequence++,
+                                                0,
                                                 String.valueOf(rowIndex + 1),
                                                 seatsPerRow,
                                                 block);
+
+                                /*
+                                 * Let PostgreSQL generate the ID.
+                                 */
+                                row.setId(null);
 
                                 List<Seat> seats = new ArrayList<>();
 
                                 for (int seatIndex = 1; seatIndex <= seatsPerRow; seatIndex++) {
 
                                         Seat seat = new Seat(
-                                                        idSequence++,
+                                                        0,
                                                         String.valueOf(seatIndex),
                                                         row);
+
+                                        /*
+                                         * Let PostgreSQL generate the ID.
+                                         */
+                                        seat.setId(null);
 
                                         seats.add(seat);
                                 }
@@ -657,7 +730,6 @@ public class InitialStateLoader implements CommandLineRunner {
 
                 return seatedArea;
         }
-
         // =========================================================
         // POLICY ACTIONS
         // =========================================================

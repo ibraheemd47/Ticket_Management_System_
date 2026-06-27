@@ -79,11 +79,11 @@
       "singer": "Performer 1",
       "showDate": "2026-07-01",
       "standingCapacity": 10,
-      "standingPrice": 20,
+      "standingPrice": 10,
       "numberOfBlocks": 1,
       "rowsPerBlock": 1,
       "seatsPerRow": 10,
-      "seatedPrice": 20
+      "seatedPrice": 10
     }
   },
   {
