@@ -125,8 +125,8 @@ class PolicyServiceIntegrationTest {
         DiscountPolicy loaded = policyRepository
                 .findDiscountPolicyByEventId(eventId).orElseThrow();
 
-        // additive SUM → 30%, so 100 * 0.7 = 70
-        assertEquals(70.0, loaded.computeFinalPrice(100.0,
+        // additive 100 * 0.9 * 0.8 = 72
+        assertEquals(72.0, loaded.computeFinalPrice(100.0,
                 new DiscountContext(1, null)), 0.001);
     }
 

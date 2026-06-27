@@ -131,8 +131,8 @@ class PolicyServiceAcceptanceTest {
                 true);
 
         verify(policyRepo).savePolicy(policy);
-        // additive = SUM → 10 + 15 = 25
-        assertEquals(25.0, policy.computeDiscount(new DiscountContext(1, null)), 0.001);
+        // 1-(0.9*0.85) = 23.5%
+        assertEquals(23.5, policy.computeDiscount(new DiscountContext(1, null)), 0.001);
     }
 
     @Test

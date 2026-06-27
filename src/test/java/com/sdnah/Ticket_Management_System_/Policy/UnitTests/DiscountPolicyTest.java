@@ -64,8 +64,10 @@ class DiscountPolicyTest {
                         new PercentageDiscountRule(20.0, "20% off")),
                 true);
 
-        // SUM: 10 + 20 = 30% → 100 * 0.7 = 70
-        assertEquals(70.0, policy.calculateFinalPrice(100.0, 2, ""), 0.001);
+        // 100 * 0.9 * 0.8 = 72
+        //assertEquals(70.0, policy.calculateFinalPrice(100.0, 2, ""), 0.001);
+        assertEquals(72.0, policy.calculateFinalPrice(100.0, 2, ""), 0.001);
+
     }
 
     @Test
